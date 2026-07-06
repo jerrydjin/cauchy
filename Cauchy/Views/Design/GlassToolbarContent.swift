@@ -11,6 +11,13 @@ struct GlassToolbarContent: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItemGroup {
             Button {
+                workspace.closeDocument()
+            } label: {
+                Label("Home", systemImage: "house.fill")
+            }
+            .help("Return to Dashboard")
+            
+            Button {
                 workspace.openDocument()
             } label: {
                 Label("Open", systemImage: "doc")

@@ -129,6 +129,30 @@ final class DocumentPersistenceService: @unchecked Sendable {
         }
     }
 
+    func listAllWorkspaces() throws -> [PersistedWorkspace] {
+        let root = applicationSupportRoot()
+        guard FileManager.default.fileExists(atPath: root.path) else { return [] }
+
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: nil
+        ) else { return [] }
+
+        var workspaces: [PersistedWorkspace] = []
+
+        for entry in entries where entry.hasDirectoryPath {
+            let fileURL = entry.appendingPathComponent("workspace.json")
+            guard FileManager.default.fileExists(atPath: fileURL.path),
+                  let data = try? Data(contentsOf: fileURL),
+                  let persisted = try? decoder.decode(PersistedWorkspace.self, from: data) else {
+                continue
+            }
+            workspaces.append(persisted)
+        }
+
+        return workspaces.sorted { $0.workspace.lastOpenedAt > $1.workspace.lastOpenedAt }
+    }
+
     private func loadFromApplicationSupport(matching documentURL: URL) throws -> PersistedWorkspace? {
         let root = applicationSupportRoot()
         guard FileManager.default.fileExists(atPath: root.path) else { return nil }

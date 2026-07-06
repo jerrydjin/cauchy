@@ -15,7 +15,7 @@ struct GeminiCloudLanguageModel: LanguageModel {
     }
 
     var capabilities: LanguageModelCapabilities {
-        LanguageModelCapabilities(capabilities: [])
+        LanguageModelCapabilities([])
     }
 
     var executorConfiguration: GeminiCloudLanguageModelExecutor.Configuration {

@@ -24,6 +24,8 @@ enum GeminiTranscriptMapper {
                         "parts": [["text": text]],
                     ])
                 }
+            case .reasoning, .toolCalls, .toolOutput:
+                break // We don't support reasoning or tools natively yet in this mapper
             @unknown default:
                 break
             }

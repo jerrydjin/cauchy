@@ -108,6 +108,7 @@ final class WorkspaceViewModel {
             isNewDocument = false
             workspace = persisted.workspace
             workspace?.documentURL = resolvedURL
+            workspace?.lastOpenedAt = Date()
             viewportCoordinator.viewport = persisted.workspace.primaryViewport
             highlightStore.load(from: persisted.workspace)
             if let bookmark = persisted.bookmarkData {
@@ -126,6 +127,30 @@ final class WorkspaceViewModel {
         syncHighlightAnnotations()
         buildReferenceIndex(for: resolvedURL)
         persistWorkspace()
+    }
+
+    func closeDocument() {
+        if workspace != nil {
+            persistWorkspace()
+        }
+
+        stopSecurityScopedAccess()
+        pdfDocument = nil
+        workspace = nil
+        bookmarkData = nil
+
+        highlightStore.highlights.removeAll()
+        referenceIndex.clear()
+        selectionThread.activeThread = nil
+        contextEngine.reset()
+        viewportCoordinator = ViewportCoordinator()
+        
+        selectionModeActive = false
+        showOCRResult = false
+        ocrResult = nil
+        ocrPreviewImage = nil
+        errorMessage = nil
+        isProcessingOCR = false
     }
 
     func handleSelection(_ capture: SelectionCapture) {

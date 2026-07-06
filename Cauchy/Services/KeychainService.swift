@@ -26,7 +26,6 @@ enum KeychainService {
         return String(data: data, encoding: .utf8)
     }
 
-    @discardableResult
     static func saveGeminiAPIKey(_ key: String) throws {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {

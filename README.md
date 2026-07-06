@@ -68,3 +68,32 @@ Workspace state is saved under Application Support at `~/Library/Application Sup
 ## Sandbox
 
 The app uses App Sandbox with user-selected file read/write access. Open PDFs via **Open PDF…** (⌘O) to grant security-scoped access.
+
+## Releases & Distribution
+
+The project includes a GitHub Actions workflow (`.github/workflows/release.yml`) that automatically builds an unsigned `.dmg` file whenever a new tag (e.g., `v1.0.0`) is pushed to the repository.
+
+### Updating for Apple Notarization (macOS Gatekeeper)
+
+Currently, the GitHub Action generates an **unsigned** `.dmg`. When users download the app, macOS Gatekeeper will warn them that the app is from an unidentified developer. To resolve this and fully follow Apple's guidelines, you need to sign and notarize the app using an Apple Developer account.
+
+Here is what you need to do once you enroll in the Apple Developer Program:
+
+1. **Create a Developer ID Certificate:**
+   Generate a "Developer ID Application" certificate in your Apple Developer account and export it as a `.p12` file.
+
+2. **Add Secrets to GitHub:**
+   In your GitHub repository settings under **Secrets and variables > Actions**, add the following:
+   - `BUILD_CERTIFICATE_BASE64`: The base64-encoded string of your `.p12` certificate.
+   - `P12_PASSWORD`: The password for your `.p12` certificate.
+   - `APPLE_ID`: Your Apple ID email address.
+   - `APPLE_ID_PASSWORD`: An App-Specific Password for your Apple ID.
+   - `TEAM_ID`: Your Apple Developer Team ID.
+
+3. **Update the GitHub Actions Workflow:**
+   Modify `.github/workflows/release.yml` to:
+   - Install the Apple certificate into the macOS runner's keychain.
+   - Change `CODE_SIGN_IDENTITY` to your Developer ID Application certificate name in the `xcodebuild` step.
+   - Set `CODE_SIGNING_REQUIRED=YES` and `CODE_SIGNING_ALLOWED=YES`.
+   - Add a step after the build to run `xcrun notarytool submit build/Cauchy.xcarchive/Products/Applications/Cauchy.app --apple-id $APPLE_ID --password $APPLE_ID_PASSWORD --team-id $TEAM_ID --wait`.
+   - Run `xcrun stapler staple` on the app or the `.dmg`.

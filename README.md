@@ -10,7 +10,11 @@ Native macOS PDF reader for dense technical textbooks, mathematics papers, and a
 Point `xcode-select` at your Xcode install if needed:
 
 ```bash
-sudo xcode-select -s /Users/jerryjin/Downloads/Xcode-beta.app/Contents/Developer
+# If using the default App Store install:
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+# If using Xcode Beta:
+sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 ```
 
 ## Features

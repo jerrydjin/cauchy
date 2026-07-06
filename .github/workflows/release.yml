@@ -44,8 +44,9 @@ jobs:
           mkdir -p dmg_source
           cp -R build/Cauchy.xcarchive/Products/Applications/Cauchy.app dmg_source/
           
-          # Create the DMG
-          hdiutil create -volname "Cauchy" -srcfolder dmg_source -ov -format UDZO Cauchy.dmg
+          # Create the DMG (using the modern diskutil command for macOS 27+)
+          rm -f Cauchy.dmg
+          diskutil image create from dmg_source --volumeName "Cauchy" --format UDZO Cauchy.dmg
 
       - name: Release
         uses: softprops/action-gh-release@v2

@@ -69,9 +69,10 @@ struct GlassToolbarContent: ToolbarContent {
                 .disabled(workspace.currentPage >= workspace.pageCount)
 
                 if workspace.isIndexingReferences {
-                    ProgressView(value: workspace.referenceIndexProgress)
-                        .frame(width: 48)
-                        .help("Indexing references")
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                        .help("Indexing document references for AI analysis...")
                 }
             }
         }

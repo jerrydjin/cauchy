@@ -134,7 +134,7 @@ enum LLMReferenceIndexBuilder {
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> DocumentReferenceIndexSnapshot {
         let fingerprint = try ReferenceIndexCacheStore.fingerprint(for: documentURL)
-        if let cached = try ReferenceIndexCacheStore.load(fingerprint: fingerprint) {
+        if let cached = try? ReferenceIndexCacheStore.load(fingerprint: fingerprint) {
             let pageCount = PDFDocument(url: documentURL)?.pageCount ?? 0
             return cached.asSnapshot(pageCount: pageCount)
         }

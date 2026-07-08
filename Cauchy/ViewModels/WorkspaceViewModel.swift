@@ -428,6 +428,10 @@ final class WorkspaceViewModel {
         let model = referenceIndexModel()
 
         referenceIndexTask = Task {
+            // Give the UI a moment to show the indexing state, preventing
+            // SwiftUI from missing the state change if the cache load is instantaneous.
+            try? await Task.sleep(for: .milliseconds(150))
+            
             do {
                 let snapshot = try await LLMReferenceIndexBuilder.build(
                     documentURL: url,

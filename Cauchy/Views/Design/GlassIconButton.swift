@@ -25,7 +25,7 @@ struct GlassIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.body.weight(.semibold))
-                .frame(width: 32, height: 32)
+                .frame(width: 28, height: 28)
         }
     }
 }

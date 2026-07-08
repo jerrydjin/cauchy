@@ -1,16 +1,14 @@
 import Foundation
 
-/// Deterministic normalization for model output. Wraps undelimited LaTeX lines when unambiguous.
+/// Deterministic normalization for model output.
 enum AssistantResponseNormalizer {
     static func normalize(_ content: String) -> String {
         var text = content
             .replacingOccurrences(of: "\r\n", with: "\n")
 
         text = stripCodeFences(text)
-        text = stripMarkdown(text)
         text = replaceInlineDelimiters(text)
         text = replaceDisplayDelimiters(text)
-        text = LaTeXNormalizer.wrapBareMath(text)
         return text
     }
 
@@ -19,20 +17,6 @@ enum AssistantResponseNormalizer {
             .replacingOccurrences(of: "```latex", with: "")
             .replacingOccurrences(of: "```math", with: "")
             .replacingOccurrences(of: "```", with: "")
-    }
-
-    private static func stripMarkdown(_ text: String) -> String {
-        var output = text
-        if let headers = try? NSRegularExpression(pattern: #"(?m)^#{1,6}\s+"#) {
-            output = replaceMatches(in: output, regex: headers) { _, _ in "" }
-        }
-        if let bold = try? NSRegularExpression(pattern: #"\*\*(.+?)\*\*"#, options: [.dotMatchesLineSeparators]) {
-            output = replaceMatches(in: output, regex: bold) { match, source in
-                guard let range = Range(match.range(at: 1), in: source) else { return nil }
-                return String(source[range])
-            }
-        }
-        return output
     }
 
     private static func replaceInlineDelimiters(_ text: String) -> String {

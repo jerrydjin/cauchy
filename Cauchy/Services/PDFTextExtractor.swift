@@ -18,7 +18,7 @@ enum PDFTextExtractor {
     @MainActor
     static func extractHoverProbe(at viewPoint: CGPoint, in pdfView: PDFView, on page: PDFPage) -> HoverProbeResult? {
         let pagePoint = pdfView.convert(viewPoint, to: page)
-        let probe = CGRect(x: pagePoint.x - 120, y: pagePoint.y - 14, width: 240, height: 28)
+        let probe = CGRect(x: pagePoint.x - 120, y: pagePoint.y - 30, width: 240, height: 60)
         guard let selection = page.selection(for: probe),
               let snippet = selection.string?.trimmingCharacters(in: .whitespacesAndNewlines),
               !snippet.isEmpty else {

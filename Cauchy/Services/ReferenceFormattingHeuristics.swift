@@ -37,7 +37,7 @@ enum ReferenceFormattingHeuristics {
                 if LaTeXValidator.isValid(latex) {
                     valid += 1
                 }
-            case .text:
+            case .text, .bold, .italic, .code:
                 continue
             }
         }

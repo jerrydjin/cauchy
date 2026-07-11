@@ -3,3 +3,11 @@ build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+.build/
+*.dmg
+/dmg_source/
+/dump*
+/test.swift
+/test_*
+/fm_dump.swift
+/find_methods.swift

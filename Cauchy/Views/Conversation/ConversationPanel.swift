@@ -89,10 +89,6 @@ struct ConversationPanel: View {
         }
     }
 
-    private var firstUserMessageID: UUID? {
-        messages.first(where: { $0.role == .user })?.id
-    }
-
     private var bubbleWidth: CGFloat {
         max(220, panelWidth - 80)
     }

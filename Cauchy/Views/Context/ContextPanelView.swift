@@ -36,7 +36,7 @@ struct ContextPanelView: View {
         case .list:
             HighlightListView(workspace: workspace)
         case .detail(let id):
-            if let highlight = workspace.highlightStore.highlights.first(where: { $0.id == id }) {
+            if workspace.highlightStore.highlights.contains(where: { $0.id == id }) {
                 HighlightThreadDetailView(
                     workspace: workspace,
                     onBack: { workspace.showHighlightList() }

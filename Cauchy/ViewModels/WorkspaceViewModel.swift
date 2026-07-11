@@ -24,6 +24,7 @@ final class WorkspaceViewModel {
     var errorMessage: String?
 
     var viewportCoordinator = ViewportCoordinator()
+    let pageThumbnailCache = PageThumbnailCache()
     var highlightStore = HighlightStore()
     var contextEngine = ContextEngineViewModel()
     var selectionThread = SelectionThreadViewModel()
@@ -82,6 +83,7 @@ final class WorkspaceViewModel {
 
     func openDocument(at url: URL) async {
         stopSecurityScopedAccess()
+        pageThumbnailCache.removeAll()
 
         let persisted = try? await persistence.loadWorkspace(for: url)
 
@@ -126,6 +128,7 @@ final class WorkspaceViewModel {
         applyRestoredViewport(isNewDocument: isNewDocument)
         syncHighlightAnnotations()
         buildReferenceIndex(for: resolvedURL)
+        generateDashboardPreviewIfNeeded(documentURL: resolvedURL)
         persistWorkspace()
     }
 
@@ -139,6 +142,7 @@ final class WorkspaceViewModel {
         workspace = nil
         bookmarkData = nil
 
+        pageThumbnailCache.removeAll()
         highlightStore.highlights.removeAll()
         referenceIndex.clear()
         selectionThread.activeThread = nil
@@ -400,6 +404,27 @@ final class WorkspaceViewModel {
             Task { @MainActor in
                 self?.errorMessage = "Could not save workspace: \(error.localizedDescription)"
             }
+        }
+    }
+
+    /// Renders the first page to thumbnails/preview.png once per workspace so
+    /// the dashboard can show recents without reopening every PDF. Uses its own
+    /// PDFDocument instance so background drawing never races the live PDFView.
+    private func generateDashboardPreviewIfNeeded(documentURL: URL) {
+        guard let workspaceID = workspace?.id else { return }
+        let previewURL = persistence.thumbnailURL(workspaceID: workspaceID, filename: "preview.png")
+        guard !FileManager.default.fileExists(atPath: previewURL.path) else { return }
+
+        Task.detached(priority: .background) {
+            guard let document = PDFDocument(url: documentURL),
+                  let page = document.page(at: 0),
+                  let image = PDFRegionRenderer.renderFullPage(page, maxDimension: 600)
+            else { return }
+            try? FileManager.default.createDirectory(
+                at: previewURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try? PDFRegionRenderer.saveThumbnail(image, to: previewURL)
         }
     }
 

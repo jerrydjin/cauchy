@@ -134,13 +134,13 @@ enum LLMReferenceIndexBuilder {
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> DocumentReferenceIndexSnapshot {
         let fingerprint = try ReferenceIndexCacheStore.fingerprint(for: documentURL)
-        if let cached = try? ReferenceIndexCacheStore.load(fingerprint: fingerprint) {
-            let pageCount = PDFDocument(url: documentURL)?.pageCount ?? 0
-            return cached.asSnapshot(pageCount: pageCount)
-        }
 
         guard let document = PDFDocument(url: documentURL) else {
             throw ReferenceIndexBuildError.documentUnavailable
+        }
+
+        if let cached = try? ReferenceIndexCacheStore.load(fingerprint: fingerprint) {
+            return cached.asSnapshot(pageCount: document.pageCount)
         }
 
         let geminiVision: GeminiReferenceIndexClient?

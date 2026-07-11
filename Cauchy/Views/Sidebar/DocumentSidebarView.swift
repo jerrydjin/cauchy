@@ -12,6 +12,7 @@ struct DocumentSidebarView: View {
                     PDFThumbnailsSidebarView(
                         document: document,
                         currentPageIndex: workspace.viewportCoordinator.viewport.pageIndex,
+                        thumbnailCache: workspace.pageThumbnailCache,
                         onSelectPage: { workspace.goToPage($0 + 1) }
                     )
                 case .tableOfContents:
@@ -23,12 +24,14 @@ struct DocumentSidebarView: View {
                     PDFThumbnailsSidebarView(
                         document: document,
                         currentPageIndex: workspace.viewportCoordinator.viewport.pageIndex,
+                        thumbnailCache: workspace.pageThumbnailCache,
                         onSelectPage: { workspace.goToPage($0 + 1) }
                     )
                 case .contactSheet:
                     PDFContactSheetSidebarView(
                         document: document,
                         currentPageIndex: workspace.viewportCoordinator.viewport.pageIndex,
+                        thumbnailCache: workspace.pageThumbnailCache,
                         onSelectPage: { workspace.goToPage($0 + 1) }
                     )
                 }

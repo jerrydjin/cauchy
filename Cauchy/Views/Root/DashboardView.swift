@@ -195,9 +195,22 @@ struct RecentDocumentCard: View {
     
     @MainActor
     private func generatePreview() async {
-        // Run in background to avoid hitching the UI
         let summary = summary
+        let previewURL = DocumentPersistenceService.shared.thumbnailURL(
+            workspaceID: summary.workspaceID,
+            filename: "preview.png"
+        )
+
+        // Run in background to avoid hitching the UI
         let image = await Task.detached(priority: .background) { () -> NSImage? in
+            // Fast path: opening the document writes this once (see
+            // WorkspaceViewModel.generateDashboardPreviewIfNeeded).
+            if let cached = NSImage(contentsOf: previewURL) {
+                return cached
+            }
+
+            // Fallback for workspaces saved before previews existed: render
+            // once from the PDF and persist it so this never runs again.
             var resolvedURL = summary.documentURL
             if let bookmark = summary.bookmarkData,
                let bookmarkURL = try? DocumentPersistenceService.shared.resolveBookmark(bookmark) {
@@ -205,17 +218,25 @@ struct RecentDocumentCard: View {
             } else {
                 _ = resolvedURL.startAccessingSecurityScopedResource()
             }
-            
+
             defer { resolvedURL.stopAccessingSecurityScopedResource() }
-            
+
             guard let document = PDFDocument(url: resolvedURL),
-                  let page = document.page(at: 0) else {
+                  let page = document.page(at: 0),
+                  let rendered = PDFRegionRenderer.renderFullPage(page, maxDimension: 600) else {
                 return nil
             }
-            
-            return PDFRegionRenderer.renderPageThumbnail(page: page, maxWidth: 300)
+
+            try? FileManager.default.createDirectory(
+                at: previewURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try? PDFRegionRenderer.saveThumbnail(rendered, to: previewURL)
+
+            let pageBounds = page.bounds(for: .mediaBox)
+            return NSImage(cgImage: rendered, size: pageBounds.size)
         }.value
-        
+
         self.previewImage = image
     }
 }

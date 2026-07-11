@@ -4,6 +4,7 @@ import SwiftUI
 struct PDFThumbnailsSidebarView: View {
     let document: PDFDocument
     let currentPageIndex: Int
+    let thumbnailCache: PageThumbnailCache
     var onSelectPage: (Int) -> Void
 
     var body: some View {
@@ -16,6 +17,7 @@ struct PDFThumbnailsSidebarView: View {
                                 page: page,
                                 pageNumber: index + 1,
                                 isCurrentPage: index == currentPageIndex,
+                                thumbnailCache: thumbnailCache,
                                 onSelect: { onSelectPage(index) }
                             )
                             .id(index)

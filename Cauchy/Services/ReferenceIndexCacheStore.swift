@@ -56,9 +56,16 @@ enum ReferenceIndexCacheStore {
     private static let indexDirectoryName = "reference-index"
 
     static func fingerprint(for documentURL: URL) throws -> String {
-        let data = try Data(contentsOf: documentURL)
-        let digest = SHA256.hash(data: data)
-        let hash = digest.map { String(format: "%02x", $0) }.joined()
+        // Stream the file into the hasher: same digest as hashing Data(contentsOf:)
+        // in one shot, without holding a potentially huge PDF in memory.
+        let handle = try FileHandle(forReadingFrom: documentURL)
+        defer { try? handle.close() }
+
+        var hasher = SHA256()
+        while let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+            hasher.update(data: chunk)
+        }
+        let hash = hasher.finalize().map { String(format: "%02x", $0) }.joined()
         return "\(hash)-v\(PersistedReferenceIndex.schemaVersion)"
     }
 

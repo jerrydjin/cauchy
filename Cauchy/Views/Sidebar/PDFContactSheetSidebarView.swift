@@ -4,6 +4,7 @@ import SwiftUI
 struct PDFContactSheetSidebarView: View {
     let document: PDFDocument
     let currentPageIndex: Int
+    let thumbnailCache: PageThumbnailCache
     var onSelectPage: (Int) -> Void
 
     private let columns = [
@@ -20,6 +21,7 @@ struct PDFContactSheetSidebarView: View {
                             pageNumber: index + 1,
                             isCurrentPage: index == currentPageIndex,
                             maxWidth: 88,
+                            thumbnailCache: thumbnailCache,
                             onSelect: { onSelectPage(index) }
                         )
                     }

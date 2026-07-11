@@ -41,6 +41,7 @@
 		8E10D9EBAAD92CF287F563B0 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16519BAE0FF498EAC5D7E94 /* OCRService.swift */; };
 		AABA3AE70EA681A2C20A802B /* PDFRegionRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */; };
 		D192923183BFB000528860B8 /* PDFTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */; };
+		2381E55DD0BC0EA3912EE581 /* PageThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */; };
 		D2E2A5EFB769838E7262A6A1 /* FoundationModelsReadingAssistantService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE9D356880347902C8B7D658 /* FoundationModelsReadingAssistantService.swift */; };
 		3260669BAE52CF97BC0FB008 /* GeminiCloudAPIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87BB8FF72C6DF1B318B3666 /* GeminiCloudAPIError.swift */; };
 		9891EA38D2C25D0E06D36DD5 /* GeminiCloudLanguageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */; };
@@ -142,6 +143,7 @@
 		E16519BAE0FF498EAC5D7E94 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
 		B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFRegionRenderer.swift; sourceTree = "<group>"; };
 		9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTextExtractor.swift; sourceTree = "<group>"; };
+		E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageThumbnailCache.swift; sourceTree = "<group>"; };
 		CE9D356880347902C8B7D658 /* FoundationModelsReadingAssistantService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelsReadingAssistantService.swift; sourceTree = "<group>"; };
 		B87BB8FF72C6DF1B318B3666 /* GeminiCloudAPIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiCloudAPIError.swift; sourceTree = "<group>"; };
 		0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiCloudLanguageModel.swift; sourceTree = "<group>"; };
@@ -265,6 +267,7 @@
 			E16519BAE0FF498EAC5D7E94 /* OCRService.swift */,
 			B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */,
 			9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */,
+			E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */,
 			7917C1152ACBA747975D43B0 /* ReadingContextBuilder.swift */,
 			C3287CE2DC56B0DDA8FF9809 /* ReferenceDetector.swift */,
 			4D5502A401AECACEBCF2F97B /* ReferenceFormattingHeuristics.swift */,
@@ -415,6 +418,7 @@
 			8E10D9EBAAD92CF287F563B0,
 			AABA3AE70EA681A2C20A802B,
 			D192923183BFB000528860B8,
+			2381E55DD0BC0EA3912EE581,
 			D2E2A5EFB769838E7262A6A1,
 			3260669BAE52CF97BC0FB008,
 			9891EA38D2C25D0E06D36DD5,

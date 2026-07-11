@@ -6,6 +6,7 @@ struct PDFPageThumbnailView: View {
     let pageNumber: Int
     let isCurrentPage: Bool
     var maxWidth: CGFloat = 160
+    let thumbnailCache: PageThumbnailCache
     var onSelect: () -> Void
 
     @State private var thumbnail: NSImage?
@@ -45,7 +46,13 @@ struct PDFPageThumbnailView: View {
         }
         .buttonStyle(.plain)
         .task(id: pageNumber) {
-            thumbnail = PDFRegionRenderer.renderPageThumbnail(page: page, maxWidth: maxWidth * 2)
+            let renderWidth = maxWidth * 2
+            if let cached = thumbnailCache.image(pageIndex: pageNumber - 1, width: renderWidth) {
+                thumbnail = cached
+            } else if let rendered = PDFRegionRenderer.renderPageThumbnail(page: page, maxWidth: renderWidth) {
+                thumbnailCache.store(rendered, pageIndex: pageNumber - 1, width: renderWidth)
+                thumbnail = rendered
+            }
         }
     }
 }

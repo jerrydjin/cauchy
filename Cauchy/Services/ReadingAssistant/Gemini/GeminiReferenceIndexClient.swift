@@ -94,7 +94,7 @@ struct GeminiReferenceIndexClient: Sendable {
             for try await byte in bytes {
                 errorData.append(byte)
             }
-            let message = GeminiSSETextAccumulator.parseErrorMessage(from: errorData) ?? "HTTP \(httpResponse.statusCode)"
+            let message = GeminiSSEParsing.parseErrorMessage(from: errorData) ?? "HTTP \(httpResponse.statusCode)"
             throw GeminiCloudAPIError.api(message)
         }
 

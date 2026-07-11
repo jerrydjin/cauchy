@@ -51,35 +51,20 @@ struct GeminiCloudLanguageModelExecutor: LanguageModelExecutor {
             for try await byte in bytes {
                 errorData.append(byte)
             }
-            let message = Self.parseErrorMessage(from: errorData) ?? "HTTP \(httpResponse.statusCode)"
+            let message = GeminiSSEParsing.parseErrorMessage(from: errorData) ?? "HTTP \(httpResponse.statusCode)"
             throw GeminiCloudAPIError.api(message)
         }
 
         var previousText = ""
-        var lineBuffer = Data()
 
-        for try await byte in bytes {
-            lineBuffer.append(byte)
+        for try await line in bytes.lines {
+            guard let delta = GeminiSSEParsing.textDelta(fromLine: line) else { continue }
 
-            guard byte == UInt8(ascii: "\n") else { continue }
-            defer { lineBuffer.removeAll(keepingCapacity: true) }
-
-            guard let line = String(data: lineBuffer.dropLast(), encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                !line.isEmpty
-            else { continue }
-
-            guard line.hasPrefix("data:") else { continue }
-            let jsonString = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-            guard !jsonString.isEmpty, jsonString != "[DONE]" else { continue }
-
-            guard let jsonData = jsonString.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                  let delta = Self.extractText(from: json)
-            else { continue }
-
+            // The API usually sends true deltas, but tolerate cumulative
+            // payloads too. The length guard keeps the common delta path from
+            // prefix-comparing the whole accumulated text on every chunk.
             let incremental: String
-            if delta.hasPrefix(previousText) {
+            if delta.utf8.count >= previousText.utf8.count, delta.hasPrefix(previousText) {
                 incremental = String(delta.dropFirst(previousText.count))
                 previousText = delta
             } else {
@@ -94,31 +79,5 @@ struct GeminiCloudLanguageModelExecutor: LanguageModelExecutor {
                 action: .appendText(incremental, segmentID: nil, tokenCount: 0)
             ))
         }
-    }
-
-    private static func extractText(from json: [String: Any]) -> String? {
-        guard let candidates = json["candidates"] as? [[String: Any]],
-              let first = candidates.first,
-              let content = first["content"] as? [String: Any],
-              let parts = content["parts"] as? [[String: Any]]
-        else { return nil }
-
-        let textParts = parts.compactMap { part -> String? in
-            if part["thought"] as? Bool == true { return nil }
-            return part["text"] as? String
-        }
-        guard !textParts.isEmpty else { return nil }
-        return textParts.joined()
-    }
-
-    private static func parseErrorMessage(from data: Data) -> String? {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return String(data: data, encoding: .utf8)
-        }
-        if let error = json["error"] as? [String: Any],
-           let message = error["message"] as? String {
-            return message
-        }
-        return nil
     }
 }

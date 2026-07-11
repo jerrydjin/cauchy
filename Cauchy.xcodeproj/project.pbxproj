@@ -46,6 +46,7 @@
 		9891EA38D2C25D0E06D36DD5 /* GeminiCloudLanguageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */; };
 		48CC0DB050858F426650D477 /* GeminiCloudLanguageModelExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3553353607405888ECF775E6 /* GeminiCloudLanguageModelExecutor.swift */; };
 		12B912DFD43B2581BBE3198D /* GeminiReferenceIndexClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA575ED258321801650C284B /* GeminiReferenceIndexClient.swift */; };
+		A3E6C9C27C3328CF5E9487DC /* GeminiSSEParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20E443BA50DCFBB78784422 /* GeminiSSEParsing.swift */; };
 		3A3D5A13A3C04D0C24E7C90D /* GeminiSSETextAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E19C701046B6850C809E18 /* GeminiSSETextAccumulator.swift */; };
 		DAC1BC3CA7B96415225D929B /* GeminiTranscriptMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48DE1366149F124E10FFA692 /* GeminiTranscriptMapper.swift */; };
 		81493C2320A760C433B4E071 /* ReadingAssistantProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAEB24AD7500ADDE34467895 /* ReadingAssistantProtocol.swift */; };
@@ -147,6 +148,7 @@
 		0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiCloudLanguageModel.swift; sourceTree = "<group>"; };
 		3553353607405888ECF775E6 /* GeminiCloudLanguageModelExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiCloudLanguageModelExecutor.swift; sourceTree = "<group>"; };
 		AA575ED258321801650C284B /* GeminiReferenceIndexClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiReferenceIndexClient.swift; sourceTree = "<group>"; };
+		F20E443BA50DCFBB78784422 /* GeminiSSEParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiSSEParsing.swift; sourceTree = "<group>"; };
 		36E19C701046B6850C809E18 /* GeminiSSETextAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiSSETextAccumulator.swift; sourceTree = "<group>"; };
 		48DE1366149F124E10FFA692 /* GeminiTranscriptMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTranscriptMapper.swift; sourceTree = "<group>"; };
 		FAEB24AD7500ADDE34467895 /* ReadingAssistantProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingAssistantProtocol.swift; sourceTree = "<group>"; };
@@ -284,6 +286,7 @@
 			0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */,
 			3553353607405888ECF775E6 /* GeminiCloudLanguageModelExecutor.swift */,
 			AA575ED258321801650C284B /* GeminiReferenceIndexClient.swift */,
+			F20E443BA50DCFBB78784422 /* GeminiSSEParsing.swift */,
 			36E19C701046B6850C809E18 /* GeminiSSETextAccumulator.swift */,
 			48DE1366149F124E10FFA692 /* GeminiTranscriptMapper.swift */,
 		); path = Gemini; sourceTree = "<group>"; };
@@ -420,6 +423,7 @@
 			9891EA38D2C25D0E06D36DD5,
 			48CC0DB050858F426650D477,
 			12B912DFD43B2581BBE3198D,
+			A3E6C9C27C3328CF5E9487DC,
 			3A3D5A13A3C04D0C24E7C90D,
 			DAC1BC3CA7B96415225D929B,
 			81493C2320A760C433B4E071,

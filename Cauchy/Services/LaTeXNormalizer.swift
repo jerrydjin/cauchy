@@ -5,14 +5,6 @@ enum LaTeXNormalizer {
         AssistantResponseNormalizer.normalize(content)
     }
 
-    static func needsRichRendering(_ content: String) -> Bool {
-        let normalized = normalizeForDisplay(content)
-        if normalized.contains("$$") || normalized.contains("$") {
-            return true
-        }
-        return false
-    }
-
     static func shouldRenderAsDisplayMath(_ latex: String) -> Bool {
         let trimmed = latex.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }

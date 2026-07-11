@@ -42,6 +42,9 @@ struct MathSegmentView: View {
 }
 
 enum LaTeXValidator {
+    private static let plainBarRegex = try! NSRegularExpression(pattern: #"(?<![\\|])\|([^|]+?)\|"#)
+    private static let escapedBarRegex = try! NSRegularExpression(pattern: #"\\\|([^|]+?)\\\|"#)
+
     private static let commandAliases: [(String, String)] = [
         ("\\leqslant", "\\leq"),
         ("\\geqslant", "\\geq"),
@@ -96,26 +99,15 @@ enum LaTeXValidator {
 
     private static func normalizePlainBars(_ latex: String) -> String {
         guard latex.contains("|"), !latex.contains("\\left") else { return latex }
-        guard let regex = try? NSRegularExpression(pattern: #"(?<![\\|])\|([^|]+?)\|"#) else {
-            return latex
-        }
-        let nsRange = NSRange(latex.startIndex..., in: latex)
-        let matches = regex.matches(in: latex, range: nsRange).reversed()
-        var output = latex
-        for match in matches {
-            guard let fullRange = Range(match.range, in: output),
-                  let innerRange = Range(match.range(at: 1), in: output) else { continue }
-            let inner = output[innerRange].trimmingCharacters(in: .whitespaces)
-            output.replaceSubrange(fullRange, with: "\\left| \(inner) \\right|")
-        }
-        return output
+        return wrappingBarMatches(in: latex, regex: plainBarRegex)
     }
 
     private static func normalizeEscapedBars(_ latex: String) -> String {
         guard latex.contains("\\|") else { return latex }
-        guard let regex = try? NSRegularExpression(pattern: #"\\\|([^|]+?)\\\|"#) else {
-            return latex
-        }
+        return wrappingBarMatches(in: latex, regex: escapedBarRegex)
+    }
+
+    private static func wrappingBarMatches(in latex: String, regex: NSRegularExpression) -> String {
         let nsRange = NSRange(latex.startIndex..., in: latex)
         let matches = regex.matches(in: latex, range: nsRange).reversed()
         var output = latex

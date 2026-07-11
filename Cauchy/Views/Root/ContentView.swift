@@ -48,7 +48,7 @@ struct ContentView: View {
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
                 guard let url, url.pathExtension.lowercased() == "pdf" else { return }
                 Task { @MainActor in
-                    workspace.openDocument(at: url)
+                    await workspace.openDocument(at: url)
                 }
             }
             return true

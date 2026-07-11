@@ -46,7 +46,7 @@ final class PDFCanvasView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private var hoverDebouncer = Debouncer(delay: 0.15)
+    private var pendingHoverDetection: Task<Void, Never>?
     private var lastHoveredReference: DetectedReference?
     private var isOverReference = false
 
@@ -117,10 +117,11 @@ final class PDFCanvasView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         let pointInPDF = convert(point, to: pdfView)
 
-        hoverDebouncer.schedule { [weak self] in
-            MainActor.assumeIsolated {
-                self?.detectReference(at: pointInPDF)
-            }
+        pendingHoverDetection?.cancel()
+        pendingHoverDetection = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            self?.detectReference(at: pointInPDF)
         }
     }
 

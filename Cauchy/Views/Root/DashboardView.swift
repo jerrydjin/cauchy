@@ -5,7 +5,7 @@ import PDFKit
 struct DashboardView: View {
     @Bindable var workspace: WorkspaceViewModel
     
-    @State private var recentWorkspaces: [PersistedWorkspace] = []
+    @State private var recentWorkspaces: [WorkspaceSummary] = []
     @State private var isHoveringDropZone = false
     
     let columns = [
@@ -77,10 +77,10 @@ struct DashboardView: View {
                             .padding(.leading, 4)
                         
                         LazyVGrid(columns: columns, spacing: 24) {
-                            ForEach(recentWorkspaces, id: \.workspace.id) { persisted in
+                            ForEach(recentWorkspaces, id: \.workspaceID) { summary in
                                 RecentDocumentCard(
-                                    persisted: persisted,
-                                    action: { open(persisted) }
+                                    summary: summary,
+                                    action: { open(summary) }
                                 )
                             }
                         }
@@ -94,43 +94,41 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear(perform: loadWorkspaces)
+        .task { await loadWorkspaces() }
         // Apply scroll edge effect so it feels deeply integrated with the macOS 27 window chrome
         .sidebarScrollEdgeEffect()
         .sidebarScrollContentInsets()
     }
-    
-    private func loadWorkspaces() {
-        do {
-            recentWorkspaces = try DocumentPersistenceService.shared.listAllWorkspaces()
-        } catch {
-            print("Failed to load recent workspaces: \(error)")
-        }
+
+    private func loadWorkspaces() async {
+        recentWorkspaces = await DocumentPersistenceService.shared.listWorkspaceSummaries()
     }
-    
+
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
         _ = provider.loadObject(ofClass: URL.self) { url, _ in
             guard let url, url.pathExtension.lowercased() == "pdf" else { return }
             Task { @MainActor in
-                workspace.openDocument(at: url)
+                await workspace.openDocument(at: url)
             }
         }
         return true
     }
-    
-    private func open(_ persisted: PersistedWorkspace) {
-        if let bookmark = persisted.bookmarkData,
-           let url = try? DocumentPersistenceService.shared.resolveBookmark(bookmark) {
-            workspace.openDocument(at: url)
-        } else {
-            workspace.openDocument(at: persisted.workspace.documentURL)
+
+    private func open(_ summary: WorkspaceSummary) {
+        Task {
+            if let bookmark = summary.bookmarkData,
+               let url = try? DocumentPersistenceService.shared.resolveBookmark(bookmark) {
+                await workspace.openDocument(at: url)
+            } else {
+                await workspace.openDocument(at: summary.documentURL)
+            }
         }
     }
 }
 
 struct RecentDocumentCard: View {
-    let persisted: PersistedWorkspace
+    let summary: WorkspaceSummary
     let action: () -> Void
     
     @State private var isHovering = false
@@ -163,17 +161,17 @@ struct RecentDocumentCard: View {
                     
                     // Metadata Area
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(persisted.workspace.documentURL.deletingPathExtension().lastPathComponent)
+                        Text(summary.documentURL.deletingPathExtension().lastPathComponent)
                             .font(.headline)
                             .lineLimit(1)
-                        
+
                         HStack {
-                            Text("\(persisted.workspace.lastOpenedAt, style: .relative) ago")
+                            Text("\(summary.lastOpenedAt, style: .relative) ago")
                             Spacer()
-                            if !persisted.workspace.highlights.isEmpty {
+                            if summary.highlightCount > 0 {
                                 HStack(spacing: 4) {
                                     Image(systemName: "pin.fill")
-                                    Text("\(persisted.workspace.highlights.count)")
+                                    Text("\(summary.highlightCount)")
                                 }
                             }
                         }
@@ -198,9 +196,10 @@ struct RecentDocumentCard: View {
     @MainActor
     private func generatePreview() async {
         // Run in background to avoid hitching the UI
+        let summary = summary
         let image = await Task.detached(priority: .background) { () -> NSImage? in
-            var resolvedURL = persisted.workspace.documentURL
-            if let bookmark = persisted.bookmarkData,
+            var resolvedURL = summary.documentURL
+            if let bookmark = summary.bookmarkData,
                let bookmarkURL = try? DocumentPersistenceService.shared.resolveBookmark(bookmark) {
                 resolvedURL = bookmarkURL
             } else {

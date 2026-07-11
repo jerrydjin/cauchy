@@ -15,7 +15,7 @@ final class PDFViewportController: NSObject {
     var isApplyingProgrammaticChange = false
 
     private var pendingFitToWidth = false
-    private let debouncer = Debouncer(delay: 0.05)
+    private var pendingViewChange: Task<Void, Never>?
 
     init(role: ViewportRole) {
         self.role = role
@@ -44,10 +44,11 @@ final class PDFViewportController: NSObject {
 
     @objc private func handleViewChanged() {
         guard !isApplyingProgrammaticChange else { return }
-        debouncer.schedule { [weak self] in
-            MainActor.assumeIsolated {
-                self?.publishCurrentState()
-            }
+        pendingViewChange?.cancel()
+        pendingViewChange = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            self?.publishCurrentState()
         }
     }
 

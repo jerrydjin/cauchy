@@ -77,13 +77,13 @@ final class WorkspaceViewModel {
         panel.canChooseDirectories = false
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        openDocument(at: url)
+        Task { await openDocument(at: url) }
     }
 
-    func openDocument(at url: URL) {
+    func openDocument(at url: URL) async {
         stopSecurityScopedAccess()
 
-        let persisted = try? persistence.loadWorkspace(for: url)
+        let persisted = try? await persistence.loadWorkspace(for: url)
 
         var resolvedURL = url
         if let bookmark = persisted?.bookmarkData,

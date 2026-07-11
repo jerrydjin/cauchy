@@ -1,14 +1,24 @@
 import Foundation
+import os
 
 struct PersistedWorkspace: Codable, Sendable {
     var workspace: DocumentWorkspace
     var bookmarkData: Data?
 }
 
-final class DocumentPersistenceService: @unchecked Sendable {
+/// Lightweight per-workspace sidecar so lookups and the dashboard don't have
+/// to decode every full workspace (including entire chat threads).
+struct WorkspaceSummary: Codable, Sendable {
+    var workspaceID: UUID
+    var documentURL: URL
+    var lastOpenedAt: Date
+    var highlightCount: Int
+    var bookmarkData: Data?
+}
+
+actor DocumentPersistenceService {
     static let shared = DocumentPersistenceService()
 
-    private let debouncer = Debouncer(delay: 0.5)
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -21,40 +31,77 @@ final class DocumentPersistenceService: @unchecked Sendable {
         return d
     }()
 
+    // Saves are debounced on the actor, but scheduleSave itself is called
+    // synchronously from the main actor; the ticket makes ordering explicit so
+    // a slow-to-arrive older snapshot can never overwrite a newer one.
+    private let scheduleTicket = OSAllocatedUnfairLock(initialState: 0)
+    private var latestTicket = 0
+    private var pendingSave: Task<Void, Never>?
+
     private init() {}
 
-    func applicationSupportRoot() -> URL {
+    // MARK: - Paths (pure, callable synchronously from anywhere)
+
+    nonisolated func applicationSupportRoot() -> URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Cauchy/workspaces", isDirectory: true)
     }
 
-    func workspaceDirectory(for workspaceID: UUID) -> URL {
+    nonisolated func workspaceDirectory(for workspaceID: UUID) -> URL {
         applicationSupportRoot().appendingPathComponent(workspaceID.uuidString, isDirectory: true)
     }
 
-    func workspaceFileURL(for workspaceID: UUID) -> URL {
+    nonisolated func workspaceFileURL(for workspaceID: UUID) -> URL {
         workspaceDirectory(for: workspaceID).appendingPathComponent("workspace.json")
     }
 
-    func thumbnailsDirectory(for workspaceID: UUID) -> URL {
+    nonisolated func summaryFileURL(for workspaceID: UUID) -> URL {
+        workspaceDirectory(for: workspaceID).appendingPathComponent("summary.json")
+    }
+
+    nonisolated func thumbnailsDirectory(for workspaceID: UUID) -> URL {
         workspaceDirectory(for: workspaceID).appendingPathComponent("thumbnails", isDirectory: true)
     }
 
-    func thumbnailURL(workspaceID: UUID, filename: String) -> URL {
+    nonisolated func thumbnailURL(workspaceID: UUID, filename: String) -> URL {
         thumbnailsDirectory(for: workspaceID).appendingPathComponent(filename)
     }
 
-    func legacySidecarDirectory(for documentURL: URL) -> URL {
+    nonisolated func legacySidecarDirectory(for documentURL: URL) -> URL {
         documentURL.appendingPathExtension("cauchy")
     }
 
-    func legacyWorkspaceFileURL(for documentURL: URL) -> URL {
+    nonisolated func legacyWorkspaceFileURL(for documentURL: URL) -> URL {
         legacySidecarDirectory(for: documentURL).appendingPathComponent("workspace.json")
     }
 
-    func legacyThumbnailsDirectory(for documentURL: URL) -> URL {
+    nonisolated func legacyThumbnailsDirectory(for documentURL: URL) -> URL {
         legacySidecarDirectory(for: documentURL).appendingPathComponent("thumbnails", isDirectory: true)
     }
+
+    // MARK: - Bookmarks (no actor state)
+
+    nonisolated func createBookmark(for url: URL) throws -> Data {
+        try url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+    }
+
+    nonisolated func resolveBookmark(_ data: Data) throws -> URL {
+        var isStale = false
+        let url = try URL(
+            resolvingBookmarkData: data,
+            options: .withSecurityScope,
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        )
+        _ = url.startAccessingSecurityScopedResource()
+        return url
+    }
+
+    // MARK: - Load / save
 
     func loadWorkspace(for documentURL: URL) throws -> PersistedWorkspace? {
         if let appSupport = try loadFromApplicationSupport(matching: documentURL) {
@@ -78,43 +125,139 @@ final class DocumentPersistenceService: @unchecked Sendable {
         let persisted = PersistedWorkspace(workspace: workspace, bookmarkData: bookmarkData)
         let data = try encoder.encode(persisted)
         try data.write(to: workspaceFileURL(for: workspace.id), options: .atomic)
+
+        try writeSummary(for: persisted)
     }
 
-    func scheduleSave(
+    /// Debounced save; safe to call at any frequency from the main actor. The
+    /// encode and disk write happen on this actor, off the main thread.
+    nonisolated func scheduleSave(
         _ workspace: DocumentWorkspace,
         bookmarkData: Data?,
         onError: (@Sendable (Error) -> Void)? = nil
     ) {
-        debouncer.schedule { [weak self] in
+        let ticket = scheduleTicket.withLock { state in
+            state += 1
+            return state
+        }
+        Task {
+            await self.debounceSave(ticket: ticket, workspace: workspace, bookmarkData: bookmarkData, onError: onError)
+        }
+    }
+
+    private func debounceSave(
+        ticket: Int,
+        workspace: DocumentWorkspace,
+        bookmarkData: Data?,
+        onError: (@Sendable (Error) -> Void)?
+    ) {
+        guard ticket > latestTicket else { return }
+        latestTicket = ticket
+
+        pendingSave?.cancel()
+        pendingSave = Task {
+            try? await Task.sleep(for: .seconds(0.5))
+            guard !Task.isCancelled else { return }
             do {
-                try self?.saveWorkspace(workspace, bookmarkData: bookmarkData)
+                try saveWorkspace(workspace, bookmarkData: bookmarkData)
             } catch {
                 onError?(error)
             }
         }
     }
 
-    func createBookmark(for url: URL) throws -> Data {
-        try url.bookmarkData(
-            options: .withSecurityScope,
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
+    // MARK: - Summaries
+
+    func listWorkspaceSummaries() -> [WorkspaceSummary] {
+        let root = applicationSupportRoot()
+        guard FileManager.default.fileExists(atPath: root.path),
+              let entries = try? FileManager.default.contentsOfDirectory(
+                  at: root,
+                  includingPropertiesForKeys: nil
+              )
+        else { return [] }
+
+        var summaries: [WorkspaceSummary] = []
+        for entry in entries where entry.hasDirectoryPath {
+            if let summary = summary(inDirectory: entry) {
+                summaries.append(summary)
+            }
+        }
+        return summaries.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
+    }
+
+    /// Reads a directory's summary, falling back to a full workspace decode
+    /// (and writing the summary for next time) for pre-summary directories.
+    private func summary(inDirectory directory: URL) -> WorkspaceSummary? {
+        let summaryURL = directory.appendingPathComponent("summary.json")
+        if let data = try? Data(contentsOf: summaryURL),
+           let summary = try? decoder.decode(WorkspaceSummary.self, from: data) {
+            return summary
+        }
+
+        guard let persisted = persistedWorkspace(inDirectory: directory) else { return nil }
+        try? writeSummary(for: persisted)
+        return Self.makeSummary(for: persisted)
+    }
+
+    private func persistedWorkspace(inDirectory directory: URL) -> PersistedWorkspace? {
+        let fileURL = directory.appendingPathComponent("workspace.json")
+        guard FileManager.default.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL),
+              let persisted = try? decoder.decode(PersistedWorkspace.self, from: data)
+        else { return nil }
+        return persisted
+    }
+
+    private func writeSummary(for persisted: PersistedWorkspace) throws {
+        let data = try encoder.encode(Self.makeSummary(for: persisted))
+        try data.write(to: summaryFileURL(for: persisted.workspace.id), options: .atomic)
+    }
+
+    private static func makeSummary(for persisted: PersistedWorkspace) -> WorkspaceSummary {
+        WorkspaceSummary(
+            workspaceID: persisted.workspace.id,
+            documentURL: persisted.workspace.documentURL,
+            lastOpenedAt: persisted.workspace.lastOpenedAt,
+            highlightCount: persisted.workspace.highlights.count,
+            bookmarkData: persisted.bookmarkData
         )
     }
 
-    func resolveBookmark(_ data: Data) throws -> URL {
-        var isStale = false
-        let url = try URL(
-            resolvingBookmarkData: data,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
-        _ = url.startAccessingSecurityScopedResource()
-        return url
+    // MARK: - Lookup
+
+    private func loadFromApplicationSupport(matching documentURL: URL) throws -> PersistedWorkspace? {
+        let root = applicationSupportRoot()
+        guard FileManager.default.fileExists(atPath: root.path),
+              let entries = try? FileManager.default.contentsOfDirectory(
+                  at: root,
+                  includingPropertiesForKeys: nil
+              )
+        else { return nil }
+
+        let targetPath = documentURL.standardizedFileURL.path
+
+        for entry in entries where entry.hasDirectoryPath {
+            guard let summary = summary(inDirectory: entry) else { continue }
+            if summary.documentURL.standardizedFileURL.path == targetPath {
+                return persistedWorkspace(inDirectory: entry)
+            }
+        }
+        return nil
     }
 
-    func migrateLegacyThumbnails(from documentURL: URL, to workspaceID: UUID) {
+    // MARK: - Legacy migration
+
+    private func loadLegacySidecar(for documentURL: URL) throws -> PersistedWorkspace? {
+        let fileURL = legacyWorkspaceFileURL(for: documentURL)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        let data = try Data(contentsOf: fileURL)
+        let persisted = try decoder.decode(PersistedWorkspace.self, from: data)
+        migrateLegacyThumbnails(from: documentURL, to: persisted.workspace.id)
+        return persisted
+    }
+
+    private func migrateLegacyThumbnails(from documentURL: URL, to workspaceID: UUID) {
         let legacyDir = legacyThumbnailsDirectory(for: documentURL)
         let targetDir = thumbnailsDirectory(for: workspaceID)
         guard FileManager.default.fileExists(atPath: legacyDir.path) else { return }
@@ -127,62 +270,5 @@ final class DocumentPersistenceService: @unchecked Sendable {
                 try? FileManager.default.copyItem(at: source, to: dest)
             }
         }
-    }
-
-    func listAllWorkspaces() throws -> [PersistedWorkspace] {
-        let root = applicationSupportRoot()
-        guard FileManager.default.fileExists(atPath: root.path) else { return [] }
-
-        guard let entries = try? FileManager.default.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: nil
-        ) else { return [] }
-
-        var workspaces: [PersistedWorkspace] = []
-
-        for entry in entries where entry.hasDirectoryPath {
-            let fileURL = entry.appendingPathComponent("workspace.json")
-            guard FileManager.default.fileExists(atPath: fileURL.path),
-                  let data = try? Data(contentsOf: fileURL),
-                  let persisted = try? decoder.decode(PersistedWorkspace.self, from: data) else {
-                continue
-            }
-            workspaces.append(persisted)
-        }
-
-        return workspaces.sorted { $0.workspace.lastOpenedAt > $1.workspace.lastOpenedAt }
-    }
-
-    private func loadFromApplicationSupport(matching documentURL: URL) throws -> PersistedWorkspace? {
-        let root = applicationSupportRoot()
-        guard FileManager.default.fileExists(atPath: root.path) else { return nil }
-
-        let targetPath = documentURL.standardizedFileURL.path
-        guard let entries = try? FileManager.default.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: nil
-        ) else { return nil }
-
-        for entry in entries where entry.hasDirectoryPath {
-            let fileURL = entry.appendingPathComponent("workspace.json")
-            guard FileManager.default.fileExists(atPath: fileURL.path),
-                  let data = try? Data(contentsOf: fileURL),
-                  let persisted = try? decoder.decode(PersistedWorkspace.self, from: data) else {
-                continue
-            }
-            if persisted.workspace.documentURL.standardizedFileURL.path == targetPath {
-                return persisted
-            }
-        }
-        return nil
-    }
-
-    private func loadLegacySidecar(for documentURL: URL) throws -> PersistedWorkspace? {
-        let fileURL = legacyWorkspaceFileURL(for: documentURL)
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
-        let data = try Data(contentsOf: fileURL)
-        let persisted = try decoder.decode(PersistedWorkspace.self, from: data)
-        migrateLegacyThumbnails(from: documentURL, to: persisted.workspace.id)
-        return persisted
     }
 }

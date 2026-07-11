@@ -8,17 +8,18 @@ final class ViewportCoordinator {
     var applyTrigger = UUID()
 
     private let syncGuard = ViewportSyncGuard()
-    private let debouncer = Debouncer(delay: 0.05)
+    private var pendingUserChange: Task<Void, Never>?
 
     var onPageChanged: ((Int) -> Void)?
 
     func handleViewportChange(state: ViewportState) {
         guard !syncGuard.isApplyingProgrammaticChange else { return }
 
-        debouncer.schedule { [weak self] in
-            MainActor.assumeIsolated {
-                self?.applyUserChange(state: state)
-            }
+        pendingUserChange?.cancel()
+        pendingUserChange = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            self?.applyUserChange(state: state)
         }
     }
 

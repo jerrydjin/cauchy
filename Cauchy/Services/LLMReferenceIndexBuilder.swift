@@ -123,7 +123,7 @@ enum LLMReferenceIndexSupport {
 enum LLMReferenceIndexBuilder {
     static let maxConcurrentPages = 4
 
-    private struct ModelHandle: @unchecked Sendable {
+    private struct ModelHandle: Sendable {
         let model: any LanguageModel
         let geminiVision: GeminiReferenceIndexClient?
     }

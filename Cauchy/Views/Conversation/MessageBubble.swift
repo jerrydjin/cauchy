@@ -32,12 +32,14 @@ struct MessageBubble: View {
         if isUser, let quotedText, !quotedText.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SelectionQuoteView(text: quotedText)
-                Divider().opacity(0.25)
-                MessageContentView(
-                    content: message.content,
-                    font: .body,
-                    textColor: .primary
-                )
+                if !message.content.isEmpty {
+                    Divider().opacity(0.25)
+                    MessageContentView(
+                        content: message.content,
+                        font: .body,
+                        textColor: .primary
+                    )
+                }
             }
         } else {
             MessageContentView(

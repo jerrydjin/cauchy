@@ -12,7 +12,6 @@ struct SelectionQuoteView: View {
             Text(text)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .lineLimit(3)
                 .textSelection(.enabled)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)

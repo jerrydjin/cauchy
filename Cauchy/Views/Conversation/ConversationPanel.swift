@@ -16,6 +16,15 @@ struct ConversationPanel: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
+                        if let selectedText, !selectedText.isEmpty {
+                            MessageBubble(
+                                message: ThreadMessage(role: .user, content: ""),
+                                quotedText: selectedText,
+                                maxBubbleWidth: bubbleWidth
+                            )
+                            .id("quote-only")
+                        }
+
                         if messages.isEmpty, !isResponding {
                             Text("Ask a question about this passage")
                                 .font(.caption)
@@ -28,7 +37,7 @@ struct ConversationPanel: View {
                         ForEach(messages) { message in
                             MessageBubble(
                                 message: message,
-                                quotedText: message.id == firstUserMessageID ? selectedText : nil,
+                                quotedText: nil,
                                 maxBubbleWidth: bubbleWidth
                             )
                             .id(message.id)

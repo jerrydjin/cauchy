@@ -46,6 +46,12 @@ struct CauchyApp: App {
                 Toggle("Select Region", isOn: $workspace.selectionModeActive)
                     .keyboardShortcut("s", modifiers: [.command, .shift])
 
+                Button("Highlight Selection") {
+                    workspace.saveTextSelectionAsHighlight()
+                }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .disabled(workspace.selectionThread.activeThread == nil || workspace.selectionThread.activeThread?.isPersisted == true)
+
                 Divider()
 
                 Button("Previous Page") {

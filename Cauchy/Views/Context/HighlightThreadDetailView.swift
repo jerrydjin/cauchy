@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HighlightThreadDetailView: View {
     @Bindable var workspace: WorkspaceViewModel
-    let title: String
     var onBack: () -> Void
 
     @State private var question = ""
@@ -20,11 +19,19 @@ struct HighlightThreadDetailView: View {
                     action: onBack
                 )
 
-                Text(title)
+                Text("Highlight")
                     .font(.headline)
-                    .lineLimit(1)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
+                
+                if thread?.isPersisted == false {
+                    Button("Save as Highlight") {
+                        workspace.saveTextSelectionAsHighlight()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

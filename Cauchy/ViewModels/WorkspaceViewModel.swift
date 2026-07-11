@@ -212,6 +212,16 @@ final class WorkspaceViewModel {
         persistWorkspace()
     }
 
+    func saveTextSelectionAsHighlight() {
+        guard var thread = selectionThread.activeThread else { return }
+        thread.isPersisted = true
+        selectionThread.activeThread = thread
+        
+        let highlight = highlightStore.upsertFromThread(thread)
+        selectHighlight(highlight)
+        persistWorkspace()
+    }
+
     func saveRegionAsHighlight() async {
         guard let capture = highlightStore.pendingRegionCapture else { return }
 

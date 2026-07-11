@@ -39,7 +39,6 @@ struct ContextPanelView: View {
             if let highlight = workspace.highlightStore.highlights.first(where: { $0.id == id }) {
                 HighlightThreadDetailView(
                     workspace: workspace,
-                    title: highlight.label,
                     onBack: { workspace.showHighlightList() }
                 )
             } else {
@@ -49,16 +48,8 @@ struct ContextPanelView: View {
         case .composeDraft:
             HighlightThreadDetailView(
                 workspace: workspace,
-                title: draftTitle,
                 onBack: { workspace.showHighlightList() }
             )
         }
-    }
-
-    private var draftTitle: String {
-        if let text = workspace.selectionThread.activeThread?.selectedText {
-            return Highlight.defaultLabel(from: text)
-        }
-        return "New Highlight"
     }
 }

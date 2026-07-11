@@ -104,16 +104,22 @@ final class SelectionThreadViewModel {
         thread.streamingAssistantText = ""
         activeThread = thread
 
+        let coalescer = StreamingTextCoalescer()
+        coalescer.onFlush = { [weak self] partial in
+            self?.activeThread?.streamingAssistantText = partial
+        }
+
         isResponding = true
         defer {
+            coalescer.cancel()
             isResponding = false
             activeThread?.streamingAssistantText = nil
         }
 
-        let assistantText = try await assistant.ask(question: trimmed) { [weak self] partial in
-            Task { @MainActor in
-                self?.activeThread?.streamingAssistantText = partial
-            }
+        // onPartial already runs on the main actor (ReadingAssistantProtocol is
+        // @MainActor); the coalescer keeps re-renders at ~12/s instead of per token.
+        let assistantText = try await assistant.ask(question: trimmed) { partial in
+            coalescer.submit(partial)
         }
 
         thread.messages.append(ThreadMessage(role: .assistant, content: assistantText))

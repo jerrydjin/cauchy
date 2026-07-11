@@ -94,14 +94,18 @@ struct ConversationPanel: View {
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {
-        withAnimation(.easeOut(duration: 0.2)) {
-            if isResponding {
-                if streamingText != nil, !(streamingText?.isEmpty ?? true) {
-                    proxy.scrollTo("streaming", anchor: .bottom)
-                } else {
+        if isResponding {
+            if streamingText != nil, !(streamingText?.isEmpty ?? true) {
+                // Unanimated: this fires on every coalesced streaming flush, and
+                // overlapping 200ms animations churn against each other.
+                proxy.scrollTo("streaming", anchor: .bottom)
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo("thinking", anchor: .bottom)
                 }
-            } else if let lastID = messages.last?.id {
+            }
+        } else if let lastID = messages.last?.id {
+            withAnimation(.easeOut(duration: 0.2)) {
                 proxy.scrollTo(lastID, anchor: .bottom)
             }
         }

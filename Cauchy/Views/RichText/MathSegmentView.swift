@@ -15,7 +15,7 @@ struct MathSegmentView: View {
 
     var body: some View {
         Group {
-            if let rendered = LaTeXValidator.renderableLatex(from: latex) {
+            if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
                 MathLabelRepresentable(
                     latex: rendered,
                     mode: mode,
@@ -79,6 +79,31 @@ enum LaTeXValidator {
             return candidate
         }
         return nil
+    }
+
+    // MARK: Main-actor render memo
+
+    // renderableLatex compiles up to three SwiftMath candidates, and
+    // MathSegmentView calls it from body on every re-render. Failures are the
+    // most expensive outcome (all three candidates compile), so they are
+    // cached too. renderableLatex itself stays nonisolated for the reference
+    // index builder, which validates LaTeX off the main actor.
+    @MainActor private static var renderableCache: [String: String?] = [:]
+    @MainActor private static var renderableCacheOrder: [String] = []
+    private static let renderableCacheCapacity = 256
+
+    @MainActor
+    static func cachedRenderableLatex(from latex: String) -> String? {
+        if let hit = renderableCache[latex] {
+            return hit
+        }
+        let rendered = renderableLatex(from: latex)
+        renderableCache[latex] = rendered
+        renderableCacheOrder.append(latex)
+        if renderableCacheOrder.count > renderableCacheCapacity {
+            renderableCache.removeValue(forKey: renderableCacheOrder.removeFirst())
+        }
+        return rendered
     }
 
     static func isValid(_ latex: String) -> Bool {

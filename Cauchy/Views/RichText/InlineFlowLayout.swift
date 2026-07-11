@@ -56,15 +56,30 @@ struct InlineFlowLayout: Layout {
     var horizontalSpacing: CGFloat = 4
     var verticalSpacing: CGFloat = 4
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        layout(proposal: proposal, subviews: subviews).size
+    /// The wrap result depends only on the proposed width, and measuring the
+    /// subviews (sizeThatFits per token, twice on wraps) dominates the cost.
+    /// Reusing the result between sizeThatFits and placeSubviews halves the
+    /// measurement work; SwiftUI invalidates via updateCache when subviews change.
+    struct LayoutCache {
+        var width: CGFloat?
+        var result: InlineFlowLayoutResult?
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = layout(
-            proposal: ProposedViewSize(width: bounds.width, height: proposal.height),
-            subviews: subviews
-        )
+    func makeCache(subviews: Subviews) -> LayoutCache {
+        LayoutCache()
+    }
+
+    func updateCache(_ cache: inout LayoutCache, subviews: Subviews) {
+        cache.width = nil
+        cache.result = nil
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) -> CGSize {
+        cachedLayout(width: proposal.width, subviews: subviews, cache: &cache).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout LayoutCache) {
+        let result = cachedLayout(width: bounds.width, subviews: subviews, cache: &cache)
 
         for (index, placement) in result.placements.enumerated() {
             guard index < subviews.count else { break }
@@ -76,8 +91,18 @@ struct InlineFlowLayout: Layout {
         }
     }
 
-    private func layout(proposal: ProposedViewSize, subviews: Subviews) -> InlineFlowLayoutResult {
-        let maxWidth = max(proposal.width ?? 1, 1)
+    private func cachedLayout(width: CGFloat?, subviews: Subviews, cache: inout LayoutCache) -> InlineFlowLayoutResult {
+        if let result = cache.result, cache.width == width {
+            return result
+        }
+        let result = layout(width: width, subviews: subviews)
+        cache.width = width
+        cache.result = result
+        return result
+    }
+
+    private func layout(width: CGFloat?, subviews: Subviews) -> InlineFlowLayoutResult {
+        let maxWidth = max(width ?? 1, 1)
         var placements: [InlineFlowLayoutPlacement] = []
         var resultWidth: CGFloat = 0
         var x: CGFloat = 0

@@ -18,12 +18,31 @@ enum PDFTextExtractor {
     @MainActor
     static func extractHoverProbe(at viewPoint: CGPoint, in pdfView: PDFView, on page: PDFPage) -> HoverProbeResult? {
         let pagePoint = pdfView.convert(viewPoint, to: page)
-        let probe = CGRect(x: pagePoint.x - 120, y: pagePoint.y - 30, width: 240, height: 60)
+        // The probe must span the full line width: a reference like
+        // "Definition 1.5.1" that wraps puts its two halves at opposite
+        // horizontal ends of adjacent lines, so a box centered on the cursor
+        // clips the other half out of the snippet.
+        let pageBounds = CoordinateMapper.pageBounds(for: page)
+        let probe = CGRect(
+            x: pageBounds.minX,
+            y: pagePoint.y - 30,
+            width: pageBounds.width,
+            height: 60
+        )
         guard let selection = page.selection(for: probe),
-              let snippet = selection.string?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !snippet.isEmpty else {
+              let rawSnippet = selection.string?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawSnippet.isEmpty else {
             return nil
         }
+
+        // Rejoin words hyphenated across a line break ("Defi-\nnition") so
+        // wrapped references still match. The snippet is only used for
+        // reference detection, and the cursor offset is computed against the
+        // same dehyphenated text below.
+        let snippet = rawSnippet
+            .replacingOccurrences(of: "-\n", with: "")
+            .replacingOccurrences(of: "\u{2010}\n", with: "")
+            .replacingOccurrences(of: "\u{00AD}\n", with: "")
 
         let cursorOffset = cursorOffsetInSnippet(
             snippet: snippet,

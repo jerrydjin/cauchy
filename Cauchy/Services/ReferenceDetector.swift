@@ -24,6 +24,9 @@ struct DetectedReferenceMatch: Equatable, Sendable {
 }
 
 enum ReferenceDetector {
+    private static let namedBlockRegex = try! NSRegularExpression(pattern: ReferenceParsing.namedBlockPattern)
+    private static let equationCiteRegex = try! NSRegularExpression(pattern: ReferenceParsing.equationCitePattern)
+
     static func allReferences(in text: String) -> [DetectedReferenceMatch] {
         var matches: [DetectedReferenceMatch] = []
         matches.append(contentsOf: namedBlockMatches(in: text))
@@ -52,8 +55,7 @@ enum ReferenceDetector {
     }
 
     private static func namedBlockMatches(in text: String) -> [DetectedReferenceMatch] {
-        guard let regex = try? NSRegularExpression(pattern: ReferenceParsing.namedBlockPattern) else { return [] }
-        return matches(from: regex, in: text) { match, source in
+        return matches(from: namedBlockRegex, in: text) { match, source in
             guard let kindRange = Range(match.range(at: 1), in: source),
                   let numberRange = Range(match.range(at: 2), in: source),
                   let kind = ReferenceKind.fromKeyword(String(source[kindRange])) else {
@@ -69,8 +71,7 @@ enum ReferenceDetector {
     }
 
     private static func equationCiteMatches(in text: String) -> [DetectedReferenceMatch] {
-        guard let regex = try? NSRegularExpression(pattern: ReferenceParsing.equationCitePattern) else { return [] }
-        return matches(from: regex, in: text) { match, source in
+        return matches(from: equationCiteRegex, in: text) { match, source in
             guard let numberRange = Range(match.range(at: 1), in: source) else { return nil }
             let number = String(source[numberRange])
             let range = Range(match.range, in: source)!

@@ -38,6 +38,7 @@
 		28FEE8CE2DF1856473548E60 /* LaTeXFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D663A210AE029823641923CC /* LaTeXFormatter.swift */; };
 		EF637945BB866244086487A0 /* LaTeXNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FCACBA6DC2F9866C6D1FC11 /* LaTeXNormalizer.swift */; };
 		80402813F9CC0055E1427EA5 /* MessageContentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0CDF65D849D0D9C71A1CEDD /* MessageContentParser.swift */; };
+		58BE9C0629DECFC6385C2907 /* ModelProviderPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 055153EB987C0A58C4FFE18D /* ModelProviderPreferences.swift */; };
 		8E10D9EBAAD92CF287F563B0 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16519BAE0FF498EAC5D7E94 /* OCRService.swift */; };
 		AABA3AE70EA681A2C20A802B /* PDFRegionRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */; };
 		D192923183BFB000528860B8 /* PDFTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */; };
@@ -140,6 +141,7 @@
 		D663A210AE029823641923CC /* LaTeXFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaTeXFormatter.swift; sourceTree = "<group>"; };
 		5FCACBA6DC2F9866C6D1FC11 /* LaTeXNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaTeXNormalizer.swift; sourceTree = "<group>"; };
 		B0CDF65D849D0D9C71A1CEDD /* MessageContentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageContentParser.swift; sourceTree = "<group>"; };
+		055153EB987C0A58C4FFE18D /* ModelProviderPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelProviderPreferences.swift; sourceTree = "<group>"; };
 		E16519BAE0FF498EAC5D7E94 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
 		B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFRegionRenderer.swift; sourceTree = "<group>"; };
 		9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTextExtractor.swift; sourceTree = "<group>"; };
@@ -264,6 +266,7 @@
 			D663A210AE029823641923CC /* LaTeXFormatter.swift */,
 			5FCACBA6DC2F9866C6D1FC11 /* LaTeXNormalizer.swift */,
 			B0CDF65D849D0D9C71A1CEDD /* MessageContentParser.swift */,
+			055153EB987C0A58C4FFE18D /* ModelProviderPreferences.swift */,
 			E16519BAE0FF498EAC5D7E94 /* OCRService.swift */,
 			B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */,
 			9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */,
@@ -415,6 +418,7 @@
 			28FEE8CE2DF1856473548E60,
 			EF637945BB866244086487A0,
 			80402813F9CC0055E1427EA5,
+			58BE9C0629DECFC6385C2907,
 			8E10D9EBAAD92CF287F563B0,
 			AABA3AE70EA681A2C20A802B,
 			D192923183BFB000528860B8,

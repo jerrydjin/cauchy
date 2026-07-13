@@ -497,7 +497,7 @@ final class WorkspaceViewModel {
     }
 
     private func referenceIndexModel() -> any LanguageModel {
-        if KeychainService.hasGeminiAPIKey, let apiKey = KeychainService.loadGeminiAPIKey() {
+        if let apiKey = ModelProviderPreferences.activeGeminiAPIKey {
             return GeminiCloudLanguageModel(apiKey: apiKey)
         }
         return SystemLanguageModel.default

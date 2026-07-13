@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var hasStoredKey = KeychainService.hasGeminiAPIKey
     @State private var statusMessage: String?
     @State private var isError = false
+    @AppStorage(ModelProviderPreferences.forceOnDeviceModelKey) private var forceOnDeviceModel = false
 
     init(onSettingsChanged: (() -> Void)? = nil) {
         self.onSettingsChanged = onSettingsChanged
@@ -49,8 +50,17 @@ struct SettingsView: View {
                 }
             }
 
+            Section {
+                Toggle("Always use on-device model", isOn: $forceOnDeviceModel)
+                    .onChange(of: forceOnDeviceModel) { _, _ in
+                        onSettingsChanged?()
+                    }
+            } footer: {
+                Text("Ignores the saved Gemini API key, so Ask and reference indexing run entirely with Apple Intelligence. The key stays saved for when you switch back.")
+            }
+
             Section("Active Provider") {
-                if hasStoredKey {
+                if hasStoredKey && !forceOnDeviceModel {
                     Label("Gemini (cloud)", systemImage: "cloud")
                 } else {
                     Label("Apple Intelligence (on-device)", systemImage: "apple.logo")
@@ -58,7 +68,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 320)
+        .frame(width: 480, height: 360)
         .padding()
     }
 

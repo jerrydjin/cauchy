@@ -4,7 +4,7 @@ import FoundationModels
 @MainActor
 enum ReadingAssistantProviderFactory {
     static func makeAssistant() -> any ReadingAssistantProtocol {
-        if let apiKey = KeychainService.loadGeminiAPIKey() {
+        if let apiKey = ModelProviderPreferences.activeGeminiAPIKey {
             return FoundationModelsReadingAssistantService(
                 model: GeminiCloudLanguageModel(apiKey: apiKey),
                 provider: .gemini
@@ -17,11 +17,11 @@ enum ReadingAssistantProviderFactory {
     }
 
     static var activeProvider: ReadingAssistantProvider {
-        KeychainService.hasGeminiAPIKey ? .gemini : .local
+        ModelProviderPreferences.geminiEnabled ? .gemini : .local
     }
 
     static var availability: ReadingAssistantAvailability {
-        if KeychainService.hasGeminiAPIKey {
+        if ModelProviderPreferences.geminiEnabled {
             return FoundationModelsReadingAssistantService.geminiAvailability
         }
         return FoundationModelsReadingAssistantService.localAvailability

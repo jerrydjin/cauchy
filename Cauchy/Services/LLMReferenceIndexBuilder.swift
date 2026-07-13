@@ -144,7 +144,7 @@ enum LLMReferenceIndexBuilder {
         }
 
         let geminiVision: GeminiReferenceIndexClient?
-        if let apiKey = KeychainService.loadGeminiAPIKey() {
+        if let apiKey = ModelProviderPreferences.activeGeminiAPIKey {
             geminiVision = GeminiReferenceIndexClient(apiKey: apiKey)
         } else {
             geminiVision = nil

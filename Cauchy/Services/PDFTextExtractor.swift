@@ -15,9 +15,23 @@ enum PDFTextExtractor {
         return selection.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
+    /// How close (in page points) the cursor must be to a page edge before the
+    /// adjacent page's text is stitched into the hover snippet. Must exceed
+    /// typical page margins, since the first/last text line sits a full margin
+    /// away from the physical page edge (LaTeX book layouts run to ~100pt).
+    private static let pageEdgeStitchThreshold: CGFloat = 140
+
     @MainActor
     static func extractHoverProbe(at viewPoint: CGPoint, in pdfView: PDFView, on page: PDFPage) -> HoverProbeResult? {
-        let pagePoint = pdfView.convert(viewPoint, to: page)
+        extractHoverProbe(
+            atPagePoint: pdfView.convert(viewPoint, to: page),
+            on: page,
+            in: pdfView.document
+        )
+    }
+
+    @MainActor
+    static func extractHoverProbe(atPagePoint pagePoint: CGPoint, on page: PDFPage, in document: PDFDocument?) -> HoverProbeResult? {
         // The probe must span the full line width: a reference like
         // "Definition 1.5.1" that wraps puts its two halves at opposite
         // horizontal ends of adjacent lines, so a box centered on the cursor
@@ -35,22 +49,70 @@ enum PDFTextExtractor {
             return nil
         }
 
-        // Rejoin words hyphenated across a line break ("Defi-\nnition") so
-        // wrapped references still match. The snippet is only used for
-        // reference detection, and the cursor offset is computed against the
-        // same dehyphenated text below.
-        let snippet = rawSnippet
-            .replacingOccurrences(of: "-\n", with: "")
-            .replacingOccurrences(of: "\u{2010}\n", with: "")
-            .replacingOccurrences(of: "\u{00AD}\n", with: "")
-
-        let cursorOffset = cursorOffsetInSnippet(
+        // The snippet is only used for reference detection; the cursor offset
+        // is computed against the same dehyphenated text.
+        var snippet = dehyphenate(rawSnippet)
+        var cursorOffset = cursorOffsetInSnippet(
             snippet: snippet,
             probeSelection: selection,
             pagePoint: pagePoint,
             page: page
         )
-        return HoverProbeResult(snippet: snippet, cursorOffset: cursorOffset)
+
+        // A reference can also wrap across a page break, with its halves on
+        // two different pages. When the cursor is near a page edge, stitch in
+        // the adjacent page's edge strip (in reading order: the previous
+        // page's bottom precedes the top of this page).
+        if let document {
+            let pageIndex = document.index(for: page)
+
+            if pageBounds.maxY - pagePoint.y < pageEdgeStitchThreshold,
+               pageIndex > 0,
+               let previousPage = document.page(at: pageIndex - 1),
+               let prefix = edgeStrip(of: previousPage, at: .bottom) {
+                // Re-dehyphenate so a word split across the page break
+                // ("Defi-" / "nition 1.5.1") is rejoined at the junction.
+                snippet = dehyphenate(prefix + "\n" + snippet)
+                cursorOffset += prefix.utf16.count + 1
+            }
+
+            if pagePoint.y - pageBounds.minY < pageEdgeStitchThreshold,
+               pageIndex + 1 < document.pageCount,
+               let nextPage = document.page(at: pageIndex + 1),
+               let suffix = edgeStrip(of: nextPage, at: .top) {
+                snippet = dehyphenate(snippet + "\n" + suffix)
+            }
+        }
+
+        return HoverProbeResult(snippet: snippet, cursorOffset: min(cursorOffset, snippet.utf16.count))
+    }
+
+    private enum PageEdge {
+        case top
+        case bottom
+    }
+
+    private static func edgeStrip(of page: PDFPage, at edge: PageEdge) -> String? {
+        let bounds = CoordinateMapper.pageBounds(for: page)
+        let strip = CGRect(
+            x: bounds.minX,
+            y: edge == .bottom ? bounds.minY : bounds.maxY - pageEdgeStitchThreshold,
+            width: bounds.width,
+            height: pageEdgeStitchThreshold
+        )
+        guard let text = page.selection(for: strip)?.string?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else {
+            return nil
+        }
+        return dehyphenate(text)
+    }
+
+    /// Rejoins words hyphenated across a line break ("Defi-\nnition").
+    private static func dehyphenate(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "-\n", with: "")
+            .replacingOccurrences(of: "\u{2010}\n", with: "")
+            .replacingOccurrences(of: "\u{00AD}\n", with: "")
     }
 
     @MainActor

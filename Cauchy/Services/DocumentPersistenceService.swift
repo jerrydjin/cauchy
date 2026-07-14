@@ -81,24 +81,42 @@ actor DocumentPersistenceService {
 
     // MARK: - Bookmarks (no actor state)
 
+    // Security-scoped bookmarks only exist inside the App Sandbox. The app now
+    // ships unsandboxed (it spawns the user's claude/codex CLIs), so fall back
+    // to plain bookmarks there — and keep resolving old security-scoped ones.
     nonisolated func createBookmark(for url: URL) throws -> Data {
-        try url.bookmarkData(
-            options: .withSecurityScope,
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
-        )
+        do {
+            return try url.bookmarkData(
+                options: .withSecurityScope,
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        } catch {
+            return try url.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        }
     }
 
     nonisolated func resolveBookmark(_ data: Data) throws -> URL {
         var isStale = false
-        let url = try URL(
+        if let url = try? URL(
             resolvingBookmarkData: data,
             options: .withSecurityScope,
             relativeTo: nil,
             bookmarkDataIsStale: &isStale
+        ) {
+            _ = url.startAccessingSecurityScopedResource()
+            return url
+        }
+        return try URL(
+            resolvingBookmarkData: data,
+            options: [],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
         )
-        _ = url.startAccessingSecurityScopedResource()
-        return url
     }
 
     // MARK: - Load / save

@@ -33,6 +33,8 @@ struct SelectionThreadView: View {
             return "The on-device model is downloading. Try again soon."
         case .geminiKeyMissing:
             return "Add a Gemini API key in Settings to ask questions."
+        case .cliNotInstalled(let provider):
+            return "\(provider.cliDisplayName) CLI not found. Install it and sign in, then try again."
         default:
             return "Ask is unavailable right now."
         }

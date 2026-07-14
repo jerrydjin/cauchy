@@ -26,7 +26,9 @@ enum ReadingPromptBuilder {
             """
         }
 
-        if provider == .gemini {
+        // Cloud and CLI models need the reminder that replies render inside the
+        // app's LaTeX engine; the on-device model already gets the contract below.
+        if provider != .local {
             prompt += """
 
             IMPORTANT: Your reply is rendered by a LaTeX math engine in the app. Any LaTeX command written outside $...$ or $$...$$ will appear as broken raw text.

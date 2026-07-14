@@ -453,7 +453,9 @@ final class WorkspaceViewModel {
         isIndexingReferences = true
         referenceIndexProgress = 0
 
-        let availability = readingAssistantAvailability
+        // Indexing always runs on Gemini (if keyed) or the on-device model,
+        // independent of which provider answers chat questions.
+        let availability = referenceIndexingAvailability
         guard availability.isAvailable else {
             isIndexingReferences = false
             referenceIndexError = referenceIndexUnavailableMessage(for: availability)
@@ -496,6 +498,13 @@ final class WorkspaceViewModel {
         }
     }
 
+    private var referenceIndexingAvailability: ReadingAssistantAvailability {
+        if ModelProviderPreferences.geminiEnabled {
+            return .available(.gemini)
+        }
+        return FoundationModelsReadingAssistantService.localAvailability
+    }
+
     private func referenceIndexModel() -> any LanguageModel {
         if let apiKey = ModelProviderPreferences.activeGeminiAPIKey {
             return GeminiCloudLanguageModel(apiKey: apiKey)
@@ -515,6 +524,8 @@ final class WorkspaceViewModel {
             "Reference indexing unavailable — the on-device model is not ready."
         case .geminiKeyMissing:
             "Reference indexing unavailable — add a Gemini API key in Settings."
+        case .cliNotInstalled:
+            "Reference indexing unavailable — add a Gemini API key or enable Apple Intelligence."
         case .unavailable:
             "Reference indexing unavailable — add a Gemini API key or enable Apple Intelligence."
         }

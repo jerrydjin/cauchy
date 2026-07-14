@@ -36,20 +36,20 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
 
     var availability: ReadingAssistantAvailability {
         switch provider {
-        case .local:
-            return Self.localAvailability
         case .gemini:
             return Self.geminiAvailability
+        default:
+            return Self.localAvailability
         }
     }
 
     private var isAvailable: Bool {
         switch provider {
-        case .local:
-            guard let systemModel = model as? SystemLanguageModel else { return false }
-            return systemModel.isAvailable
         case .gemini:
             return KeychainService.hasGeminiAPIKey
+        default:
+            guard let systemModel = model as? SystemLanguageModel else { return false }
+            return systemModel.isAvailable
         }
     }
 

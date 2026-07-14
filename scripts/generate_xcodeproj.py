@@ -141,9 +141,10 @@ def target_settings(cid, name):
     emit('\t\t\tCODE_SIGN_STYLE = Automatic;')
     emit('\t\t\tCOMBINE_HIDPI_IMAGES = YES;')
     emit('\t\t\tCURRENT_PROJECT_VERSION = 1;')
-    emit('\t\t\tENABLE_APP_SANDBOX = YES;')
+    # No App Sandbox: the app spawns the user's locally installed claude/codex
+    # CLIs, which need their own config, keychain access, and network.
+    emit('\t\t\tENABLE_APP_SANDBOX = NO;')
     emit('\t\t\tENABLE_HARDENED_RUNTIME = YES;')
-    emit('\t\t\tENABLE_USER_SELECTED_FILES = readwrite;')
     emit('\t\t\tGENERATE_INFOPLIST_FILE = YES;')
     emit('\t\t\tINFOPLIST_KEY_CFBundleDisplayName = "cauchy";')
     emit('\t\t\tINFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";')

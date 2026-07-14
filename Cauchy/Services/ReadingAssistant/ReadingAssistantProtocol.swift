@@ -4,6 +4,16 @@ import FoundationModels
 enum ReadingAssistantProvider: Equatable, Sendable {
     case local
     case gemini
+    case claudeCode
+    case codex
+
+    var cliDisplayName: String {
+        switch self {
+        case .claudeCode: "Claude Code"
+        case .codex: "Codex"
+        case .local, .gemini: ""
+        }
+    }
 }
 
 enum ReadingAssistantAvailability: Equatable {
@@ -12,6 +22,7 @@ enum ReadingAssistantAvailability: Equatable {
     case intelligenceNotEnabled
     case modelNotReady
     case geminiKeyMissing
+    case cliNotInstalled(ReadingAssistantProvider)
     case unavailable
 }
 
@@ -61,6 +72,8 @@ enum ReadingAssistantError: LocalizedError {
                 return "The on-device model is still downloading. Try again shortly."
             case .geminiKeyMissing:
                 return "Add a Gemini API key in Settings to use Ask."
+            case .cliNotInstalled(let provider):
+                return "\(provider.cliDisplayName) is not installed. Install its CLI and sign in, then try again."
             case .unavailable:
                 return "Ask is not available right now."
             }

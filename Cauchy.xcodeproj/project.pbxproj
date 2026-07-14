@@ -43,6 +43,9 @@
 		AABA3AE70EA681A2C20A802B /* PDFRegionRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */; };
 		D192923183BFB000528860B8 /* PDFTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */; };
 		2381E55DD0BC0EA3912EE581 /* PageThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */; };
+		1C7690AA7BBC9B9E06BE9E0A /* CLIAgentAssistantService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15B842A1CE4F9DAEBF9393F /* CLIAgentAssistantService.swift */; };
+		183AFEEDB97467B8312E5729 /* CLIAgentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA82A1DA6B01A2E8604D5F09 /* CLIAgentRunner.swift */; };
+		FB650CFA0CE1E17498F36816 /* CLIAgentStreamParsers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624157F01F0662831B9A22FE /* CLIAgentStreamParsers.swift */; };
 		D2E2A5EFB769838E7262A6A1 /* FoundationModelsReadingAssistantService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE9D356880347902C8B7D658 /* FoundationModelsReadingAssistantService.swift */; };
 		3260669BAE52CF97BC0FB008 /* GeminiCloudAPIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87BB8FF72C6DF1B318B3666 /* GeminiCloudAPIError.swift */; };
 		9891EA38D2C25D0E06D36DD5 /* GeminiCloudLanguageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */; };
@@ -146,6 +149,9 @@
 		B5268A5591F8EEF770D3118A /* PDFRegionRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFRegionRenderer.swift; sourceTree = "<group>"; };
 		9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTextExtractor.swift; sourceTree = "<group>"; };
 		E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageThumbnailCache.swift; sourceTree = "<group>"; };
+		F15B842A1CE4F9DAEBF9393F /* CLIAgentAssistantService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIAgentAssistantService.swift; sourceTree = "<group>"; };
+		AA82A1DA6B01A2E8604D5F09 /* CLIAgentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIAgentRunner.swift; sourceTree = "<group>"; };
+		624157F01F0662831B9A22FE /* CLIAgentStreamParsers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIAgentStreamParsers.swift; sourceTree = "<group>"; };
 		CE9D356880347902C8B7D658 /* FoundationModelsReadingAssistantService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelsReadingAssistantService.swift; sourceTree = "<group>"; };
 		B87BB8FF72C6DF1B318B3666 /* GeminiCloudAPIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiCloudAPIError.swift; sourceTree = "<group>"; };
 		0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiCloudLanguageModel.swift; sourceTree = "<group>"; };
@@ -278,6 +284,7 @@
 			1A4324DA55E513115F76124B /* ReferenceParsing.swift */,
 		); path = Services; sourceTree = "<group>"; };
 		5DFA929D7334677914CA59FD /* ReadingAssistant */ = { isa = PBXGroup; children = (
+			B9A644E7074D0A19B0494BBD /* CLI */,
 			5C8741FCECC48170A14DE743 /* Gemini */,
 			CE9D356880347902C8B7D658 /* FoundationModelsReadingAssistantService.swift */,
 			FAEB24AD7500ADDE34467895 /* ReadingAssistantProtocol.swift */,
@@ -285,6 +292,11 @@
 			2A9615079E1635CA3A81AEC7 /* ReadingPromptBuilder.swift */,
 			C82E0A84C06EA82A1A7E2E3A /* ReferenceIndexPromptBuilder.swift */,
 		); path = ReadingAssistant; sourceTree = "<group>"; };
+		B9A644E7074D0A19B0494BBD /* CLI */ = { isa = PBXGroup; children = (
+			F15B842A1CE4F9DAEBF9393F /* CLIAgentAssistantService.swift */,
+			AA82A1DA6B01A2E8604D5F09 /* CLIAgentRunner.swift */,
+			624157F01F0662831B9A22FE /* CLIAgentStreamParsers.swift */,
+		); path = CLI; sourceTree = "<group>"; };
 		5C8741FCECC48170A14DE743 /* Gemini */ = { isa = PBXGroup; children = (
 			B87BB8FF72C6DF1B318B3666 /* GeminiCloudAPIError.swift */,
 			0403691D653B087490EFC2CF /* GeminiCloudLanguageModel.swift */,
@@ -423,6 +435,9 @@
 			AABA3AE70EA681A2C20A802B,
 			D192923183BFB000528860B8,
 			2381E55DD0BC0EA3912EE581,
+			1C7690AA7BBC9B9E06BE9E0A,
+			183AFEEDB97467B8312E5729,
+			FB650CFA0CE1E17498F36816,
 			D2E2A5EFB769838E7262A6A1,
 			3260669BAE52CF97BC0FB008,
 			9891EA38D2C25D0E06D36DD5,
@@ -494,9 +509,8 @@
 			CODE_SIGN_STYLE = Automatic;
 			COMBINE_HIDPI_IMAGES = YES;
 			CURRENT_PROJECT_VERSION = 1;
-			ENABLE_APP_SANDBOX = YES;
+			ENABLE_APP_SANDBOX = NO;
 			ENABLE_HARDENED_RUNTIME = YES;
-			ENABLE_USER_SELECTED_FILES = readwrite;
 			GENERATE_INFOPLIST_FILE = YES;
 			INFOPLIST_KEY_CFBundleDisplayName = "cauchy";
 			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -514,9 +528,8 @@
 			CODE_SIGN_STYLE = Automatic;
 			COMBINE_HIDPI_IMAGES = YES;
 			CURRENT_PROJECT_VERSION = 1;
-			ENABLE_APP_SANDBOX = YES;
+			ENABLE_APP_SANDBOX = NO;
 			ENABLE_HARDENED_RUNTIME = YES;
-			ENABLE_USER_SELECTED_FILES = readwrite;
 			GENERATE_INFOPLIST_FILE = YES;
 			INFOPLIST_KEY_CFBundleDisplayName = "cauchy";
 			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";

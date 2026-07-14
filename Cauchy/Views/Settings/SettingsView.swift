@@ -7,14 +7,37 @@ struct SettingsView: View {
     @State private var hasStoredKey = KeychainService.hasGeminiAPIKey
     @State private var statusMessage: String?
     @State private var isError = false
-    @AppStorage(ModelProviderPreferences.forceOnDeviceModelKey) private var forceOnDeviceModel = false
+    @AppStorage(ModelProviderPreferences.providerChoiceKey)
+    private var providerChoiceRaw = ModelProviderPreferences.providerChoice.rawValue
 
     init(onSettingsChanged: (() -> Void)? = nil) {
         self.onSettingsChanged = onSettingsChanged
     }
 
+    private var providerChoice: AssistantProviderChoice {
+        AssistantProviderChoice(rawValue: providerChoiceRaw) ?? .automatic
+    }
+
     var body: some View {
         Form {
+            Section {
+                Picker("Ask uses", selection: $providerChoiceRaw) {
+                    ForEach(AssistantProviderChoice.allCases) { choice in
+                        Text(choice.displayName).tag(choice.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: providerChoiceRaw) { _, _ in
+                    onSettingsChanged?()
+                }
+
+                providerStatusLabel
+            } header: {
+                Text("Assistant")
+            } footer: {
+                Text(providerFooter)
+            }
+
             Section {
                 if hasStoredKey {
                     Label("Gemini API key saved", systemImage: "checkmark.circle.fill")
@@ -42,34 +65,55 @@ struct SettingsView: View {
                         .foregroundStyle(isError ? .red : .secondary)
                 }
             } header: {
-                Text("Cloud Model")
+                Text("Gemini API Key")
             } footer: {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("When a Gemini API key is saved, Ask uses Google Gemini in the cloud. Otherwise, Ask uses on-device Apple Intelligence.")
+                    Text("Used when the assistant is set to Automatic or Gemini, and for reference indexing whenever a key is saved.")
                     Link("Get a Gemini API key", destination: URL(string: "https://aistudio.google.com/apikey")!)
-                }
-            }
-
-            Section {
-                Toggle("Always use on-device model", isOn: $forceOnDeviceModel)
-                    .onChange(of: forceOnDeviceModel) { _, _ in
-                        onSettingsChanged?()
-                    }
-            } footer: {
-                Text("Ignores the saved Gemini API key, so Ask and reference indexing run entirely with Apple Intelligence. The key stays saved for when you switch back.")
-            }
-
-            Section("Active Provider") {
-                if hasStoredKey && !forceOnDeviceModel {
-                    Label("Gemini (cloud)", systemImage: "cloud")
-                } else {
-                    Label("Apple Intelligence (on-device)", systemImage: "apple.logo")
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 360)
+        .frame(width: 500, height: 400)
         .padding()
+    }
+
+    @ViewBuilder
+    private var providerStatusLabel: some View {
+        switch providerChoice {
+        case .claudeCode, .codex:
+            let provider: ReadingAssistantProvider = providerChoice == .codex ? .codex : .claudeCode
+            if let binary = CLIAgentAssistantService.binaryURL(for: provider) {
+                Label("Found \(binary.path)", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.caption)
+            } else {
+                Label("\(provider.cliDisplayName) CLI not found", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+            }
+        case .gemini where !hasStoredKey:
+            Label("No Gemini API key saved", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.caption)
+        default:
+            EmptyView()
+        }
+    }
+
+    private var providerFooter: String {
+        switch providerChoice {
+        case .automatic:
+            return "Uses Gemini when an API key is saved, otherwise on-device Apple Intelligence."
+        case .onDevice:
+            return "Everything runs locally with Apple Intelligence. No key, no network — and noticeably weaker at mathematics."
+        case .gemini:
+            return "Answers come from Google Gemini using the API key below."
+        case .claudeCode:
+            return "Answers come from the Claude Code CLI under your own Claude subscription — no API key needed. Install Claude Code, run `claude` in Terminal once to sign in, and you're set. Tools are disabled: it can never run commands on your Mac."
+        case .codex:
+            return "Answers come from the Codex CLI under your own ChatGPT plan — no API key needed. Install Codex (`npm i -g @openai/codex` or `brew install codex`), run `codex login` once, and you're set. Runs read-only sandboxed."
+        }
     }
 
     private func saveKey() {

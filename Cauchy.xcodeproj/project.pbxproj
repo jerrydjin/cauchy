@@ -68,6 +68,7 @@
 		50A8F591B8D44906DD873B03 /* StreamingTextCoalescer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F368FA4456EC326E9D8DDF4C /* StreamingTextCoalescer.swift */; };
 		51E0778192740D79E94A2688 /* ContextEngineViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D48268794F194F75FD2B4F /* ContextEngineViewModel.swift */; };
 		B827E289C412C8814674397B /* HighlightStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0391333626F787B3DD3B6581 /* HighlightStore.swift */; };
+		7F7442B51383BAD5CA720BFE /* PDFFindModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7659EED199ACC6DC1CE4E2BC /* PDFFindModel.swift */; };
 		FE3A936DE21323E63F0023FB /* SelectionThreadViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267FAC10467473235A5D53BF /* SelectionThreadViewModel.swift */; };
 		68A0CAD3A769E1935B2A87F6 /* ViewportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF014AA551538E17C2232B73 /* ViewportCoordinator.swift */; };
 		77B9ECB5AA813F68F258A049 /* WorkspaceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E67E8AF9CC85671D13604D9 /* WorkspaceViewModel.swift */; };
@@ -89,6 +90,7 @@
 		C174D966A75CA70A73E638D0 /* GlassToolbarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */; };
 		C8B3A8FF72FF3E6CBB8FBEBA /* ToolbarChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */; };
 		B6D56D660943088D8C0130C4 /* OCRResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A72B949D2D1F37938C789E0E /* OCRResultView.swift */; };
+		71B65D76316E7ABEE2EB699F /* FindBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B56E43390B834002E23904B /* FindBarView.swift */; };
 		65B0194C47D708E1D03E31F5 /* ReaderWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECD51CDCABE5506C87FE2B2F /* ReaderWorkspaceView.swift */; };
 		50207EC90A9AA525E2882AD0 /* InlineFlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 656F0D778BACFDDF03CD829F /* InlineFlowLayout.swift */; };
 		BC5170D64BF82A0321DAF18F /* MathSegmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EF63C4E107FD0B9E09CED6 /* MathSegmentView.swift */; };
@@ -174,6 +176,7 @@
 		F368FA4456EC326E9D8DDF4C /* StreamingTextCoalescer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextCoalescer.swift; sourceTree = "<group>"; };
 		51D48268794F194F75FD2B4F /* ContextEngineViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextEngineViewModel.swift; sourceTree = "<group>"; };
 		0391333626F787B3DD3B6581 /* HighlightStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightStore.swift; sourceTree = "<group>"; };
+		7659EED199ACC6DC1CE4E2BC /* PDFFindModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFFindModel.swift; sourceTree = "<group>"; };
 		267FAC10467473235A5D53BF /* SelectionThreadViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionThreadViewModel.swift; sourceTree = "<group>"; };
 		DF014AA551538E17C2232B73 /* ViewportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewportCoordinator.swift; sourceTree = "<group>"; };
 		3E67E8AF9CC85671D13604D9 /* WorkspaceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceViewModel.swift; sourceTree = "<group>"; };
@@ -195,6 +198,7 @@
 		CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassToolbarContent.swift; sourceTree = "<group>"; };
 		E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarChrome.swift; sourceTree = "<group>"; };
 		A72B949D2D1F37938C789E0E /* OCRResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRResultView.swift; sourceTree = "<group>"; };
+		8B56E43390B834002E23904B /* FindBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindBarView.swift; sourceTree = "<group>"; };
 		ECD51CDCABE5506C87FE2B2F /* ReaderWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderWorkspaceView.swift; sourceTree = "<group>"; };
 		656F0D778BACFDDF03CD829F /* InlineFlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFlowLayout.swift; sourceTree = "<group>"; };
 		A2EF63C4E107FD0B9E09CED6 /* MathSegmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathSegmentView.swift; sourceTree = "<group>"; };
@@ -314,6 +318,7 @@
 		D8514CB7F7FEBA9D2D272A34 /* ViewModels */ = { isa = PBXGroup; children = (
 			51D48268794F194F75FD2B4F /* ContextEngineViewModel.swift */,
 			0391333626F787B3DD3B6581 /* HighlightStore.swift */,
+			7659EED199ACC6DC1CE4E2BC /* PDFFindModel.swift */,
 			267FAC10467473235A5D53BF /* SelectionThreadViewModel.swift */,
 			DF014AA551538E17C2232B73 /* ViewportCoordinator.swift */,
 			3E67E8AF9CC85671D13604D9 /* WorkspaceViewModel.swift */,
@@ -356,6 +361,7 @@
 			A72B949D2D1F37938C789E0E /* OCRResultView.swift */,
 		); path = OCR; sourceTree = "<group>"; };
 		97CF6DC0DE4ED649947CC5EC /* PDF */ = { isa = PBXGroup; children = (
+			8B56E43390B834002E23904B /* FindBarView.swift */,
 			ECD51CDCABE5506C87FE2B2F /* ReaderWorkspaceView.swift */,
 		); path = PDF; sourceTree = "<group>"; };
 		4CC05BF718729291AF28EE62 /* RichText */ = { isa = PBXGroup; children = (
@@ -460,6 +466,7 @@
 			50A8F591B8D44906DD873B03,
 			51E0778192740D79E94A2688,
 			B827E289C412C8814674397B,
+			7F7442B51383BAD5CA720BFE,
 			FE3A936DE21323E63F0023FB,
 			68A0CAD3A769E1935B2A87F6,
 			77B9ECB5AA813F68F258A049,
@@ -481,6 +488,7 @@
 			C174D966A75CA70A73E638D0,
 			C8B3A8FF72FF3E6CBB8FBEBA,
 			B6D56D660943088D8C0130C4,
+			71B65D76316E7ABEE2EB699F,
 			65B0194C47D708E1D03E31F5,
 			50207EC90A9AA525E2882AD0,
 			BC5170D64BF82A0321DAF18F,

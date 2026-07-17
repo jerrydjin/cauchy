@@ -16,6 +16,9 @@ struct PDFViewportView: NSViewRepresentable {
     var referenceIndex: DocumentReferenceIndex?
     var referenceIndexReady = false
     var applyTrigger: UUID?
+    var findMatches: [PDFSelection] = []
+    var activeFindMatch: PDFSelection?
+    var findRevision: UUID?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -49,12 +52,21 @@ struct PDFViewportView: NSViewRepresentable {
             context.coordinator.lastApplyTrigger = applyTrigger
             canvas.viewportController.apply(state: viewportState, animated: false)
         }
+
+        if context.coordinator.lastFindRevision != findRevision {
+            context.coordinator.lastFindRevision = findRevision
+            canvas.pdfView.highlightedSelections = findMatches.isEmpty ? nil : findMatches
+            if let match = activeFindMatch {
+                canvas.pdfView.go(to: match)
+            }
+        }
     }
 
     final class Coordinator: NSObject, PDFCanvasViewDelegate {
         var parent: PDFViewportView
         weak var canvasView: PDFCanvasView?
         var lastApplyTrigger: UUID?
+        var lastFindRevision: UUID?
 
         init(parent: PDFViewportView) {
             self.parent = parent

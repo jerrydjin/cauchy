@@ -34,10 +34,21 @@ struct ReaderWorkspaceView: View {
                         },
                         referenceIndex: workspace.referenceIndex,
                         referenceIndexReady: !workspace.isIndexingReferences && workspace.referenceIndexError == nil,
-                        applyTrigger: workspace.viewportCoordinator.applyTrigger
+                        applyTrigger: workspace.viewportCoordinator.applyTrigger,
+                        findMatches: workspace.find.matches,
+                        activeFindMatch: workspace.find.activeMatch,
+                        findRevision: workspace.find.revision
                     )
                     .frame(maxWidth: 900)
                     .frame(maxHeight: .infinity)
+                    .overlay(alignment: .top) {
+                        if workspace.find.isVisible {
+                            FindBarView(find: workspace.find)
+                                .padding(.top, 12)
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.15), value: workspace.find.isVisible)
 
                     ContextPanelResizeHandle(
                         width: Binding(

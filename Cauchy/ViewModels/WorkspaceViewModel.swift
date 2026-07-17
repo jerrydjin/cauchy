@@ -29,6 +29,7 @@ final class WorkspaceViewModel {
     var contextEngine = ContextEngineViewModel()
     var selectionThread = SelectionThreadViewModel()
     var referenceIndex = DocumentReferenceIndex()
+    var find = PDFFindModel()
     var isIndexingReferences = false
     var referenceIndexProgress: Double = 0
     var referenceIndexError: String?
@@ -37,7 +38,11 @@ final class WorkspaceViewModel {
     private var securityScopedURL: URL?
     private var referenceIndexTask: Task<Void, Never>?
 
-    init() {}
+    init() {
+        find.currentPageProvider = { [weak self] in
+            self?.viewportCoordinator.viewport.pageIndex ?? 0
+        }
+    }
 
     var documentTitle: String {
         workspace?.documentURL.deletingPathExtension().lastPathComponent ?? "No Document"
@@ -103,6 +108,7 @@ final class WorkspaceViewModel {
         }
 
         pdfDocument = document
+        find.attach(to: document)
         bookmarkData = try? persistence.createBookmark(for: resolvedURL)
 
         let isNewDocument: Bool
@@ -145,6 +151,7 @@ final class WorkspaceViewModel {
         pageThumbnailCache.removeAll()
         highlightStore.highlights.removeAll()
         referenceIndex.clear()
+        find.attach(to: nil)
         selectionThread.activeThread = nil
         contextEngine.reset()
         viewportCoordinator = ViewportCoordinator()
@@ -353,6 +360,11 @@ final class WorkspaceViewModel {
         state.pageIndex = max(state.pageIndex - 1, 0)
         state.visibleRectNormalized = nil
         viewportCoordinator.applyProgrammaticViewport(state)
+    }
+
+    func presentFindBar() {
+        guard pdfDocument != nil else { return }
+        find.present()
     }
 
     func presentGoToPagePanel() {

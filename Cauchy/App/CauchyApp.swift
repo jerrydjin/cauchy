@@ -17,6 +17,28 @@ struct CauchyApp: App {
                 .keyboardShortcut("o")
             }
 
+            // Replaces the default Edit ▸ Find submenu (part of the textEditing
+            // group) so ⌘F reaches the PDF find bar instead of the responder chain.
+            CommandGroup(replacing: .textEditing) {
+                Button("Find…") {
+                    workspace.presentFindBar()
+                }
+                .keyboardShortcut("f", modifiers: .command)
+                .disabled(workspace.pdfDocument == nil)
+
+                Button("Find Next") {
+                    workspace.find.findNext()
+                }
+                .keyboardShortcut("g", modifiers: .command)
+                .disabled(!workspace.find.hasMatches)
+
+                Button("Find Previous") {
+                    workspace.find.findPrevious()
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(!workspace.find.hasMatches)
+            }
+
             CommandMenu("Reading") {
                 Button("Zoom In") {
                     workspace.zoomIn()

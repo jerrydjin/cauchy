@@ -18,8 +18,18 @@ final class SelectionThreadViewModel {
         activeThread != nil && !(activeThread?.selectedText.isEmpty ?? true)
     }
 
-    func reloadAssistant() {
+    /// Swaps in the newly selected provider. The active thread's session is
+    /// restored onto the new assistant so a mid-thread provider change keeps
+    /// the passage context instead of falling back to a generic prompt.
+    func reloadAssistant(documentTitle: String? = nil) {
         assistant = ReadingAssistantProviderFactory.makeAssistant()
+        guard let thread = activeThread, let documentTitle else { return }
+        let readingContext = ReadingContextBuilder.from(
+            anchor: thread.anchor,
+            documentTitle: documentTitle,
+            index: documentIndex
+        )
+        assistant.restoreSession(context: readingContext, messages: thread.messages)
     }
 
     func updateSelection(

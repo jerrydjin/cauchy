@@ -65,7 +65,7 @@ final class WorkspaceViewModel {
     }
 
     func refreshReadingAssistant() {
-        selectionThread.reloadAssistant()
+        selectionThread.reloadAssistant(documentTitle: documentTitle)
     }
 
     var contextPanelWidth: CGFloat {

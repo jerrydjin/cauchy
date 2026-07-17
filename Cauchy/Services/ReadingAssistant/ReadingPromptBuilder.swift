@@ -38,9 +38,10 @@ enum ReadingPromptBuilder {
         prompt += """
 
         Content rules:
-        - Use only the text above (and retrieved passages if present).
+        - Ground your answer in the text above (and retrieved passages if present).
+        - You may use standard mathematical knowledge to actually answer the question; note briefly when a result comes from outside the passage.
+        - If the passage defers a result (e.g. to a problem sheet), still state the standard result rather than only saying it is deferred.
         - Do not summarize the whole document.
-        - If information is missing, say what is missing.
         - Be precise and concise.
         - Use plain-text section headings (for example, "1. Proof for addition"). Do not use markdown # headings or code fences.
 

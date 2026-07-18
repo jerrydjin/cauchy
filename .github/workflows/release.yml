@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-27
 
     permissions:
       contents: write # needed for creating a release

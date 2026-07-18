@@ -94,6 +94,31 @@ enum LLMReferenceIndexSupport {
         geminiVisionAvailable && pageImagePNG != nil
     }
 
+    /// Table-of-contents pages list every "Definition 6.1"-style heading with a
+    /// page number and no body; models (the on-device one especially) extract
+    /// them as real references. Detect such pages structurally and skip the
+    /// model call entirely.
+    static func isLikelyTableOfContents(_ pageText: String) -> Bool {
+        let lines = pageText
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard lines.count >= 5 else { return false }
+
+        let headerWords: Set<String> = ["contents", "table of contents", "index"]
+        if lines.prefix(3).contains(where: { headerWords.contains($0.lowercased()) }) {
+            return true
+        }
+
+        // "6.1. Compact spaces . . . . 34" — dot leaders or a numbered heading
+        // that ends in a bare page number.
+        let tocLike = lines.filter { line in
+            line.range(of: #"(\.\s*){3,}\d+$"#, options: .regularExpression) != nil ||
+                line.range(of: #"^\d+(\.\d+)*\.?\s+\D.*\s\d{1,3}$"#, options: .regularExpression) != nil
+        }.count
+        return tocLike >= 8 || Double(tocLike) / Double(lines.count) >= 0.4
+    }
+
     /// Returns display-ready body, optionally using one repaired candidate.
     static func finalizeReferenceBody(normalized: String, repaired: String?) -> String? {
         if ReferenceFormattingHeuristics.isMostlyValidLaTeX(normalized) {
@@ -233,7 +258,8 @@ enum LLMReferenceIndexBuilder {
         modelHandle: ModelHandle
     ) async throws -> [ReferenceKey: IndexedReference] {
         let trimmedPageText = payload.pageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedPageText.isEmpty else {
+        guard !trimmedPageText.isEmpty,
+              !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmedPageText) else {
             return [:]
         }
 
@@ -250,6 +276,16 @@ enum LLMReferenceIndexBuilder {
             return [:]
         }
 
+        return await finalizeItems(parsed, pageIndex: pageIndex, modelHandle: modelHandle)
+    }
+
+    /// Normalizes, repairs, and validates the extracted items into indexable
+    /// entries, dropping any whose LaTeX cannot be made display-ready.
+    nonisolated private static func finalizeItems(
+        _ parsed: LLMPageReferenceResponse,
+        pageIndex: Int,
+        modelHandle: ModelHandle
+    ) async -> [ReferenceKey: IndexedReference] {
         var results: [ReferenceKey: IndexedReference] = [:]
         for item in parsed.references {
             let trimmedBody = item.formattedBody.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -276,6 +312,45 @@ enum LLMReferenceIndexBuilder {
         }
 
         return results
+    }
+
+    // MARK: - Benchmark support
+
+    struct SinglePageResult: Sendable {
+        /// References the model returned before validation/repair.
+        let parsedCount: Int
+        /// Entries that survived normalization and LaTeX validation.
+        let entries: [ReferenceKey: IndexedReference]
+        let pageTextCharacters: Int
+    }
+
+    /// Runs the exact production extraction path for one page — used by the
+    /// headless indexing benchmark. Errors propagate with full detail instead
+    /// of being swallowed like in the bulk build.
+    nonisolated static func indexSinglePage(
+        from document: PDFDocument,
+        pageIndex: Int,
+        model: any LanguageModel
+    ) async throws -> SinglePageResult {
+        let handle = ModelHandle(model: model, geminiVision: nil)
+        let payload = pagePayload(from: document, pageIndex: pageIndex, geminiVision: nil)
+        let trimmed = payload.pageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmed) else {
+            return SinglePageResult(parsedCount: 0, entries: [:], pageTextCharacters: 0)
+        }
+
+        let parsed = try await extractPageReferences(
+            payload: payload,
+            pageIndex: pageIndex,
+            modelHandle: handle
+        )
+        let entries = await finalizeItems(parsed, pageIndex: pageIndex, modelHandle: handle)
+        return SinglePageResult(
+            parsedCount: parsed.references.count,
+            entries: entries,
+            pageTextCharacters: trimmed.count
+        )
     }
 
     /// Routes one page to the right extraction path: guided generation for the
@@ -325,11 +400,11 @@ enum LLMReferenceIndexBuilder {
             )
             let response = try await session.respond(to: prompt, generating: GeneratedPageReferences.self)
             return response.content.asResponse
-        } catch let error as LanguageModelError {
+        } catch {
             // Even a budgeted page can overflow the window once the schema and
             // generated output are counted; split at a paragraph boundary and
             // index each half separately.
-            guard case .contextSizeExceeded = error, depth < 2, budgeted.count >= 1_000 else {
+            guard isContextOverflow(error), depth < 2, budgeted.count >= 1_000 else {
                 throw error
             }
             let (head, tail) = splitNearMidpoint(budgeted)
@@ -341,6 +416,20 @@ enum LLMReferenceIndexBuilder {
             )
             return LLMPageReferenceResponse(references: first.references + second.references)
         }
+    }
+
+    /// The session throws the legacy GenerationError on macOS 27 (observed);
+    /// the replacement LanguageModelError case is checked too for when the
+    /// framework migrates.
+    nonisolated private static func isContextOverflow(_ error: Error) -> Bool {
+        if let error = error as? LanguageModelError, case .contextSizeExceeded = error {
+            return true
+        }
+        if let error = error as? LanguageModelSession.GenerationError,
+           case .exceededContextWindowSize = error {
+            return true
+        }
+        return false
     }
 
     /// Splits at the paragraph (or line) break closest to the midpoint so a

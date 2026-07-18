@@ -19,7 +19,10 @@ struct GeneratedReference {
     ]))
     var kind: String
 
-    @Guide(description: "The reference number exactly as printed, e.g. \"1.4\" or \"2.3.1\".")
+    // Note: a Regex @Guide here fails schema compilation at runtime on the
+    // current macOS 27 beta (GenerativeError 1020000) — keep this
+    // description-only.
+    @Guide(description: "The reference number exactly as printed: digits and dots only, e.g. \"1.4\" or \"2.3.1\". Never an equation or text.")
     var number: String
 
     @Guide(description: "Only the statement or equation body. Prose stays plain text; all mathematics goes inside $...$ or $$...$$ LaTeX delimiters. Never a proof.")

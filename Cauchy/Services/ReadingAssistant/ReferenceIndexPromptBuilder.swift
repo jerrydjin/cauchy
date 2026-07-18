@@ -21,6 +21,7 @@ enum ReferenceIndexPromptBuilder {
     - Write all mathematics inside $...$ (inline) or $$...$$ (display) LaTeX delimiters; never emit LaTeX commands outside delimiters. Prose stays plain text.
     - Fix PDF extraction artifacts: ℝ → $\\mathbb{R}$, unicode sub/superscripts, norm bars ‖x‖ → $\\left\\| x \\right\\|$, broken spacing.
     - Prefer \\leq and \\geq over \\leqslant and \\geqslant.
+    - Ignore table-of-contents, index, and list-of-results pages: extract a reference only when its full statement or equation body appears on this page, not just its title and a page number.
     - If the page has no numbered references, return an empty list.
     """
 

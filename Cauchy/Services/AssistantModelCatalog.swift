@@ -18,7 +18,17 @@ enum AssistantModelCatalog {
                 AssistantModel(
                     id: "gemini-3.5-flash",
                     displayName: "Gemini 3.5 Flash",
-                    detail: "Fast and capable"
+                    detail: "Balanced speed and intelligence"
+                ),
+                AssistantModel(
+                    id: "gemini-3.1-pro-preview",
+                    displayName: "Gemini 3.1 Pro",
+                    detail: "Most capable (preview)"
+                ),
+                AssistantModel(
+                    id: "gemini-3.1-flash-lite",
+                    displayName: "Gemini 3.1 Flash-Lite",
+                    detail: "Fastest"
                 ),
             ]
         case .claudeCode:

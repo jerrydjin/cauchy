@@ -62,6 +62,7 @@
 		10C61456DD84DD8AA2493B39 /* ReadingContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7917C1152ACBA747975D43B0 /* ReadingContextBuilder.swift */; };
 		BB9B4192F7B56615262F24E0 /* ReferenceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3287CE2DC56B0DDA8FF9809 /* ReferenceDetector.swift */; };
 		329244535C3E8DF9D9F6923E /* ReferenceFormattingHeuristics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D5502A401AECACEBCF2F97B /* ReferenceFormattingHeuristics.swift */; };
+		B8ADA38CB876443E8AEA0882 /* ReferenceIndexBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D9C6572B51B25CB1977029E /* ReferenceIndexBenchmark.swift */; };
 		9490838C3B039100B6CFDC7D /* ReferenceIndexCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34512890F9ED82862060D62C /* ReferenceIndexCacheStore.swift */; };
 		644F3B5ACEF8FC87F547F536 /* ReferenceIndexGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */; };
 		E8849E186549D0345FB49D6D /* ReferenceParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4324DA55E513115F76124B /* ReferenceParsing.swift */; };
@@ -173,6 +174,7 @@
 		7917C1152ACBA747975D43B0 /* ReadingContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingContextBuilder.swift; sourceTree = "<group>"; };
 		C3287CE2DC56B0DDA8FF9809 /* ReferenceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceDetector.swift; sourceTree = "<group>"; };
 		4D5502A401AECACEBCF2F97B /* ReferenceFormattingHeuristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceFormattingHeuristics.swift; sourceTree = "<group>"; };
+		7D9C6572B51B25CB1977029E /* ReferenceIndexBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceIndexBenchmark.swift; sourceTree = "<group>"; };
 		34512890F9ED82862060D62C /* ReferenceIndexCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceIndexCacheStore.swift; sourceTree = "<group>"; };
 		540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceIndexGeneration.swift; sourceTree = "<group>"; };
 		1A4324DA55E513115F76124B /* ReferenceParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceParsing.swift; sourceTree = "<group>"; };
@@ -291,6 +293,7 @@
 			7917C1152ACBA747975D43B0 /* ReadingContextBuilder.swift */,
 			C3287CE2DC56B0DDA8FF9809 /* ReferenceDetector.swift */,
 			4D5502A401AECACEBCF2F97B /* ReferenceFormattingHeuristics.swift */,
+			7D9C6572B51B25CB1977029E /* ReferenceIndexBenchmark.swift */,
 			34512890F9ED82862060D62C /* ReferenceIndexCacheStore.swift */,
 			540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */,
 			1A4324DA55E513115F76124B /* ReferenceParsing.swift */,
@@ -469,6 +472,7 @@
 			10C61456DD84DD8AA2493B39,
 			BB9B4192F7B56615262F24E0,
 			329244535C3E8DF9D9F6923E,
+			B8ADA38CB876443E8AEA0882,
 			9490838C3B039100B6CFDC7D,
 			644F3B5ACEF8FC87F547F536,
 			E8849E186549D0345FB49D6D,

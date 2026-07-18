@@ -4,10 +4,27 @@ import SwiftUI
 struct CauchyApp: App {
     @State private var workspace = WorkspaceViewModel()
 
+    /// Non-nil when launched headlessly as `Cauchy --benchmark-indexing …`.
+    private static let benchmarkConfig = ReferenceIndexBenchmark.Config(arguments: CommandLine.arguments)
+
+    init() {
+        if let config = Self.benchmarkConfig {
+            Task.detached {
+                let code = await ReferenceIndexBenchmark.run(config: config)
+                exit(code)
+            }
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView(workspace: workspace)
-                .frame(minWidth: 1100, minHeight: 700)
+            if Self.benchmarkConfig != nil {
+                ProgressView("Running indexing benchmark — see terminal output…")
+                    .padding(40)
+            } else {
+                ContentView(workspace: workspace)
+                    .frame(minWidth: 1100, minHeight: 700)
+            }
         }
         .commands {
             CommandGroup(replacing: .newItem) {

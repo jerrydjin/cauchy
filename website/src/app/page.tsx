@@ -20,7 +20,7 @@ export default function Home() {
           </h1>
           
           <p className="text-[22px] sm:text-[28px] text-secondary max-w-3xl mb-12 font-normal tracking-[-0.01em]">
-            Built for dense mathematics papers and problem sets. Highlight <br className="hidden sm:block"/>equations and text to ask your AI assistant questions in context.
+            Built for dense mathematics papers. Highlight <br className="hidden sm:block"/>equations to ask your AI assistant questions.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-20">

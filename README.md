@@ -19,10 +19,14 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 
 ## Features
 
-- **Dual-pane PDF workspace** — primary reading canvas with synchronized secondary viewport (split or floating Liquid Glass panel)
-- **Reference pins** — drag-select regions and pin theorems, proofs, exercises, and solutions to a persistent sidebar
-- **Bidirectional links** — map exercises to solutions with lock-sync navigation
+- **PDF reading workspace** — continuous, single-page, and two-up layouts, thumbnails/contents sidebar, dashboard of recent documents, in-document find (⌘F)
+- **Highlights with AI threads** — select text or drag regions, save highlights, and ask questions about them; answers render LaTeX via SwiftMath
+- **Reference hover previews** — an LLM-built index of theorems/lemmas/definitions/equations, indexed on-device with Apple Intelligence (Gemini only as fallback), lets you hover "Theorem 2.1" anywhere and see its statement
+- **Ask-time retrieval** — a BM25 index over the document supplies relevant passages from other pages to the assistant
+- **Multiple assistant providers** — on-device Apple Intelligence, Gemini (API key), or your own Claude Code / Codex CLI sign-ins
 - **On-device OCR** — Vision framework text recognition with LaTeX formatting assist
+
+Headless tooling: `Cauchy --benchmark-indexing <pdf> [--pages N]` benchmarks on-device reference indexing; `Cauchy --probe-retrieval <pdf> <query>` prints what retrieval would feed the assistant.
 
 ## Open in Xcode
 
@@ -67,11 +71,11 @@ Cauchy/
 
 ## Persistence
 
-Workspace state is saved under Application Support at `~/Library/Application Support/Cauchy/workspaces/<id>/` (pins, viewport, thumbnails). Legacy sidecars beside the PDF are migrated automatically on open.
+Workspace state is saved under Application Support at `~/Library/Application Support/Cauchy/workspaces/<id>/` (highlights, viewport, thumbnails). Reference-index caches live in `…/Cauchy/reference-index/`. Legacy sidecars beside the PDF are migrated automatically on open.
 
 ## Sandbox
 
-The app uses App Sandbox with user-selected file read/write access. Open PDFs via **Open PDF…** (⌘O) to grant security-scoped access.
+The app ships **unsandboxed** — the Claude Code / Codex assistant providers spawn the user's locally installed CLIs, which App Sandbox forbids. Bookmarks fall back to plain (non-security-scoped) bookmarks accordingly.
 
 ## Releases & Distribution
 

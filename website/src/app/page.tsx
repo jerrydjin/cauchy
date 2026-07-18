@@ -16,11 +16,11 @@ export default function Home() {
         <div className="relative z-10 w-full flex flex-col items-center">
           
           <h1 className="text-[64px] sm:text-[80px] lg:text-[100px] font-medium tracking-[-0.03em] leading-[1.05] text-primary max-w-[1000px] mb-4">
-            Intelligence applied. <br/> Localized completely.
+            A PDF reader that <br className="hidden sm:block"/>talks back.
           </h1>
           
           <p className="text-[22px] sm:text-[28px] text-secondary max-w-3xl mb-12 font-normal tracking-[-0.01em]">
-            Deep reading, code synthesis, and research* — <br className="hidden sm:block"/>computed natively on Apple Silicon.
+            Open dense technical documents, highlight text, and <br className="hidden sm:block"/>ask your AI assistant questions directly in context.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-20">
@@ -226,13 +226,13 @@ export default function Home() {
       {/* Secondary Hero */}
       <section className="w-full py-32 bg-background px-6 text-center flex flex-col items-center">
         <h2 className="text-[48px] sm:text-[64px] font-medium tracking-[-0.03em] leading-[1.1] text-primary max-w-[1000px] mb-2">
-          Built on advanced mathematical frameworks.
+          Read papers faster.
         </h2>
         <h2 className="text-[48px] sm:text-[64px] font-medium tracking-[-0.03em] leading-[1.1] text-secondary max-w-[1000px] mb-10">
-          One engine for the intelligence era.
+          Understand them better.
         </h2>
         <Link href="/download" className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors mb-24">
-          Initialize Cauchy
+          Download Cauchy
         </Link>
       </section>
     </>

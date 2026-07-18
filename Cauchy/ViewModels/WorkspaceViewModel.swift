@@ -33,6 +33,9 @@ final class WorkspaceViewModel {
     var isIndexingReferences = false
     var referenceIndexProgress: Double = 0
     var referenceIndexError: String?
+    /// Non-blocking notice for a partially failed index (hover still works
+    /// with what was indexed; the failed pages retry next open).
+    var referenceIndexWarning: String?
 
     private let persistence = DocumentPersistenceService.shared
     private var securityScopedURL: URL?
@@ -151,6 +154,7 @@ final class WorkspaceViewModel {
         pageThumbnailCache.removeAll()
         highlightStore.highlights.removeAll()
         referenceIndex.clear()
+        referenceIndexWarning = nil
         find.attach(to: nil)
         selectionThread.activeThread = nil
         contextEngine.reset()
@@ -462,6 +466,7 @@ final class WorkspaceViewModel {
         referenceIndexTask?.cancel()
         referenceIndex.clear()
         referenceIndexError = nil
+        referenceIndexWarning = nil
         isIndexingReferences = true
         referenceIndexProgress = 0
 
@@ -483,7 +488,7 @@ final class WorkspaceViewModel {
             try? await Task.sleep(for: .milliseconds(150))
             
             do {
-                let snapshot = try await LLMReferenceIndexBuilder.build(
+                let outcome = try await LLMReferenceIndexBuilder.build(
                     documentURL: url,
                     model: model
                 ) { completed, total in
@@ -494,10 +499,13 @@ final class WorkspaceViewModel {
 
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    referenceIndex.replace(with: snapshot)
+                    referenceIndex.replace(with: outcome.snapshot)
                     isIndexingReferences = false
                     referenceIndexProgress = 1
                     referenceIndexError = nil
+                    let failedCount = outcome.failedPageIndices.count
+                    referenceIndexWarning = failedCount == 0 ? nil :
+                        "\(failedCount) page\(failedCount == 1 ? "" : "s") could not be indexed — they'll be retried next time this document is opened."
                 }
             } catch {
                 guard !Task.isCancelled else { return }

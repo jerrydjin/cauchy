@@ -2,25 +2,58 @@ import CryptoKit
 import Foundation
 
 struct PersistedReferenceIndex: Codable, Sendable {
-    static let schemaVersion = 2
+    static let schemaVersion = 3
+
+    /// Which model family produced the entries: "on-device", "gemini", or
+    /// "legacy-unknown" for caches migrated from v2. Recorded so a future
+    /// policy change can decide what is worth rebuilding; nothing is
+    /// auto-rebuilt today.
+    let builtWith: String
+    /// Pages whose extraction failed after retries — re-indexed and merged in
+    /// the next time the document is opened.
+    let failedPageIndices: [Int]
 
     let schemaVersion: Int
     let documentFingerprint: String
     let builtAt: Date
     let entries: [PersistedReferenceEntry]
 
-    init(documentFingerprint: String, builtAt: Date, entries: [ReferenceKey: IndexedReference]) {
+    init(
+        documentFingerprint: String,
+        builtAt: Date,
+        entries: [ReferenceKey: IndexedReference],
+        builtWith: String,
+        failedPageIndices: [Int]
+    ) {
+        self.init(
+            documentFingerprint: documentFingerprint,
+            builtAt: builtAt,
+            persistedEntries: entries.map { key, value in
+                PersistedReferenceEntry(
+                    kind: key.kind.rawValue,
+                    number: key.number,
+                    formattedBody: value.formattedBody,
+                    pageIndex: value.pageIndex
+                )
+            },
+            builtWith: builtWith,
+            failedPageIndices: failedPageIndices
+        )
+    }
+
+    init(
+        documentFingerprint: String,
+        builtAt: Date,
+        persistedEntries: [PersistedReferenceEntry],
+        builtWith: String,
+        failedPageIndices: [Int]
+    ) {
         self.schemaVersion = Self.schemaVersion
         self.documentFingerprint = documentFingerprint
         self.builtAt = builtAt
-        self.entries = entries.map { key, value in
-            PersistedReferenceEntry(
-                kind: key.kind.rawValue,
-                number: key.number,
-                formattedBody: value.formattedBody,
-                pageIndex: value.pageIndex
-            )
-        }
+        self.entries = persistedEntries
+        self.builtWith = builtWith
+        self.failedPageIndices = failedPageIndices.sorted()
     }
 
     func asSnapshot(pageCount: Int) -> DocumentReferenceIndexSnapshot {
@@ -55,6 +88,9 @@ struct PersistedReferenceEntry: Codable, Sendable, Equatable {
 enum ReferenceIndexCacheStore {
     private static let indexDirectoryName = "reference-index"
 
+    /// Raw SHA-256 of the document bytes. Schema versioning lives in the cache
+    /// file name (and the decoded payload), not the fingerprint, so a schema
+    /// bump can migrate old caches instead of orphaning them.
     static func fingerprint(for documentURL: URL) throws -> String {
         // Stream the file into the hasher: same digest as hashing Data(contentsOf:)
         // in one shot, without holding a potentially huge PDF in memory.
@@ -65,18 +101,47 @@ enum ReferenceIndexCacheStore {
         while let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
             hasher.update(data: chunk)
         }
-        let hash = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-        return "\(hash)-v\(PersistedReferenceIndex.schemaVersion)"
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     static func load(fingerprint: String) throws -> PersistedReferenceIndex? {
         let url = cacheFileURL(for: fingerprint)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        let persisted = try decoder.decode(PersistedReferenceIndex.self, from: data)
-        guard persisted.schemaVersion == PersistedReferenceIndex.schemaVersion else { return nil }
-        guard persisted.documentFingerprint == fingerprint else { return nil }
-        return persisted
+        if FileManager.default.fileExists(atPath: url.path) {
+            let data = try Data(contentsOf: url)
+            let persisted = try decoder.decode(PersistedReferenceIndex.self, from: data)
+            guard persisted.schemaVersion == PersistedReferenceIndex.schemaVersion else { return nil }
+            guard persisted.documentFingerprint == fingerprint else { return nil }
+            return persisted
+        }
+        return try migrateLegacyV2(fingerprint: fingerprint)
+    }
+
+    /// v2 caches (Gemini-built, before provenance/failed-page tracking) stay
+    /// valid: decode with the legacy shape and re-save as v3.
+    private static func migrateLegacyV2(fingerprint: String) throws -> PersistedReferenceIndex? {
+        struct LegacyV2: Codable {
+            let schemaVersion: Int
+            let documentFingerprint: String
+            let builtAt: Date
+            let entries: [PersistedReferenceEntry]
+        }
+
+        let legacyURL = cacheDirectory().appendingPathComponent("\(fingerprint)-v2.json")
+        guard FileManager.default.fileExists(atPath: legacyURL.path) else { return nil }
+        let data = try Data(contentsOf: legacyURL)
+        let legacy = try decoder.decode(LegacyV2.self, from: data)
+        guard legacy.schemaVersion == 2,
+              legacy.documentFingerprint == "\(fingerprint)-v2" else { return nil }
+
+        let migrated = PersistedReferenceIndex(
+            documentFingerprint: fingerprint,
+            builtAt: legacy.builtAt,
+            persistedEntries: legacy.entries,
+            builtWith: "legacy-unknown",
+            failedPageIndices: []
+        )
+        try? save(migrated)
+        return migrated
     }
 
     static func save(_ index: PersistedReferenceIndex) throws {
@@ -87,7 +152,7 @@ enum ReferenceIndexCacheStore {
     }
 
     static func cacheFileURL(for fingerprint: String) -> URL {
-        cacheDirectory().appendingPathComponent("\(fingerprint).json")
+        cacheDirectory().appendingPathComponent("\(fingerprint)-v\(PersistedReferenceIndex.schemaVersion).json")
     }
 
     private static func cacheDirectory() -> URL {

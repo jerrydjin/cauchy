@@ -159,19 +159,28 @@ enum LLMReferenceIndexBuilder {
         let geminiVision: GeminiReferenceIndexClient?
     }
 
+    struct BuildOutcome: Sendable {
+        let snapshot: DocumentReferenceIndexSnapshot
+        /// Pages that still failed after retries; persisted so the next open
+        /// re-indexes only these.
+        let failedPageIndices: [Int]
+    }
+
     nonisolated static func build(
         documentURL: URL,
         model: any LanguageModel,
         progress: (@Sendable (Int, Int) -> Void)? = nil
-    ) async throws -> DocumentReferenceIndexSnapshot {
+    ) async throws -> BuildOutcome {
         let fingerprint = try ReferenceIndexCacheStore.fingerprint(for: documentURL)
 
         guard let document = PDFDocument(url: documentURL) else {
             throw ReferenceIndexBuildError.documentUnavailable
         }
+        let pageCount = document.pageCount
 
-        if let cached = try? ReferenceIndexCacheStore.load(fingerprint: fingerprint) {
-            return cached.asSnapshot(pageCount: document.pageCount)
+        let cached = try? ReferenceIndexCacheStore.load(fingerprint: fingerprint)
+        if let cached, cached.failedPageIndices.isEmpty {
+            return BuildOutcome(snapshot: cached.asSnapshot(pageCount: pageCount), failedPageIndices: [])
         }
 
         // Vision (and its per-page PNG rendering) only when the chosen model
@@ -186,30 +195,52 @@ enum LLMReferenceIndexBuilder {
 
         let modelHandle = ModelHandle(model: model, geminiVision: geminiVision)
 
-        let pageCount = document.pageCount
+        // A cache with failed pages seeds the result and narrows the work to
+        // just those pages; provenance stays with the original bulk build.
         var merged: [ReferenceKey: IndexedReference] = [:]
+        var pagesToProcess = Array(0..<pageCount)
+        var builtWith = model is GeminiCloudLanguageModel ? "gemini" : "on-device"
+        if let cached {
+            merged = cached.asSnapshot(pageCount: pageCount).entries
+            pagesToProcess = cached.failedPageIndices.filter { $0 < pageCount }
+            builtWith = cached.builtWith
+        }
 
         let concurrency = (geminiVision == nil && model is SystemLanguageModel)
             ? maxConcurrentPagesOnDevice
             : maxConcurrentPages
 
-        for batchStart in stride(from: 0, to: pageCount, by: concurrency) {
-            let batchEnd = min(batchStart + concurrency, pageCount)
-            try await withThrowingTaskGroup(of: (Int, [ReferenceKey: IndexedReference]).self) { group in
-                for pageIndex in batchStart..<batchEnd {
+        var failed: [Int] = []
+        var completedCount = 0
+
+        for batchStart in stride(from: 0, to: pagesToProcess.count, by: concurrency) {
+            let batchEnd = min(batchStart + concurrency, pagesToProcess.count)
+            try await withThrowingTaskGroup(of: (Int, [ReferenceKey: IndexedReference]?).self) { group in
+                for pageIndex in pagesToProcess[batchStart..<batchEnd] {
                     let payload = pagePayload(from: document, pageIndex: pageIndex, geminiVision: geminiVision)
                     group.addTask {
-                        let entries = try await processPage(
-                            payload: payload,
-                            pageIndex: pageIndex,
-                            modelHandle: modelHandle
-                        )
-                        return (pageIndex, entries)
+                        do {
+                            let entries = try await processPageWithRetry(
+                                payload: payload,
+                                pageIndex: pageIndex,
+                                modelHandle: modelHandle
+                            )
+                            return (pageIndex, entries)
+                        } catch is CancellationError {
+                            throw CancellationError()
+                        } catch {
+                            return (pageIndex, nil)
+                        }
                     }
                 }
 
                 for try await (pageIndex, entries) in group {
-                    progress?(pageIndex + 1, pageCount)
+                    completedCount += 1
+                    progress?(completedCount, pagesToProcess.count)
+                    guard let entries else {
+                        failed.append(pageIndex)
+                        continue
+                    }
                     for (key, entry) in entries {
                         if let existing = merged[key] {
                             if entry.formattedBody.count > existing.formattedBody.count {
@@ -224,13 +255,47 @@ enum LLMReferenceIndexBuilder {
         }
 
         let snapshot = DocumentReferenceIndexSnapshot(entries: merged, pageCount: pageCount)
-        let persisted = PersistedReferenceIndex(
-            documentFingerprint: fingerprint,
-            builtAt: Date(),
-            entries: merged
-        )
-        try ReferenceIndexCacheStore.save(persisted)
-        return snapshot
+        failed.sort()
+
+        // A mostly-failed fresh run points at a systemic outage — don't bake
+        // it into the cache; the next open retries the whole document.
+        let failureRate = pagesToProcess.isEmpty ? 0 : Double(failed.count) / Double(pagesToProcess.count)
+        if cached != nil || failureRate <= 0.5 {
+            let persisted = PersistedReferenceIndex(
+                documentFingerprint: fingerprint,
+                builtAt: Date(),
+                entries: merged,
+                builtWith: builtWith,
+                failedPageIndices: failed
+            )
+            try? ReferenceIndexCacheStore.save(persisted)
+        }
+        return BuildOutcome(snapshot: snapshot, failedPageIndices: failed)
+    }
+
+    /// Retries transient per-page failures with backoff; rate limits wait
+    /// longer. Context overflow is never retried — splitting already handled
+    /// it, and a repeat attempt cannot do better.
+    nonisolated private static func processPageWithRetry(
+        payload: PageIndexPayload,
+        pageIndex: Int,
+        modelHandle: ModelHandle
+    ) async throws -> [ReferenceKey: IndexedReference] {
+        var attempt = 1
+        while true {
+            do {
+                return try await processPage(payload: payload, pageIndex: pageIndex, modelHandle: modelHandle)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                guard attempt < 3, !isContextOverflow(error) else { throw error }
+                let rateLimited = if let gemini = error as? GeminiCloudAPIError,
+                                     case .rateLimited = gemini { true } else { false }
+                let base: Double = rateLimited ? (attempt == 1 ? 5 : 15) : (attempt == 1 ? 1 : 4)
+                try await Task.sleep(for: .seconds(base + Double.random(in: 0...0.5)))
+                attempt += 1
+            }
+        }
     }
 
     nonisolated private static func pagePayload(
@@ -266,19 +331,11 @@ enum LLMReferenceIndexBuilder {
             return [:]
         }
 
-        let parsed: LLMPageReferenceResponse
-        do {
-            parsed = try await extractPageReferences(
-                payload: payload,
-                pageIndex: pageIndex,
-                modelHandle: modelHandle
-            )
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            return [:]
-        }
-
+        let parsed = try await extractPageReferences(
+            payload: payload,
+            pageIndex: pageIndex,
+            modelHandle: modelHandle
+        )
         return await finalizeItems(parsed, pageIndex: pageIndex, modelHandle: modelHandle)
     }
 

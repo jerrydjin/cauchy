@@ -69,10 +69,14 @@ struct GlassToolbarContent: ToolbarContent {
                 .disabled(workspace.currentPage >= workspace.pageCount)
 
                 if workspace.isIndexingReferences {
-                    ProgressView()
+                    ProgressView(value: workspace.referenceIndexProgress)
                         .progressViewStyle(.circular)
                         .controlSize(.small)
-                        .help("Indexing document references for AI analysis...")
+                        .help("Indexing document references for AI analysis (\(Int(workspace.referenceIndexProgress * 100))%)…")
+                } else if let warning = workspace.referenceIndexWarning {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .help(warning)
                 }
             }
         }

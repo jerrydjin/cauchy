@@ -11,3 +11,10 @@ xcuserdata/
 /test_*
 /fm_dump.swift
 /find_methods.swift
+
+# Claude Code local state
+.claude/worktrees/
+.claude/settings.local.json
+
+# LLVM coverage artifacts
+*.profraw

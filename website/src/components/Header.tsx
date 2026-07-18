@@ -16,7 +16,7 @@ export default function Header() {
             <Link href="/faq" className="hover:opacity-60 transition-opacity flex items-center gap-1">
               FAQ
             </Link>
-            <Link href="https://github.com/jerryjin/cauchy" className="hover:opacity-60 transition-opacity">
+            <Link href="https://github.com/jerrydjin/cauchy" className="hover:opacity-60 transition-opacity">
               GitHub
             </Link>
           </nav>

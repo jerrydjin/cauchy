@@ -11,7 +11,7 @@ export default function Footer() {
             <span className="text-[13px] font-semibold text-white mb-2">Resources</span>
             <Link href="/setup" className="text-[13px] text-[#A8A29E] hover:text-white">Setup</Link>
             <Link href="/faq" className="text-[13px] text-[#A8A29E] hover:text-white">FAQ</Link>
-            <Link href="https://github.com/jerryjin/cauchy" className="text-[13px] text-[#A8A29E] hover:text-white">GitHub</Link>
+            <Link href="https://github.com/jerrydjin/cauchy" className="text-[13px] text-[#A8A29E] hover:text-white">GitHub</Link>
           </div>
 
           {/* Footer Column 2 */}

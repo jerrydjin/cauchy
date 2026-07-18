@@ -4,11 +4,14 @@ import PDFKit
 
 enum ReferenceIndexBuildError: LocalizedError {
     case documentUnavailable
+    case unparseableResponse
 
     var errorDescription: String? {
         switch self {
         case .documentUnavailable:
             "Could not read the PDF for reference indexing."
+        case .unparseableResponse:
+            "The model's response could not be parsed."
         }
     }
 }
@@ -122,6 +125,9 @@ enum LLMReferenceIndexSupport {
 
 enum LLMReferenceIndexBuilder {
     static let maxConcurrentPages = 4
+    /// The system serializes on-device inference anyway; extra in-flight
+    /// requests only queue up and risk timeouts.
+    static let maxConcurrentPagesOnDevice = 2
 
     private struct ModelHandle: Sendable {
         let model: any LanguageModel
@@ -155,8 +161,12 @@ enum LLMReferenceIndexBuilder {
         let pageCount = document.pageCount
         var merged: [ReferenceKey: IndexedReference] = [:]
 
-        for batchStart in stride(from: 0, to: pageCount, by: maxConcurrentPages) {
-            let batchEnd = min(batchStart + maxConcurrentPages, pageCount)
+        let concurrency = (geminiVision == nil && model is SystemLanguageModel)
+            ? maxConcurrentPagesOnDevice
+            : maxConcurrentPages
+
+        for batchStart in stride(from: 0, to: pageCount, by: concurrency) {
+            let batchEnd = min(batchStart + concurrency, pageCount)
             try await withThrowingTaskGroup(of: (Int, [ReferenceKey: IndexedReference]).self) { group in
                 for pageIndex in batchStart..<batchEnd {
                     let payload = pagePayload(from: document, pageIndex: pageIndex, geminiVision: geminiVision)
@@ -227,9 +237,9 @@ enum LLMReferenceIndexBuilder {
             return [:]
         }
 
-        let rawResponse: String
+        let parsed: LLMPageReferenceResponse
         do {
-            rawResponse = try await requestPageExtraction(
+            parsed = try await extractPageReferences(
                 payload: payload,
                 pageIndex: pageIndex,
                 modelHandle: modelHandle
@@ -237,13 +247,6 @@ enum LLMReferenceIndexBuilder {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            return [:]
-        }
-
-        guard let parsed = await parsePageResponse(
-            rawResponse,
-            modelHandle: modelHandle
-        ) else {
             return [:]
         }
 
@@ -273,6 +276,98 @@ enum LLMReferenceIndexBuilder {
         }
 
         return results
+    }
+
+    /// Routes one page to the right extraction path: guided generation for the
+    /// on-device model (schema-constrained, no JSON parsing), otherwise the
+    /// raw-JSON text/vision path with parse repair.
+    nonisolated private static func extractPageReferences(
+        payload: PageIndexPayload,
+        pageIndex: Int,
+        modelHandle: ModelHandle
+    ) async throws -> LLMPageReferenceResponse {
+        if modelHandle.geminiVision == nil,
+           let systemModel = modelHandle.model as? SystemLanguageModel {
+            return try await requestGuidedPageExtraction(
+                pageText: payload.pageText,
+                pageIndex: pageIndex,
+                model: systemModel
+            )
+        }
+
+        let rawResponse = try await requestPageExtraction(
+            payload: payload,
+            pageIndex: pageIndex,
+            modelHandle: modelHandle
+        )
+        guard let parsed = await parsePageResponse(rawResponse, modelHandle: modelHandle) else {
+            throw ReferenceIndexBuildError.unparseableResponse
+        }
+        return parsed
+    }
+
+    @MainActor
+    private static func requestGuidedPageExtraction(
+        pageText: String,
+        pageIndex: Int,
+        model: SystemLanguageModel,
+        depth: Int = 0
+    ) async throws -> LLMPageReferenceResponse {
+        let budgeted = String(pageText.prefix(ReferenceIndexPromptBuilder.maxPageCharactersOnDevice))
+        do {
+            let session = LanguageModelSession(
+                model: model,
+                instructions: ReferenceIndexPromptBuilder.onDeviceInstructions
+            )
+            let prompt = ReferenceIndexPromptBuilder.onDeviceUserPrompt(
+                pageText: budgeted,
+                pageIndex: pageIndex
+            )
+            let response = try await session.respond(to: prompt, generating: GeneratedPageReferences.self)
+            return response.content.asResponse
+        } catch let error as LanguageModelError {
+            // Even a budgeted page can overflow the window once the schema and
+            // generated output are counted; split at a paragraph boundary and
+            // index each half separately.
+            guard case .contextSizeExceeded = error, depth < 2, budgeted.count >= 1_000 else {
+                throw error
+            }
+            let (head, tail) = splitNearMidpoint(budgeted)
+            let first = try await requestGuidedPageExtraction(
+                pageText: head, pageIndex: pageIndex, model: model, depth: depth + 1
+            )
+            let second = try await requestGuidedPageExtraction(
+                pageText: tail, pageIndex: pageIndex, model: model, depth: depth + 1
+            )
+            return LLMPageReferenceResponse(references: first.references + second.references)
+        }
+    }
+
+    /// Splits at the paragraph (or line) break closest to the midpoint so a
+    /// reference statement isn't cut mid-sentence more than necessary.
+    nonisolated static func splitNearMidpoint(_ text: String) -> (String, String) {
+        let target = text.count / 2
+
+        for separator in ["\n\n", "\n"] {
+            var best: (index: String.Index, distance: Int)?
+            var searchStart = text.startIndex
+            while let range = text.range(of: separator, range: searchStart..<text.endIndex) {
+                let offset = text.distance(from: text.startIndex, to: range.lowerBound)
+                let distance = abs(offset - target)
+                if best == nil || distance < best!.distance {
+                    best = (range.upperBound, distance)
+                }
+                searchStart = range.upperBound
+            }
+            // Only take a break point that lands in the middle half of the
+            // text, so neither side ends up trivially small.
+            if let best, best.distance <= text.count / 4 {
+                return (String(text[..<best.index]), String(text[best.index...]))
+            }
+        }
+
+        let midpoint = text.index(text.startIndex, offsetBy: target)
+        return (String(text[..<midpoint]), String(text[midpoint...]))
     }
 
     nonisolated private static func parsePageResponse(

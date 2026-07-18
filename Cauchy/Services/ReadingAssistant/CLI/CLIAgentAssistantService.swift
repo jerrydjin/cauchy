@@ -106,21 +106,22 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         case .codex:
             // Codex has no separate system-prompt flag; prepend instructions.
             // The sandbox flag keeps the agent read-only on the user's machine.
-            // Model and effort are pinned because ~/.codex/config.toml is shared
-            // with the ChatGPT desktop app, which rewrites it (e.g. to the
-            // frontier model at high effort) — chat answers here only need the
-            // newest generation's balanced tier.
+            // Model and effort are always passed explicitly because
+            // ~/.codex/config.toml is shared with the ChatGPT desktop app,
+            // which rewrites it — the user's in-app choice must win.
             return [
                 "exec", instructions + "\n\n" + transcript,
                 "--json",
                 "--skip-git-repo-check",
                 "--sandbox", "read-only",
-                "--model", "gpt-5.6-terra",
+                "--model", ModelProviderPreferences.selectedModelID(for: .codex),
                 "-c", "model_reasoning_effort=\"medium\"",
             ]
         default:
             // Tools are disabled: this is a chat provider, so the agent must
-            // never run commands or edit files on the user's machine.
+            // never run commands or edit files on the user's machine. The model
+            // is passed explicitly so answers don't silently depend on the
+            // user's CLI-side default.
             return [
                 "-p", transcript,
                 "--output-format", "stream-json",
@@ -128,6 +129,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
                 "--verbose",
                 "--tools", "",
                 "--no-session-persistence",
+                "--model", ModelProviderPreferences.selectedModelID(for: .claudeCode),
                 "--append-system-prompt", instructions,
             ]
         }

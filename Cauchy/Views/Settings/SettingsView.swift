@@ -35,7 +35,10 @@ struct SettingsView: View {
             } header: {
                 Text("Assistant")
             } footer: {
-                Text(providerFooter)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(providerFooter)
+                    Text("You can also switch the provider and exact model from the selector beneath the chat box.")
+                }
             }
 
             Section {

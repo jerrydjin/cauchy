@@ -10,6 +10,7 @@ struct ConversationPanel: View {
     var panelWidth: CGFloat
     @Binding var question: String
     var onSend: () -> Void
+    var onModelChange: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -84,7 +85,8 @@ struct ConversationPanel: View {
                 question: $question,
                 isResponding: isResponding,
                 isEnabled: isAskAvailable && selectedText != nil,
-                onSend: onSend
+                onSend: onSend,
+                onModelChange: onModelChange
             )
         }
     }

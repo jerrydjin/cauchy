@@ -5,26 +5,32 @@ struct ConversationComposer: View {
     var isResponding: Bool
     var isEnabled: Bool
     var onSend: () -> Void
+    var onModelChange: () -> Void = {}
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Ask a question…", text: $question, axis: .vertical)
-                .textFieldStyle(.plain)
-                .lineLimit(1...4)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .disabled(isResponding || !isEnabled)
-                .onSubmit(onSend)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .glassEffect(in: .rect(cornerRadius: ConversationChrome.composerCornerRadius))
+        VStack(alignment: .leading, spacing: 6) {
+            ModelPickerMenu(onChange: onModelChange)
+                .padding(.leading, 2)
 
-            GlassIconButton(
-                systemName: "arrow.up",
-                accessibilityLabel: "Send",
-                prominent: canSend,
-                action: onSend
-            )
-            .disabled(!canSend)
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Ask a question…", text: $question, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...4)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .disabled(isResponding || !isEnabled)
+                    .onSubmit(onSend)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .glassEffect(in: .rect(cornerRadius: ConversationChrome.composerCornerRadius))
+
+                GlassIconButton(
+                    systemName: "arrow.up",
+                    accessibilityLabel: "Send",
+                    prominent: canSend,
+                    action: onSend
+                )
+                .disabled(!canSend)
+            }
         }
     }
 

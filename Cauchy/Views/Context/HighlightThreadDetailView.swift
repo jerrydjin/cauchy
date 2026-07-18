@@ -47,7 +47,8 @@ struct HighlightThreadDetailView: View {
                 unavailabilityMessage: unavailabilityMessage,
                 panelWidth: workspace.contextPanelWidth,
                 question: $question,
-                onSend: { Task { await sendQuestion() } }
+                onSend: { Task { await sendQuestion() } },
+                onModelChange: { workspace.refreshReadingAssistant() }
             )
             .padding(16)
         }

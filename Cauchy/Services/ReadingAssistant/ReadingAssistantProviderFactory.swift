@@ -63,7 +63,10 @@ enum ReadingAssistantProviderFactory {
 
     private static func geminiAssistant(apiKey: String) -> any ReadingAssistantProtocol {
         FoundationModelsReadingAssistantService(
-            model: GeminiCloudLanguageModel(apiKey: apiKey),
+            model: GeminiCloudLanguageModel(
+                apiKey: apiKey,
+                modelName: ModelProviderPreferences.selectedModelID(for: .gemini)
+            ),
             provider: .gemini
         )
     }

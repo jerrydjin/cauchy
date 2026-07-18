@@ -8,7 +8,9 @@ final class SelectionThreadViewModel {
     var isResponding = false
 
     private var assistant: any ReadingAssistantProtocol
-    private let documentIndex: DocumentIndexProtocol = DocumentIndex()
+    /// Injected by WorkspaceViewModel once the background build finishes; nil
+    /// until then (asks simply run without retrieved passages).
+    var documentIndex: (any DocumentIndexProtocol)?
 
     init(assistant: any ReadingAssistantProtocol = ReadingAssistantProviderFactory.makeAssistant()) {
         self.assistant = assistant
@@ -126,9 +128,13 @@ final class SelectionThreadViewModel {
             activeThread?.streamingAssistantText = nil
         }
 
+        // Retrieval happens now — at ask time — because the query needs the
+        // question; the session context predates it.
+        let passages = retrievePassages(question: trimmed, thread: thread)
+
         // onPartial already runs on the main actor (ReadingAssistantProtocol is
         // @MainActor); the coalescer keeps re-renders at ~12/s instead of per token.
-        let assistantText = try await assistant.ask(question: trimmed) { partial in
+        let assistantText = try await assistant.ask(question: trimmed, retrievedPassages: passages) { partial in
             coalescer.submit(partial)
         }
 
@@ -140,5 +146,11 @@ final class SelectionThreadViewModel {
 
     func currentMessagesForSave() -> [ThreadMessage] {
         activeThread?.messages ?? []
+    }
+
+    private func retrievePassages(question: String, thread: SelectionThread) -> [String] {
+        guard let documentIndex else { return [] }
+        let query = question + " " + thread.selectedText.prefix(200)
+        return documentIndex.passages(matching: query, limit: 3, excludingPage: thread.pageIndex)
     }
 }

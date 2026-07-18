@@ -45,6 +45,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
 
     func ask(
         question: String,
+        retrievedPassages: [String],
         onPartial: ((String) -> Void)? = nil
     ) async throws -> String {
         guard !isResponding else {
@@ -60,7 +61,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         isResponding = true
         defer { isResponding = false }
 
-        let arguments = makeArguments(question: trimmed)
+        let arguments = makeArguments(question: trimmed, retrievedPassages: retrievedPassages)
         var parser: any CLIAgentStreamParsing = provider == .codex
             ? CodexStreamParser()
             : ClaudeCodeStreamParser()
@@ -98,8 +99,13 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
 
     // MARK: - Prompt & argument construction
 
-    private func makeArguments(question: String) -> [String] {
-        let instructions = instructionsText()
+    private func makeArguments(question: String, retrievedPassages: [String]) -> [String] {
+        // Retrieved passages ride the one-shot prompt only — they are never
+        // appended to the stored history, so re-asks don't compound them.
+        var instructions = instructionsText()
+        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrievedPassages, characterBudget: 4_000) {
+            instructions += "\n\n" + block
+        }
         let transcript = Self.transcriptPrompt(history: history, question: question)
 
         switch provider {

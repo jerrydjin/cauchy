@@ -45,7 +45,15 @@ protocol ReadingAssistantProtocol: AnyObject {
     var isResponding: Bool { get }
     func resetSession(context: ReadingContext)
     func restoreSession(context: ReadingContext, messages: [ThreadMessage])
-    func ask(question: String, onPartial: ((String) -> Void)?) async throws -> String
+    /// `retrievedPassages` reach the model's prompt but are never stored in
+    /// thread history or shown in the chat UI.
+    func ask(question: String, retrievedPassages: [String], onPartial: ((String) -> Void)?) async throws -> String
+}
+
+extension ReadingAssistantProtocol {
+    func ask(question: String, onPartial: ((String) -> Void)? = nil) async throws -> String {
+        try await ask(question: question, retrievedPassages: [], onPartial: onPartial)
+    }
 }
 
 enum ReadingAssistantError: LocalizedError {

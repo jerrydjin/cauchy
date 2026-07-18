@@ -40,6 +40,7 @@ final class WorkspaceViewModel {
     private let persistence = DocumentPersistenceService.shared
     private var securityScopedURL: URL?
     private var referenceIndexTask: Task<Void, Never>?
+    private var lexicalIndexTask: Task<Void, Never>?
 
     init() {
         find.currentPageProvider = { [weak self] in
@@ -137,6 +138,7 @@ final class WorkspaceViewModel {
         applyRestoredViewport(isNewDocument: isNewDocument)
         syncHighlightAnnotations()
         buildReferenceIndex(for: resolvedURL)
+        buildLexicalIndex(for: resolvedURL)
         generateDashboardPreviewIfNeeded(documentURL: resolvedURL)
         persistWorkspace()
     }
@@ -155,6 +157,9 @@ final class WorkspaceViewModel {
         highlightStore.highlights.removeAll()
         referenceIndex.clear()
         referenceIndexWarning = nil
+        lexicalIndexTask?.cancel()
+        lexicalIndexTask = nil
+        selectionThread.documentIndex = nil
         find.attach(to: nil)
         selectionThread.activeThread = nil
         contextEngine.reset()
@@ -515,6 +520,20 @@ final class WorkspaceViewModel {
                     referenceIndexProgress = 0
                     referenceIndexError = error.localizedDescription
                 }
+            }
+        }
+    }
+
+    /// Builds the BM25 retrieval index in the background; asks sent before it
+    /// finishes simply run without retrieved passages.
+    private func buildLexicalIndex(for url: URL) {
+        lexicalIndexTask?.cancel()
+        selectionThread.documentIndex = nil
+        lexicalIndexTask = Task.detached(priority: .utility) { [weak self] in
+            guard let index = LexicalDocumentIndex.build(documentURL: url),
+                  !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.selectionThread.documentIndex = index
             }
         }
     }

@@ -95,6 +95,7 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
 
     func ask(
         question: String,
+        retrievedPassages: [String],
         onPartial: ((String) -> Void)? = nil
     ) async throws -> String {
         guard isAvailable else {
@@ -110,8 +111,16 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
 
+        // Passages ride the per-turn prompt (sessions fix their instructions
+        // at reset/restore time) with a budget the small local window can fit.
+        var prompt = trimmed
+        let passageBudget = provider == .local ? 1_200 : 4_000
+        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrievedPassages, characterBudget: passageBudget) {
+            prompt = block + "\n\nQUESTION: " + trimmed
+        }
+
         do {
-            let stream = session.streamResponse(to: trimmed)
+            let stream = session.streamResponse(to: prompt)
             var accumulated = ""
             for try await snapshot in stream {
                 accumulated = snapshot.content

@@ -173,6 +173,23 @@ enum ReferenceIndexBenchmark {
         return 0
     }
 
+    /// `Cauchy --probe-retrieval <pdf> <query>`: builds the lexical index and
+    /// prints the passages an ask would retrieve — a headless check of the
+    /// retrieval pipeline.
+    nonisolated static func runRetrievalProbe(pdfPath: String, query: String) -> Int32 {
+        let url = URL(fileURLWithPath: (pdfPath as NSString).expandingTildeInPath)
+        guard let index = LexicalDocumentIndex.build(documentURL: url) else {
+            print("ERROR: could not build lexical index for \(url.path)")
+            return 1
+        }
+        let passages = index.passages(matching: query, limit: 3, excludingPage: nil)
+        print("Query: \(query)\nTop \(passages.count) passages:")
+        for (i, passage) in passages.enumerated() {
+            print("\n#\(i + 1) \(passage.prefix(400))")
+        }
+        return 0
+    }
+
     // MARK: - Helpers
 
     private static func display(_ key: ReferenceKey) -> String {

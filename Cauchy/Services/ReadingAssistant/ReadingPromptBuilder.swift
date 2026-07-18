@@ -51,6 +51,28 @@ enum ReadingPromptBuilder {
         return prompt
     }
 
+    /// Formats ask-time retrieved passages for inclusion in the model prompt,
+    /// clipped to a per-provider character budget (the on-device context
+    /// window is small). Returns nil when nothing fits.
+    static func retrievedPassagesBlock(_ passages: [String], characterBudget: Int) -> String? {
+        guard !passages.isEmpty, characterBudget > 0 else { return nil }
+        var clipped: [String] = []
+        var used = 0
+        for passage in passages {
+            let piece = String(passage.prefix(characterBudget - used))
+            guard piece.count >= 40 else { break }
+            clipped.append(piece)
+            used += piece.count
+            if used >= characterBudget { break }
+        }
+        guard !clipped.isEmpty else { return nil }
+        return """
+        RELEVANT PASSAGES (from elsewhere in the document — mention the page number when you rely on one):
+
+        \(clipped.joined(separator: "\n\n"))
+        """
+    }
+
     static func latexRepairInstructions() -> String {
         """
         You fix LaTeX delimiter placement in assistant replies for a math rendering engine.

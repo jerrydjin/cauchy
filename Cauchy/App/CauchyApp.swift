@@ -13,6 +13,13 @@ struct CauchyApp: App {
                 let code = await ReferenceIndexBenchmark.run(config: config)
                 exit(code)
             }
+        } else if let flagIndex = CommandLine.arguments.firstIndex(of: "--probe-retrieval"),
+                  CommandLine.arguments.indices.contains(flagIndex + 2) {
+            let pdfPath = CommandLine.arguments[flagIndex + 1]
+            let query = CommandLine.arguments[flagIndex + 2]
+            Task.detached {
+                exit(ReferenceIndexBenchmark.runRetrievalProbe(pdfPath: pdfPath, query: query))
+            }
         }
     }
 

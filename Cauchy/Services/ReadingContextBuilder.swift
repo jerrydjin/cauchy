@@ -9,7 +9,7 @@ enum ReadingContextBuilder {
     ) -> ReadingContext {
         let retrievedPassages: [String]
         if let index, let query, !query.isEmpty {
-            retrievedPassages = index.passages(matching: query, limit: 3)
+            retrievedPassages = index.passages(matching: query, limit: 3, excludingPage: nil)
         } else {
             retrievedPassages = []
         }

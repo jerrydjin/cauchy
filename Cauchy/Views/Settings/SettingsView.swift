@@ -71,7 +71,7 @@ struct SettingsView: View {
                 Text("Gemini API Key")
             } footer: {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Used when the assistant is set to Automatic or Gemini, and for reference indexing whenever a key is saved.")
+                    Text("Used when the assistant is set to Automatic or Gemini. Reference indexing runs on-device; the key is only a fallback when Apple Intelligence is unavailable.")
                     Link("Get a Gemini API key", destination: URL(string: "https://aistudio.google.com/apikey")!)
                 }
             }

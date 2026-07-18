@@ -465,8 +465,9 @@ final class WorkspaceViewModel {
         isIndexingReferences = true
         referenceIndexProgress = 0
 
-        // Indexing always runs on Gemini (if keyed) or the on-device model,
-        // independent of which provider answers chat questions.
+        // Indexing prefers the free on-device model; Gemini is only a fallback
+        // when Apple Intelligence is unavailable. Independent of which
+        // provider answers chat questions.
         let availability = referenceIndexingAvailability
         guard availability.isAvailable else {
             isIndexingReferences = false
@@ -511,13 +512,20 @@ final class WorkspaceViewModel {
     }
 
     private var referenceIndexingAvailability: ReadingAssistantAvailability {
+        let local = FoundationModelsReadingAssistantService.localAvailability
+        if local.isAvailable {
+            return local
+        }
         if ModelProviderPreferences.geminiEnabled {
             return .available(.gemini)
         }
-        return FoundationModelsReadingAssistantService.localAvailability
+        return local
     }
 
     private func referenceIndexModel() -> any LanguageModel {
+        if FoundationModelsReadingAssistantService.localAvailability.isAvailable {
+            return SystemLanguageModel.default
+        }
         if let apiKey = ModelProviderPreferences.activeGeminiAPIKey {
             return GeminiCloudLanguageModel(apiKey: apiKey)
         }

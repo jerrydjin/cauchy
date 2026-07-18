@@ -174,9 +174,12 @@ enum LLMReferenceIndexBuilder {
             return cached.asSnapshot(pageCount: document.pageCount)
         }
 
+        // Vision (and its per-page PNG rendering) only when the chosen model
+        // is actually Gemini — a saved API key alone must not spend API calls
+        // when indexing runs on-device.
         let geminiVision: GeminiReferenceIndexClient?
-        if let apiKey = ModelProviderPreferences.activeGeminiAPIKey {
-            geminiVision = GeminiReferenceIndexClient(apiKey: apiKey)
+        if let gemini = model as? GeminiCloudLanguageModel {
+            geminiVision = GeminiReferenceIndexClient(apiKey: gemini.apiKey, modelName: gemini.modelName)
         } else {
             geminiVision = nil
         }

@@ -20,7 +20,7 @@ export default function Home() {
           </h1>
           
           <p className="text-[22px] sm:text-[28px] text-secondary max-w-3xl mb-12 font-normal tracking-[-0.01em]">
-            Open dense technical documents, highlight text, and <br className="hidden sm:block"/>ask your AI assistant questions directly in context.
+            Built for dense mathematics papers and problem sets. Highlight <br className="hidden sm:block"/>equations and text to ask your AI assistant questions in context.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-20">
@@ -226,10 +226,10 @@ export default function Home() {
       {/* Secondary Hero */}
       <section className="w-full py-32 bg-background px-6 text-center flex flex-col items-center">
         <h2 className="text-[48px] sm:text-[64px] font-medium tracking-[-0.03em] leading-[1.1] text-primary max-w-[1000px] mb-2">
-          Read papers faster.
+          Read math papers faster.
         </h2>
         <h2 className="text-[48px] sm:text-[64px] font-medium tracking-[-0.03em] leading-[1.1] text-secondary max-w-[1000px] mb-10">
-          Understand them better.
+          Understand proofs better.
         </h2>
         <Link href="/download" className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors mb-24">
           Download Cauchy

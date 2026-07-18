@@ -71,9 +71,6 @@ export default function Home() {
             
             {/* Large Card 1 */}
             <div className="bg-card rounded-3xl p-12 min-h-[500px] flex flex-col relative overflow-hidden group">
-              <div className="absolute top-8 right-8 w-8 h-8 bg-background rounded-md flex items-center justify-center group-hover:scale-105 transition-transform">
-                <ArrowUpRight className="w-4 h-4 text-primary" />
-              </div>
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary max-w-[80%] z-10 mb-4">
                 <span className="text-primary">Highlight & Chat</span><br/> Ask questions directly in context
               </h3>
@@ -89,10 +86,8 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="w-full flex justify-start">
-                  <div className="bg-card border border-border/50 px-4 py-3 rounded-2xl rounded-tl-none text-sm inline-block max-w-[90%]">
-                    <div className="w-full h-2 bg-border/60 rounded-full mb-2"></div>
-                    <div className="w-5/6 h-2 bg-border/60 rounded-full mb-2"></div>
-                    <div className="w-4/6 h-2 bg-border/60 rounded-full"></div>
+                  <div className="bg-card border border-border/50 px-4 py-3 rounded-2xl rounded-tl-none text-sm inline-block max-w-[90%] text-secondary leading-relaxed">
+                    Certainly. The proof relies on induction. First, we establish the base case where <span className="font-mono text-xs bg-border/50 px-1 py-0.5 rounded text-primary">n = 1</span>, which trivially holds by definition. Then, assuming the property holds for <span className="font-mono text-xs bg-border/50 px-1 py-0.5 rounded text-primary">k</span>, we can show it holds for <span className="font-mono text-xs bg-border/50 px-1 py-0.5 rounded text-primary">k + 1</span>...
                   </div>
                 </div>
               </div>
@@ -100,9 +95,6 @@ export default function Home() {
 
             {/* Large Card 2 */}
             <div className="bg-card rounded-3xl p-12 min-h-[500px] flex flex-col relative overflow-hidden group">
-              <div className="absolute top-8 right-8 w-8 h-8 bg-background rounded-md flex items-center justify-center group-hover:scale-105 transition-transform">
-                <ArrowUpRight className="w-4 h-4 text-primary" />
-              </div>
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary max-w-[80%] z-10 mb-4">
                 <span className="text-primary">Reference Previews</span><br/> Never lose your place again
               </h3>
@@ -111,13 +103,13 @@ export default function Home() {
               </p>
               
               {/* Abstract Reference Hover Mockup */}
-              <div className="mt-auto bg-background rounded-2xl p-6 w-[90%] mx-auto z-10 border border-border/50 translate-x-12">
-                 <div className="text-secondary text-sm mb-2 font-serif leading-relaxed">
+              <div className="mt-auto bg-background rounded-2xl p-6 w-[85%] mx-auto z-10 border border-border/50">
+                 <div className="text-secondary text-sm mb-3 leading-relaxed">
                    By applying <span className="bg-accent/30 text-accent-text px-1 rounded cursor-pointer border border-accent/50">Theorem 2.1</span> to our matrix...
                  </div>
                  {/* Hover Popover */}
-                 <div className="mt-2 bg-card border border-border shadow-sm rounded-xl p-4 w-4/5">
-                   <div className="text-xs font-semibold text-primary mb-1 uppercase tracking-wider">Theorem 2.1</div>
+                 <div className="bg-card border border-border shadow-sm rounded-xl p-4 w-4/5">
+                   <div className="text-sm font-medium text-primary mb-2">Theorem 2.1</div>
                    <div className="w-full h-1.5 bg-border rounded-full mb-1.5"></div>
                    <div className="w-3/4 h-1.5 bg-border rounded-full"></div>
                  </div>
@@ -126,9 +118,6 @@ export default function Home() {
 
             {/* Small Card 1 */}
             <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
-              <div className="absolute top-8 right-8 w-8 h-8 bg-background rounded-md flex items-center justify-center group-hover:scale-105 transition-transform">
-                <ArrowUpRight className="w-4 h-4 text-primary" />
-              </div>
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
                 Native LaTeX rendering
               </h3>
@@ -139,9 +128,6 @@ export default function Home() {
 
             {/* Small Card 2 */}
             <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
-              <div className="absolute top-8 right-8 w-8 h-8 bg-background rounded-md flex items-center justify-center group-hover:scale-105 transition-transform">
-                <ArrowUpRight className="w-4 h-4 text-primary" />
-              </div>
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
                 On-device OCR for equations
               </h3>

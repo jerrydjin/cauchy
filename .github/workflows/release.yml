@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-27
+    runs-on: xcode-27
 
     permissions:
       contents: write # needed for creating a release
@@ -16,9 +16,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Fetch Local Packages
         run: |

@@ -184,6 +184,14 @@ actor DocumentPersistenceService {
         }
     }
 
+    /// Permanently removes a workspace directory (workspace.json, summary,
+    /// thumbnails). Used by the dashboard's "Remove from Recents".
+    func deleteWorkspace(id: UUID) throws {
+        let directory = workspaceDirectory(for: id)
+        guard FileManager.default.fileExists(atPath: directory.path) else { return }
+        try FileManager.default.removeItem(at: directory)
+    }
+
     // MARK: - Summaries
 
     func listWorkspaceSummaries() -> [WorkspaceSummary] {

@@ -12,6 +12,7 @@
 		37E64DE60ECAB9B47AD03B6E /* DocumentWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5252F0049F52385285A17B82 /* DocumentWorkspace.swift */; };
 		3B0D1C145AC5316F4EC2CD2A /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = E721B0624D394A622A35B857 /* Highlight.swift */; };
 		510B42FD6AFC67C86A9A9F35 /* PDFSidebarMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800F17A802E0A2EFE1C89ECB /* PDFSidebarMode.swift */; };
+		2A5F502A75D20E3750962EB7 /* PDFViewCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B12B31E79443AC7990E554D /* PDFViewCommand.swift */; };
 		06CDFD0935A2865049FF6B36 /* PinCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA870D398571D45C263A8B1 /* PinCategory.swift */; };
 		1FE54F437BAB6EEE54D59B1D /* ReadingContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A3931B09A2007763CBAEF2 /* ReadingContext.swift */; };
 		98B56ECE44537C6D4A21556E /* ReferenceKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9E742DF926F455C8C51E01 /* ReferenceKind.swift */; };
@@ -125,6 +126,7 @@
 		5252F0049F52385285A17B82 /* DocumentWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWorkspace.swift; sourceTree = "<group>"; };
 		E721B0624D394A622A35B857 /* Highlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Highlight.swift; sourceTree = "<group>"; };
 		800F17A802E0A2EFE1C89ECB /* PDFSidebarMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFSidebarMode.swift; sourceTree = "<group>"; };
+		8B12B31E79443AC7990E554D /* PDFViewCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFViewCommand.swift; sourceTree = "<group>"; };
 		CDA870D398571D45C263A8B1 /* PinCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinCategory.swift; sourceTree = "<group>"; };
 		92A3931B09A2007763CBAEF2 /* ReadingContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingContext.swift; sourceTree = "<group>"; };
 		8F9E742DF926F455C8C51E01 /* ReferenceKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceKind.swift; sourceTree = "<group>"; };
@@ -255,6 +257,7 @@
 			5252F0049F52385285A17B82 /* DocumentWorkspace.swift */,
 			E721B0624D394A622A35B857 /* Highlight.swift */,
 			800F17A802E0A2EFE1C89ECB /* PDFSidebarMode.swift */,
+			8B12B31E79443AC7990E554D /* PDFViewCommand.swift */,
 			CDA870D398571D45C263A8B1 /* PinCategory.swift */,
 			92A3931B09A2007763CBAEF2 /* ReadingContext.swift */,
 			8F9E742DF926F455C8C51E01 /* ReferenceKind.swift */,
@@ -425,6 +428,7 @@
 			37E64DE60ECAB9B47AD03B6E,
 			3B0D1C145AC5316F4EC2CD2A,
 			510B42FD6AFC67C86A9A9F35,
+			2A5F502A75D20E3750962EB7,
 			06CDFD0935A2865049FF6B36,
 			1FE54F437BAB6EEE54D59B1D,
 			98B56ECE44537C6D4A21556E,
@@ -540,6 +544,7 @@
 			ENABLE_APP_SANDBOX = NO;
 			ENABLE_HARDENED_RUNTIME = YES;
 			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_FILE = Cauchy/Info.plist;
 			INFOPLIST_KEY_CFBundleDisplayName = "cauchy";
 			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 			LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
@@ -559,6 +564,7 @@
 			ENABLE_APP_SANDBOX = NO;
 			ENABLE_HARDENED_RUNTIME = YES;
 			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_FILE = Cauchy/Info.plist;
 			INFOPLIST_KEY_CFBundleDisplayName = "cauchy";
 			INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 			LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");

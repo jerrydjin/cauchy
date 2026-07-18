@@ -5,10 +5,12 @@ import PDFKit
 
 @MainActor
 @Observable
-final class PDFFindModel {
+final class PDFFindModel: NSObject {
     private(set) var isVisible = false
     private(set) var matches: [PDFSelection] = []
     private(set) var currentIndex: Int?
+    /// True while an asynchronous document find is streaming in matches.
+    private(set) var isSearching = false
     /// Bumped whenever the highlighted selections shown by the PDF view must be
     /// reapplied (new results, new active match, or cleared).
     private(set) var revision = UUID()
@@ -28,6 +30,9 @@ final class PDFFindModel {
 
     private weak var document: PDFDocument?
     private var searchTask: Task<Void, Never>?
+    /// Matches streamed by the in-flight find; committed to `matches` when the
+    /// find ends so the UI never sees a half-populated result list.
+    private var pendingMatches: [PDFSelection] = []
 
     var activeMatch: PDFSelection? {
         guard let currentIndex, matches.indices.contains(currentIndex) else { return nil }
@@ -38,7 +43,12 @@ final class PDFFindModel {
 
     func attach(to document: PDFDocument?) {
         searchTask?.cancel()
+        cancelInFlightSearch()
+        if self.document?.delegate === self {
+            self.document?.delegate = nil
+        }
         self.document = document
+        document?.delegate = self
         isVisible = false
         query = ""
         clearMatches()
@@ -54,6 +64,7 @@ final class PDFFindModel {
 
     func dismiss() {
         searchTask?.cancel()
+        cancelInFlightSearch()
         isVisible = false
         clearMatches()
     }
@@ -71,6 +82,7 @@ final class PDFFindModel {
     private func scheduleSearch() {
         searchTask?.cancel()
         guard !query.isEmpty else {
+            cancelInFlightSearch()
             clearMatches()
             return
         }
@@ -81,19 +93,39 @@ final class PDFFindModel {
         }
     }
 
+    /// Kicks off PDFKit's asynchronous find, which walks the document on a
+    /// background thread and reports matches through the delegate — so typing
+    /// in the find bar never blocks the UI, even on very large documents.
     private func runSearch() {
         guard let document, !query.isEmpty else {
             clearMatches()
             return
         }
 
-        let found = document.findString(query, withOptions: [.caseInsensitive, .diacriticInsensitive])
-        matches = found
-        if found.isEmpty {
+        cancelInFlightSearch()
+        pendingMatches = []
+        isSearching = true
+        document.beginFindString(query, withOptions: [.caseInsensitive, .diacriticInsensitive])
+    }
+
+    private func cancelInFlightSearch() {
+        guard isSearching else { return }
+        document?.cancelFindString()
+        pendingMatches = []
+        isSearching = false
+    }
+
+    private func finishSearch() {
+        guard isSearching else { return }
+        isSearching = false
+        matches = pendingMatches
+        pendingMatches = []
+
+        if matches.isEmpty {
             currentIndex = nil
             revision = UUID()
-        } else {
-            select(index: startIndex(for: found, in: document))
+        } else if let document {
+            select(index: startIndex(for: matches, in: document))
         }
     }
 
@@ -123,5 +155,25 @@ final class PDFFindModel {
         matches = []
         currentIndex = nil
         revision = UUID()
+    }
+}
+
+// PDFKit delivers these on the main thread; the methods are nonisolated only
+// because PDFDocumentDelegate is not MainActor-annotated.
+extension PDFFindModel: PDFDocumentDelegate {
+    nonisolated func didMatchString(_ instance: PDFSelection) {
+        // assumeIsolated is sound here (PDFKit calls this on the main thread),
+        // and the selection never leaves the main actor afterwards.
+        nonisolated(unsafe) let selection = instance
+        MainActor.assumeIsolated {
+            guard isSearching else { return }
+            pendingMatches.append(selection)
+        }
+    }
+
+    nonisolated func documentDidEndDocumentFind(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            finishSearch()
+        }
     }
 }

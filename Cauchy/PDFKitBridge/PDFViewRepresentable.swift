@@ -19,6 +19,9 @@ struct PDFViewportView: NSViewRepresentable {
     var findMatches: [PDFSelection] = []
     var activeFindMatch: PDFSelection?
     var findRevision: UUID?
+    var viewCommand: PDFViewCommand?
+    var viewCommandRevision: UUID?
+    var invertPageColors = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -32,7 +35,10 @@ struct PDFViewportView: NSViewRepresentable {
         canvas.pageLayoutMode = pageLayoutMode
         canvas.referenceIndex = referenceIndex
         canvas.referenceIndexReady = referenceIndexReady
+        canvas.invertPageColors = invertPageColors
         context.coordinator.canvasView = canvas
+        // A command that fired before this view existed is stale; don't replay it.
+        context.coordinator.lastViewCommandRevision = viewCommandRevision
         return canvas
     }
 
@@ -47,6 +53,14 @@ struct PDFViewportView: NSViewRepresentable {
         canvas.pageLayoutMode = pageLayoutMode
         canvas.referenceIndex = referenceIndex
         canvas.referenceIndexReady = referenceIndexReady
+        canvas.invertPageColors = invertPageColors
+
+        if context.coordinator.lastViewCommandRevision != viewCommandRevision {
+            context.coordinator.lastViewCommandRevision = viewCommandRevision
+            if let viewCommand, viewCommandRevision != nil {
+                canvas.perform(viewCommand)
+            }
+        }
 
         if context.coordinator.lastApplyTrigger != applyTrigger {
             context.coordinator.lastApplyTrigger = applyTrigger
@@ -67,6 +81,7 @@ struct PDFViewportView: NSViewRepresentable {
         weak var canvasView: PDFCanvasView?
         var lastApplyTrigger: UUID?
         var lastFindRevision: UUID?
+        var lastViewCommandRevision: UUID?
 
         init(parent: PDFViewportView) {
             self.parent = parent

@@ -7,6 +7,7 @@ struct DashboardView: View {
     
     @State private var recentWorkspaces: [WorkspaceSummary] = []
     @State private var isHoveringDropZone = false
+    @State private var workspacePendingRemoval: WorkspaceSummary?
     
     let columns = [
         GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 24)
@@ -82,6 +83,11 @@ struct DashboardView: View {
                                     summary: summary,
                                     action: { open(summary) }
                                 )
+                                .contextMenu {
+                                    Button("Remove from Recents", role: .destructive) {
+                                        workspacePendingRemoval = summary
+                                    }
+                                }
                             }
                         }
                     }
@@ -95,6 +101,26 @@ struct DashboardView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .task { await loadWorkspaces() }
+        .confirmationDialog(
+            "Remove “\(workspacePendingRemoval?.documentURL.deletingPathExtension().lastPathComponent ?? "")” from Recents?",
+            isPresented: Binding(
+                get: { workspacePendingRemoval != nil },
+                set: { if !$0 { workspacePendingRemoval = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                if let summary = workspacePendingRemoval {
+                    remove(summary)
+                }
+                workspacePendingRemoval = nil
+            }
+            Button("Cancel", role: .cancel) {
+                workspacePendingRemoval = nil
+            }
+        } message: {
+            Text("This deletes its saved highlights, chat threads, and reading position. The PDF file itself is not touched.")
+        }
         // Apply scroll edge effect so it feels deeply integrated with the macOS 27 window chrome
         .sidebarScrollEdgeEffect()
         .sidebarScrollContentInsets()
@@ -113,6 +139,13 @@ struct DashboardView: View {
             }
         }
         return true
+    }
+
+    private func remove(_ summary: WorkspaceSummary) {
+        Task {
+            try? await DocumentPersistenceService.shared.deleteWorkspace(id: summary.workspaceID)
+            await loadWorkspaces()
+        }
     }
 
     private func open(_ summary: WorkspaceSummary) {

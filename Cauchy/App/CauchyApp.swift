@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @main
@@ -20,6 +21,12 @@ struct CauchyApp: App {
             Task.detached {
                 exit(ReferenceIndexBenchmark.runRetrievalProbe(pdfPath: pdfPath, query: query))
             }
+        } else {
+            // Normal GUI launch: sweep reference-index caches that no document
+            // has touched in months (content-hashed names are never reused).
+            Task.detached(priority: .background) {
+                ReferenceIndexCacheStore.pruneStaleCaches()
+            }
         }
     }
 
@@ -31,6 +38,16 @@ struct CauchyApp: App {
             } else {
                 ContentView(workspace: workspace)
                     .frame(minWidth: 1100, minHeight: 700)
+                    // Finder/dock open events (double-click, "Open With", dock
+                    // drops) arrive here; SwiftUI buffers ones that fire before
+                    // the scene connects. Deliberately the only open handler:
+                    // an NSApplicationDelegateAdaptor implementing
+                    // application(_:open:) would ALSO be called, double-opening
+                    // every file.
+                    .onOpenURL { url in
+                        guard url.isFileURL, url.pathExtension.lowercased() == "pdf" else { return }
+                        Task { await workspace.openDocument(at: url) }
+                    }
             }
         }
         .commands {
@@ -39,6 +56,20 @@ struct CauchyApp: App {
                     workspace.openDocument()
                 }
                 .keyboardShortcut("o")
+
+                Button("Close Document") {
+                    workspace.closeDocument()
+                }
+                .keyboardShortcut("w")
+                .disabled(workspace.pdfDocument == nil)
+            }
+
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") {
+                    workspace.printDocument()
+                }
+                .keyboardShortcut("p")
+                .disabled(workspace.pdfDocument == nil)
             }
 
             // Replaces the default Edit ▸ Find submenu (part of the textEditing
@@ -115,8 +146,25 @@ struct CauchyApp: App {
                 Button("Go to Page…") {
                     workspace.presentGoToPagePanel()
                 }
-                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .keyboardShortcut("g", modifiers: [.command, .option])
                 .disabled(workspace.pdfDocument == nil)
+
+                Button("Back") {
+                    workspace.goBack()
+                }
+                .keyboardShortcut("[", modifiers: .command)
+                .disabled(workspace.pdfDocument == nil)
+
+                Button("Forward") {
+                    workspace.goForward()
+                }
+                .keyboardShortcut("]", modifiers: .command)
+                .disabled(workspace.pdfDocument == nil)
+
+                Divider()
+
+                Toggle("Invert Page Colors", isOn: $workspace.invertPageColors)
+                    .disabled(workspace.pdfDocument == nil)
 
                 Divider()
 

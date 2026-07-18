@@ -146,6 +146,9 @@ def target_settings(cid, name):
     emit('\t\t\tENABLE_APP_SANDBOX = NO;')
     emit('\t\t\tENABLE_HARDENED_RUNTIME = YES;')
     emit('\t\t\tGENERATE_INFOPLIST_FILE = YES;')
+    # Merged into the generated Info.plist; declares the PDF document type so
+    # Finder "Open With" / double-click routes PDFs to Cauchy.
+    emit('\t\t\tINFOPLIST_FILE = Cauchy/Info.plist;')
     emit('\t\t\tINFOPLIST_KEY_CFBundleDisplayName = "cauchy";')
     emit('\t\t\tINFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";')
     emit('\t\t\tLD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");')

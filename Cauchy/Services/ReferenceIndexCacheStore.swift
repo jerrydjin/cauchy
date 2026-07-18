@@ -111,9 +111,49 @@ enum ReferenceIndexCacheStore {
             let persisted = try decoder.decode(PersistedReferenceIndex.self, from: data)
             guard persisted.schemaVersion == PersistedReferenceIndex.schemaVersion else { return nil }
             guard persisted.documentFingerprint == fingerprint else { return nil }
+            touch(url)
             return persisted
         }
         return try migrateLegacyV2(fingerprint: fingerprint)
+    }
+
+    /// Marks a cache file as recently used so pruning keeps the documents the
+    /// user actually reads. Fingerprints are content hashes, so a re-downloaded
+    /// or edited PDF orphans its old cache file forever — pruning is the only
+    /// thing that ever deletes them.
+    private static func touch(_ url: URL) {
+        try? FileManager.default.setAttributes(
+            [.modificationDate: Date()],
+            ofItemAtPath: url.path
+        )
+    }
+
+    /// Deletes cache files (all schema versions) that are both outside the 50
+    /// most recently used and untouched for over 180 days. Called once per
+    /// launch, off the main actor.
+    static func pruneStaleCaches(
+        keepingNewest keepCount: Int = 50,
+        olderThan maxAge: TimeInterval = 180 * 24 * 3600
+    ) {
+        let directory = cacheDirectory()
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return }
+
+        let dated = entries
+            .filter { $0.pathExtension == "json" }
+            .map { url -> (url: URL, modified: Date) in
+                let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    .contentModificationDate ?? .distantPast
+                return (url, modified)
+            }
+            .sorted { $0.modified > $1.modified }
+
+        let cutoff = Date().addingTimeInterval(-maxAge)
+        for (url, modified) in dated.dropFirst(keepCount) where modified < cutoff {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 
     /// v2 caches (Gemini-built, before provenance/failed-page tracking) stay

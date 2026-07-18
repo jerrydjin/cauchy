@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import PDFKit
 import QuartzCore
 
@@ -33,6 +34,47 @@ final class PDFCanvasView: NSView {
         }
     }
 
+    /// Night-reading mode: inverts luminance, then rotates hue by π so figures
+    /// keep roughly their original hues. Applied as layer content filters so
+    /// the selection overlay (a sibling layer) stays untouched.
+    var invertPageColors: Bool = false {
+        didSet {
+            guard invertPageColors != oldValue else { return }
+            applyInvertPageColors()
+        }
+    }
+
+    private func applyInvertPageColors() {
+        if invertPageColors {
+            var filters: [CIFilter] = []
+            if let invert = CIFilter(name: "CIColorInvert") {
+                filters.append(invert)
+            }
+            if let hue = CIFilter(name: "CIHueAdjust") {
+                hue.setValue(Double.pi, forKey: kCIInputAngleKey)
+                filters.append(hue)
+            }
+            // Force a white page background so inversion yields black, even
+            // when the system appearance already darkened textBackgroundColor.
+            pdfView.backgroundColor = .white
+            pdfView.contentFilters = filters
+        } else {
+            pdfView.contentFilters = []
+            pdfView.backgroundColor = .textBackgroundColor
+        }
+    }
+
+    func perform(_ command: PDFViewCommand) {
+        switch command {
+        case .goBack:
+            if pdfView.canGoBack { pdfView.goBack(nil) }
+        case .goForward:
+            if pdfView.canGoForward { pdfView.goForward(nil) }
+        case .print:
+            pdfView.print(with: .shared, autoRotate: true, pageScaling: .pageScaleDownToFit)
+        }
+    }
+
     init(role: ViewportRole) {
         pdfView = PDFView()
         overlay = SelectionOverlayLayer()
@@ -60,6 +102,8 @@ final class PDFCanvasView: NSView {
         pdfView.displaysPageBreaks = true
         pdfView.autoScales = false
         pdfView.scaleFactor = 1.0
+        pdfView.minScaleFactor = 0.1
+        pdfView.maxScaleFactor = 10.0
         pdfView.backgroundColor = .textBackgroundColor
 
         addSubview(pdfView)

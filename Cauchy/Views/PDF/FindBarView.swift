@@ -51,6 +51,7 @@ struct FindBarView: View {
     }
 
     private var matchLabel: String {
+        if find.isSearching { return "Searching…" }
         guard find.hasMatches else { return "Not found" }
         let position = (find.currentIndex ?? 0) + 1
         return "\(position) of \(find.matches.count)"

@@ -5,6 +5,8 @@ import Observation
 import PDFKit
 import UniformTypeIdentifiers
 
+private let invertPageColorsKey = "reading.invertPageColors"
+
 @MainActor
 @Observable
 final class WorkspaceViewModel {
@@ -15,6 +17,19 @@ final class WorkspaceViewModel {
     var sidebarVisible = true
     var sidebarContentMode: SidebarContentMode = .thumbnails
     var pdfPageLayoutMode: PDFPageLayoutMode = .continuousScroll
+
+    /// Latest one-shot command for the PDF view; consumed by the representable
+    /// when `pdfViewCommandRevision` changes.
+    private(set) var pdfViewCommand: PDFViewCommand?
+    private(set) var pdfViewCommandRevision: UUID?
+
+    /// Night-reading mode: inverts page luminance while roughly preserving hue.
+    /// App-level preference, not per-workspace.
+    var invertPageColors = UserDefaults.standard.bool(forKey: invertPageColorsKey) {
+        didSet {
+            UserDefaults.standard.set(invertPageColors, forKey: invertPageColorsKey)
+        }
+    }
 
     var selectionModeActive = false
     var showOCRResult = false
@@ -343,6 +358,16 @@ final class WorkspaceViewModel {
 
     func zoomIn() { adjustZoom(by: 1.25) }
     func zoomOut() { adjustZoom(by: 0.8) }
+
+    func goBack() { sendPDFViewCommand(.goBack) }
+    func goForward() { sendPDFViewCommand(.goForward) }
+    func printDocument() { sendPDFViewCommand(.print) }
+
+    private func sendPDFViewCommand(_ command: PDFViewCommand) {
+        guard pdfDocument != nil else { return }
+        pdfViewCommand = command
+        pdfViewCommandRevision = UUID()
+    }
 
     func zoomToActualSize() {
         var state = viewportCoordinator.viewport

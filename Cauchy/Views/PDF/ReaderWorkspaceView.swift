@@ -37,7 +37,10 @@ struct ReaderWorkspaceView: View {
                         applyTrigger: workspace.viewportCoordinator.applyTrigger,
                         findMatches: workspace.find.matches,
                         activeFindMatch: workspace.find.activeMatch,
-                        findRevision: workspace.find.revision
+                        findRevision: workspace.find.revision,
+                        viewCommand: workspace.pdfViewCommand,
+                        viewCommandRevision: workspace.pdfViewCommandRevision,
+                        invertPageColors: workspace.invertPageColors
                     )
                     .frame(maxWidth: 900)
                     .frame(maxHeight: .infinity)

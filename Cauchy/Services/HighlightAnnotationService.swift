@@ -4,6 +4,7 @@ import PDFKit
 @MainActor
 enum HighlightAnnotationService {
     static let markerUserName = "Cauchy"
+    private static let highlightIDKey = PDFAnnotationKey(rawValue: "/CauchyHighlightID")
 
     static func sync(document: PDFDocument, highlights: [Highlight], activeID: UUID?) {
         removeAllCauchyAnnotations(from: document)
@@ -24,8 +25,9 @@ enum HighlightAnnotationService {
 
     static func highlightID(from annotation: PDFAnnotation) -> UUID? {
         guard annotation.userName == markerUserName,
-              let contents = annotation.contents else { return nil }
-        return UUID(uuidString: contents)
+              let idString = annotation.value(forAnnotationKey: highlightIDKey) as? String
+        else { return nil }
+        return UUID(uuidString: idString)
     }
 
     private static func addAnnotations(
@@ -45,7 +47,9 @@ enum HighlightAnnotationService {
             let annotation = PDFAnnotation(bounds: rect, forType: .highlight, withProperties: nil)
             annotation.color = color
             annotation.userName = markerUserName
-            annotation.contents = highlight.id.uuidString
+            // Stored under a custom key rather than `contents`, because PDFKit
+            // renders any annotation with non-empty contents as a note icon + popup.
+            annotation.setValue(highlight.id.uuidString as NSString, forAnnotationKey: highlightIDKey)
             page.addAnnotation(annotation)
         }
     }

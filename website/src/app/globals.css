@@ -2,12 +2,12 @@
 
 :root {
   --background: #ffffff;
-  /* Warm coffee/latte palette */
-  --primary: #1C1917; 
-  --secondary: #78716C;
-  --card: #FAF8F5;
-  --border: #E8E5E1;
-  --accent: #E6D5B8; /* Light warm coffee foam / beige */
+  /* Neutral palette with beige accent */
+  --primary: #171717; 
+  --secondary: #737373;
+  --card: #FAFAFA;
+  --border: #E5E5E5;
+  --accent: #E6D5B8; /* Beige */
   --accent-hover: #D4C1A0;
   --accent-text: #2A1E12;
 }

@@ -10,6 +10,7 @@ const VERTEX_SHADER = `
 `;
 
 const FRAGMENT_SHADER = `
+  #extension GL_OES_standard_derivatives : enable
   precision highp float;
 
   uniform vec2 u_resolution;
@@ -26,37 +27,46 @@ const FRAGMENT_SHADER = `
     mouse = mouse * 2.0 - 1.0;
     mouse.x *= u_resolution.x / u_resolution.y;
 
-    // Cauchy-esque mathematical surface
-    // z = f(x, y, t)
-    float r = length(pos);
-    float theta = atan(pos.y, pos.x);
+    // Flowing horizontal ribbon
+    float wave = 0.0;
     
-    // Base topology
-    float z = sin(pos.x * 3.0 + u_time * 0.1) * cos(pos.y * 3.0 + u_time * 0.15) * 3.0;
-    z += sin(r * 8.0 - u_time * 0.3);
+    // Generate multiple overlapping sine waves
+    for (float i = 1.0; i <= 5.0; i++) {
+        float f = pos.x * (1.2 + i * 0.3) - u_time * (0.5 + i * 0.15);
+        wave += sin(f) * (0.15 / i);
+    }
     
-    // Mouse interference (creates a local topological distortion)
+    // Mouse interference pushing the strings
     float mouseDist = length(pos - mouse);
-    float interference = exp(-mouseDist * 3.0) * 2.0 * cos(mouseDist * 15.0 - u_time * 3.0);
-    z += interference;
+    // Smooth out mouse interference
+    float interference = exp(-mouseDist * 4.0) * 0.2 * sin(mouseDist * 10.0 - u_time * 2.0);
+    wave += interference;
 
-    // Isolate contour lines using fract
-    float contour = abs(fract(z) - 0.5);
+    // Render dense horizontal lines along the wave
+    float density = 15.0; // Ribbon density
+    float yScaled = (pos.y - wave) * density;
     
-    // Smooth lines
-    float lineThickness = 0.05;
-    float lineIntensity = smoothstep(lineThickness + 0.03, lineThickness, contour);
+    // Anti-aliased lines using fwidth
+    float dz = fwidth(yScaled);
+    float distToLine = abs(fract(yScaled) - 0.5);
+    float pixelDist = distToLine / max(dz, 0.00001);
+    
+    // Half-thickness in pixels
+    float halfThickness = 0.6; 
+    float lineIntensity = 1.0 - smoothstep(halfThickness - 0.3, halfThickness + 0.3, pixelDist);
 
     // Fade out towards the edges
-    float fade = smoothstep(2.0, 0.1, r);
-
-    // Warm coffee accent color: #E6D5B8 -> rgb(230, 213, 184)
-    // Darkened to be visible on white background: #D4C1A0 -> rgb(212, 193, 160)
-    // Let's make it primary color #1C1917 -> rgb(28, 25, 23) for stronger contrast
-    vec3 lineColor = vec3(28.0 / 255.0, 25.0 / 255.0, 23.0 / 255.0);
+    float fade = 1.0;
     
-    // Render lines with transparency
-    gl_FragColor = vec4(lineColor, lineIntensity * fade * 0.4);
+    // Fade based on distance from center of ribbon
+    fade *= exp(-abs(pos.y - wave) * 1.5);
+    
+    // Smooth fade out towards the bottom of the container
+    fade *= smoothstep(-1.0, -0.1, pos.y);
+
+    vec3 lineColor = vec3(23.0 / 255.0, 23.0 / 255.0, 23.0 / 255.0);
+    
+    gl_FragColor = vec4(lineColor, lineIntensity * fade * 0.5);
   }
 `;
 
@@ -69,6 +79,11 @@ export default function MathBackground() {
 
     const gl = canvas.getContext("webgl", { alpha: true });
     if (!gl) return;
+
+    const ext = gl.getExtension("OES_standard_derivatives");
+    if (!ext) {
+      console.warn("OES_standard_derivatives not supported");
+    }
 
     // Create shaders
     const vertexShader = gl.createShader(gl.VERTEX_SHADER)!;
@@ -118,10 +133,13 @@ export default function MathBackground() {
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = `${window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
+      const rect = canvas.getBoundingClientRect();
+      const displayWidth = rect.width;
+      const displayHeight = rect.height;
+      
+      canvas.width = displayWidth * dpr;
+      canvas.height = displayHeight * dpr;
+      
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(resLoc, canvas.width, canvas.height);
       
@@ -136,9 +154,10 @@ export default function MathBackground() {
 
     const onMouseMove = (e: MouseEvent) => {
       const dpr = window.devicePixelRatio || 1;
-      targetMouseX = e.clientX * dpr;
+      const rect = canvas.getBoundingClientRect();
+      targetMouseX = (e.clientX - rect.left) * dpr;
       // Invert Y for WebGL
-      targetMouseY = (window.innerHeight - e.clientY) * dpr;
+      targetMouseY = (rect.height - (e.clientY - rect.top)) * dpr;
     };
 
     window.addEventListener("resize", resize);

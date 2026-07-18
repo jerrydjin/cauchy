@@ -45,7 +45,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
 
     func ask(
         question: String,
-        retrievedPassages: [String],
+        retrieval: AskRetrieval,
         onPartial: ((String) -> Void)? = nil
     ) async throws -> String {
         guard !isResponding else {
@@ -61,7 +61,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         isResponding = true
         defer { isResponding = false }
 
-        let arguments = makeArguments(question: trimmed, retrievedPassages: retrievedPassages)
+        let arguments = makeArguments(question: trimmed, retrieval: retrieval)
         var parser: any CLIAgentStreamParsing = provider == .codex
             ? CodexStreamParser()
             : ClaudeCodeStreamParser()
@@ -99,11 +99,15 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
 
     // MARK: - Prompt & argument construction
 
-    private func makeArguments(question: String, retrievedPassages: [String]) -> [String] {
-        // Retrieved passages ride the one-shot prompt only — they are never
-        // appended to the stored history, so re-asks don't compound them.
+    private func makeArguments(question: String, retrieval: AskRetrieval) -> [String] {
+        // Retrieval rides the one-shot prompt only — it is never appended to
+        // the stored history, so re-asks don't compound it. Exact statements
+        // come before passages: they are the notes' ground truth.
         var instructions = instructionsText()
-        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrievedPassages, characterBudget: 4_000) {
+        if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: 2_500) {
+            instructions += "\n\n" + block
+        }
+        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrieval.passages, characterBudget: 4_000) {
             instructions += "\n\n" + block
         }
         let transcript = Self.transcriptPrompt(history: history, question: question)

@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 struct PersistedReferenceIndex: Codable, Sendable {
-    static let schemaVersion = 3
+    static let schemaVersion = 4
 
     /// Which model family produced the entries: "on-device", "gemini", or
     /// "legacy-unknown" for caches migrated from v2. Recorded so a future
@@ -33,7 +33,8 @@ struct PersistedReferenceIndex: Codable, Sendable {
                     kind: key.kind.rawValue,
                     number: key.number,
                     formattedBody: value.formattedBody,
-                    pageIndex: value.pageIndex
+                    pageIndex: value.pageIndex,
+                    name: value.name
                 )
             },
             builtWith: builtWith,
@@ -64,7 +65,8 @@ struct PersistedReferenceIndex: Codable, Sendable {
             let indexed = IndexedReference(
                 reference: DetectedReference(kind: kind, number: entry.number),
                 formattedBody: entry.formattedBody,
-                pageIndex: entry.pageIndex
+                pageIndex: entry.pageIndex,
+                name: entry.name
             )
             if let existing = merged[key] {
                 if indexed.formattedBody.count > existing.formattedBody.count {
@@ -83,6 +85,16 @@ struct PersistedReferenceEntry: Codable, Sendable, Equatable {
     let number: String
     let formattedBody: String
     let pageIndex: Int
+    /// Printed title (schema v4+); nil for entries migrated from older caches.
+    var name: String?
+
+    init(kind: String, number: String, formattedBody: String, pageIndex: Int, name: String? = nil) {
+        self.kind = kind
+        self.number = number
+        self.formattedBody = formattedBody
+        self.pageIndex = pageIndex
+        self.name = name
+    }
 }
 
 enum ReferenceIndexCacheStore {
@@ -114,7 +126,41 @@ enum ReferenceIndexCacheStore {
             touch(url)
             return persisted
         }
+        if let migrated = try migrateLegacyV3(fingerprint: fingerprint) {
+            return migrated
+        }
         return try migrateLegacyV2(fingerprint: fingerprint)
+    }
+
+    /// v3 caches (before reference names) stay valid: entries load with
+    /// name = nil and are re-saved as v4. No re-index is forced — term matching
+    /// has less coverage on migrated caches, semantic matching fills the gap.
+    private static func migrateLegacyV3(fingerprint: String) throws -> PersistedReferenceIndex? {
+        struct LegacyV3: Codable {
+            let builtWith: String
+            let failedPageIndices: [Int]
+            let schemaVersion: Int
+            let documentFingerprint: String
+            let builtAt: Date
+            let entries: [PersistedReferenceEntry]
+        }
+
+        let legacyURL = cacheDirectory().appendingPathComponent("\(fingerprint)-v3.json")
+        guard FileManager.default.fileExists(atPath: legacyURL.path) else { return nil }
+        let data = try Data(contentsOf: legacyURL)
+        let legacy = try decoder.decode(LegacyV3.self, from: data)
+        guard legacy.schemaVersion == 3, legacy.documentFingerprint == fingerprint else { return nil }
+
+        let migrated = PersistedReferenceIndex(
+            documentFingerprint: fingerprint,
+            builtAt: legacy.builtAt,
+            persistedEntries: legacy.entries,
+            builtWith: legacy.builtWith,
+            failedPageIndices: legacy.failedPageIndices
+        )
+        try? save(migrated)
+        try? FileManager.default.removeItem(at: legacyURL)
+        return migrated
     }
 
     /// Marks a cache file as recently used so pruning keeps the documents the

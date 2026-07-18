@@ -27,6 +27,7 @@
 		AE673E43C5E33171DDBA1362 /* PDFViewportController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC1E776A5C9ED129F697B35 /* PDFViewportController.swift */; };
 		2426921C6C08325587FAB5BA /* SelectionOverlayLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE7CFA7642271D4D21B7DD6 /* SelectionOverlayLayer.swift */; };
 		9F33883B9A6566CA902AF1F9 /* ViewportSyncGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6827E057D72082AF5E93D9A2 /* ViewportSyncGuard.swift */; };
+		1BD7A71A37079C1FDABCB174 /* AskContextRetriever.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E4F61DD3199987BFADCC9F /* AskContextRetriever.swift */; };
 		E6AF50E7CFAB2F46EB4B13D6 /* AssistantModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94F62985C1FDE97105C84BF /* AssistantModelCatalog.swift */; };
 		35F50685155B265D766B13C6 /* AssistantResponseNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B600217E950A20EBB4230F /* AssistantResponseNormalizer.swift */; };
 		371B17EF5D83D4EBB7E93347 /* AssistantResponseValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD92B855BAAAE87932B566D5 /* AssistantResponseValidator.swift */; };
@@ -68,6 +69,7 @@
 		9490838C3B039100B6CFDC7D /* ReferenceIndexCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34512890F9ED82862060D62C /* ReferenceIndexCacheStore.swift */; };
 		644F3B5ACEF8FC87F547F536 /* ReferenceIndexGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */; };
 		E8849E186549D0345FB49D6D /* ReferenceParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4324DA55E513115F76124B /* ReferenceParsing.swift */; };
+		3688D2E1A256E398354C2D0A /* SentenceEmbedder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4679A266AE637316CBADE5FA /* SentenceEmbedder.swift */; };
 		36E6869597CF24BBE731B4DA /* CoordinateMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EB436A8161F5A7D401BA598 /* CoordinateMapper.swift */; };
 		7C704985143395643604C294 /* NormalizedRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C0CFD6FE2EDB365F8B44622 /* NormalizedRect.swift */; };
 		50A8F591B8D44906DD873B03 /* StreamingTextCoalescer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F368FA4456EC326E9D8DDF4C /* StreamingTextCoalescer.swift */; };
@@ -141,6 +143,7 @@
 		EEC1E776A5C9ED129F697B35 /* PDFViewportController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFViewportController.swift; sourceTree = "<group>"; };
 		DEE7CFA7642271D4D21B7DD6 /* SelectionOverlayLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayLayer.swift; sourceTree = "<group>"; };
 		6827E057D72082AF5E93D9A2 /* ViewportSyncGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewportSyncGuard.swift; sourceTree = "<group>"; };
+		E0E4F61DD3199987BFADCC9F /* AskContextRetriever.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskContextRetriever.swift; sourceTree = "<group>"; };
 		F94F62985C1FDE97105C84BF /* AssistantModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantModelCatalog.swift; sourceTree = "<group>"; };
 		48B600217E950A20EBB4230F /* AssistantResponseNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantResponseNormalizer.swift; sourceTree = "<group>"; };
 		DD92B855BAAAE87932B566D5 /* AssistantResponseValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantResponseValidator.swift; sourceTree = "<group>"; };
@@ -182,6 +185,7 @@
 		34512890F9ED82862060D62C /* ReferenceIndexCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceIndexCacheStore.swift; sourceTree = "<group>"; };
 		540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceIndexGeneration.swift; sourceTree = "<group>"; };
 		1A4324DA55E513115F76124B /* ReferenceParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceParsing.swift; sourceTree = "<group>"; };
+		4679A266AE637316CBADE5FA /* SentenceEmbedder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentenceEmbedder.swift; sourceTree = "<group>"; };
 		7EB436A8161F5A7D401BA598 /* CoordinateMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinateMapper.swift; sourceTree = "<group>"; };
 		6C0CFD6FE2EDB365F8B44622 /* NormalizedRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizedRect.swift; sourceTree = "<group>"; };
 		F368FA4456EC326E9D8DDF4C /* StreamingTextCoalescer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextCoalescer.swift; sourceTree = "<group>"; };
@@ -277,6 +281,7 @@
 		); path = PDFKitBridge; sourceTree = "<group>"; };
 		EFC453FF89EFC60D2687BD9D /* Services */ = { isa = PBXGroup; children = (
 			5DFA929D7334677914CA59FD /* ReadingAssistant */,
+			E0E4F61DD3199987BFADCC9F /* AskContextRetriever.swift */,
 			F94F62985C1FDE97105C84BF /* AssistantModelCatalog.swift */,
 			48B600217E950A20EBB4230F /* AssistantResponseNormalizer.swift */,
 			DD92B855BAAAE87932B566D5 /* AssistantResponseValidator.swift */,
@@ -303,6 +308,7 @@
 			34512890F9ED82862060D62C /* ReferenceIndexCacheStore.swift */,
 			540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */,
 			1A4324DA55E513115F76124B /* ReferenceParsing.swift */,
+			4679A266AE637316CBADE5FA /* SentenceEmbedder.swift */,
 		); path = Services; sourceTree = "<group>"; };
 		5DFA929D7334677914CA59FD /* ReadingAssistant */ = { isa = PBXGroup; children = (
 			B9A644E7074D0A19B0494BBD /* CLI */,
@@ -443,6 +449,7 @@
 			AE673E43C5E33171DDBA1362,
 			2426921C6C08325587FAB5BA,
 			9F33883B9A6566CA902AF1F9,
+			1BD7A71A37079C1FDABCB174,
 			E6AF50E7CFAB2F46EB4B13D6,
 			35F50685155B265D766B13C6,
 			371B17EF5D83D4EBB7E93347,
@@ -484,6 +491,7 @@
 			9490838C3B039100B6CFDC7D,
 			644F3B5ACEF8FC87F547F536,
 			E8849E186549D0345FB49D6D,
+			3688D2E1A256E398354C2D0A,
 			36E6869597CF24BBE731B4DA,
 			7C704985143395643604C294,
 			50A8F591B8D44906DD873B03,

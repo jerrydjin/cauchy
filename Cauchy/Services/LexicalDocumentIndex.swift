@@ -1,9 +1,11 @@
 import Foundation
 import PDFKit
 
-/// Immutable BM25 index over paragraph-sized chunks of the document, built
-/// once per document off the main thread. Powers ask-time retrieval so the
-/// assistant can see relevant passages from pages other than the selection.
+/// Immutable hybrid index over paragraph-sized chunks of the document, built
+/// once per document off the main thread: BM25 always, fused with on-device
+/// sentence embeddings when the embedding model is available. Powers ask-time
+/// retrieval so the assistant can see relevant passages from pages other than
+/// the selection.
 struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
     private struct Chunk: Sendable {
         let pageIndex: Int
@@ -13,11 +15,17 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
     }
 
     private let chunks: [Chunk]
+    /// Parallel to `chunks`; nil when the embedding model was unavailable at
+    /// build time (retrieval is then lexical-only). Individual entries are nil
+    /// when a single chunk failed to embed.
+    private let chunkEmbeddings: [[Float]?]?
     private let documentFrequencies: [String: Int]
     private let averageTokenCount: Double
 
     private static let k1 = 1.5
     private static let b = 0.75
+    /// Reciprocal Rank Fusion constant (standard choice).
+    private static let rrfK = 60.0
 
     /// Opens its own PDFDocument instance so background building never races
     /// the live PDFView (same pattern as LLMReferenceIndexBuilder).
@@ -52,20 +60,67 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
         }
         let averageTokenCount = Double(chunks.reduce(0) { $0 + $1.tokenCount }) / Double(chunks.count)
 
+        // Embeddings are best-effort: no model, no semantic ranking — never
+        // fail the build over it.
+        var chunkEmbeddings: [[Float]?]?
+        if let model = SentenceEmbedder.makeModel() {
+            chunkEmbeddings = chunks.map { SentenceEmbedder.vector(for: $0.text, using: model) }
+        }
+
         return LexicalDocumentIndex(
             chunks: chunks,
+            chunkEmbeddings: chunkEmbeddings,
             documentFrequencies: documentFrequencies,
             averageTokenCount: averageTokenCount
         )
     }
 
     func passages(matching query: String, limit: Int, excludingPage: Int?) -> [String] {
+        passages(matching: query, queryVector: nil, limit: limit, excludingPage: excludingPage)
+    }
+
+    func passages(
+        matching query: String,
+        queryVector: [Float]?,
+        limit: Int,
+        excludingPage: Int?
+    ) -> [String] {
+        guard limit > 0 else { return [] }
+        let lexicalRanking = lexicalRanking(query: query, excludingPage: excludingPage)
+
+        guard let queryVector, chunkEmbeddings != nil else {
+            return format(Array(lexicalRanking.prefix(limit)))
+        }
+        let semanticRanking = semanticRanking(queryVector: queryVector, excludingPage: excludingPage)
+        guard !semanticRanking.isEmpty else {
+            return format(Array(lexicalRanking.prefix(limit)))
+        }
+
+        // Reciprocal Rank Fusion: robust to the incomparable score scales of
+        // BM25 and cosine similarity.
+        var fused: [Int: Double] = [:]
+        for (rank, chunkIndex) in lexicalRanking.enumerated() {
+            fused[chunkIndex, default: 0] += 1 / (Self.rrfK + Double(rank + 1))
+        }
+        for (rank, chunkIndex) in semanticRanking.enumerated() {
+            fused[chunkIndex, default: 0] += 1 / (Self.rrfK + Double(rank + 1))
+        }
+
+        let top = fused
+            .sorted { $0.value > $1.value }
+            .prefix(limit)
+            .map(\.key)
+        return format(top)
+    }
+
+    /// Chunk indices ranked by BM25 score, best first (positive scores only).
+    private func lexicalRanking(query: String, excludingPage: Int?) -> [Int] {
         let queryTerms = Set(Self.tokenize(query))
-        guard !queryTerms.isEmpty, limit > 0 else { return [] }
+        guard !queryTerms.isEmpty else { return [] }
 
         let totalChunks = Double(chunks.count)
-        var scored: [(score: Double, chunk: Chunk)] = []
-        for chunk in chunks {
+        var scored: [(index: Int, score: Double)] = []
+        for (index, chunk) in chunks.enumerated() {
             if let excludingPage, chunk.pageIndex == excludingPage { continue }
             var score = 0.0
             for term in queryTerms {
@@ -77,14 +132,30 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
                 score += idf * tf * (Self.k1 + 1) / (tf + Self.k1 * lengthNorm)
             }
             if score > 0 {
-                scored.append((score, chunk))
+                scored.append((index, score))
             }
         }
+        return scored.sorted { $0.score > $1.score }.map(\.index)
+    }
 
-        return scored
-            .sorted { $0.score > $1.score }
-            .prefix(limit)
-            .map { "[p. \($0.chunk.pageIndex + 1)] \($0.chunk.text)" }
+    /// Chunk indices ranked by cosine similarity, best first. A floor keeps
+    /// unrelated chunks from entering the fusion just by existing.
+    private func semanticRanking(queryVector: [Float], excludingPage: Int?) -> [Int] {
+        guard let chunkEmbeddings else { return [] }
+        var scored: [(index: Int, similarity: Double)] = []
+        for (index, embedding) in chunkEmbeddings.enumerated() {
+            guard let embedding else { continue }
+            if let excludingPage, chunks[index].pageIndex == excludingPage { continue }
+            let similarity = SentenceEmbedder.cosineSimilarity(queryVector, embedding)
+            if similarity >= 0.3 {
+                scored.append((index, similarity))
+            }
+        }
+        return scored.sorted { $0.similarity > $1.similarity }.map(\.index)
+    }
+
+    private func format(_ chunkIndices: [Int]) -> [String] {
+        chunkIndices.map { "[p. \(chunks[$0].pageIndex + 1)] \(chunks[$0].text)" }
     }
 
     // MARK: - Chunking & tokenization

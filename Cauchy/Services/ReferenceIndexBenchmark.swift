@@ -176,15 +176,54 @@ enum ReferenceIndexBenchmark {
     /// `Cauchy --probe-retrieval <pdf> <query>`: builds the lexical index and
     /// prints the passages an ask would retrieve — a headless check of the
     /// retrieval pipeline.
-    nonisolated static func runRetrievalProbe(pdfPath: String, query: String) -> Int32 {
+    /// Prints exactly what ask-time retrieval would feed the assistant for the
+    /// query: exact statements (with the route that surfaced each) and fused
+    /// passages. Statements come from the on-disk reference cache only — the
+    /// probe never spends model calls indexing.
+    nonisolated static func runRetrievalProbe(pdfPath: String, query: String) async -> Int32 {
         let url = URL(fileURLWithPath: (pdfPath as NSString).expandingTildeInPath)
         guard let index = LexicalDocumentIndex.build(documentURL: url) else {
             print("ERROR: could not build lexical index for \(url.path)")
             return 1
         }
-        let passages = index.passages(matching: query, limit: 3, excludingPage: nil)
-        print("Query: \(query)\nTop \(passages.count) passages:")
-        for (i, passage) in passages.enumerated() {
+
+        var snapshot: DocumentReferenceIndexSnapshot?
+        if let fingerprint = try? ReferenceIndexCacheStore.fingerprint(for: url),
+           let cached = try? ReferenceIndexCacheStore.load(fingerprint: fingerprint) {
+            let entries = cached.asSnapshot(pageCount: 0).entries
+            snapshot = DocumentReferenceIndexSnapshot(
+                entries: entries,
+                pageCount: 0,
+                bodyEmbeddings: DocumentReferenceIndexSnapshot.computeBodyEmbeddings(for: entries)
+            )
+        }
+
+        let retrieval = await MainActor.run { () -> AskRetrieval in
+            let referenceIndex = DocumentReferenceIndex()
+            if let snapshot {
+                referenceIndex.replace(with: snapshot)
+            }
+            return AskContextRetriever.retrieve(
+                question: query,
+                selectedText: "",
+                surroundingText: "",
+                pageIndex: nil,
+                referenceIndex: referenceIndex,
+                documentIndex: index,
+                passageLimit: 5
+            )
+        }
+
+        print("Query: \(query)")
+        if snapshot == nil {
+            print("(no reference-index cache for this PDF — statements unavailable; open it in Cauchy once to index it)")
+        }
+        print("\nExact statements (\(retrieval.statements.count)):")
+        for (statement, route) in zip(retrieval.statements, retrieval.statementRoutes) {
+            print("\n[\(route)] \(statement.prefix(500))")
+        }
+        print("\nFused passages (\(retrieval.passages.count)):")
+        for (i, passage) in retrieval.passages.enumerated() {
             print("\n#\(i + 1) \(passage.prefix(400))")
         }
         return 0

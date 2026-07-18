@@ -11,6 +11,10 @@ final class SelectionThreadViewModel {
     /// Injected by WorkspaceViewModel once the background build finishes; nil
     /// until then (asks simply run without retrieved passages).
     var documentIndex: (any DocumentIndexProtocol)?
+    /// The workspace's reference index — exact statements of numbered
+    /// definitions/theorems, injected into asks as ground truth. Wired once by
+    /// WorkspaceViewModel (the same instance is cleared/refilled per document).
+    var referenceIndex: DocumentReferenceIndex?
 
     init(assistant: any ReadingAssistantProtocol = ReadingAssistantProviderFactory.makeAssistant()) {
         self.assistant = assistant
@@ -130,11 +134,11 @@ final class SelectionThreadViewModel {
 
         // Retrieval happens now — at ask time — because the query needs the
         // question; the session context predates it.
-        let passages = retrievePassages(question: trimmed, thread: thread)
+        let retrieval = retrieveContext(question: trimmed, thread: thread)
 
         // onPartial already runs on the main actor (ReadingAssistantProtocol is
         // @MainActor); the coalescer keeps re-renders at ~12/s instead of per token.
-        let assistantText = try await assistant.ask(question: trimmed, retrievedPassages: passages) { partial in
+        let assistantText = try await assistant.ask(question: trimmed, retrieval: retrieval) { partial in
             coalescer.submit(partial)
         }
 
@@ -148,9 +152,16 @@ final class SelectionThreadViewModel {
         activeThread?.messages ?? []
     }
 
-    private func retrievePassages(question: String, thread: SelectionThread) -> [String] {
-        guard let documentIndex else { return [] }
-        let query = question + " " + thread.selectedText.prefix(200)
-        return documentIndex.passages(matching: query, limit: 3, excludingPage: thread.pageIndex)
+    private func retrieveContext(question: String, thread: SelectionThread) -> AskRetrieval {
+        AskContextRetriever.retrieve(
+            question: question,
+            selectedText: thread.selectedText,
+            surroundingText: thread.surroundingText,
+            pageIndex: thread.pageIndex,
+            referenceIndex: referenceIndex,
+            documentIndex: documentIndex,
+            // The on-device window is small; cloud/CLI providers can take more.
+            passageLimit: assistant.provider == .local ? 3 : 5
+        )
     }
 }

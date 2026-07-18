@@ -19,7 +19,7 @@ struct CauchyApp: App {
             let pdfPath = CommandLine.arguments[flagIndex + 1]
             let query = CommandLine.arguments[flagIndex + 2]
             Task.detached {
-                exit(ReferenceIndexBenchmark.runRetrievalProbe(pdfPath: pdfPath, query: query))
+                exit(await ReferenceIndexBenchmark.runRetrievalProbe(pdfPath: pdfPath, query: query))
             }
         } else {
             // Normal GUI launch: sweep reference-index caches that no document

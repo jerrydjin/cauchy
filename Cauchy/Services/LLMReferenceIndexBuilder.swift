@@ -21,11 +21,20 @@ struct LLMPageReferenceResponse: Decodable, Equatable {
         let kind: String
         let number: String
         let formattedBody: String
+        let name: String?
+
+        init(kind: String, number: String, formattedBody: String, name: String? = nil) {
+            self.kind = kind
+            self.number = number
+            self.formattedBody = formattedBody
+            self.name = name
+        }
 
         enum CodingKeys: String, CodingKey {
             case kind
             case number
             case formattedBody = "formatted_body"
+            case name
         }
     }
 
@@ -180,7 +189,13 @@ enum LLMReferenceIndexBuilder {
 
         let cached = try? ReferenceIndexCacheStore.load(fingerprint: fingerprint)
         if let cached, cached.failedPageIndices.isEmpty {
-            return BuildOutcome(snapshot: cached.asSnapshot(pageCount: pageCount), failedPageIndices: [])
+            let entries = cached.asSnapshot(pageCount: pageCount).entries
+            let snapshot = DocumentReferenceIndexSnapshot(
+                entries: entries,
+                pageCount: pageCount,
+                bodyEmbeddings: DocumentReferenceIndexSnapshot.computeBodyEmbeddings(for: entries)
+            )
+            return BuildOutcome(snapshot: snapshot, failedPageIndices: [])
         }
 
         // Vision (and its per-page PNG rendering) only when the chosen model
@@ -254,7 +269,11 @@ enum LLMReferenceIndexBuilder {
             }
         }
 
-        let snapshot = DocumentReferenceIndexSnapshot(entries: merged, pageCount: pageCount)
+        let snapshot = DocumentReferenceIndexSnapshot(
+            entries: merged,
+            pageCount: pageCount,
+            bodyEmbeddings: DocumentReferenceIndexSnapshot.computeBodyEmbeddings(for: merged)
+        )
         failed.sort()
 
         // A mostly-failed fresh run points at a systemic outage — don't bake
@@ -363,10 +382,12 @@ enum LLMReferenceIndexBuilder {
                 continue
             }
 
+            let trimmedName = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
             let indexed = IndexedReference(
                 reference: DetectedReference(kind: kind, number: item.number),
                 formattedBody: formattedBody,
-                pageIndex: pageIndex
+                pageIndex: pageIndex,
+                name: (trimmedName?.isEmpty ?? true) ? nil : trimmedName
             )
             LLMReferenceIndexSupport.merge(indexed, into: &results)
         }

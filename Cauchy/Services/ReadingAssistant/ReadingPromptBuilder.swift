@@ -39,6 +39,7 @@ enum ReadingPromptBuilder {
 
         Content rules:
         - Ground your answer in the text above (and retrieved passages if present).
+        - The notes' exact formulations of definitions and theorems are the ground source of truth. When the question concerns a definition or stated result, restate it verbatim from the notes (see EXACT STATEMENTS when present) before explaining, and keep the notes' notation.
         - You may use standard mathematical knowledge to actually answer the question; note briefly when a result comes from outside the passage.
         - If the passage defers a result (e.g. to a problem sheet), still state the standard result rather than only saying it is deferred.
         - Do not summarize the whole document.
@@ -51,26 +52,44 @@ enum ReadingPromptBuilder {
         return prompt
     }
 
+    /// Formats exact reference statements for the prompt, clipped to a
+    /// character budget. These sit above the passages block: they are the
+    /// notes' ground-truth formulations.
+    static func referencedStatementsBlock(_ statements: [String], characterBudget: Int) -> String? {
+        guard let clipped = clip(statements, to: characterBudget) else { return nil }
+        return """
+        EXACT STATEMENTS FROM THE NOTES (ground truth — quote verbatim, use their notation):
+
+        \(clipped.joined(separator: "\n\n"))
+        """
+    }
+
     /// Formats ask-time retrieved passages for inclusion in the model prompt,
     /// clipped to a per-provider character budget (the on-device context
     /// window is small). Returns nil when nothing fits.
     static func retrievedPassagesBlock(_ passages: [String], characterBudget: Int) -> String? {
-        guard !passages.isEmpty, characterBudget > 0 else { return nil }
-        var clipped: [String] = []
-        var used = 0
-        for passage in passages {
-            let piece = String(passage.prefix(characterBudget - used))
-            guard piece.count >= 40 else { break }
-            clipped.append(piece)
-            used += piece.count
-            if used >= characterBudget { break }
-        }
-        guard !clipped.isEmpty else { return nil }
+        guard let clipped = clip(passages, to: characterBudget) else { return nil }
         return """
         RELEVANT PASSAGES (from elsewhere in the document — mention the page number when you rely on one):
 
         \(clipped.joined(separator: "\n\n"))
         """
+    }
+
+    /// Greedily fits items into a character budget, clipping the last one;
+    /// fragments under 40 characters are dropped. Returns nil if nothing fits.
+    private static func clip(_ items: [String], to characterBudget: Int) -> [String]? {
+        guard !items.isEmpty, characterBudget > 0 else { return nil }
+        var clipped: [String] = []
+        var used = 0
+        for item in items {
+            let piece = String(item.prefix(characterBudget - used))
+            guard piece.count >= 40 else { break }
+            clipped.append(piece)
+            used += piece.count
+            if used >= characterBudget { break }
+        }
+        return clipped.isEmpty ? nil : clipped
     }
 
     static func latexRepairInstructions() -> String {

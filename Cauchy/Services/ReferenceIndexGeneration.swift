@@ -27,6 +27,9 @@ struct GeneratedReference {
 
     @Guide(description: "Only the statement or equation body. Prose stays plain text; all mathematics goes inside $...$ or $$...$$ LaTeX delimiters. Never a proof.")
     var formattedBody: String
+
+    @Guide(description: "The reference's printed title, e.g. for \"Definition 3.2 (Compactness)\" the name is \"Compactness\". Empty string when no title is printed.")
+    var name: String
 }
 
 extension GeneratedPageReferences {
@@ -35,7 +38,8 @@ extension GeneratedPageReferences {
             LLMPageReferenceResponse.Item(
                 kind: reference.kind,
                 number: reference.number,
-                formattedBody: reference.formattedBody
+                formattedBody: reference.formattedBody,
+                name: reference.name.isEmpty ? nil : reference.name
             )
         })
     }

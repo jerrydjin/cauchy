@@ -25,7 +25,7 @@ export default function Home() {
           
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-20">
             <Link
-              href="/download"
+              href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg"
               className="w-full sm:w-auto h-12 flex items-center justify-center bg-accent text-accent-text px-8 rounded-md text-[16px] font-medium whitespace-nowrap hover:bg-accent-hover transition-colors"
             >
               Download for macOS
@@ -58,7 +58,7 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4 mb-12">
-            <Link href="/download" className="bg-accent text-accent-text px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-accent-hover transition-colors">
+            <Link href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg" className="bg-accent text-accent-text px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-accent-hover transition-colors">
               Download App
             </Link>
             <Link href="/setup" className="bg-card text-primary px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-black/5 transition-colors">
@@ -231,7 +231,7 @@ export default function Home() {
         <h2 className="text-[48px] sm:text-[64px] font-medium tracking-[-0.03em] leading-[1.1] text-secondary max-w-[1000px] mb-10">
           Understand proofs better.
         </h2>
-        <Link href="/download" className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors mb-24">
+        <Link href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg" className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors mb-24">
           Download Cauchy
         </Link>
       </section>

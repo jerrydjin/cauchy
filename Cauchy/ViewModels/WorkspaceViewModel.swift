@@ -61,6 +61,9 @@ final class WorkspaceViewModel {
         find.currentPageProvider = { [weak self] in
             self?.viewportCoordinator.viewport.pageIndex ?? 0
         }
+        // Same long-lived instance across documents (cleared/refilled per open),
+        // so wiring once is enough.
+        selectionThread.referenceIndex = referenceIndex
     }
 
     var documentTitle: String {

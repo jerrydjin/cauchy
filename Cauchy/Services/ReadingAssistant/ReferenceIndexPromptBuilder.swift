@@ -16,6 +16,7 @@ enum ReferenceIndexPromptBuilder {
     Rules:
     - Include ONLY numbered references that appear in the provided page text. Do not invent any.
     - Keep reference numbers exactly as printed (e.g. "1.4", "2.3.1").
+    - name is the printed title only, e.g. "Definition 3.2 (Compactness)" → name "Compactness"; leave empty when none is printed.
     - For equations: the body is ONLY the equation itself, no surrounding prose.
     - For theorems/lemmas/definitions/examples: the body is ONLY the statement, never the proof.
     - Write all mathematics inside $...$ (inline) or $$...$$ (display) LaTeX delimiters; never emit LaTeX commands outside delimiters. Prose stays plain text.
@@ -42,7 +43,8 @@ enum ReferenceIndexPromptBuilder {
         {
           "kind": "equation",
           "number": "1.4",
-          "formatted_body": "$$x + y = z$$"
+          "formatted_body": "$$x + y = z$$",
+          "name": null
         }
       ]
     }
@@ -52,6 +54,7 @@ enum ReferenceIndexPromptBuilder {
     Rules:
     - Include ONLY references that appear on this page in the provided text.
     - Do not invent references.
+    - "name" is the reference's printed title when one exists — e.g. "Definition 3.2 (Compactness)" has name "Compactness", "Theorem 4.1 (Heine–Borel)" has name "Heine–Borel". Use null when no title is printed.
     - For equations: formatted_body is ONLY the equation, no surrounding prose.
     - For theorems/lemmas/definitions/examples: formatted_body is ONLY the statement, never the proof.
     - Keep prose as plain text outside math delimiters.

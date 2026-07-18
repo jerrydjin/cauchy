@@ -95,7 +95,7 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
 
     func ask(
         question: String,
-        retrievedPassages: [String],
+        retrieval: AskRetrieval,
         onPartial: ((String) -> Void)? = nil
     ) async throws -> String {
         guard isAvailable else {
@@ -111,12 +111,21 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
 
-        // Passages ride the per-turn prompt (sessions fix their instructions
-        // at reset/restore time) with a budget the small local window can fit.
+        // Retrieval rides the per-turn prompt (sessions fix their instructions
+        // at reset/restore time). Exact statements come first and get priority
+        // budget; both budgets stay small enough for the local window.
         var prompt = trimmed
-        let passageBudget = provider == .local ? 1_200 : 4_000
-        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrievedPassages, characterBudget: passageBudget) {
-            prompt = block + "\n\nQUESTION: " + trimmed
+        let statementBudget = provider == .local ? 1_200 : 2_500
+        let passageBudget = provider == .local ? 800 : 4_000
+        var blocks: [String] = []
+        if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: statementBudget) {
+            blocks.append(block)
+        }
+        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrieval.passages, characterBudget: passageBudget) {
+            blocks.append(block)
+        }
+        if !blocks.isEmpty {
+            prompt = blocks.joined(separator: "\n\n") + "\n\nQUESTION: " + trimmed
         }
 
         do {

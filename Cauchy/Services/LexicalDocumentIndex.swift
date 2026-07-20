@@ -138,20 +138,22 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
         return scored.sorted { $0.score > $1.score }.map(\.index)
     }
 
-    /// Chunk indices ranked by cosine similarity, best first. A floor keeps
-    /// unrelated chunks from entering the fusion just by existing.
+    /// Chunk indices ranked by cosine similarity, best first, capped so weak
+    /// tail matches can't pile up RRF contributions. (Contextual-embedding
+    /// similarities sit in a narrow band, so absolute floors are meaningless —
+    /// only the ranking is trustworthy.)
     private func semanticRanking(queryVector: [Float], excludingPage: Int?) -> [Int] {
         guard let chunkEmbeddings else { return [] }
         var scored: [(index: Int, similarity: Double)] = []
         for (index, embedding) in chunkEmbeddings.enumerated() {
             guard let embedding else { continue }
             if let excludingPage, chunks[index].pageIndex == excludingPage { continue }
-            let similarity = SentenceEmbedder.cosineSimilarity(queryVector, embedding)
-            if similarity >= 0.3 {
-                scored.append((index, similarity))
-            }
+            scored.append((index, SentenceEmbedder.cosineSimilarity(queryVector, embedding)))
         }
-        return scored.sorted { $0.similarity > $1.similarity }.map(\.index)
+        return scored
+            .sorted { $0.similarity > $1.similarity }
+            .prefix(30)
+            .map(\.index)
     }
 
     private func format(_ chunkIndices: [Int]) -> [String] {

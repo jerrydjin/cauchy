@@ -56,13 +56,10 @@ enum AskContextRetriever {
             // ones (the surrounding prose often cites many nearby results).
             add(referenceIndex.statements(citedIn: [question, selectedText, surroundingText]), route: "cited")
             add(referenceIndex.statements(matchingTermsIn: question), route: "term", cap: 2)
+            add(referenceIndex.statements(lexicallyMatching: question, limit: 2), route: "body", cap: 2)
             if let queryVector {
                 add(
-                    referenceIndex.statements(
-                        semanticallyMatching: queryVector,
-                        limit: 2,
-                        minSimilarity: 0.55
-                    ),
+                    referenceIndex.statements(semanticallyMatching: queryVector, question: question, limit: 2),
                     route: "semantic",
                     cap: 2
                 )

@@ -198,12 +198,12 @@ enum ReferenceIndexBenchmark {
             )
         }
 
-        let retrieval = await MainActor.run { () -> AskRetrieval in
+        let (retrieval, candidates) = await MainActor.run { () -> (AskRetrieval, [(heading: String, similarity: Double)]) in
             let referenceIndex = DocumentReferenceIndex()
             if let snapshot {
                 referenceIndex.replace(with: snapshot)
             }
-            return AskContextRetriever.retrieve(
+            let retrieval = AskContextRetriever.retrieve(
                 question: query,
                 selectedText: "",
                 surroundingText: "",
@@ -212,6 +212,9 @@ enum ReferenceIndexBenchmark {
                 documentIndex: index,
                 passageLimit: 5
             )
+            let candidates = SentenceEmbedder.queryVector(for: query)
+                .map { referenceIndex.semanticCandidates(for: $0, limit: 5) } ?? []
+            return (retrieval, candidates)
         }
 
         print("Query: \(query)")
@@ -221,6 +224,12 @@ enum ReferenceIndexBenchmark {
         print("\nExact statements (\(retrieval.statements.count)):")
         for (statement, route) in zip(retrieval.statements, retrieval.statementRoutes) {
             print("\n[\(route)] \(statement.prefix(500))")
+        }
+        if !candidates.isEmpty {
+            print("\nTop semantic statement candidates (raw cosine, before gating):")
+            for candidate in candidates {
+                print(String(format: "  %.4f  %@", candidate.similarity, candidate.heading))
+            }
         }
         print("\nFused passages (\(retrieval.passages.count)):")
         for (i, passage) in retrieval.passages.enumerated() {

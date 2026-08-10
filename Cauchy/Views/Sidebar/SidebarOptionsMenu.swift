@@ -48,6 +48,10 @@ struct SidebarOptionsMenu: View {
                 .glassEffect(.regular.interactive(), in: .circle)
         }
         .menuStyle(.button)
+        // Without this the toolbar draws its own rounded-rect hover highlight
+        // behind the label, which reads as a second, differently shaped button
+        // around the circular glass. The interactive glass is the hover state.
+        .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .help("Sidebar and page layout")
     }

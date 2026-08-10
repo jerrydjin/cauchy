@@ -21,7 +21,11 @@ struct MessageBubble: View {
                     isUser ? .regular.tint(.accentColor) : .regular,
                     in: .rect(cornerRadius: ConversationChrome.bubbleCornerRadius)
                 )
-                .frame(maxWidth: maxBubbleWidth, alignment: .leading)
+                // Alignment inside the frame is what actually sides the bubble:
+                // the frame fills whatever the row offers, so relying on the
+                // leftover width to push a user message right stops working as
+                // soon as the bubble is allowed to be as wide as the panel.
+                .frame(maxWidth: maxBubbleWidth, alignment: isUser ? .trailing : .leading)
                 .fixedSize(horizontal: false, vertical: true)
                 // Answers render as a stack of separate text and math views, so
                 // dragging a selection can never pick up a whole reply — copy

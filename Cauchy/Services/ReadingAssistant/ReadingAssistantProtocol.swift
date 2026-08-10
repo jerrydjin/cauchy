@@ -1,28 +1,13 @@
 import Foundation
 import FoundationModels
 
-enum ReadingAssistantProvider: Equatable, Sendable {
-    case local
-    case gemini
-    case claudeCode
-    case codex
-
-    var cliDisplayName: String {
-        switch self {
-        case .claudeCode: "Claude Code"
-        case .codex: "Codex"
-        case .local, .gemini: ""
-        }
-    }
-}
-
 enum ReadingAssistantAvailability: Equatable {
-    case available(ReadingAssistantProvider)
+    case available(AssistantConnectorID)
     case deviceNotEligible
     case intelligenceNotEnabled
     case modelNotReady
     case geminiKeyMissing
-    case cliNotInstalled(ReadingAssistantProvider)
+    case cliNotInstalled(AssistantConnectorID)
     case unavailable
 }
 
@@ -32,7 +17,7 @@ extension ReadingAssistantAvailability {
         return false
     }
 
-    var activeProvider: ReadingAssistantProvider? {
+    var activeProvider: AssistantConnectorID? {
         if case .available(let provider) = self { return provider }
         return nil
     }
@@ -40,7 +25,7 @@ extension ReadingAssistantAvailability {
 
 @MainActor
 protocol ReadingAssistantProtocol: AnyObject {
-    var provider: ReadingAssistantProvider { get }
+    var provider: AssistantConnectorID { get }
     var availability: ReadingAssistantAvailability { get }
     var isResponding: Bool { get }
     func resetSession(context: ReadingContext)
@@ -81,7 +66,7 @@ enum ReadingAssistantError: LocalizedError {
             case .geminiKeyMissing:
                 return "Add a Gemini API key in Settings to use Ask."
             case .cliNotInstalled(let provider):
-                return "\(provider.cliDisplayName) is not installed. Install its CLI and sign in, then try again."
+                return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
             case .unavailable:
                 return "Ask is not available right now."
             }

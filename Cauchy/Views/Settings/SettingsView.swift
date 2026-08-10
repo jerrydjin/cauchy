@@ -7,115 +7,143 @@ struct SettingsView: View {
     @State private var hasStoredKey = KeychainService.hasGeminiAPIKey
     @State private var statusMessage: String?
     @State private var isError = false
-    @AppStorage(ModelProviderPreferences.providerChoiceKey)
-    private var providerChoiceRaw = ModelProviderPreferences.providerChoice.rawValue
+    @State private var showKeySection = false
+    @AppStorage(AssistantPreferences.selectionKey)
+    private var selectionToken = AssistantSelection.automaticToken
 
     init(onSettingsChanged: (() -> Void)? = nil) {
         self.onSettingsChanged = onSettingsChanged
     }
 
-    private var providerChoice: AssistantProviderChoice {
-        AssistantProviderChoice(rawValue: providerChoiceRaw) ?? .automatic
+    /// Reads `selectionToken` so SwiftUI re-renders this view when the picker
+    /// writes a new choice.
+    private var activeConnector: AssistantConnector {
+        switch AssistantSelection(token: selectionToken) {
+        case .automatic: AssistantPreferences.automaticTarget.connector
+        case .connector(let id): id.connector
+        }
     }
 
     var body: some View {
         Form {
             Section {
-                Picker("Ask uses", selection: $providerChoiceRaw) {
-                    ForEach(AssistantProviderChoice.allCases) { choice in
-                        Text(choice.displayName).tag(choice.rawValue)
+                // Deliberately not a LabeledContent: its value slot swallows the
+                // menu's clicks and the picker never opens.
+                HStack {
+                    Text("Ask uses")
+                    Spacer()
+                    ModelPicker(style: .settings) {
+                        onSettingsChanged?()
                     }
                 }
-                .pickerStyle(.menu)
-                .onChange(of: providerChoiceRaw) { _, _ in
-                    onSettingsChanged?()
-                }
-
-                providerStatusLabel
+                Text(activeConnector.tagline)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             } header: {
                 Text("Assistant")
-            } footer: {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(providerFooter)
-                    Text("You can also switch the provider and exact model from the selector beneath the chat box.")
-                }
             }
 
             Section {
-                if hasStoredKey {
-                    Label("Gemini API key saved", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-
-                SecureField("Gemini API Key", text: $apiKey)
-                    .textFieldStyle(.roundedBorder)
-
-                HStack {
-                    Button("Save") {
-                        saveKey()
-                    }
-                    .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasStoredKey)
-
-                    Button("Clear", role: .destructive) {
-                        clearKey()
-                    }
-                    .disabled(!hasStoredKey)
-                }
-
-                if let statusMessage {
-                    Text(statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(isError ? .red : .secondary)
+                ForEach(AssistantConnector.primary) { connector in
+                    connectorRow(connector)
                 }
             } header: {
-                Text("Gemini API Key")
+                Text("Connectors")
             } footer: {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Used when the assistant is set to Automatic or Gemini. Reference indexing runs on-device; the key is only a fallback when Apple Intelligence is unavailable.")
-                    Link("Get a Gemini API key", destination: URL(string: "https://aistudio.google.com/apikey")!)
+                Text("Each of these runs under a sign-in you already have — the app never sees a credential. Install or sign in from Terminal; the list refreshes when you reopen Settings.")
+            }
+
+            Section {
+                DisclosureGroup(isExpanded: $showKeySection) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        geminiKeyControls
+                    }
+                    .padding(.top, 6)
+                } label: {
+                    Label("Gemini API key", systemImage: "key")
                 }
+            } header: {
+                Text("Advanced")
             }
         }
         .formStyle(.grouped)
-        .frame(width: 500, height: 400)
+        .frame(width: 520, height: 540)
         .padding()
     }
 
+    // MARK: - Connector status
+
     @ViewBuilder
-    private var providerStatusLabel: some View {
-        switch providerChoice {
-        case .claudeCode, .codex:
-            let provider: ReadingAssistantProvider = providerChoice == .codex ? .codex : .claudeCode
-            if let binary = CLIAgentAssistantService.binaryURL(for: provider) {
-                Label("Found \(binary.path)", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+    private func connectorRow(_ connector: AssistantConnector) -> some View {
+        let status = connector.status
+
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                Image(systemName: connector.symbol)
+                    .frame(width: 16)
+                Text(connector.name)
+                Spacer()
+                Label(status.badge, systemImage: status.isReady ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                     .font(.caption)
-            } else {
-                Label("\(provider.cliDisplayName) CLI not found", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.caption)
+                    .foregroundStyle(status.isReady ? Color.green : Color.orange)
+                    .labelStyle(.titleAndIcon)
             }
-        case .gemini where !hasStoredKey:
-            Label("No Gemini API key saved", systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.caption)
-        default:
-            EmptyView()
+
+            // When it works, show where it was found; when it doesn't, show the
+            // one thing the user has to do about it.
+            Group {
+                if let hint = status.hint {
+                    Text(hint)
+                } else if let path = connector.resolvedBinaryURL?.path {
+                    Text(path)
+                } else {
+                    Text(connector.tagline)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
+        .font(.callout)
     }
 
-    private var providerFooter: String {
-        switch providerChoice {
-        case .automatic:
-            return "Uses Gemini when an API key is saved, otherwise on-device Apple Intelligence."
-        case .onDevice:
-            return "Everything runs locally with Apple Intelligence. No key, no network — and noticeably weaker at mathematics."
-        case .gemini:
-            return "Answers come from Google Gemini using the API key below."
-        case .claudeCode:
-            return "Answers come from the Claude Code CLI under your own Claude subscription — no API key needed. Install Claude Code, run `claude` in Terminal once to sign in, and you're set. Tools are disabled: it can never run commands on your Mac."
-        case .codex:
-            return "Answers come from the Codex CLI under your own ChatGPT plan — no API key needed. Install Codex (`npm i -g @openai/codex` or `brew install codex`), run `codex login` once, and you're set. Runs read-only sandboxed."
+    // MARK: - Gemini key
+
+    @ViewBuilder
+    private var geminiKeyControls: some View {
+        Text("A direct Gemini API key is billed to you per request, so it sits apart from the connectors above. It is also the fallback used for reference indexing when Apple Intelligence is unavailable.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+        if hasStoredKey {
+            Label("Gemini API key saved", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        }
+
+        SecureField("Gemini API Key", text: $apiKey)
+            .textFieldStyle(.roundedBorder)
+
+        HStack {
+            Button("Save") {
+                saveKey()
+            }
+            .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasStoredKey)
+
+            Button("Clear", role: .destructive) {
+                clearKey()
+            }
+            .disabled(!hasStoredKey)
+
+            Spacer()
+
+            Link("Get a key", destination: URL(string: "https://aistudio.google.com/apikey")!)
+                .font(.caption)
+        }
+
+        if let statusMessage {
+            Text(statusMessage)
+                .font(.caption)
+                .foregroundStyle(isError ? .red : .secondary)
         }
     }
 

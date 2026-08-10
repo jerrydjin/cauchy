@@ -47,7 +47,12 @@ struct HighlightThreadDetailView: View {
                 unavailabilityMessage: unavailabilityMessage,
                 panelWidth: workspace.contextPanelWidth,
                 question: $question,
-                onSend: { Task { await sendQuestion() } },
+                onSend: { sendQuestion() },
+                onStop: {
+                    if let unanswered = workspace.stopThreadMessage() {
+                        question = unanswered
+                    }
+                },
                 onModelChange: { workspace.refreshReadingAssistant() }
             )
             .padding(16)
@@ -66,16 +71,16 @@ struct HighlightThreadDetailView: View {
         case .geminiKeyMissing:
             return "Add a Gemini API key in Settings to ask questions."
         case .cliNotInstalled(let provider):
-            return "\(provider.cliDisplayName) CLI not found. Install it and sign in, then try again."
+            return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
         default:
             return "Ask is unavailable right now."
         }
     }
 
-    private func sendQuestion() async {
+    private func sendQuestion() {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        await workspace.sendThreadMessage(trimmed)
+        workspace.sendThreadMessage(trimmed)
         question = ""
     }
 }

@@ -16,7 +16,7 @@ enum CLIAgentError: LocalizedError {
     }
 }
 
-/// Finds and runs the user's locally installed agent CLIs (claude / codex).
+/// Finds and runs the user's locally installed agent CLIs (claude / codex / agy).
 /// The API calls are made by the vendor's own binary under the user's own
 /// sign-in; the app never sees or handles a credential.
 enum CLIAgentRunner {
@@ -106,7 +106,7 @@ enum CLIAgentRunner {
             // The whole point of this provider is the user's own CLI sign-in.
             // Strip API-key/base-URL overrides so a stray environment variable
             // can never silently reroute or re-bill the request.
-            for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY"] {
+            for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"] {
                 environment.removeValue(forKey: key)
             }
             process.environment = environment

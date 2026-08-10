@@ -1,7 +1,7 @@
 import Foundation
 
 enum ReadingPromptBuilder {
-    static func instructions(for context: ReadingContext, provider: ReadingAssistantProvider = .local) -> String {
+    static func instructions(for context: ReadingContext, provider: AssistantConnectorID = .onDevice) -> String {
         var prompt = """
         You are helping someone read "\(context.documentTitle)".
 
@@ -28,7 +28,7 @@ enum ReadingPromptBuilder {
 
         // Cloud and CLI models need the reminder that replies render inside the
         // app's LaTeX engine; the on-device model already gets the contract below.
-        if provider != .local {
+        if provider != .onDevice {
             prompt += """
 
             IMPORTANT: Your reply is rendered by a LaTeX math engine in the app. Any LaTeX command written outside $...$ or $$...$$ will appear as broken raw text.
@@ -128,6 +128,19 @@ enum ReadingPromptBuilder {
         - Use \\frac{a}{b} only inside math delimiters. Prefer display math for fractions.
         - Use \\left| ... \\right| for absolute values and norms inside math delimiters.
         - Do not write raw subscripts like f_y outside math; use $f_y$ or $f_{y}$.
+
+        SUPPORTED COMMANDS (the renderer implements a subset of LaTeX — an
+        unsupported command makes the whole formula fall back to raw source):
+        - Available: \\frac, \\sqrt, \\sum, \\int, \\lim, \\underline, \\overline, \\vec, \\hat,
+          \\text, \\mathrm, \\mathbb, \\mathcal, \\mathfrak, \\binom, \\left/\\right, \\langle,
+          \\quad, \\cdots, and the usual Greek letters, relations, and arrows.
+        - Environments: only cases, matrix, pmatrix, bmatrix, Bmatrix, vmatrix, gather.
+        - NEVER use: \\underbrace, \\overbrace, \\overset, \\underset, \\stackrel, \\substack,
+          \\xrightarrow, \\boxed, \\tag, \\phantom, \\operatorname, \\pmod, \\dfrac, \\tfrac,
+          \\bigl/\\bigr/\\Big, \\begin{align}, \\begin{array}, \\begin{equation}.
+        - For an annotated repeated sum, do not reach for \\underbrace — put the
+          count in prose: "the sum of $p$ copies of $1$", or write $1+1+\\cdots+1$ ($p$ terms).
+        - For multi-line derivations use consecutive $$...$$ blocks, not an align environment.
 
         Good:
         Since $f$ and $g$ are continuous, for any $\\epsilon > 0$ there exists $\\delta > 0$ such that

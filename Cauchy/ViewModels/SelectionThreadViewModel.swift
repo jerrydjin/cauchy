@@ -16,7 +16,7 @@ final class SelectionThreadViewModel {
     /// WorkspaceViewModel (the same instance is cleared/refilled per document).
     var referenceIndex: DocumentReferenceIndex?
 
-    init(assistant: any ReadingAssistantProtocol = ReadingAssistantProviderFactory.makeAssistant()) {
+    init(assistant: any ReadingAssistantProtocol = ReadingAssistantFactory.makeAssistant()) {
         self.assistant = assistant
     }
 
@@ -28,7 +28,7 @@ final class SelectionThreadViewModel {
     /// restored onto the new assistant so a mid-thread provider change keeps
     /// the passage context instead of falling back to a generic prompt.
     func reloadAssistant(documentTitle: String? = nil) {
-        assistant = ReadingAssistantProviderFactory.makeAssistant()
+        assistant = ReadingAssistantFactory.makeAssistant()
         guard let thread = activeThread, let documentTitle else { return }
         let readingContext = ReadingContextBuilder.from(
             anchor: thread.anchor,
@@ -152,6 +152,19 @@ final class SelectionThreadViewModel {
         activeThread?.messages ?? []
     }
 
+    /// Pops the trailing user message when an ask was stopped before it was
+    /// answered, and returns its text so the composer can offer it back.
+    /// Providers only record a turn once it completes, so leaving the orphan
+    /// visible would show history the model will never see.
+    func discardUnansweredQuestion() -> String? {
+        guard var thread = activeThread,
+              let last = thread.messages.last,
+              last.role == .user else { return nil }
+        thread.messages.removeLast()
+        activeThread = thread
+        return last.content
+    }
+
     private func retrieveContext(question: String, thread: SelectionThread) -> AskRetrieval {
         AskContextRetriever.retrieve(
             question: question,
@@ -161,7 +174,7 @@ final class SelectionThreadViewModel {
             referenceIndex: referenceIndex,
             documentIndex: documentIndex,
             // The on-device window is small; cloud/CLI providers can take more.
-            passageLimit: assistant.provider == .local ? 3 : 5
+            passageLimit: assistant.provider == .onDevice ? 3 : 5
         )
     }
 }

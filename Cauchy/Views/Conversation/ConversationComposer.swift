@@ -5,38 +5,43 @@ struct ConversationComposer: View {
     var isResponding: Bool
     var isEnabled: Bool
     var onSend: () -> Void
+    var onStop: () -> Void = {}
     var onModelChange: () -> Void = {}
 
     var body: some View {
+        // One bar: the question on top, the model selector tucked underneath it.
+        // Return sends, so there is no send button.
         VStack(alignment: .leading, spacing: 6) {
-            ModelPickerMenu(onChange: onModelChange)
-                .padding(.leading, 2)
+            TextField("Ask a question…", text: $question, axis: .vertical)
+                .textFieldStyle(.plain)
+                .lineLimit(1...4)
+                .disabled(isResponding || !isEnabled)
+                .onSubmit(onSend)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(alignment: .bottom, spacing: 8) {
-                TextField("Ask a question…", text: $question, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1...4)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .disabled(isResponding || !isEnabled)
-                    .onSubmit(onSend)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .glassEffect(in: .rect(cornerRadius: ConversationChrome.composerCornerRadius))
+            HStack(spacing: 6) {
+                ModelPicker(onChange: onModelChange)
 
-                GlassIconButton(
-                    systemName: "arrow.up",
-                    accessibilityLabel: "Send",
-                    prominent: canSend,
-                    action: onSend
-                )
-                .disabled(!canSend)
+                Spacer(minLength: 0)
+
+                // A slow CLI provider can always be interrupted without waiting
+                // it out — the only button the bar still needs.
+                if isResponding {
+                    Button(action: onStop) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(5)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Stop generating")
+                    .help("Stop generating")
+                }
             }
         }
-    }
-
-    private var canSend: Bool {
-        !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !isResponding
-            && isEnabled
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .glassEffect(in: .rect(cornerRadius: ConversationChrome.composerCornerRadius))
     }
 }

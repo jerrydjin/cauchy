@@ -64,7 +64,9 @@ struct MessageContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             let flowTokens = MessageContentParser.flowTokens(from: merged)
-            InlineFlowLayout(horizontalSpacing: 3, verticalSpacing: 4) {
+            // Word tokens carry their own trailing space, so extra spacing
+            // between them would render as a double space.
+            InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
                 ForEach(Array(flowTokens.enumerated()), id: \.offset) { _, segment in
                     flowSegmentView(segment)
                 }

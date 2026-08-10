@@ -212,8 +212,6 @@ struct RecentDocumentCard: View {
                         .foregroundStyle(.secondary)
                     }
                     .padding(16)
-                    // Use vibrant text inside the card material
-                    .vibrantContent()
                 }
             }
             .glassEffect(in: .rect(cornerRadius: 16))
@@ -245,14 +243,21 @@ struct RecentDocumentCard: View {
             // Fallback for workspaces saved before previews existed: render
             // once from the PDF and persist it so this never runs again.
             var resolvedURL = summary.documentURL
+            var didStartAccess = false
             if let bookmark = summary.bookmarkData,
                let bookmarkURL = try? DocumentPersistenceService.shared.resolveBookmark(bookmark) {
                 resolvedURL = bookmarkURL
             } else {
-                _ = resolvedURL.startAccessingSecurityScopedResource()
+                didStartAccess = resolvedURL.startAccessingSecurityScopedResource()
             }
 
-            defer { resolvedURL.stopAccessingSecurityScopedResource() }
+            // Only balance a start that actually happened — these calls are
+            // reference-counted, so an extra stop can revoke access held elsewhere.
+            defer {
+                if didStartAccess {
+                    resolvedURL.stopAccessingSecurityScopedResource()
+                }
+            }
 
             guard let document = PDFDocument(url: resolvedURL),
                   let page = document.page(at: 0),
@@ -271,15 +276,5 @@ struct RecentDocumentCard: View {
         }.value
 
         self.previewImage = image
-    }
-}
-
-extension View {
-    @ViewBuilder func vibrantContent() -> some View {
-        if #available(macOS 14.0, *) {
-            self.blendMode(.plusLighter) // A simple proxy for vibrant text within a material
-        } else {
-            self
-        }
     }
 }

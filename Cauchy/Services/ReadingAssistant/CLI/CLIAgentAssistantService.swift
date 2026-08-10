@@ -1,36 +1,37 @@
 import Foundation
 
-/// Reading assistant backed by a locally installed agent CLI (Claude Code or
-/// Codex). The user signs in once in their terminal with their own plan; the
+/// Reading assistant backed by a locally installed agent CLI (Claude Code,
+/// Codex, or Antigravity). The user signs in once in their terminal with their own plan; the
 /// app spawns the CLI per question and streams its output. No API key is ever
 /// stored or seen by the app.
 @MainActor
 final class CLIAgentAssistantService: ReadingAssistantProtocol {
-    let provider: ReadingAssistantProvider
+    let provider: AssistantConnectorID
+
+    /// The model to request, or nil to let the CLI use whatever it is
+    /// configured with. Captured at init so an answer always uses the choice
+    /// that was live when the assistant was built.
+    private let modelID: String?
+    private let connector: AssistantConnector
+    private let binary: String
 
     private var context: ReadingContext?
     private var history: [ThreadMessage] = []
     private(set) var isResponding = false
 
-    init(provider: ReadingAssistantProvider) {
-        precondition(provider == .claudeCode || provider == .codex)
-        self.provider = provider
-    }
-
-    static func binaryName(for provider: ReadingAssistantProvider) -> String {
-        provider == .codex ? "codex" : "claude"
-    }
-
-    static func binaryURL(for provider: ReadingAssistantProvider) -> URL? {
-        CLIAgentRunner.locateBinary(named: binaryName(for: provider))
-    }
-
-    static func availability(for provider: ReadingAssistantProvider) -> ReadingAssistantAvailability {
-        binaryURL(for: provider) != nil ? .available(provider) : .cliNotInstalled(provider)
+    init(connector id: AssistantConnectorID, modelID: String?) {
+        let connector = id.connector
+        guard let binary = connector.binaryName else {
+            preconditionFailure("\(connector.name) is not a CLI connector")
+        }
+        self.provider = id
+        self.connector = connector
+        self.binary = binary
+        self.modelID = modelID
     }
 
     var availability: ReadingAssistantAvailability {
-        Self.availability(for: provider)
+        connector.availability
     }
 
     func resetSession(context: ReadingContext) {
@@ -51,7 +52,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         guard !isResponding else {
             throw ReadingAssistantError.sessionBusy
         }
-        guard let binary = Self.binaryURL(for: provider) else {
+        guard let binaryURL = CLIAgentRunner.locateBinary(named: binary) else {
             throw ReadingAssistantError.notAvailable(availability)
         }
 
@@ -62,13 +63,15 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         defer { isResponding = false }
 
         let arguments = makeArguments(question: trimmed, retrieval: retrieval)
-        var parser: any CLIAgentStreamParsing = provider == .codex
-            ? CodexStreamParser()
-            : ClaudeCodeStreamParser()
+        var parser: any CLIAgentStreamParsing = switch provider {
+        case .codex: CodexStreamParser()
+        case .antigravity: AntigravityStreamParser()
+        default: ClaudeCodeStreamParser()
+        }
 
         do {
             let lines = CLIAgentRunner.streamLines(
-                binary: binary,
+                binary: binaryURL,
                 arguments: arguments,
                 workingDirectory: FileManager.default.temporaryDirectory
             )
@@ -86,7 +89,12 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         }
         guard let finalText = parser.finalText,
               !finalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ReadingAssistantError.api("\(provider.cliDisplayName) produced no response.")
+            // agy exits 0 with empty stdout when the backend call fails
+            // (e.g. quota exhausted), so give that case a pointer.
+            if provider == .antigravity {
+                throw ReadingAssistantError.api("Antigravity produced no response. This usually means its quota is exhausted or sign-in expired — run `agy` in Terminal to check.")
+            }
+            throw ReadingAssistantError.api("\(connector.name) produced no response.")
         }
 
         let normalized = AssistantResponseNormalizer.normalize(finalText)
@@ -116,16 +124,26 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         case .codex:
             // Codex has no separate system-prompt flag; prepend instructions.
             // The sandbox flag keeps the agent read-only on the user's machine.
-            // Model and effort are always passed explicitly because
-            // ~/.codex/config.toml is shared with the ChatGPT desktop app,
-            // which rewrites it — the user's in-app choice must win.
+            // A chosen model is passed explicitly because ~/.codex/config.toml
+            // is shared with the ChatGPT desktop app, which rewrites it — the
+            // user's in-app choice must win. Omitting the flag is itself a
+            // choice ("Match my CLI") and then that config wins instead.
             return [
                 "exec", instructions + "\n\n" + transcript,
                 "--json",
                 "--skip-git-repo-check",
                 "--sandbox", "read-only",
-                "--model", ModelProviderPreferences.selectedModelID(for: .codex),
                 "-c", "model_reasoning_effort=\"medium\"",
+            ] + modelArguments(flag: "--model")
+        case .antigravity:
+            // agy has neither a system-prompt nor a model flag (the model is
+            // whatever the user set with /model in the agy TUI), so
+            // instructions ride the prompt. --sandbox keeps the run inside the
+            // OS sandbox; headless mode also soft-denies any tool that would
+            // need approval, and the working directory is the temp dir.
+            return [
+                "-p", instructions + "\n\n" + transcript,
+                "--sandbox",
             ]
         default:
             // Tools are disabled: this is a chat provider, so the agent must
@@ -139,10 +157,16 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
                 "--verbose",
                 "--tools", "",
                 "--no-session-persistence",
-                "--model", ModelProviderPreferences.selectedModelID(for: .claudeCode),
                 "--append-system-prompt", instructions,
-            ]
+            ] + modelArguments(flag: "--model")
         }
+    }
+
+    /// `--model <id>`, or nothing when the user asked to follow the CLI's own
+    /// configuration.
+    private func modelArguments(flag: String) -> [String] {
+        guard let modelID else { return [] }
+        return [flag, modelID]
     }
 
     private func instructionsText() -> String {
@@ -170,12 +194,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
     private func friendlyMessage(_ raw: String) -> String {
         let lowered = raw.lowercased()
         if lowered.contains("login") || lowered.contains("authentication") || lowered.contains("unauthorized") || lowered.contains("401") {
-            switch provider {
-            case .codex:
-                return "Codex is not signed in. Run `codex login` in Terminal, then try again."
-            default:
-                return "Claude Code is not signed in. Run `claude` in Terminal and log in, then try again."
-            }
+            return "\(connector.name) is not signed in. \(connector.signInHint)"
         }
         return raw
     }

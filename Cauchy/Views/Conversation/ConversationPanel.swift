@@ -10,6 +10,7 @@ struct ConversationPanel: View {
     var panelWidth: CGFloat
     @Binding var question: String
     var onSend: () -> Void
+    var onStop: () -> Void = {}
     var onModelChange: () -> Void = {}
 
     var body: some View {
@@ -86,13 +87,18 @@ struct ConversationPanel: View {
                 isResponding: isResponding,
                 isEnabled: isAskAvailable && selectedText != nil,
                 onSend: onSend,
+                onStop: onStop,
                 onModelChange: onModelChange
             )
         }
     }
 
+    /// The panel is inset 16pt each side by its container, and a bubble leaves
+    /// `bubbleHorizontalInset` free on its opposite edge so the sender is
+    /// readable at a glance — everything left over is the bubble's, which is
+    /// what long equations need.
     private var bubbleWidth: CGFloat {
-        max(220, panelWidth - 80)
+        max(280, panelWidth - 32 - ConversationChrome.bubbleHorizontalInset)
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {

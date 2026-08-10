@@ -7,7 +7,7 @@ struct DocumentSidebarView: View {
     var body: some View {
         Group {
             if let document = workspace.pdfDocument {
-                switch effectiveSidebarMode {
+                switch workspace.sidebarContentMode {
                 case .thumbnails:
                     PDFThumbnailsSidebarView(
                         document: document,
@@ -19,13 +19,6 @@ struct DocumentSidebarView: View {
                     PDFTableOfContentsSidebarView(
                         document: document,
                         onSelectDestination: { workspace.navigateToDestination($0) }
-                    )
-                case .highlightsAndNotes:
-                    PDFThumbnailsSidebarView(
-                        document: document,
-                        currentPageIndex: workspace.viewportCoordinator.viewport.pageIndex,
-                        thumbnailCache: workspace.pageThumbnailCache,
-                        onSelectPage: { workspace.goToPage($0 + 1) }
                     )
                 case .contactSheet:
                     PDFContactSheetSidebarView(
@@ -56,9 +49,5 @@ struct DocumentSidebarView: View {
             }
         }
         .sidebarToolbarChrome()
-    }
-
-    private var effectiveSidebarMode: SidebarContentMode {
-        workspace.sidebarContentMode == .highlightsAndNotes ? .thumbnails : workspace.sidebarContentMode
     }
 }

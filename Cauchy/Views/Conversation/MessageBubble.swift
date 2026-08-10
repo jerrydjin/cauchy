@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct MessageBubble: View {
@@ -22,9 +23,25 @@ struct MessageBubble: View {
                 )
                 .frame(maxWidth: maxBubbleWidth, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
+                // Answers render as a stack of separate text and math views, so
+                // dragging a selection can never pick up a whole reply — copy
+                // the source text instead.
+                .contextMenu {
+                    if !message.content.isEmpty {
+                        Button("Copy Message") { copyToPasteboard(message.content) }
+                    }
+                    if let quotedText, !quotedText.isEmpty {
+                        Button("Copy Quoted Passage") { copyToPasteboard(quotedText) }
+                    }
+                }
 
             if !isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
         }
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     @ViewBuilder

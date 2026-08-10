@@ -56,6 +56,9 @@ final class WorkspaceViewModel {
     private var securityScopedURL: URL?
     private var referenceIndexTask: Task<Void, Never>?
     private var lexicalIndexTask: Task<Void, Never>?
+    /// The in-flight Ask, retained so the user can stop it. Cancelling it
+    /// terminates the CLI child process / cloud stream.
+    private var askTask: Task<Void, Never>?
 
     init() {
         find.currentPageProvider = { [weak self] in
@@ -83,7 +86,7 @@ final class WorkspaceViewModel {
     }
 
     var readingAssistantAvailability: ReadingAssistantAvailability {
-        ReadingAssistantProviderFactory.availability
+        ReadingAssistantFactory.availability
     }
 
     func refreshReadingAssistant() {
@@ -110,6 +113,9 @@ final class WorkspaceViewModel {
 
     func openDocument(at url: URL) async {
         stopSecurityScopedAccess()
+        // An ask still streaming from the previous document would otherwise
+        // persist its answer as a highlight on the new one.
+        stopThreadMessage()
         pageThumbnailCache.removeAll()
 
         let persisted = try? await persistence.loadWorkspace(for: url)
@@ -174,7 +180,15 @@ final class WorkspaceViewModel {
         pageThumbnailCache.removeAll()
         highlightStore.highlights.removeAll()
         referenceIndex.clear()
+        // stopSecurityScopedAccess() cancelled any in-flight index build, and a
+        // cancelled build never runs its completion — so the flags have to be
+        // cleared here or indexing state (and the menu items gated on it)
+        // stays stuck from the closed document.
+        isIndexingReferences = false
+        referenceIndexProgress = 0
+        referenceIndexError = nil
         referenceIndexWarning = nil
+        stopThreadMessage()
         lexicalIndexTask?.cancel()
         lexicalIndexTask = nil
         selectionThread.documentIndex = nil
@@ -335,19 +349,42 @@ final class WorkspaceViewModel {
         NSPasteboard.general.setString(latex, forType: .string)
     }
 
-    func sendThreadMessage(_ question: String) async {
-        do {
-            try await selectionThread.sendMessage(question, documentTitle: documentTitle) { [weak self] thread in
-                guard let self else { return }
-                let highlight = self.highlightStore.upsertFromThread(thread)
-                self.highlightStore.selectedHighlightID = highlight.id
-                self.contextEngine.showDetail(highlight.id)
-                self.syncHighlightAnnotations()
-                self.persistWorkspace()
+    /// Starts an Ask and retains the task so `stopThreadMessage()` can stop it.
+    /// The user's message stays in the thread if the answer is stopped, so
+    /// nothing they typed is lost.
+    func sendThreadMessage(_ question: String) {
+        askTask?.cancel()
+        askTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.askTask = nil }
+            do {
+                try await self.selectionThread.sendMessage(question, documentTitle: self.documentTitle) { [weak self] thread in
+                    guard let self else { return }
+                    let highlight = self.highlightStore.upsertFromThread(thread)
+                    self.highlightStore.selectedHighlightID = highlight.id
+                    self.contextEngine.showDetail(highlight.id)
+                    self.syncHighlightAnnotations()
+                    self.persistWorkspace()
+                }
+            } catch {
+                // A stopped ask is a deliberate user action, not a failure —
+                // the provider may surface it as CancellationError or as its
+                // own "process terminated" error, so check the task too.
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
+                self.errorMessage = error.localizedDescription
             }
-        } catch {
-            errorMessage = error.localizedDescription
         }
+    }
+
+    /// Stops the in-flight Ask (terminating the CLI child process or cloud
+    /// stream) and returns the unanswered question so the composer can restore
+    /// it. Safe to call when nothing is running.
+    @discardableResult
+    func stopThreadMessage() -> String? {
+        guard askTask != nil else { return nil }
+        askTask?.cancel()
+        askTask = nil
+        return selectionThread.discardUnansweredQuestion()
     }
 
     func syncHighlightAnnotations() {
@@ -365,6 +402,42 @@ final class WorkspaceViewModel {
     func goBack() { sendPDFViewCommand(.goBack) }
     func goForward() { sendPDFViewCommand(.goForward) }
     func printDocument() { sendPDFViewCommand(.print) }
+
+    /// Discards the current document's cached reference index and re-runs
+    /// extraction — e.g. after an indexing-quality upgrade, or when a cache
+    /// predates reference names.
+    func rebuildReferenceIndex() {
+        guard let url = workspace?.documentURL else { return }
+        referenceIndexTask?.cancel()
+        Task {
+            await Task.detached(priority: .utility) {
+                ReferenceIndexCacheStore.removeCache(for: url)
+            }.value
+            buildReferenceIndex(for: url)
+        }
+    }
+
+    /// Deletes every document's cached reference index (after confirmation);
+    /// each re-indexes on its next open. The open document rebuilds now.
+    func resetAllReferenceIndexes() {
+        let alert = NSAlert()
+        alert.messageText = "Reset All Reference Indexes?"
+        alert.informativeText = "Cached theorem/definition indexes for all documents will be deleted and rebuilt the next time each document is opened. Re-indexing runs in the background and uses the on-device model (or Gemini)."
+        alert.addButton(withTitle: "Reset All")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        referenceIndexTask?.cancel()
+        let currentURL = workspace?.documentURL
+        Task {
+            await Task.detached(priority: .utility) {
+                ReferenceIndexCacheStore.removeAllCaches()
+            }.value
+            if let currentURL {
+                buildReferenceIndex(for: currentURL)
+            }
+        }
+    }
 
     private func sendPDFViewCommand(_ command: PDFViewCommand) {
         guard pdfDocument != nil else { return }
@@ -571,7 +644,7 @@ final class WorkspaceViewModel {
         if local.isAvailable {
             return local
         }
-        if ModelProviderPreferences.geminiEnabled {
+        if AssistantPreferences.geminiEnabled {
             return .available(.gemini)
         }
         return local
@@ -581,7 +654,7 @@ final class WorkspaceViewModel {
         if FoundationModelsReadingAssistantService.localAvailability.isAvailable {
             return SystemLanguageModel.default
         }
-        if let apiKey = ModelProviderPreferences.activeGeminiAPIKey {
+        if let apiKey = AssistantPreferences.activeGeminiAPIKey {
             return GeminiCloudLanguageModel(apiKey: apiKey)
         }
         return SystemLanguageModel.default

@@ -3,12 +3,12 @@ import FoundationModels
 
 @MainActor
 final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
-    let provider: ReadingAssistantProvider
+    let provider: AssistantConnectorID
 
     private let model: any LanguageModel
     private var session: LanguageModelSession?
 
-    init(model: any LanguageModel, provider: ReadingAssistantProvider) {
+    init(model: any LanguageModel, provider: AssistantConnectorID) {
         self.model = model
         self.provider = provider
     }
@@ -16,7 +16,7 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
     static var localAvailability: ReadingAssistantAvailability {
         switch SystemLanguageModel.default.availability {
         case .available:
-            return .available(.local)
+            return .available(.onDevice)
         case .unavailable(.deviceNotEligible):
             return .deviceNotEligible
         case .unavailable(.appleIntelligenceNotEnabled):
@@ -115,8 +115,8 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         // at reset/restore time). Exact statements come first and get priority
         // budget; both budgets stay small enough for the local window.
         var prompt = trimmed
-        let statementBudget = provider == .local ? 1_200 : 2_500
-        let passageBudget = provider == .local ? 800 : 4_000
+        let statementBudget = provider == .onDevice ? 1_200 : 2_500
+        let passageBudget = provider == .onDevice ? 800 : 4_000
         var blocks: [String] = []
         if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: statementBudget) {
             blocks.append(block)

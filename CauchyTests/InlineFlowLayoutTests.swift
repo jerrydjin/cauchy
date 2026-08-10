@@ -4,9 +4,9 @@ import XCTest
 final class InlineFlowLayoutTests: XCTestCase {
     func testSegmentAfterMathWrapsWhenItExceedsRemainingWidth() {
         let result = InlineFlowLayoutEngine.layout(
-            segmentSizes: [
-                CGSize(width: 40, height: 20),
-                CGSize(width: 180, height: 20),
+            tokens: [
+                InlineFlowToken(size: CGSize(width: 40, height: 20)),
+                InlineFlowToken(size: CGSize(width: 180, height: 20)),
             ],
             maxWidth: 200,
             horizontalSpacing: 3,
@@ -23,10 +23,10 @@ final class InlineFlowLayoutTests: XCTestCase {
 
     func testWordMovesToNextRowAtLeftMargin() {
         let result = InlineFlowLayoutEngine.layout(
-            segmentSizes: [
-                CGSize(width: 120, height: 20),
-                CGSize(width: 70, height: 20),
-                CGSize(width: 50, height: 20),
+            tokens: [
+                InlineFlowToken(size: CGSize(width: 120, height: 20)),
+                InlineFlowToken(size: CGSize(width: 70, height: 20)),
+                InlineFlowToken(size: CGSize(width: 50, height: 20)),
             ],
             maxWidth: 200,
             horizontalSpacing: 3,
@@ -42,9 +42,9 @@ final class InlineFlowLayoutTests: XCTestCase {
 
     func testRemainingWidthUsesSpaceAfterLeadingSegments() {
         let result = InlineFlowLayoutEngine.layout(
-            segmentSizes: [
-                CGSize(width: 60, height: 20),
-                CGSize(width: 130, height: 20),
+            tokens: [
+                InlineFlowToken(size: CGSize(width: 60, height: 20)),
+                InlineFlowToken(size: CGSize(width: 130, height: 20)),
             ],
             maxWidth: 200,
             horizontalSpacing: 3,
@@ -60,10 +60,10 @@ final class InlineFlowLayoutTests: XCTestCase {
 
     func testLayoutWidthNeverExceedsMaxWidth() {
         let result = InlineFlowLayoutEngine.layout(
-            segmentSizes: [
-                CGSize(width: 90, height: 20),
-                CGSize(width: 90, height: 20),
-                CGSize(width: 90, height: 20),
+            tokens: [
+                InlineFlowToken(size: CGSize(width: 90, height: 20)),
+                InlineFlowToken(size: CGSize(width: 90, height: 20)),
+                InlineFlowToken(size: CGSize(width: 90, height: 20)),
             ],
             maxWidth: 200,
             horizontalSpacing: 3,

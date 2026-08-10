@@ -75,6 +75,26 @@ struct ClaudeCodeStreamParser: CLIAgentStreamParsing {
     }
 }
 
+/// Accumulates `agy -p` output. Antigravity CLI (v1.0.x) prints the response
+/// as plain text — it has no structured output format — so every stdout line
+/// is response text. Failures are reported on stderr with a non-zero exit
+/// (handled by CLIAgentRunner), except quota exhaustion, which exits 0 with
+/// empty stdout and surfaces as "produced no response".
+struct AntigravityStreamParser: CLIAgentStreamParsing {
+    private var lines: [String] = []
+    private(set) var errorMessage: String?
+
+    var finalText: String? {
+        let text = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
+    mutating func consume(line: String) -> String? {
+        lines.append(line)
+        return finalText
+    }
+}
+
 /// Parses `codex exec --json`. Codex's JSONL protocol has shifted between
 /// releases, so this recognizes both known shapes and degrades gracefully:
 ///   A: {"id":"...","msg":{"type":"agent_message","message":"..."}}

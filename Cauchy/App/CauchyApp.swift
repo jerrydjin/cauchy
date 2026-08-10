@@ -122,6 +122,7 @@ struct CauchyApp: App {
 
                 Toggle("Select Region", isOn: $workspace.selectionModeActive)
                     .keyboardShortcut("s", modifiers: [.command, .shift])
+                    .disabled(workspace.pdfDocument == nil)
 
                 Button("Highlight Selection") {
                     workspace.saveTextSelectionAsHighlight()
@@ -165,6 +166,18 @@ struct CauchyApp: App {
 
                 Toggle("Invert Page Colors", isOn: $workspace.invertPageColors)
                     .disabled(workspace.pdfDocument == nil)
+
+                Divider()
+
+                Button("Rebuild Reference Index") {
+                    workspace.rebuildReferenceIndex()
+                }
+                .disabled(workspace.pdfDocument == nil || workspace.isIndexingReferences)
+
+                Button("Reset All Reference Indexes…") {
+                    workspace.resetAllReferenceIndexes()
+                }
+                .disabled(workspace.isIndexingReferences)
 
                 Divider()
 

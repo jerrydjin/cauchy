@@ -17,7 +17,7 @@ struct SidebarOptionsMenu: View {
 
             Divider()
 
-            ForEach(SidebarContentMode.allCases.filter { $0 != .highlightsAndNotes }, id: \.self) { mode in
+            ForEach(SidebarContentMode.allCases, id: \.self) { mode in
                 Button {
                     workspace.sidebarContentMode = mode
                     workspace.sidebarVisible = true

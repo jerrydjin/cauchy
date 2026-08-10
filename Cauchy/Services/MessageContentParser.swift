@@ -217,7 +217,10 @@ enum MessageContentParser {
                     blocks.append(.text(trimmed))
                 }
             } else {
-                blocks.append(.inlineLine(currentLine))
+                // Interior spaces are kept — they are what separates prose from
+                // the inline math beside it — so only the line's outer edges
+                // are trimmed here.
+                blocks.append(.inlineLine(trimmingLineEdges(currentLine)))
             }
             currentLine = []
         }
@@ -231,10 +234,9 @@ enum MessageContentParser {
                 let paragraphs = splitParagraphs(value)
                 for (paragraphIndex, paragraph) in paragraphs.enumerated() {
                     let normalized = normalizeSoftLineBreaks(paragraph)
-                    let trimmed = normalized.trimmingCharacters(in: .whitespaces)
 
-                    if !trimmed.isEmpty {
-                        currentLine.append(.text(trimmed))
+                    if !normalized.trimmingCharacters(in: .whitespaces).isEmpty {
+                        currentLine.append(.text(normalized))
                     }
 
                     if paragraphIndex < paragraphs.count - 1 {
@@ -272,13 +274,39 @@ enum MessageContentParser {
             .components(separatedBy: "\n\n")
     }
 
-    /// Single newlines mid-sentence become spaces so inline math stays in flow with prose.
+    /// Single newlines mid-sentence become spaces so inline math stays in flow
+    /// with prose. The segment's own leading and trailing spaces survive: they
+    /// are the gap between this text and the math next to it.
     private static func normalizeSoftLineBreaks(_ text: String) -> String {
-        text
+        let joined = text
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
+        guard !joined.isEmpty else { return joined }
+        let leading = isSpace(text.first) ? " " : ""
+        let trailing = isSpace(text.last) ? " " : ""
+        return leading + joined + trailing
+    }
+
+    private static func isSpace(_ character: Character?) -> Bool {
+        character == " " || character == "\t"
+    }
+
+    /// Drops the spaces at the two ends of a rendered line, leaving every
+    /// interior space intact.
+    private static func trimmingLineEdges(_ line: [MessageSegment]) -> [MessageSegment] {
+        var line = line
+        if case .text(let value) = line[0] {
+            line[0] = .text(String(value.drop(while: isSpace)))
+        }
+        if case .text(let value) = line[line.count - 1] {
+            line[line.count - 1] = .text(String(value.reversed().drop(while: isSpace).reversed()))
+        }
+        return line.filter {
+            if case .text(let value) = $0 { return !value.isEmpty }
+            return true
+        }
     }
 }
 

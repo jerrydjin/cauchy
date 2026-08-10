@@ -237,6 +237,25 @@ enum ReferenceIndexCacheStore {
         try data.write(to: cacheFileURL(for: index.documentFingerprint), options: .atomic)
     }
 
+    /// Deletes every cached index (any schema version) for one document, so
+    /// the next build re-indexes it from scratch.
+    static func removeCache(for documentURL: URL) {
+        guard let fingerprint = try? fingerprint(for: documentURL) else { return }
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: cacheDirectory(),
+            includingPropertiesForKeys: nil
+        ) else { return }
+        for entry in entries where entry.lastPathComponent.hasPrefix("\(fingerprint)-") {
+            try? FileManager.default.removeItem(at: entry)
+        }
+    }
+
+    /// Deletes all cached reference indexes; every document re-indexes on its
+    /// next open.
+    static func removeAllCaches() {
+        try? FileManager.default.removeItem(at: cacheDirectory())
+    }
+
     static func cacheFileURL(for fingerprint: String) -> URL {
         cacheDirectory().appendingPathComponent("\(fingerprint)-v\(PersistedReferenceIndex.schemaVersion).json")
     }

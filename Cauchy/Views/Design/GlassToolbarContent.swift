@@ -73,10 +73,18 @@ struct GlassToolbarContent: ToolbarContent {
                         .progressViewStyle(.circular)
                         .controlSize(.small)
                         .help("Indexing document references for AI analysis (\(Int(workspace.referenceIndexProgress * 100))%)…")
+                } else if let error = workspace.referenceIndexError {
+                    // Without this the only sign of a failed index is the
+                    // Reference tab, which the user may never open.
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .help("Reference indexing failed — \(error)")
+                        .accessibilityLabel("Reference indexing failed")
                 } else if let warning = workspace.referenceIndexWarning {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                         .help(warning)
+                        .accessibilityLabel("Reference index incomplete")
                 }
             }
         }

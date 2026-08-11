@@ -19,12 +19,24 @@ struct HighlightThreadDetailView: View {
                     action: onBack
                 )
 
-                Text("Highlight")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                // The thread's name, the same one the list shows — a header
+                // reading "Highlight" told the reader nothing they didn't
+                // already know from the tab above it.
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(headerTitle)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
-                Spacer()
-                
+                    if let pageIndex = thread?.pageIndex {
+                        Text("Page \(pageIndex + 1)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Spacer(minLength: 6)
+
                 if thread?.isPersisted == false {
                     Button("Save as Highlight") {
                         workspace.saveTextSelectionAsHighlight()
@@ -57,6 +69,16 @@ struct HighlightThreadDetailView: View {
             )
             .padding(16)
         }
+    }
+
+    /// The saved thread's name when there is one; a draft selection has no
+    /// highlight behind it yet, so it is named by its passage.
+    private var headerTitle: String {
+        guard let thread else { return "Highlight" }
+        if let saved = workspace.highlightStore.highlights.first(where: { $0.id == thread.anchorID }) {
+            return saved.displayName
+        }
+        return Highlight.title(from: thread.selectedText)
     }
 
     private var unavailabilityMessage: String? {

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum ContextPanelTab: String, Equatable {
+enum ContextPanelTab: String, Hashable {
     case highlights
     case reference
 }

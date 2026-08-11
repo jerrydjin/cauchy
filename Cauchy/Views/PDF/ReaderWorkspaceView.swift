@@ -8,8 +8,6 @@ struct ReaderWorkspaceView: View {
         Group {
             if let document = workspace.pdfDocument {
                 HStack(spacing: 0) {
-                    Spacer(minLength: 40)
-
                     PDFViewportView(
                         document: document,
                         viewportState: $workspace.viewportCoordinator.viewport,
@@ -52,6 +50,18 @@ struct ReaderWorkspaceView: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.15), value: workspace.find.isVisible)
+                    // The page is centred in the space the context panel leaves,
+                    // not pushed up against it. A single leading Spacer used to
+                    // absorb every extra point of window width, so widening the
+                    // window slid the page rightwards into the panel.
+                    //
+                    // No padding around this: the column's edge is where the
+                    // resize grip sits, and page and panel share one backdrop,
+                    // so any inset here shows up as dark on the reader's side of
+                    // the grip — reading as a lopsided panel border rather than
+                    // as breathing room. Centring alone spaces the page in a
+                    // wide window; in a narrow one the page should meet the grip.
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                     ContextPanelResizeHandle(
                         width: Binding(

@@ -5,7 +5,7 @@ struct ContextPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            GlassTabPicker(
+            ContextTabPicker(
                 selection: $workspace.contextEngine.selectedTab,
                 options: [
                     (.highlights, "Highlights"),
@@ -27,7 +27,6 @@ struct ContextPanelView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial)
     }
 
     @ViewBuilder

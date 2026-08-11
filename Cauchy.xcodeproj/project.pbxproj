@@ -71,6 +71,7 @@
 		644F3B5ACEF8FC87F547F536 /* ReferenceIndexGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */; };
 		E8849E186549D0345FB49D6D /* ReferenceParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4324DA55E513115F76124B /* ReferenceParsing.swift */; };
 		3688D2E1A256E398354C2D0A /* SentenceEmbedder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4679A266AE637316CBADE5FA /* SentenceEmbedder.swift */; };
+		2D56699F2389FFB43D9EC008 /* ThreadTitleGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24B62B7A9E3B43E76396B3A /* ThreadTitleGenerator.swift */; };
 		36E6869597CF24BBE731B4DA /* CoordinateMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EB436A8161F5A7D401BA598 /* CoordinateMapper.swift */; };
 		7C704985143395643604C294 /* NormalizedRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C0CFD6FE2EDB365F8B44622 /* NormalizedRect.swift */; };
 		50A8F591B8D44906DD873B03 /* StreamingTextCoalescer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F368FA4456EC326E9D8DDF4C /* StreamingTextCoalescer.swift */; };
@@ -92,9 +93,10 @@
 		1F456FE979429B0BFC5D04AE /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 893252B0E5970BAE44DDF872 /* MessageBubble.swift */; };
 		D3E9631A6456E92B77A10283 /* ModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23E1C5A2D0530EDCBC5FE0D /* ModelPicker.swift */; };
 		FFE440039AE9380FE80BBD45 /* SelectionQuoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE0CF6F2AEB414AABE2E9A9 /* SelectionQuoteView.swift */; };
+		677CAFC2720DFBDC0466C945 /* ContextSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = A52C9D3C44FB9BF5C0C068CE /* ContextSurface.swift */; };
+		124B6029A0DA1422C54F6D93 /* ContextTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15A6888E0E26704ACCC502C /* ContextTabPicker.swift */; };
 		C33FA270048B50B0DD0B3C0E /* GlassFloatingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F7C5B12AC96D6166A529656 /* GlassFloatingPanel.swift */; };
 		03767D01A7BC4F3676F3AD37 /* GlassIconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */; };
-		829485EFF82A69789825CE91 /* GlassTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A882429994D8032C24B8A743 /* GlassTabPicker.swift */; };
 		C174D966A75CA70A73E638D0 /* GlassToolbarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */; };
 		918416286927BB1329AB0DD1 /* IndexProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */; };
 		C8B3A8FF72FF3E6CBB8FBEBA /* ToolbarChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */; };
@@ -187,6 +189,7 @@
 		540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceIndexGeneration.swift; sourceTree = "<group>"; };
 		1A4324DA55E513115F76124B /* ReferenceParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceParsing.swift; sourceTree = "<group>"; };
 		4679A266AE637316CBADE5FA /* SentenceEmbedder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentenceEmbedder.swift; sourceTree = "<group>"; };
+		F24B62B7A9E3B43E76396B3A /* ThreadTitleGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadTitleGenerator.swift; sourceTree = "<group>"; };
 		7EB436A8161F5A7D401BA598 /* CoordinateMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinateMapper.swift; sourceTree = "<group>"; };
 		6C0CFD6FE2EDB365F8B44622 /* NormalizedRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizedRect.swift; sourceTree = "<group>"; };
 		F368FA4456EC326E9D8DDF4C /* StreamingTextCoalescer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextCoalescer.swift; sourceTree = "<group>"; };
@@ -208,9 +211,10 @@
 		893252B0E5970BAE44DDF872 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		D23E1C5A2D0530EDCBC5FE0D /* ModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPicker.swift; sourceTree = "<group>"; };
 		AEE0CF6F2AEB414AABE2E9A9 /* SelectionQuoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionQuoteView.swift; sourceTree = "<group>"; };
+		A52C9D3C44FB9BF5C0C068CE /* ContextSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextSurface.swift; sourceTree = "<group>"; };
+		B15A6888E0E26704ACCC502C /* ContextTabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextTabPicker.swift; sourceTree = "<group>"; };
 		8F7C5B12AC96D6166A529656 /* GlassFloatingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassFloatingPanel.swift; sourceTree = "<group>"; };
 		74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassIconButton.swift; sourceTree = "<group>"; };
-		A882429994D8032C24B8A743 /* GlassTabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTabPicker.swift; sourceTree = "<group>"; };
 		CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassToolbarContent.swift; sourceTree = "<group>"; };
 		591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexProgressRing.swift; sourceTree = "<group>"; };
 		E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarChrome.swift; sourceTree = "<group>"; };
@@ -310,6 +314,7 @@
 			540D34F78A32CB13C9DC1A22 /* ReferenceIndexGeneration.swift */,
 			1A4324DA55E513115F76124B /* ReferenceParsing.swift */,
 			4679A266AE637316CBADE5FA /* SentenceEmbedder.swift */,
+			F24B62B7A9E3B43E76396B3A /* ThreadTitleGenerator.swift */,
 		); path = Services; sourceTree = "<group>"; };
 		5DFA929D7334677914CA59FD /* ReadingAssistant */ = { isa = PBXGroup; children = (
 			B9A644E7074D0A19B0494BBD /* CLI */,
@@ -375,9 +380,10 @@
 			AEE0CF6F2AEB414AABE2E9A9 /* SelectionQuoteView.swift */,
 		); path = Conversation; sourceTree = "<group>"; };
 		7E15DB466B6B27DD41B599BD /* Design */ = { isa = PBXGroup; children = (
+			A52C9D3C44FB9BF5C0C068CE /* ContextSurface.swift */,
+			B15A6888E0E26704ACCC502C /* ContextTabPicker.swift */,
 			8F7C5B12AC96D6166A529656 /* GlassFloatingPanel.swift */,
 			74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */,
-			A882429994D8032C24B8A743 /* GlassTabPicker.swift */,
 			CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */,
 			591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */,
 			E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */,
@@ -493,6 +499,7 @@
 			644F3B5ACEF8FC87F547F536,
 			E8849E186549D0345FB49D6D,
 			3688D2E1A256E398354C2D0A,
+			2D56699F2389FFB43D9EC008,
 			36E6869597CF24BBE731B4DA,
 			7C704985143395643604C294,
 			50A8F591B8D44906DD873B03,
@@ -514,9 +521,10 @@
 			1F456FE979429B0BFC5D04AE,
 			D3E9631A6456E92B77A10283,
 			FFE440039AE9380FE80BBD45,
+			677CAFC2720DFBDC0466C945,
+			124B6029A0DA1422C54F6D93,
 			C33FA270048B50B0DD0B3C0E,
 			03767D01A7BC4F3676F3AD37,
-			829485EFF82A69789825CE91,
 			C174D966A75CA70A73E638D0,
 			918416286927BB1329AB0DD1,
 			C8B3A8FF72FF3E6CBB8FBEBA,

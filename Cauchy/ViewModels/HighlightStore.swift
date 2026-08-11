@@ -14,7 +14,11 @@ final class HighlightStore {
         let query = searchText.lowercased()
         return highlights.filter {
             $0.label.lowercased().contains(query) ||
-            $0.selectedText.lowercased().contains(query)
+            $0.title?.lowercased().contains(query) == true ||
+            $0.selectedText.lowercased().contains(query) ||
+            // The conversation is most of what a thread is; searching only its
+            // passage misses the thread you remember by what you asked.
+            $0.messages.contains { $0.content.lowercased().contains(query) }
         }.sorted { $0.updatedAt > $1.updatedAt }
     }
 

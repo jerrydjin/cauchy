@@ -62,6 +62,13 @@ final class WorkspaceViewModel {
     /// The in-flight Ask, retained so the user can stop it. Cancelling it
     /// terminates the CLI child process / cloud stream.
     private var askTask: Task<Void, Never>?
+    /// Thread-naming jobs in flight, keyed by highlight, so a follow-up
+    /// question doesn't start a second one for the same thread and closing the
+    /// document cancels them all.
+    private var titleTasks: [UUID: Task<Void, Never>] = [:]
+    /// Names threads that predate this document being opened, one at a time in
+    /// the background.
+    private var titleBackfillTask: Task<Void, Never>?
 
     init() {
         find.currentPageProvider = { [weak self] in
@@ -119,6 +126,7 @@ final class WorkspaceViewModel {
         // An ask still streaming from the previous document would otherwise
         // persist its answer as a highlight on the new one.
         stopThreadMessage()
+        cancelThreadTitleWork()
         pageThumbnailCache.removeAll()
 
         let persisted = try? await persistence.loadWorkspace(for: url)
@@ -166,6 +174,7 @@ final class WorkspaceViewModel {
         syncHighlightAnnotations()
         buildReferenceIndex(for: resolvedURL)
         buildLexicalIndex(for: resolvedURL)
+        backfillThreadTitles()
         generateDashboardPreviewIfNeeded(documentURL: resolvedURL)
         persistWorkspace()
     }
@@ -193,6 +202,7 @@ final class WorkspaceViewModel {
         referenceIndexWarning = nil
         referenceIndexProvenance = nil
         stopThreadMessage()
+        cancelThreadTitleWork()
         lexicalIndexTask?.cancel()
         lexicalIndexTask = nil
         selectionThread.documentIndex = nil
@@ -369,6 +379,7 @@ final class WorkspaceViewModel {
                     self.contextEngine.showDetail(highlight.id)
                     self.syncHighlightAnnotations()
                     self.persistWorkspace()
+                    self.nameThreadIfNeeded(highlight)
                 }
             } catch {
                 // A stopped ask is a deliberate user action, not a failure —
@@ -389,6 +400,102 @@ final class WorkspaceViewModel {
         askTask?.cancel()
         askTask = nil
         return selectionThread.discardUnansweredQuestion()
+    }
+
+    // MARK: - Thread names
+
+    /// Asks the model for a name once a thread has its first answer. Silent and
+    /// best-effort: a thread that can't be named keeps showing the question it
+    /// started with, which is what the list did before.
+    private func nameThreadIfNeeded(_ highlight: Highlight) {
+        guard highlight.title == nil,
+              highlight.messages.contains(where: { $0.role == .assistant }),
+              titleTasks[highlight.id] == nil,
+              ThreadTitleGenerator.isAvailable else { return }
+        startNaming(highlight)
+    }
+
+    /// Re-names a thread from scratch — the menu escape hatch for a title that
+    /// came out wrong, and the only way to rename one whose first attempt
+    /// happened while no model was available.
+    func regenerateThreadTitle(for highlight: Highlight) {
+        guard titleTasks[highlight.id] == nil else { return }
+        guard ThreadTitleGenerator.isAvailable else {
+            errorMessage = "Naming a thread needs Apple Intelligence or a Gemini API key."
+            return
+        }
+        startNaming(highlight)
+    }
+
+    private func startNaming(_ highlight: Highlight) {
+        let id = highlight.id
+        titleTasks[id] = Task { [weak self] in
+            guard let self else { return }
+            defer { self.titleTasks[id] = nil }
+
+            // Read the thread fresh: an answer may have landed since.
+            guard let current = self.highlightStore.highlights.first(where: { $0.id == id }) else { return }
+            let title = await ThreadTitleGenerator.generate(
+                selectedText: current.selectedText,
+                surroundingText: current.surroundingText,
+                messages: current.messages
+            )
+            guard !Task.isCancelled, let title else { return }
+            self.applyThreadTitle(title, to: id)
+        }
+    }
+
+    private func applyThreadTitle(_ title: String, to id: UUID) {
+        guard var highlight = highlightStore.highlights.first(where: { $0.id == id }) else { return }
+        highlight.title = title
+        // Deliberately not touching `updatedAt`: naming is bookkeeping, and
+        // letting it bump the timestamp would reshuffle the list under the
+        // reader seconds after they asked something.
+        highlightStore.update(highlight)
+        persistWorkspace()
+    }
+
+    /// Names threads carried over from previous sessions, one at a time so a
+    /// document with a long history doesn't fire dozens of model calls at once.
+    /// Capped: the oldest unnamed threads keep their fallback names rather than
+    /// turning an open into a long background job.
+    private func backfillThreadTitles() {
+        titleBackfillTask?.cancel()
+        guard ThreadTitleGenerator.isAvailable else { return }
+
+        let pending = highlightStore.highlights
+            .filter { $0.title == nil && $0.messages.contains { $0.role == .assistant } }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(30)
+            .map(\.id)
+        guard !pending.isEmpty else { return }
+
+        titleBackfillTask = Task { [weak self] in
+            for id in pending {
+                guard let self, !Task.isCancelled else { return }
+                guard let highlight = self.highlightStore.highlights.first(where: { $0.id == id }),
+                      highlight.title == nil,
+                      self.titleTasks[id] == nil else { continue }
+                let title = await ThreadTitleGenerator.generate(
+                    selectedText: highlight.selectedText,
+                    surroundingText: highlight.surroundingText,
+                    messages: highlight.messages
+                )
+                guard !Task.isCancelled else { return }
+                if let title {
+                    self.applyThreadTitle(title, to: id)
+                }
+            }
+        }
+    }
+
+    private func cancelThreadTitleWork() {
+        titleBackfillTask?.cancel()
+        titleBackfillTask = nil
+        for task in titleTasks.values {
+            task.cancel()
+        }
+        titleTasks.removeAll()
     }
 
     func syncHighlightAnnotations() {

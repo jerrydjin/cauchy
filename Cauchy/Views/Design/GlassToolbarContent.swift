@@ -9,6 +9,23 @@ struct GlassToolbarContent: ToolbarContent {
     }
 
     var body: some ToolbarContent {
+        // First, ahead of everything else. The toolbar is packed against the
+        // trailing edge, so a status pill added at the end shoves every button
+        // left the moment an index starts and back again when it finishes;
+        // growing leftwards from the leading end leaves them where they are.
+        //
+        // It also rides in its own capsule rather than sharing the navigation
+        // group's: it is a readout, not a control, and inside the group it sat
+        // against the capsule's rounded end and got clipped.
+        if hasDocument, hasIndexStatus {
+            ToolbarItem {
+                indexStatusPill
+            }
+            .sharedBackgroundVisibility(.hidden)
+
+            ToolbarSpacer(.fixed)
+        }
+
         ToolbarItemGroup {
             Button {
                 workspace.closeDocument()
@@ -70,18 +87,6 @@ struct GlassToolbarContent: ToolbarContent {
 
             }
         }
-
-        // The index status rides in its own capsule rather than sharing the
-        // navigation group's. It is a readout, not a control, and inside the
-        // group it sat against the capsule's rounded end and got clipped.
-        if hasDocument, hasIndexStatus {
-            ToolbarSpacer(.fixed)
-
-            ToolbarItem {
-                indexStatusPill
-            }
-            .sharedBackgroundVisibility(.hidden)
-        }
     }
 
     private var hasIndexStatus: Bool {
@@ -93,7 +98,7 @@ struct GlassToolbarContent: ToolbarContent {
     /// A single circular glass pill. The toolbar gives every item its own
     /// rounded-rect glass background, which showed through behind the circle as
     /// a second, differently shaped layer; `.sharedBackgroundVisibility(.hidden)`
-    /// turns that off so the only glass is the circle drawn here.
+    /// on the item above turns that off so the only glass is the circle here.
     ///
     /// Deliberately not a Button or Menu: `.buttonStyle(.plain)` also removes
     /// that background, but inside a ToolbarItem it stops the control from ever

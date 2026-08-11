@@ -85,16 +85,15 @@ struct ReferencePreviewView: View {
             // Deliberately live during a build: a slow on-device index is the
             // moment you most want to switch to Gemini, and rebuilding cancels
             // the in-flight task before starting.
-            // Same recipe as SidebarOptionsMenu — glass on the label, plain
-            // button style so nothing draws a rounded rect behind it. The
-            // chevron is drawn in the label rather than left to
-            // `.menuIndicator`, which sits outside the glass.
+            // Plain button style so nothing draws a rounded rect behind the
+            // label's own surface. The chevron is drawn in the label rather
+            // than left to `.menuIndicator`, which would sit outside it.
             Menu {
                 ReferenceIndexMenuItems(workspace: workspace)
             } label: {
                 // Same 32pt height and 14pt glyph as SidebarOptionsMenu and the
-                // toolbar's status pill, so every glass control in the app reads
-                // at one size. Only the width grows, for the chevron.
+                // toolbar's status pill, so every control in the app reads at
+                // one size. Only the width grows, for the chevron.
                 HStack(spacing: 3) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 14, weight: .medium))
@@ -103,7 +102,7 @@ struct ReferencePreviewView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(width: 52, height: 32)
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .contextSurface(in: Capsule())
             }
             .menuStyle(.button)
             .buttonStyle(.plain)

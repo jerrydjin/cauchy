@@ -7,18 +7,25 @@ struct ContextPanelResizeHandle: View {
     private let maxWidth: CGFloat = 640
 
     @State private var dragStartWidth: CGFloat?
+    @State private var isHovering = false
 
     var body: some View {
         Rectangle()
             .fill(.clear)
             .frame(width: 8)
+            // Only under the cursor. Page and panel share one backdrop, so a
+            // permanent rule here reads as a grey stripe splitting the window
+            // rather than as a grip. The resize cursor is the real affordance.
             .overlay {
                 Capsule()
-                    .fill(.separator.opacity(0.35))
+                    .fill(.separator)
                     .frame(width: 2)
+                    .opacity(isHovering || dragStartWidth != nil ? 1 : 0)
+                    .animation(.easeOut(duration: 0.12), value: isHovering)
             }
             .contentShape(Rectangle())
             .onHover { hovering in
+                isHovering = hovering
                 if hovering {
                     NSCursor.resizeLeftRight.push()
                 } else {

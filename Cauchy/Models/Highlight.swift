@@ -8,6 +8,10 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
     var selectedText: String
     var surroundingText: String
     var label: String
+    /// A short name for the conversation, written by the model once the first
+    /// answer lands. nil until then (and for threads that were never asked),
+    /// where `displayName` falls back to the passage.
+    var title: String?
     var note: String?
     var messages: [ThreadMessage]
     var isPinned: Bool
@@ -22,6 +26,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         selectedText: String,
         surroundingText: String? = nil,
         label: String? = nil,
+        title: String? = nil,
         note: String? = nil,
         messages: [ThreadMessage] = [],
         isPinned: Bool = false,
@@ -35,6 +40,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         self.selectedText = selectedText
         self.surroundingText = surroundingText ?? selectedText
         self.label = label ?? Self.defaultLabel(from: selectedText)
+        self.title = title
         self.note = note
         self.messages = messages
         self.isPinned = isPinned
@@ -69,7 +75,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, pageIndex, bounds, lineBounds, selectedText, surroundingText, label, note, messages
+        case id, pageIndex, bounds, lineBounds, selectedText, surroundingText, label, title, note, messages
         case isPinned, createdAt, updatedAt
         case excerpt
     }
@@ -81,6 +87,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         bounds = try container.decodeIfPresent(NormalizedRect.self, forKey: .bounds)
         lineBounds = try container.decodeIfPresent([NormalizedRect].self, forKey: .lineBounds)
         label = try container.decode(String.self, forKey: .label)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
         note = try container.decodeIfPresent(String.self, forKey: .note)
         messages = try container.decodeIfPresent([ThreadMessage].self, forKey: .messages) ?? []
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? true
@@ -106,6 +113,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         try container.encode(selectedText, forKey: .selectedText)
         try container.encode(surroundingText, forKey: .surroundingText)
         try container.encode(label, forKey: .label)
+        try container.encodeIfPresent(title, forKey: .title)
         try container.encodeIfPresent(note, forKey: .note)
         try container.encode(messages, forKey: .messages)
         try container.encode(isPinned, forKey: .isPinned)
@@ -124,10 +132,14 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         return trimmed
     }
 
-    /// What to call this thread in a list. A conversation is named by the
-    /// question it started with — that is what the reader is looking for —
-    /// and only an unasked highlight falls back to the passage itself.
+    /// What to call this thread in a list. The model writes a real name once
+    /// the first answer lands; until then the raw question stands in, because a
+    /// row with no name at all is worse than a literal one. An unasked
+    /// highlight is named by its passage.
     var displayName: String {
+        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return title
+        }
         let question = messages
             .first { $0.role == .user && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?
             .content

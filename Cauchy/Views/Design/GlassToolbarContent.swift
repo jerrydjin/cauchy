@@ -68,31 +68,51 @@ struct GlassToolbarContent: ToolbarContent {
                 }
                 .disabled(workspace.currentPage >= workspace.pageCount)
 
-                // The 28pt slot is what keeps this off the glass capsule's
-                // rounded end — a bare ring sits flush against it and gets
-                // clipped, which is how the old circular ProgressView ended up
-                // looking like a stray blue dot.
-                if workspace.isIndexingReferences {
-                    IndexProgressRing(progress: workspace.referenceIndexProgress)
-                        .frame(width: 28, height: 28)
-                        .help("Indexing document references for AI analysis (\(Int(workspace.referenceIndexProgress * 100))%)…")
-                } else if let error = workspace.referenceIndexError {
-                    // Without this the only sign of a failed index is the
-                    // Reference tab, which the user may never open.
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                        .frame(width: 28, height: 28)
-                        .help("Reference indexing failed — \(error)")
-                        .accessibilityLabel("Reference indexing failed")
-                } else if let warning = workspace.referenceIndexWarning {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                        .frame(width: 28, height: 28)
-                        .help(warning)
-                        .accessibilityLabel("Reference index incomplete")
-                }
             }
         }
+
+        // The index status rides in its own capsule rather than sharing the
+        // navigation group's. It is a readout, not a control, and inside the
+        // group it sat against the capsule's rounded end and got clipped.
+        if hasDocument, hasIndexStatus {
+            ToolbarSpacer(.fixed)
+
+            ToolbarItem {
+                indexStatusPill
+            }
+        }
+    }
+
+    private var hasIndexStatus: Bool {
+        workspace.isIndexingReferences
+            || workspace.referenceIndexError != nil
+            || workspace.referenceIndexWarning != nil
+    }
+
+    @ViewBuilder
+    private var indexStatusPill: some View {
+        Group {
+            if workspace.isIndexingReferences {
+                IndexProgressRing(progress: workspace.referenceIndexProgress)
+                    .help("Indexing document references for AI analysis (\(Int(workspace.referenceIndexProgress * 100))%)…")
+            } else if let error = workspace.referenceIndexError {
+                // Without this the only sign of a failed index is the
+                // Reference tab, which the user may never open.
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .help("Reference indexing failed — \(error)")
+                    .accessibilityLabel("Reference indexing failed")
+            } else if let warning = workspace.referenceIndexWarning {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                    .help(warning)
+                    .accessibilityLabel("Reference index incomplete")
+            }
+        }
+        .frame(width: 22, height: 22)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .glassEffect(.regular, in: .capsule)
     }
 
     private func commitPageField() {

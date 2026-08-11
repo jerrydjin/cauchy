@@ -15,11 +15,7 @@ struct ReferencePreviewView: View {
                         Text(error)
                     }
                 } else if workspace.isIndexingReferences {
-                    ContentUnavailableView {
-                        ProgressView()
-                    } description: {
-                        Text("Indexing references…")
-                    }
+                    indexingState
                 } else {
                     ContentUnavailableView(
                         "Hover a Reference",
@@ -38,6 +34,30 @@ struct ReferencePreviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Indexing owns the empty state rather than the footer: a long build is
+    /// the whole story of this panel while it runs, and a bar carries "how far
+    /// along" far better than a percentage tucked into a status line.
+    private var indexingState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "text.book.closed")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+
+            Text("Indexing references")
+                .font(.headline)
+
+            ProgressView(value: workspace.referenceIndexProgress)
+                .progressViewStyle(.linear)
+                .frame(maxWidth: 200)
+                .animation(.easeOut(duration: 0.3), value: workspace.referenceIndexProgress)
+
+            Text("\(Int(workspace.referenceIndexProgress * 100))%")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 24)
+    }
+
     @ViewBuilder
     private func formattedView(block: DocumentBlock) -> some View {
         ScrollView {
@@ -53,10 +73,8 @@ struct ReferencePreviewView: View {
     /// the usual explanation for a weak index, and the fix is next to it.
     private var indexFooter: some View {
         HStack(spacing: 8) {
-            if workspace.isIndexingReferences {
-                IndexProgressRing(progress: workspace.referenceIndexProgress, diameter: 12)
-            }
-
+            // Silent while a build runs — the empty state above is already
+            // showing the bar, and saying it twice just crowds the panel.
             Text(footerStatus)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -82,6 +100,7 @@ struct ReferencePreviewView: View {
             }
             .menuStyle(.button)
             .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
             .controlSize(.small)
             .font(.caption)
             .fixedSize()
@@ -93,7 +112,7 @@ struct ReferencePreviewView: View {
 
     private var footerStatus: String {
         if workspace.isIndexingReferences {
-            return "Indexing… \(Int(workspace.referenceIndexProgress * 100))%"
+            return ""
         }
         if workspace.referenceIndexError != nil {
             return "Index unavailable"

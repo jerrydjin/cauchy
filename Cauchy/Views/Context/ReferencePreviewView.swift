@@ -27,7 +27,6 @@ struct ReferencePreviewView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if workspace.pdfDocument != nil {
-                Divider()
                 indexFooter
             }
         }
@@ -93,14 +92,17 @@ struct ReferencePreviewView: View {
             Menu {
                 ReferenceIndexMenuItems(workspace: workspace)
             } label: {
+                // Same 32pt height and 14pt glyph as SidebarOptionsMenu and the
+                // toolbar's status pill, so every glass control in the app reads
+                // at one size. Only the width grows, for the chevron.
                 HStack(spacing: 3) {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
-                .frame(width: 46, height: 28)
+                .frame(width: 52, height: 32)
                 .glassEffect(.regular.interactive(), in: .capsule)
             }
             .menuStyle(.button)

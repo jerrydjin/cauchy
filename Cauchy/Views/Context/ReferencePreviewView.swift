@@ -53,6 +53,10 @@ struct ReferencePreviewView: View {
     /// the usual explanation for a weak index, and the fix is next to it.
     private var indexFooter: some View {
         HStack(spacing: 8) {
+            if workspace.isIndexingReferences {
+                IndexProgressRing(progress: workspace.referenceIndexProgress, diameter: 12)
+            }
+
             Text(footerStatus)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -61,6 +65,9 @@ struct ReferencePreviewView: View {
 
             Spacer(minLength: 4)
 
+            // Deliberately live during a build: a slow on-device index is the
+            // moment you most want to switch to Gemini, and rebuilding cancels
+            // the in-flight task before starting.
             Menu {
                 Button("Rebuild Index") {
                     workspace.rebuildReferenceIndex()
@@ -72,11 +79,12 @@ struct ReferencePreviewView: View {
                 .disabled(!workspace.canRebuildReferenceIndexWithGemini)
             } label: {
                 Label("Re-index", systemImage: "arrow.clockwise")
-                    .font(.caption)
             }
-            .menuStyle(.borderlessButton)
+            .menuStyle(.button)
+            .buttonStyle(.glass)
+            .controlSize(.small)
+            .font(.caption)
             .fixedSize()
-            .disabled(workspace.isIndexingReferences)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

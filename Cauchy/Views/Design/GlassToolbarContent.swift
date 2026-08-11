@@ -68,21 +68,26 @@ struct GlassToolbarContent: ToolbarContent {
                 }
                 .disabled(workspace.currentPage >= workspace.pageCount)
 
+                // The 28pt slot is what keeps this off the glass capsule's
+                // rounded end — a bare ring sits flush against it and gets
+                // clipped, which is how the old circular ProgressView ended up
+                // looking like a stray blue dot.
                 if workspace.isIndexingReferences {
-                    ProgressView(value: workspace.referenceIndexProgress)
-                        .progressViewStyle(.circular)
-                        .controlSize(.small)
+                    IndexProgressRing(progress: workspace.referenceIndexProgress)
+                        .frame(width: 28, height: 28)
                         .help("Indexing document references for AI analysis (\(Int(workspace.referenceIndexProgress * 100))%)…")
                 } else if let error = workspace.referenceIndexError {
                     // Without this the only sign of a failed index is the
                     // Reference tab, which the user may never open.
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
+                        .frame(width: 28, height: 28)
                         .help("Reference indexing failed — \(error)")
                         .accessibilityLabel("Reference indexing failed")
                 } else if let warning = workspace.referenceIndexWarning {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
+                        .frame(width: 28, height: 28)
                         .help(warning)
                         .accessibilityLabel("Reference index incomplete")
                 }

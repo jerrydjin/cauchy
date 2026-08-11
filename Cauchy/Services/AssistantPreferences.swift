@@ -135,5 +135,9 @@ enum AssistantPreferences {
         selection == .connector(.onDevice) ? nil : KeychainService.loadGeminiAPIKey()
     }
 
-    static var geminiEnabled: Bool { activeGeminiAPIKey != nil }
+    /// Same rule as `activeGeminiAPIKey`, but only checks that a key exists —
+    /// safe to call from a view body, which `activeGeminiAPIKey` is not.
+    static var geminiEnabled: Bool {
+        selection != .connector(.onDevice) && KeychainService.hasGeminiAPIKey
+    }
 }

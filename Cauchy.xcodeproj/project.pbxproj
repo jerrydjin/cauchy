@@ -96,6 +96,7 @@
 		03767D01A7BC4F3676F3AD37 /* GlassIconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */; };
 		829485EFF82A69789825CE91 /* GlassTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A882429994D8032C24B8A743 /* GlassTabPicker.swift */; };
 		C174D966A75CA70A73E638D0 /* GlassToolbarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */; };
+		918416286927BB1329AB0DD1 /* IndexProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */; };
 		C8B3A8FF72FF3E6CBB8FBEBA /* ToolbarChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */; };
 		B6D56D660943088D8C0130C4 /* OCRResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A72B949D2D1F37938C789E0E /* OCRResultView.swift */; };
 		71B65D76316E7ABEE2EB699F /* FindBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B56E43390B834002E23904B /* FindBarView.swift */; };
@@ -211,6 +212,7 @@
 		74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassIconButton.swift; sourceTree = "<group>"; };
 		A882429994D8032C24B8A743 /* GlassTabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTabPicker.swift; sourceTree = "<group>"; };
 		CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassToolbarContent.swift; sourceTree = "<group>"; };
+		591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexProgressRing.swift; sourceTree = "<group>"; };
 		E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarChrome.swift; sourceTree = "<group>"; };
 		A72B949D2D1F37938C789E0E /* OCRResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRResultView.swift; sourceTree = "<group>"; };
 		8B56E43390B834002E23904B /* FindBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindBarView.swift; sourceTree = "<group>"; };
@@ -377,6 +379,7 @@
 			74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */,
 			A882429994D8032C24B8A743 /* GlassTabPicker.swift */,
 			CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */,
+			591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */,
 			E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */,
 		); path = Design; sourceTree = "<group>"; };
 		5E8DE94FC74A0AE3091DB869 /* OCR */ = { isa = PBXGroup; children = (
@@ -515,6 +518,7 @@
 			03767D01A7BC4F3676F3AD37,
 			829485EFF82A69789825CE91,
 			C174D966A75CA70A73E638D0,
+			918416286927BB1329AB0DD1,
 			C8B3A8FF72FF3E6CBB8FBEBA,
 			B6D56D660943088D8C0130C4,
 			71B65D76316E7ABEE2EB699F,

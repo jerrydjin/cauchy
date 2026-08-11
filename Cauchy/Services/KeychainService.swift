@@ -5,8 +5,20 @@ enum KeychainService {
     private static let geminiKeyAccount = "gemini-api-key"
     private static let geminiKeyService = "com.cauchy.gemini-api-key"
 
+    /// Whether a key is stored, without decrypting it. `loadGeminiAPIKey`
+    /// passes `kSecReturnData`, which reads the secret itself and can raise a
+    /// keychain access prompt — after any re-signing of the app, that fires on
+    /// every call. UI gating runs from SwiftUI bodies (menus re-evaluate on
+    /// each render), so it must use this instead; load the key only at the
+    /// point of actually calling Gemini.
     static var hasGeminiAPIKey: Bool {
-        loadGeminiAPIKey() != nil
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: geminiKeyService,
+            kSecAttrAccount as String: geminiKeyAccount,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
     }
 
     static func loadGeminiAPIKey() -> String? {

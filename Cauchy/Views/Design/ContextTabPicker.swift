@@ -30,6 +30,9 @@ struct ContextTabPicker<T: Hashable>: View {
     @GestureState private var isPressed = false
 
     private let trackPadding: CGFloat = 3
+    /// Marks how far the control extends without putting a second pane behind
+    /// the pill — glass inside glass is what Apple's guidance warns against.
+    private let trackHairline = Color.white.opacity(0.08)
 
     private var segmentCount: Int { max(options.count, 1) }
     private var segmentWidth: CGFloat { max(innerWidth / CGFloat(segmentCount), 1) }
@@ -74,7 +77,7 @@ struct ContextTabPicker<T: Hashable>: View {
         .gesture(drag)
         .padding(trackPadding)
         .background {
-            Capsule().strokeBorder(ContextSurface.border, lineWidth: 1)
+            Capsule().strokeBorder(trackHairline, lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
     }

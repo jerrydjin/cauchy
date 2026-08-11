@@ -86,24 +86,28 @@ struct ReferencePreviewView: View {
             // Deliberately live during a build: a slow on-device index is the
             // moment you most want to switch to Gemini, and rebuilding cancels
             // the in-flight task before starting.
+            // Same recipe as SidebarOptionsMenu — glass on the label, plain
+            // button style so nothing draws a rounded rect behind it. The
+            // chevron is drawn in the label rather than left to
+            // `.menuIndicator`, which sits outside the glass.
             Menu {
-                Button("Rebuild Index") {
-                    workspace.rebuildReferenceIndex()
-                }
-
-                Button("Re-index with Gemini") {
-                    workspace.rebuildReferenceIndex(usingGemini: true)
-                }
-                .disabled(!workspace.canRebuildReferenceIndexWithGemini)
+                ReferenceIndexMenuItems(workspace: workspace)
             } label: {
-                Label("Re-index", systemImage: "arrow.clockwise")
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(width: 46, height: 28)
+                .glassEffect(.regular.interactive(), in: .capsule)
             }
             .menuStyle(.button)
-            .buttonStyle(.glass)
-            .buttonBorderShape(.capsule)
-            .controlSize(.small)
-            .font(.caption)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
             .fixedSize()
+            .accessibilityLabel("Re-index document")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

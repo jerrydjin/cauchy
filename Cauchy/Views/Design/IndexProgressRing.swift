@@ -37,3 +37,20 @@ struct IndexProgressRing: View {
         .accessibilityValue("\(Int(progress * 100)) percent")
     }
 }
+
+/// The re-index actions, shared by the toolbar status pill and the Reference
+/// panel's control so the two cannot drift apart.
+struct ReferenceIndexMenuItems: View {
+    @Bindable var workspace: WorkspaceViewModel
+
+    var body: some View {
+        Button("Rebuild Index") {
+            workspace.rebuildReferenceIndex()
+        }
+
+        Button("Re-index with Gemini") {
+            workspace.rebuildReferenceIndex(usingGemini: true)
+        }
+        .disabled(!workspace.canRebuildReferenceIndexWithGemini)
+    }
+}

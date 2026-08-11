@@ -80,6 +80,7 @@ struct GlassToolbarContent: ToolbarContent {
             ToolbarItem {
                 indexStatusPill
             }
+            .sharedBackgroundVisibility(.hidden)
         }
     }
 
@@ -89,30 +90,47 @@ struct GlassToolbarContent: ToolbarContent {
             || workspace.referenceIndexWarning != nil
     }
 
-    @ViewBuilder
+    /// A single circular glass pill. The toolbar gives every item its own
+    /// rounded-rect glass background, which showed through behind the circle as
+    /// a second, differently shaped layer; `.sharedBackgroundVisibility(.hidden)`
+    /// turns that off so the only glass is the circle drawn here.
+    ///
+    /// Deliberately not a Button or Menu: `.buttonStyle(.plain)` also removes
+    /// that background, but inside a ToolbarItem it stops the control from ever
+    /// responding — a Menu never opens and a Button never fires. This is a
+    /// readout, so a plain view is both honest and the one that renders right.
     private var indexStatusPill: some View {
-        Group {
-            if workspace.isIndexingReferences {
-                IndexProgressRing(progress: workspace.referenceIndexProgress)
-                    .help("Indexing document references for AI analysis (\(Int(workspace.referenceIndexProgress * 100))%)…")
-            } else if let error = workspace.referenceIndexError {
-                // Without this the only sign of a failed index is the
-                // Reference tab, which the user may never open.
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .help("Reference indexing failed — \(error)")
-                    .accessibilityLabel("Reference indexing failed")
-            } else if let warning = workspace.referenceIndexWarning {
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
-                    .help(warning)
-                    .accessibilityLabel("Reference index incomplete")
-            }
+        indexStatusSymbol
+            .frame(width: 32, height: 32)
+            .glassEffect(.regular, in: .circle)
+            .help(indexStatusHelp)
+    }
+
+    @ViewBuilder
+    private var indexStatusSymbol: some View {
+        if workspace.isIndexingReferences {
+            IndexProgressRing(progress: workspace.referenceIndexProgress)
+        } else if workspace.referenceIndexError != nil {
+            // Without this the only sign of a failed index is the Reference
+            // tab, which the user may never open.
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.red)
+        } else if workspace.referenceIndexWarning != nil {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.orange)
         }
-        .frame(width: 22, height: 22)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .glassEffect(.regular, in: .capsule)
+    }
+
+    private var indexStatusHelp: String {
+        if workspace.isIndexingReferences {
+            return "Indexing document references for AI analysis (\(Int(workspace.referenceIndexProgress * 100))%)…"
+        }
+        if let error = workspace.referenceIndexError {
+            return "Reference indexing failed — \(error)"
+        }
+        return workspace.referenceIndexWarning ?? ""
     }
 
     private func commitPageField() {

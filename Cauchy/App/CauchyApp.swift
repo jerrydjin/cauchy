@@ -174,6 +174,15 @@ struct CauchyApp: App {
                 }
                 .disabled(workspace.pdfDocument == nil || workspace.isIndexingReferences)
 
+                Button("Re-index with Gemini") {
+                    workspace.rebuildReferenceIndex(usingGemini: true)
+                }
+                .disabled(
+                    workspace.pdfDocument == nil
+                        || workspace.isIndexingReferences
+                        || !workspace.canRebuildReferenceIndexWithGemini
+                )
+
                 Button("Reset All Reference Indexes…") {
                     workspace.resetAllReferenceIndexes()
                 }

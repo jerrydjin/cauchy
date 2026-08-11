@@ -51,6 +51,9 @@ final class WorkspaceViewModel {
     /// Non-blocking notice for a partially failed index (hover still works
     /// with what was indexed; the failed pages retry next open).
     var referenceIndexWarning: String?
+    /// What built the loaded index, for the Reference panel footer. nil until
+    /// a build finishes (or while one is running).
+    var referenceIndexProvenance: ReferenceIndexProvenance?
 
     private let persistence = DocumentPersistenceService.shared
     private var securityScopedURL: URL?
@@ -188,6 +191,7 @@ final class WorkspaceViewModel {
         referenceIndexProgress = 0
         referenceIndexError = nil
         referenceIndexWarning = nil
+        referenceIndexProvenance = nil
         stopThreadMessage()
         lexicalIndexTask?.cancel()
         lexicalIndexTask = nil
@@ -406,15 +410,37 @@ final class WorkspaceViewModel {
     /// Discards the current document's cached reference index and re-runs
     /// extraction — e.g. after an indexing-quality upgrade, or when a cache
     /// predates reference names.
-    func rebuildReferenceIndex() {
+    ///
+    /// `usingGemini` forces the cloud model instead of the usual on-device
+    /// preference. A plain rebuild re-runs the same model that produced the
+    /// existing entries, so it cannot improve a document the small on-device
+    /// model indexed badly — this is the escape hatch that can.
+    func rebuildReferenceIndex(usingGemini: Bool = false) {
         guard let url = workspace?.documentURL else { return }
+
+        var forcedModel: (any LanguageModel)?
+        if usingGemini {
+            guard let apiKey = AssistantPreferences.activeGeminiAPIKey else {
+                referenceIndexError = "Re-indexing with Gemini needs a Gemini API key — add one in Settings."
+                return
+            }
+            forcedModel = GeminiCloudLanguageModel(apiKey: apiKey)
+        }
+
         referenceIndexTask?.cancel()
         Task {
             await Task.detached(priority: .utility) {
                 ReferenceIndexCacheStore.removeCache(for: url)
             }.value
-            buildReferenceIndex(for: url)
+            buildReferenceIndex(for: url, forcedModel: forcedModel)
         }
+    }
+
+    /// Gemini re-indexing is offered only when a key is available. It stays
+    /// hidden when the assistant is pinned to the on-device model, since that
+    /// choice is what makes `activeGeminiAPIKey` nil.
+    var canRebuildReferenceIndexWithGemini: Bool {
+        AssistantPreferences.geminiEnabled
     }
 
     /// Deletes every document's cached reference index (after confirmation);
@@ -568,25 +594,31 @@ final class WorkspaceViewModel {
         viewportCoordinator.applyProgrammaticViewport(state)
     }
 
-    private func buildReferenceIndex(for url: URL) {
+    /// `forcedModel` overrides the usual provider preference — set only by an
+    /// explicit "re-index with Gemini", which also skips the availability
+    /// check because the caller already resolved a usable model.
+    private func buildReferenceIndex(for url: URL, forcedModel: (any LanguageModel)? = nil) {
         referenceIndexTask?.cancel()
         referenceIndex.clear()
         referenceIndexError = nil
         referenceIndexWarning = nil
+        referenceIndexProvenance = nil
         isIndexingReferences = true
         referenceIndexProgress = 0
 
         // Indexing prefers the free on-device model; Gemini is only a fallback
         // when Apple Intelligence is unavailable. Independent of which
         // provider answers chat questions.
-        let availability = referenceIndexingAvailability
-        guard availability.isAvailable else {
-            isIndexingReferences = false
-            referenceIndexError = referenceIndexUnavailableMessage(for: availability)
-            return
+        if forcedModel == nil {
+            let availability = referenceIndexingAvailability
+            guard availability.isAvailable else {
+                isIndexingReferences = false
+                referenceIndexError = referenceIndexUnavailableMessage(for: availability)
+                return
+            }
         }
 
-        let model = referenceIndexModel()
+        let model = forcedModel ?? referenceIndexModel()
 
         referenceIndexTask = Task {
             // Give the UI a moment to show the indexing state, preventing
@@ -609,6 +641,11 @@ final class WorkspaceViewModel {
                     isIndexingReferences = false
                     referenceIndexProgress = 1
                     referenceIndexError = nil
+                    referenceIndexProvenance = ReferenceIndexProvenance(
+                        builtWith: outcome.builtWith,
+                        builtAt: outcome.builtAt,
+                        entryCount: referenceIndex.count
+                    )
                     let failedCount = outcome.failedPageIndices.count
                     referenceIndexWarning = failedCount == 0 ? nil :
                         "\(failedCount) page\(failedCount == 1 ? "" : "s") could not be indexed — they'll be retried next time this document is opened."
@@ -619,6 +656,7 @@ final class WorkspaceViewModel {
                     referenceIndex.clear()
                     isIndexingReferences = false
                     referenceIndexProgress = 0
+                    referenceIndexProvenance = nil
                     referenceIndexError = error.localizedDescription
                 }
             }

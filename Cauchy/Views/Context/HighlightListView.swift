@@ -35,37 +35,36 @@ struct HighlightListView: View {
     }
 }
 
+/// One line per thread: what it is called, how long it is, where it lives. The
+/// passage itself is not repeated here — the row's name is drawn from it, and
+/// the highlight is one tap away.
 private struct HighlightListRow: View {
     let highlight: Highlight
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(highlight.label)
-                    .font(.body.weight(.medium))
-                    .lineLimit(1)
+        HStack(spacing: 8) {
+            Text(highlight.displayName)
+                .font(.callout)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
-                Text(highlight.selectedText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                Text("Page \(highlight.pageIndex + 1)")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
             if !highlight.messages.isEmpty {
-                Text("\(highlight.messages.count)")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(.quaternary, in: Capsule())
+                HStack(spacing: 3) {
+                    Image(systemName: "bubble.left.fill")
+                        .font(.system(size: 8))
+                    Text("\(highlight.messages.count)")
+                        .font(.caption2.weight(.medium).monospacedDigit())
+                }
+                .foregroundStyle(.secondary)
             }
+
+            Text("p. \(highlight.pageIndex + 1)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
+        .help(highlight.selectedText)
     }
 }

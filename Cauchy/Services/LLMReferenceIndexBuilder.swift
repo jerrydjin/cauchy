@@ -173,6 +173,10 @@ enum LLMReferenceIndexBuilder {
         /// Pages that still failed after retries; persisted so the next open
         /// re-indexes only these.
         let failedPageIndices: [Int]
+        /// Which model family the entries came from, and when — surfaced in the
+        /// Reference panel so a weak index is attributable to its builder.
+        let builtWith: String
+        let builtAt: Date
     }
 
     nonisolated static func build(
@@ -195,7 +199,12 @@ enum LLMReferenceIndexBuilder {
                 pageCount: pageCount,
                 bodyEmbeddings: DocumentReferenceIndexSnapshot.computeBodyEmbeddings(for: entries)
             )
-            return BuildOutcome(snapshot: snapshot, failedPageIndices: [])
+            return BuildOutcome(
+                snapshot: snapshot,
+                failedPageIndices: [],
+                builtWith: cached.builtWith,
+                builtAt: cached.builtAt
+            )
         }
 
         // Vision (and its per-page PNG rendering) only when the chosen model
@@ -279,17 +288,23 @@ enum LLMReferenceIndexBuilder {
         // A mostly-failed fresh run points at a systemic outage — don't bake
         // it into the cache; the next open retries the whole document.
         let failureRate = pagesToProcess.isEmpty ? 0 : Double(failed.count) / Double(pagesToProcess.count)
+        let builtAt = Date()
         if cached != nil || failureRate <= 0.5 {
             let persisted = PersistedReferenceIndex(
                 documentFingerprint: fingerprint,
-                builtAt: Date(),
+                builtAt: builtAt,
                 entries: merged,
                 builtWith: builtWith,
                 failedPageIndices: failed
             )
             try? ReferenceIndexCacheStore.save(persisted)
         }
-        return BuildOutcome(snapshot: snapshot, failedPageIndices: failed)
+        return BuildOutcome(
+            snapshot: snapshot,
+            failedPageIndices: failed,
+            builtWith: builtWith,
+            builtAt: builtAt
+        )
     }
 
     /// Retries transient per-page failures with backoff; rate limits wait

@@ -124,6 +124,30 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         return trimmed
     }
 
+    /// What to call this thread in a list. A conversation is named by the
+    /// question it started with — that is what the reader is looking for —
+    /// and only an unasked highlight falls back to the passage itself.
+    var displayName: String {
+        let question = messages
+            .first { $0.role == .user && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?
+            .content
+        return Self.title(from: question ?? label)
+    }
+
+    /// Collapses a passage into a single tidy line: no runs of whitespace, no
+    /// trailing sentence punctuation, and cut at a word boundary rather than
+    /// mid-word.
+    static func title(from text: String, limit: Int = 60) -> String {
+        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let trimmed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: ".,;:—- "))
+        guard trimmed.count > limit else {
+            return trimmed.isEmpty ? "Highlight" : trimmed
+        }
+        let clipped = trimmed.prefix(limit)
+        guard let lastSpace = clipped.lastIndex(of: " ") else { return clipped + "…" }
+        return clipped[..<lastSpace] + "…"
+    }
+
     static func fromLegacyPin(_ pin: ReferencePin) -> Highlight {
         let text = pin.extractedText ?? pin.label
         return Highlight(

@@ -41,6 +41,33 @@ struct DocumentReferenceIndexSnapshot: Sendable {
     }
 }
 
+/// How the loaded reference index was produced. Surfaced in the Reference
+/// panel so a thin or wrong index points at the model that built it — the
+/// small on-device model is the usual culprit, and the fix is a Gemini re-index.
+struct ReferenceIndexProvenance: Equatable, Sendable {
+    /// Matches `PersistedReferenceIndex.builtWith`: "on-device", "gemini", or
+    /// "legacy-unknown".
+    let builtWith: String
+    let builtAt: Date
+    let entryCount: Int
+
+    var isOnDevice: Bool { builtWith == "on-device" }
+
+    var modelDescription: String {
+        switch builtWith {
+        case "on-device": "on-device model"
+        case "gemini": "Gemini"
+        default: "an earlier version"
+        }
+    }
+
+    var summary: String {
+        let references = entryCount == 1 ? "1 reference" : "\(entryCount) references"
+        let day = builtAt.formatted(date: .abbreviated, time: .omitted)
+        return "\(references) · \(modelDescription) · \(day)"
+    }
+}
+
 /// Lookup table for indexed references. Built off-main by
 /// LLMReferenceIndexBuilder (which hands over an immutable snapshot), but only
 /// ever read and mutated on the main actor (WorkspaceViewModel, PDFCanvasView
@@ -63,6 +90,8 @@ final class DocumentReferenceIndex {
     }
 
     var isEmpty: Bool { entries.isEmpty }
+
+    var count: Int { entries.count }
 
     func replace(with snapshot: DocumentReferenceIndexSnapshot) {
         entries = snapshot.entries

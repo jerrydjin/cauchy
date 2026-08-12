@@ -93,6 +93,7 @@
 		1F456FE979429B0BFC5D04AE /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 893252B0E5970BAE44DDF872 /* MessageBubble.swift */; };
 		D3E9631A6456E92B77A10283 /* ModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23E1C5A2D0530EDCBC5FE0D /* ModelPicker.swift */; };
 		FFE440039AE9380FE80BBD45 /* SelectionQuoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE0CF6F2AEB414AABE2E9A9 /* SelectionQuoteView.swift */; };
+		98D04362377C2A8B615F7D14 /* ContentSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7821E3B3B68B0553D218794 /* ContentSurface.swift */; };
 		124B6029A0DA1422C54F6D93 /* ContextTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15A6888E0E26704ACCC502C /* ContextTabPicker.swift */; };
 		C33FA270048B50B0DD0B3C0E /* GlassFloatingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F7C5B12AC96D6166A529656 /* GlassFloatingPanel.swift */; };
 		03767D01A7BC4F3676F3AD37 /* GlassIconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */; };
@@ -210,6 +211,7 @@
 		893252B0E5970BAE44DDF872 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		D23E1C5A2D0530EDCBC5FE0D /* ModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPicker.swift; sourceTree = "<group>"; };
 		AEE0CF6F2AEB414AABE2E9A9 /* SelectionQuoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionQuoteView.swift; sourceTree = "<group>"; };
+		C7821E3B3B68B0553D218794 /* ContentSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSurface.swift; sourceTree = "<group>"; };
 		B15A6888E0E26704ACCC502C /* ContextTabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextTabPicker.swift; sourceTree = "<group>"; };
 		8F7C5B12AC96D6166A529656 /* GlassFloatingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassFloatingPanel.swift; sourceTree = "<group>"; };
 		74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassIconButton.swift; sourceTree = "<group>"; };
@@ -378,6 +380,7 @@
 			AEE0CF6F2AEB414AABE2E9A9 /* SelectionQuoteView.swift */,
 		); path = Conversation; sourceTree = "<group>"; };
 		7E15DB466B6B27DD41B599BD /* Design */ = { isa = PBXGroup; children = (
+			C7821E3B3B68B0553D218794 /* ContentSurface.swift */,
 			B15A6888E0E26704ACCC502C /* ContextTabPicker.swift */,
 			8F7C5B12AC96D6166A529656 /* GlassFloatingPanel.swift */,
 			74AEC64BADF660A78D1CFAC0 /* GlassIconButton.swift */,
@@ -518,6 +521,7 @@
 			1F456FE979429B0BFC5D04AE,
 			D3E9631A6456E92B77A10283,
 			FFE440039AE9380FE80BBD45,
+			98D04362377C2A8B615F7D14,
 			124B6029A0DA1422C54F6D93,
 			C33FA270048B50B0DD0B3C0E,
 			03767D01A7BC4F3676F3AD37,

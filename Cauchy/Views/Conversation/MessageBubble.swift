@@ -17,9 +17,11 @@ struct MessageBubble: View {
             bubbleContent
                 .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
                 .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
-                .glassEffect(
-                    isUser ? .regular.tint(.accentColor) : .regular,
-                    in: .rect(cornerRadius: ConversationChrome.bubbleCornerRadius)
+                // Flat fill, not glass: a bubble is content, and content sits
+                // below the glass layer rather than joining it. See ContentSurface.
+                .background(
+                    isUser ? Color.accentColor : ContentSurface.bubble,
+                    in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
                 )
                 // Alignment inside the frame is what actually sides the bubble:
                 // the frame fills whatever the row offers, so relying on the

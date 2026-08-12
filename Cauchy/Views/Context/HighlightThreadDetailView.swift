@@ -11,64 +11,77 @@ struct HighlightThreadDetailView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                GlassIconButton(
-                    systemName: "chevron.left",
-                    accessibilityLabel: "Back",
-                    action: onBack
-                )
-
-                // The thread's name, the same one the list shows — a header
-                // reading "Highlight" told the reader nothing they didn't
-                // already know from the tab above it.
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(headerTitle)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-
-                    if let pageIndex = thread?.pageIndex {
-                        Text("Page \(pageIndex + 1)")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
+        ConversationPanel(
+            selectedText: thread?.selectedText,
+            messages: thread?.messages ?? [],
+            streamingText: thread?.streamingAssistantText,
+            isResponding: workspace.selectionThread.isResponding,
+            isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
+            unavailabilityMessage: unavailabilityMessage,
+            panelWidth: workspace.contextPanelWidth,
+            question: $question,
+            onSend: { sendQuestion() },
+            onStop: {
+                if let unanswered = workspace.stopThreadMessage() {
+                    question = unanswered
                 }
+            },
+            onModelChange: { workspace.refreshReadingAssistant() },
+            header: { header }
+        )
+    }
 
-                Spacer(minLength: 6)
+    /// Floats over the conversation as a bar rather than sitting in a band
+    /// above it. The bar carries the glass itself, like a toolbar does: the
+    /// scroll edge effect obscures what passes underneath, but it is not a
+    /// surface, and a title alone over an accent-coloured quote bubble is not
+    /// readable. The back chevron is plain here for the same reason a
+    /// navigation bar's is — the bar is the glass, and a capsule on top of it
+    /// would be glass inside glass.
+    private var header: some View {
+        HStack(spacing: 10) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back")
 
-                if thread?.isPersisted == false {
-                    Button("Save as Highlight") {
-                        workspace.saveTextSelectionAsHighlight()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+            // The thread's name, the same one the list shows — a header reading
+            // "Highlight" told the reader nothing they didn't already know from
+            // the tab above it.
+            VStack(alignment: .leading, spacing: 1) {
+                Text(headerTitle)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                if let pageIndex = thread?.pageIndex {
+                    Text("Page \(pageIndex + 1)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
 
-            Divider()
+            Spacer(minLength: 6)
 
-            ConversationPanel(
-                selectedText: thread?.selectedText,
-                messages: thread?.messages ?? [],
-                streamingText: thread?.streamingAssistantText,
-                isResponding: workspace.selectionThread.isResponding,
-                isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
-                unavailabilityMessage: unavailabilityMessage,
-                panelWidth: workspace.contextPanelWidth,
-                question: $question,
-                onSend: { sendQuestion() },
-                onStop: {
-                    if let unanswered = workspace.stopThreadMessage() {
-                        question = unanswered
-                    }
-                },
-                onModelChange: { workspace.refreshReadingAssistant() }
-            )
-            .padding(16)
+            if thread?.isPersisted == false {
+                Button("Save as Highlight") {
+                    workspace.saveTextSelectionAsHighlight()
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.small)
+            }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .glassEffect(in: .rect(cornerRadius: 18))
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
     }
 
     /// The saved thread's name when there is one; a draft selection has no

@@ -16,6 +16,6 @@ struct ReadingBlockCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(14)
-        .glassEffect(in: .rect(cornerRadius: 12))
+        .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 12))
     }
 }

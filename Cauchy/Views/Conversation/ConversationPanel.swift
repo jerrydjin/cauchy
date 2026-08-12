@@ -79,11 +79,11 @@ struct ConversationPanel<Header: View>: View {
             }
             .safeAreaBar(edge: .top) { header }
             .safeAreaBar(edge: .bottom) { composerBar }
-            // `.hard` at the top because the header carries a title that has to
-            // stay readable over whatever passes under it — an accent-coloured
-            // quote bubble, most often. The composer is glass and does its own
-            // obscuring, so the bottom only needs the gentle fade.
-            .scrollEdgeEffectStyle(.hard, for: .top)
+            // `.soft` at both edges: a progressive blur that fades the messages
+            // out under the chrome. `.hard` draws a defined block instead,
+            // which puts the header back to being the solid band this layout
+            // exists to get rid of.
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .scrollEdgeEffectStyle(.soft, for: .bottom)
             .onAppear {
                 scrollToBottom(proxy: proxy)

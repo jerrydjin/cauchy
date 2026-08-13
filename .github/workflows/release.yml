@@ -164,7 +164,8 @@ jobs:
           MOUNT="$RUNNER_TEMP/verify"
           mkdir -p "$MOUNT"
           diskutil image attach Cauchy.dmg --mountOptions nobrowse --readOnly --mountPoint "$MOUNT"
-          trap 'diskutil image detach "$MOUNT" || true' EXIT
+          # `diskutil image` has no detach subcommand; eject is the counterpart.
+          trap 'diskutil eject "$MOUNT" || true' EXIT
 
           codesign --verify --deep --strict --verbose=2 "$MOUNT/Cauchy.app"
 

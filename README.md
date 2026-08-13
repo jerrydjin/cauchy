@@ -79,29 +79,51 @@ The app ships **unsandboxed** — the Claude Code / Codex assistant providers sp
 
 ## Releases & Distribution
 
-The project includes a GitHub Actions workflow (`.github/workflows/release.yml`) that automatically builds an unsigned `.dmg` file whenever a new tag (e.g., `v1.0.0`) is pushed to the repository.
+The project includes a GitHub Actions workflow (`.github/workflows/release.yml`) that builds a `.dmg` whenever a new tag (e.g., `v1.0.0`) is pushed to the repository.
 
-### Updating for Apple Notarization (macOS Gatekeeper)
+The workflow signs the app either way, and picks the identity from what is configured:
 
-Currently, the GitHub Action generates an **unsigned** `.dmg`. When users download the app, macOS Gatekeeper will warn them that the app is from an unidentified developer. To resolve this and fully follow Apple's guidelines, you need to sign and notarize the app using an Apple Developer account.
+| `MACOS_CERTIFICATE_P12` | Signature | What a user sees |
+| --- | --- | --- |
+| not set | ad-hoc | "Apple could not verify…" — installable via **System Settings > Privacy & Security > Open Anyway** |
+| set | Developer ID, notarized and stapled | opens on double-click |
 
-Here is what you need to do once you enroll in the Apple Developer Program:
+### Why the app must be signed even without a certificate
 
-1. **Create a Developer ID Certificate:**
-   Generate a "Developer ID Application" certificate in your Apple Developer account and export it as a `.p12` file.
+Building with `CODE_SIGNING_ALLOWED=NO` does not produce an unsigned app. It produces a **half-signed** one: `codesign` never runs over the bundle, so there is no `Contents/_CodeSignature`, but the linker still ad-hoc signs the arm64 executable on its own, because arm64 binaries cannot run unsigned at all. The executable therefore claims a resource seal that no `CodeResources` file backs:
 
-2. **Add Secrets to GitHub:**
-   In your GitHub repository settings under **Secrets and variables > Actions**, add the following:
-   - `BUILD_CERTIFICATE_BASE64`: The base64-encoded string of your `.p12` certificate.
-   - `P12_PASSWORD`: The password for your `.p12` certificate.
-   - `APPLE_ID`: Your Apple ID email address.
-   - `APPLE_ID_PASSWORD`: An App-Specific Password for your Apple ID.
-   - `TEAM_ID`: Your Apple Developer Team ID.
+```
+Sealed Resources=none          # nothing sealed
+CodeDirectory flags=0x20002(adhoc,linker-signed)
+```
 
-3. **Update the GitHub Actions Workflow:**
-   Modify `.github/workflows/release.yml` to:
-   - Install the Apple certificate into the macOS runner's keychain.
-   - Change `CODE_SIGN_IDENTITY` to your Developer ID Application certificate name in the `xcodebuild` step.
-   - Set `CODE_SIGNING_REQUIRED=YES` and `CODE_SIGNING_ALLOWED=YES`.
-   - Add a step after the build to run `xcrun notarytool submit build/Cauchy.xcarchive/Products/Applications/Cauchy.app --apple-id $APPLE_ID --password $APPLE_ID_PASSWORD --team-id $TEAM_ID --wait`.
-   - Run `xcrun stapler staple` on the app or the `.dmg`.
+Gatekeeper treats that mismatch as corruption, not as a missing developer identity, and reports **"Cauchy is damaged and can't be opened. You should eject the disk image."** That message has no "Open Anyway" button — it blocks installation outright. Releases v1.0.0 through v1.0.2 shipped in this state.
+
+The fix is the explicit `codesign` step in the workflow; ad-hoc is enough to make the bundle self-consistent, and downgrades the failure back to the ordinary approval prompt.
+
+If a user hits the damaged error on one of those older releases, they can clear the quarantine flag by hand:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Cauchy.app
+```
+
+### Enabling notarization
+
+Notarization needs a paid Apple Developer account. Once enrolled:
+
+1. **Create a Developer ID certificate.** Generate a "Developer ID Application" certificate and export it as a `.p12`, then base64-encode it:
+
+   ```bash
+   base64 -i Certificates.p12 | pbcopy
+   ```
+
+2. **Create an app-specific password** for your Apple ID at [appleid.apple.com](https://appleid.apple.com).
+
+3. **Add the secrets** under **Settings > Secrets and variables > Actions**:
+   - `MACOS_CERTIFICATE_P12` — the base64 string from step 1.
+   - `MACOS_CERTIFICATE_PASSWORD` — the `.p12` export password.
+   - `APPLE_ID` — your Apple ID email.
+   - `APPLE_APP_PASSWORD` — the app-specific password from step 2.
+   - `APPLE_TEAM_ID` — your 10-character Developer Team ID.
+
+No workflow edit is needed. The `Select signing identity` step switches paths on the presence of `MACOS_CERTIFICATE_P12`, and `Notarize DMG` activates with it.

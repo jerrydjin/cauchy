@@ -24,6 +24,23 @@ jobs:
           rm -rf Packages/SwiftMath # Remove empty submodule reference if any
           git clone --depth 1 --branch 1.7.3 https://github.com/mgriebling/SwiftMath.git Packages/SwiftMath
 
+      # The project file is generated, so MARKETING_VERSION is a constant in
+      # scripts/generate_xcodeproj.py and the tag never reaches the bundle —
+      # v1.0.1 and v1.0.2 both ship an app whose About box reads 1.0. Take the
+      # version from the tag instead, so there is nothing to remember to bump.
+      - name: Derive version from tag
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "marketing=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "marketing=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Archive without signing, then sign the bundle explicitly below. Letting
+      # xcodebuild sign would drag in automatic signing and a provisioning
+      # profile the runner does not have; signing after the fact keeps the
+      # signed and ad-hoc paths identical up to the choice of identity.
       - name: Build and Archive
         run: |
           xcodebuild archive \
@@ -31,19 +48,132 @@ jobs:
             -scheme Cauchy \
             -configuration Release \
             -archivePath $PWD/build/Cauchy.xcarchive \
+            MARKETING_VERSION="${{ steps.version.outputs.marketing }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
+      # Use a Developer ID certificate when one is configured, and fall back to
+      # an ad-hoc signature when it is not. Both are a real signature over the
+      # whole bundle; only the Developer ID path can be notarized.
+      - name: Select signing identity
+        id: signing
+        env:
+          CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CERTIFICATE_P12:-}" ]; then
+            echo "identity=-" >> "$GITHUB_OUTPUT"
+            echo "notarize=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::MACOS_CERTIFICATE_P12 is not set — signing ad-hoc. The DMG will install, but users must approve it under System Settings > Privacy & Security."
+            exit 0
+          fi
+
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          echo "$CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT_PATH" -k "$KEYCHAIN" -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Without this, codesign blocks on a GUI prompt for keychain access.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | tr -d '"')
+          rm -f "$CERT_PATH"
+
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" \
+            | awk '/Developer ID Application/ { print $2; exit }')"
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::The supplied certificate contains no Developer ID Application identity."
+            exit 1
+          fi
+
+          echo "identity=$IDENTITY" >> "$GITHUB_OUTPUT"
+          echo "notarize=true" >> "$GITHUB_OUTPUT"
+
+      # The archive step leaves the bundle with no _CodeSignature at all, while
+      # the linker still ad-hoc signs the arm64 executable on its own — the
+      # executable then seals resources that do not exist, and Gatekeeper calls
+      # the result "damaged" with no way past it. Signing the bundle here is
+      # what makes those two halves agree.
+      - name: Sign app
+        run: |
+          set -euo pipefail
+          APP="build/Cauchy.xcarchive/Products/Applications/Cauchy.app"
+
+          # An ad-hoc signature cannot carry a trusted timestamp.
+          if [ "${{ steps.signing.outputs.notarize }}" = "true" ]; then
+            TIMESTAMP="--timestamp"
+          else
+            TIMESTAMP="--timestamp=none"
+          fi
+
+          # Hardened runtime is required for notarization and is already set on
+          # the target; an explicit codesign run has to ask for it again.
+          codesign --force $TIMESTAMP --options runtime \
+            --entitlements Cauchy/Cauchy.entitlements \
+            --sign "${{ steps.signing.outputs.identity }}" \
+            "$APP"
+
+          codesign --verify --strict --verbose=2 "$APP"
+
       - name: Create DMG
         run: |
-          # Copy the .app into a fresh folder to prepare the DMG
+          # Start from nothing. `cp -R` merges into an existing bundle rather
+          # than replacing it, so any file present in a leftover app but not
+          # in the new one would ride along into the DMG. Harmless now that
+          # dmg_source is untracked, but the runner is not guaranteed clean.
+          rm -rf dmg_source
           mkdir -p dmg_source
           cp -R build/Cauchy.xcarchive/Products/Applications/Cauchy.app dmg_source/
-          
+
           # Create the DMG (using the modern diskutil command for macOS 27+)
           rm -f Cauchy.dmg
           diskutil image create from dmg_source --volumeName "Cauchy" --format UDZO Cauchy.dmg
+
+      # Notarize the DMG rather than the app: stapling the disk image is what
+      # lets the app open on a machine that has never been online.
+      - name: Notarize DMG
+        if: steps.signing.outputs.notarize == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          xcrun notarytool submit Cauchy.dmg \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+          xcrun stapler staple Cauchy.dmg
+
+      # Catch a bad signature here rather than in a user's Downloads folder.
+      - name: Verify DMG
+        run: |
+          set -euo pipefail
+          MOUNT="$RUNNER_TEMP/verify"
+          mkdir -p "$MOUNT"
+          diskutil image attach Cauchy.dmg --mountOptions nobrowse --readOnly --mountPoint "$MOUNT"
+          trap 'diskutil image detach "$MOUNT" || true' EXIT
+
+          codesign --verify --deep --strict --verbose=2 "$MOUNT/Cauchy.app"
+
+          if [ "${{ steps.signing.outputs.notarize }}" = "true" ]; then
+            # Only a notarized app can actually pass Gatekeeper.
+            spctl --assess --type exec --verbose=4 "$MOUNT/Cauchy.app"
+          else
+            echo "::warning::Ad-hoc signed — the bundle is well formed, but Gatekeeper will still ask for approval."
+          fi
 
       - name: Release
         uses: softprops/action-gh-release@v2

@@ -83,7 +83,7 @@ struct ReferencePreviewView: View {
             Spacer(minLength: 4)
 
             // Deliberately live during a build: a slow on-device index is the
-            // moment you most want to switch to Gemini, and rebuilding cancels
+            // moment you most want to switch to the cloud, and rebuilding cancels
             // the in-flight task before starting.
             // Plain button style so nothing draws a rounded rect behind the
             // label's own surface. The chevron is drawn in the label rather
@@ -136,8 +136,8 @@ struct ReferencePreviewView: View {
         if let error = workspace.referenceIndexError { return error }
         if let warning = workspace.referenceIndexWarning { return warning }
         guard let provenance = workspace.referenceIndexProvenance else { return footerStatus }
-        return provenance.isOnDevice && workspace.canRebuildReferenceIndexWithGemini
-            ? "\(provenance.summary). Re-index with Gemini for a more accurate index."
+        return provenance.isOnDevice && workspace.canRebuildReferenceIndexWithCloud
+            ? "\(provenance.summary). Re-index with \(workspace.cloudReindexVendor) for a more accurate index."
             : provenance.summary
     }
 }

@@ -98,8 +98,8 @@ struct HighlightThreadDetailView: View {
             return "Enable Apple Intelligence in System Settings to ask questions."
         case .modelNotReady:
             return "The on-device model is downloading. Try again soon."
-        case .geminiKeyMissing:
-            return "Add a Gemini API key in Settings to ask questions."
+        case .apiKeyMissing(let provider):
+            return "Add your \(provider.vendor) API key in Settings to ask questions."
         case .cliNotInstalled(let provider):
             return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
         default:

@@ -64,8 +64,8 @@ enum AssistantPreferences {
     /// The order Automatic walks: a signed-in CLI beats the on-device model,
     /// which beats an API key the user has to pay for separately.
     static let automaticOrder: [AssistantConnectorID] = [
-        .claudeCode, .codex, .antigravity, .onDevice, .gemini,
-    ]
+        .claudeCode, .codex, .antigravity, .onDevice,
+    ] + AssistantConnectorID.byok
 
     // MARK: - Selection
 
@@ -121,23 +121,48 @@ enum AssistantPreferences {
         }
     }
 
-    // MARK: - Gemini key
+    // MARK: - BYOK keys
 
-    /// The Gemini API key for chat, indexing and vision — nil when the user
-    /// explicitly pinned the assistant to the on-device model. Every Gemini
-    /// call site must obtain the key here rather than from KeychainService, so
-    /// that one choice keeps everything local.
+    /// Which vendor the background jobs — reference indexing, vision re-index,
+    /// thread titles — should call when they need a cloud model. The connector
+    /// the user picked for chat wins if it is a BYOK one and has a key;
+    /// otherwise the first provider that has a key at all.
     ///
-    /// Note: choosing a CLI connector for chat does NOT disable Gemini here;
-    /// reference indexing still falls back to the key when Apple Intelligence
-    /// is unavailable.
-    static var activeGeminiAPIKey: String? {
-        selection == .connector(.onDevice) ? nil : KeychainService.loadGeminiAPIKey()
+    /// nil when the user explicitly pinned the assistant to the on-device
+    /// model: that one choice is what keeps everything local. Choosing a CLI
+    /// connector for chat does NOT disable cloud assist here — indexing still
+    /// falls back to a saved key when Apple Intelligence is unavailable.
+    static var activeCloudProvider: CloudAPIProvider? {
+        guard selection != .connector(.onDevice) else { return nil }
+        if case .connector(let id) = selection,
+           let provider = id.connector.apiProvider,
+           KeychainService.hasKey(for: provider) {
+            return provider
+        }
+        return CloudAPIProvider.fallbackOrder.first { KeychainService.hasKey(for: $0) }
     }
 
-    /// Same rule as `activeGeminiAPIKey`, but only checks that a key exists —
-    /// safe to call from a view body, which `activeGeminiAPIKey` is not.
-    static var geminiEnabled: Bool {
-        selection != .connector(.onDevice) && KeychainService.hasGeminiAPIKey
+    /// Same rule as `activeCloudProvider`, but only checks that a key exists
+    /// rather than reading one — safe to call from a view body, which
+    /// `activeCloudModel(named:)` is not.
+    static var cloudAssistEnabled: Bool {
+        activeCloudProvider != nil
+    }
+
+    /// A ready-to-use model for the active provider, or nil when there is none.
+    /// Every cloud call site must obtain its model here rather than from
+    /// KeychainService, so the on-device pin keeps everything local.
+    static func activeCloudModel(named modelID: String? = nil) -> CloudLanguageModel? {
+        guard let provider = activeCloudProvider,
+              let apiKey = KeychainService.loadKey(for: provider)
+        else { return nil }
+        return CloudLanguageModel(provider: provider, apiKey: apiKey, modelName: modelID)
+    }
+
+    /// The cheapest model of the active provider — for the throwaway one-line
+    /// jobs that must not spend a frontier call.
+    static func activeEconomyCloudModel() -> CloudLanguageModel? {
+        guard let provider = activeCloudProvider else { return nil }
+        return activeCloudModel(named: provider.economyModelID)
     }
 }

@@ -6,7 +6,7 @@ enum ReadingAssistantAvailability: Equatable {
     case deviceNotEligible
     case intelligenceNotEnabled
     case modelNotReady
-    case geminiKeyMissing
+    case apiKeyMissing(CloudAPIProvider)
     case cliNotInstalled(AssistantConnectorID)
     case unavailable
 }
@@ -46,8 +46,8 @@ enum ReadingAssistantError: LocalizedError {
     case sessionUnavailable
     case sessionBusy
     case languageModel(LanguageModelError)
-    case invalidAPIKey
-    case rateLimited
+    case invalidAPIKey(CloudAPIProvider)
+    case rateLimited(CloudAPIProvider)
     case network(String)
     case api(String)
 
@@ -63,8 +63,8 @@ enum ReadingAssistantError: LocalizedError {
                 return "Turn on Apple Intelligence in System Settings to use Ask."
             case .modelNotReady:
                 return "The on-device model is still downloading. Try again shortly."
-            case .geminiKeyMissing:
-                return "Add a Gemini API key in Settings to use Ask."
+            case .apiKeyMissing(let provider):
+                return "Add your \(provider.vendor) API key in Settings to use Ask."
             case .cliNotInstalled(let provider):
                 return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
             case .unavailable:
@@ -79,10 +79,10 @@ enum ReadingAssistantError: LocalizedError {
                 return "The selected passage is too long for the model context window. Try selecting a shorter excerpt."
             }
             return error.localizedDescription
-        case .invalidAPIKey:
-            return "The Gemini API key is invalid. Check your key in Settings."
-        case .rateLimited:
-            return "Gemini rate limit reached. Try again in a moment."
+        case .invalidAPIKey(let provider):
+            return "The \(provider.vendor) API key is invalid. Check your key in Settings."
+        case .rateLimited(let provider):
+            return "\(provider.vendor) rate limit reached. Try again in a moment."
         case .network(let message):
             return "Network error: \(message)"
         case .api(let message):

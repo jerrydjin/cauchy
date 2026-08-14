@@ -421,7 +421,7 @@ final class WorkspaceViewModel {
     func regenerateThreadTitle(for highlight: Highlight) {
         guard titleTasks[highlight.id] == nil else { return }
         guard ThreadTitleGenerator.isAvailable else {
-            errorMessage = "Naming a thread needs Apple Intelligence or a Gemini API key."
+            errorMessage = "Naming a thread needs Apple Intelligence or an API key."
             return
         }
         startNaming(highlight)
@@ -518,20 +518,20 @@ final class WorkspaceViewModel {
     /// extraction — e.g. after an indexing-quality upgrade, or when a cache
     /// predates reference names.
     ///
-    /// `usingGemini` forces the cloud model instead of the usual on-device
-    /// preference. A plain rebuild re-runs the same model that produced the
-    /// existing entries, so it cannot improve a document the small on-device
-    /// model indexed badly — this is the escape hatch that can.
-    func rebuildReferenceIndex(usingGemini: Bool = false) {
+    /// `usingCloud` forces the active BYOK provider instead of the usual
+    /// on-device preference. A plain rebuild re-runs the same model that
+    /// produced the existing entries, so it cannot improve a document the small
+    /// on-device model indexed badly — this is the escape hatch that can.
+    func rebuildReferenceIndex(usingCloud: Bool = false) {
         guard let url = workspace?.documentURL else { return }
 
         var forcedModel: (any LanguageModel)?
-        if usingGemini {
-            guard let apiKey = AssistantPreferences.activeGeminiAPIKey else {
-                referenceIndexError = "Re-indexing with Gemini needs a Gemini API key — add one in Settings."
+        if usingCloud {
+            guard let model = AssistantPreferences.activeCloudModel() else {
+                referenceIndexError = "Re-indexing in the cloud needs an API key — add one in Settings."
                 return
             }
-            forcedModel = GeminiCloudLanguageModel(apiKey: apiKey)
+            forcedModel = model
         }
 
         referenceIndexTask?.cancel()
@@ -543,11 +543,16 @@ final class WorkspaceViewModel {
         }
     }
 
-    /// Gemini re-indexing is offered only when a key is available. It stays
+    /// Cloud re-indexing is offered only when some provider has a key. It stays
     /// hidden when the assistant is pinned to the on-device model, since that
-    /// choice is what makes `activeGeminiAPIKey` nil.
-    var canRebuildReferenceIndexWithGemini: Bool {
-        AssistantPreferences.geminiEnabled
+    /// choice is what makes `activeCloudProvider` nil.
+    var canRebuildReferenceIndexWithCloud: Bool {
+        AssistantPreferences.cloudAssistEnabled
+    }
+
+    /// Names the vendor a cloud re-index would call, for the menu item.
+    var cloudReindexVendor: String {
+        AssistantPreferences.activeCloudProvider?.vendor ?? "Cloud"
     }
 
     /// Deletes every document's cached reference index (after confirmation);
@@ -555,7 +560,7 @@ final class WorkspaceViewModel {
     func resetAllReferenceIndexes() {
         let alert = NSAlert()
         alert.messageText = "Reset All Reference Indexes?"
-        alert.informativeText = "Cached theorem/definition indexes for all documents will be deleted and rebuilt the next time each document is opened. Re-indexing runs in the background and uses the on-device model (or Gemini)."
+        alert.informativeText = "Cached theorem/definition indexes for all documents will be deleted and rebuilt the next time each document is opened. Re-indexing runs in the background and uses the on-device model (or a saved API key)."
         alert.addButton(withTitle: "Reset All")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -702,7 +707,7 @@ final class WorkspaceViewModel {
     }
 
     /// `forcedModel` overrides the usual provider preference — set only by an
-    /// explicit "re-index with Gemini", which also skips the availability
+    /// explicit "re-index in the cloud", which also skips the availability
     /// check because the caller already resolved a usable model.
     private func buildReferenceIndex(for url: URL, forcedModel: (any LanguageModel)? = nil) {
         referenceIndexTask?.cancel()
@@ -713,7 +718,7 @@ final class WorkspaceViewModel {
         isIndexingReferences = true
         referenceIndexProgress = 0
 
-        // Indexing prefers the free on-device model; Gemini is only a fallback
+        // Indexing prefers the free on-device model; a cloud key is only a fallback
         // when Apple Intelligence is unavailable. Independent of which
         // provider answers chat questions.
         if forcedModel == nil {
@@ -789,8 +794,8 @@ final class WorkspaceViewModel {
         if local.isAvailable {
             return local
         }
-        if AssistantPreferences.geminiEnabled {
-            return .available(.gemini)
+        if let provider = AssistantPreferences.activeCloudProvider {
+            return .available(provider.connectorID)
         }
         return local
     }
@@ -799,8 +804,8 @@ final class WorkspaceViewModel {
         if FoundationModelsReadingAssistantService.localAvailability.isAvailable {
             return SystemLanguageModel.default
         }
-        if let apiKey = AssistantPreferences.activeGeminiAPIKey {
-            return GeminiCloudLanguageModel(apiKey: apiKey)
+        if let model = AssistantPreferences.activeCloudModel() {
+            return model
         }
         return SystemLanguageModel.default
     }
@@ -812,15 +817,15 @@ final class WorkspaceViewModel {
         case .deviceNotEligible:
             "Reference indexing unavailable — this device does not support Apple Intelligence."
         case .intelligenceNotEnabled:
-            "Reference indexing unavailable — enable Apple Intelligence or add a Gemini API key."
+            "Reference indexing unavailable — enable Apple Intelligence or add an API key."
         case .modelNotReady:
             "Reference indexing unavailable — the on-device model is not ready."
-        case .geminiKeyMissing:
-            "Reference indexing unavailable — add a Gemini API key in Settings."
+        case .apiKeyMissing(let provider):
+            "Reference indexing unavailable — add your \(provider.vendor) API key in Settings."
         case .cliNotInstalled:
-            "Reference indexing unavailable — add a Gemini API key or enable Apple Intelligence."
+            "Reference indexing unavailable — add an API key or enable Apple Intelligence."
         case .unavailable:
-            "Reference indexing unavailable — add a Gemini API key or enable Apple Intelligence."
+            "Reference indexing unavailable — add an API key or enable Apple Intelligence."
         }
     }
 

@@ -137,15 +137,15 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertEqual(PersistedReferenceIndex.schemaVersion, 2)
     }
 
-    func testShouldUseVisionWhenGeminiAndImagePresent() {
+    func testShouldUseVisionWhenCloudAndImagePresent() {
         XCTAssertTrue(
-            LLMReferenceIndexSupport.shouldUseVision(geminiVisionAvailable: true, pageImagePNG: Data([0x89]))
+            LLMReferenceIndexSupport.shouldUseVision(cloudVisionAvailable: true, pageImagePNG: Data([0x89]))
         )
         XCTAssertFalse(
-            LLMReferenceIndexSupport.shouldUseVision(geminiVisionAvailable: false, pageImagePNG: Data([0x89]))
+            LLMReferenceIndexSupport.shouldUseVision(cloudVisionAvailable: false, pageImagePNG: Data([0x89]))
         )
         XCTAssertFalse(
-            LLMReferenceIndexSupport.shouldUseVision(geminiVisionAvailable: true, pageImagePNG: nil)
+            LLMReferenceIndexSupport.shouldUseVision(cloudVisionAvailable: true, pageImagePNG: nil)
         )
     }
 

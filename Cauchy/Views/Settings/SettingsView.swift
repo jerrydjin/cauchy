@@ -3,11 +3,17 @@ import SwiftUI
 struct SettingsView: View {
     var onSettingsChanged: (() -> Void)?
 
-    @State private var apiKey = ""
-    @State private var hasStoredKey = KeychainService.hasGeminiAPIKey
-    @State private var statusMessage: String?
-    @State private var isError = false
-    @State private var showKeySection = false
+    /// Typed-but-unsaved key text, per provider. Cleared the moment a key is
+    /// committed to the Keychain — the app never keeps a secret in view state
+    /// longer than the user is typing it.
+    @State private var draftKeys: [CloudAPIProvider: String] = [:]
+    @State private var storedKeys: Set<CloudAPIProvider> = Set(
+        CloudAPIProvider.allCases.filter(KeychainService.hasKey(for:))
+    )
+    /// Only one key row is open at a time: the section is a list of vendors,
+    /// not a form, and an accordion keeps the window from growing past its frame.
+    @State private var expandedProvider: CloudAPIProvider?
+    @State private var status: (provider: CloudAPIProvider, message: String, isError: Bool)?
     @AppStorage(AssistantPreferences.selectionKey)
     private var selectionToken = AssistantSelection.automaticToken
 
@@ -54,20 +60,17 @@ struct SettingsView: View {
             }
 
             Section {
-                DisclosureGroup(isExpanded: $showKeySection) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        geminiKeyControls
-                    }
-                    .padding(.top, 6)
-                } label: {
-                    Label("Gemini API key", systemImage: "key")
+                ForEach(CloudAPIProvider.allCases) { provider in
+                    keyRow(provider)
                 }
             } header: {
-                Text("Advanced")
+                Text("Your API keys")
+            } footer: {
+                Text("Bring your own key to reach a vendor's API directly. Keys are stored in your Keychain, sent only to the vendor they belong to, and billed to you per request. A saved key is also the fallback for reference indexing when Apple Intelligence is unavailable.")
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 540)
+        .frame(width: 520, height: 560)
         .padding()
     }
 
@@ -107,71 +110,107 @@ struct SettingsView: View {
         .font(.callout)
     }
 
-    // MARK: - Gemini key
+    // MARK: - API keys
 
     @ViewBuilder
-    private var geminiKeyControls: some View {
-        Text("A direct Gemini API key is billed to you per request, so it sits apart from the connectors above. It is also the fallback used for reference indexing when Apple Intelligence is unavailable.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
-        if hasStoredKey {
-            Label("Gemini API key saved", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+    private func keyRow(_ provider: CloudAPIProvider) -> some View {
+        DisclosureGroup(isExpanded: expansionBinding(for: provider)) {
+            VStack(alignment: .leading, spacing: 10) {
+                keyControls(provider)
+            }
+            .padding(.top, 6)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: provider.symbol)
+                    .frame(width: 16)
+                Text(provider.name)
+                Spacer()
+                if storedKeys.contains(provider) {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .labelStyle(.titleAndIcon)
+                }
+            }
+            .font(.callout)
         }
+    }
 
-        SecureField("Gemini API Key", text: $apiKey)
-            .textFieldStyle(.roundedBorder)
+    @ViewBuilder
+    private func keyControls(_ provider: CloudAPIProvider) -> some View {
+        let draft = draftKeys[provider] ?? ""
+
+        // The hint has to ride `prompt`, not the title: a Form turns a field's
+        // title into a left column label, and hiding that label takes the hint
+        // with it. As a prompt it sits inside the field, showing the shape of
+        // the key the user is about to paste.
+        SecureField(text: draftBinding(for: provider), prompt: Text(provider.keyPrefixHint)) {
+            Text("\(provider.vendor) API key")
+        }
+        .textFieldStyle(.roundedBorder)
+        .labelsHidden()
 
         HStack {
             Button("Save") {
-                saveKey()
+                save(provider)
             }
-            .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasStoredKey)
+            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
             Button("Clear", role: .destructive) {
-                clearKey()
+                clear(provider)
             }
-            .disabled(!hasStoredKey)
+            .disabled(!storedKeys.contains(provider))
 
             Spacer()
 
-            Link("Get a key", destination: URL(string: "https://aistudio.google.com/apikey")!)
+            Link("Get a key", destination: provider.consoleURL)
                 .font(.caption)
         }
 
-        if let statusMessage {
-            Text(statusMessage)
+        if let status, status.provider == provider {
+            Text(status.message)
                 .font(.caption)
-                .foregroundStyle(isError ? .red : .secondary)
+                .foregroundStyle(status.isError ? .red : .secondary)
         }
     }
 
-    private func saveKey() {
-        do {
-            try KeychainService.saveGeminiAPIKey(apiKey)
-            hasStoredKey = KeychainService.hasGeminiAPIKey
-            apiKey = ""
-            statusMessage = "API key saved."
-            isError = false
-            onSettingsChanged?()
-        } catch {
-            statusMessage = error.localizedDescription
-            isError = true
+    private func expansionBinding(for provider: CloudAPIProvider) -> Binding<Bool> {
+        Binding {
+            expandedProvider == provider
+        } set: { isExpanded in
+            expandedProvider = isExpanded ? provider : nil
         }
     }
 
-    private func clearKey() {
+    private func draftBinding(for provider: CloudAPIProvider) -> Binding<String> {
+        Binding {
+            draftKeys[provider] ?? ""
+        } set: { newValue in
+            draftKeys[provider] = newValue
+        }
+    }
+
+    private func save(_ provider: CloudAPIProvider) {
         do {
-            try KeychainService.deleteGeminiAPIKey()
-            hasStoredKey = false
-            apiKey = ""
-            statusMessage = "API key removed."
-            isError = false
+            try KeychainService.saveKey(draftKeys[provider] ?? "", for: provider)
+            draftKeys[provider] = ""
+            storedKeys.insert(provider)
+            status = (provider, "\(provider.vendor) API key saved.", false)
             onSettingsChanged?()
         } catch {
-            statusMessage = error.localizedDescription
-            isError = true
+            status = (provider, error.localizedDescription, true)
+        }
+    }
+
+    private func clear(_ provider: CloudAPIProvider) {
+        do {
+            try KeychainService.deleteKey(for: provider)
+            draftKeys[provider] = ""
+            storedKeys.remove(provider)
+            status = (provider, "\(provider.vendor) API key removed.", false)
+            onSettingsChanged?()
+        } catch {
+            status = (provider, error.localizedDescription, true)
         }
     }
 }

@@ -99,8 +99,8 @@ enum LLMReferenceIndexSupport {
         return LaTeXFormatter.format(trimmed)
     }
 
-    static func shouldUseVision(geminiVisionAvailable: Bool, pageImagePNG: Data?) -> Bool {
-        geminiVisionAvailable && pageImagePNG != nil
+    static func shouldUseVision(cloudVisionAvailable: Bool, pageImagePNG: Data?) -> Bool {
+        cloudVisionAvailable && pageImagePNG != nil
     }
 
     /// Table-of-contents pages list every "Definition 6.1"-style heading with a
@@ -165,7 +165,7 @@ enum LLMReferenceIndexBuilder {
 
     private struct ModelHandle: Sendable {
         let model: any LanguageModel
-        let geminiVision: GeminiReferenceIndexClient?
+        let cloudVision: CloudReferenceIndexClient?
     }
 
     struct BuildOutcome: Sendable {
@@ -207,30 +207,26 @@ enum LLMReferenceIndexBuilder {
             )
         }
 
-        // Vision (and its per-page PNG rendering) only when the chosen model
-        // is actually Gemini — a saved API key alone must not spend API calls
+        // Vision (and its per-page PNG rendering) only when the chosen model is
+        // actually a cloud one — a saved API key alone must not spend API calls
         // when indexing runs on-device.
-        let geminiVision: GeminiReferenceIndexClient?
-        if let gemini = model as? GeminiCloudLanguageModel {
-            geminiVision = GeminiReferenceIndexClient(apiKey: gemini.apiKey, modelName: gemini.modelName)
-        } else {
-            geminiVision = nil
-        }
+        let cloudModel = model as? CloudLanguageModel
+        let cloudVision = cloudModel.map(CloudReferenceIndexClient.init(model:))
 
-        let modelHandle = ModelHandle(model: model, geminiVision: geminiVision)
+        let modelHandle = ModelHandle(model: model, cloudVision: cloudVision)
 
         // A cache with failed pages seeds the result and narrows the work to
         // just those pages; provenance stays with the original bulk build.
         var merged: [ReferenceKey: IndexedReference] = [:]
         var pagesToProcess = Array(0..<pageCount)
-        var builtWith = model is GeminiCloudLanguageModel ? "gemini" : "on-device"
+        var builtWith = cloudModel?.provider.rawValue ?? "on-device"
         if let cached {
             merged = cached.asSnapshot(pageCount: pageCount).entries
             pagesToProcess = cached.failedPageIndices.filter { $0 < pageCount }
             builtWith = cached.builtWith
         }
 
-        let concurrency = (geminiVision == nil && model is SystemLanguageModel)
+        let concurrency = (cloudVision == nil && model is SystemLanguageModel)
             ? maxConcurrentPagesOnDevice
             : maxConcurrentPages
 
@@ -241,7 +237,7 @@ enum LLMReferenceIndexBuilder {
             let batchEnd = min(batchStart + concurrency, pagesToProcess.count)
             try await withThrowingTaskGroup(of: (Int, [ReferenceKey: IndexedReference]?).self) { group in
                 for pageIndex in pagesToProcess[batchStart..<batchEnd] {
-                    let payload = pagePayload(from: document, pageIndex: pageIndex, geminiVision: geminiVision)
+                    let payload = pagePayload(from: document, pageIndex: pageIndex, cloudVision: cloudVision)
                     group.addTask {
                         do {
                             let entries = try await processPageWithRetry(
@@ -323,8 +319,8 @@ enum LLMReferenceIndexBuilder {
                 throw CancellationError()
             } catch {
                 guard attempt < 3, !isContextOverflow(error) else { throw error }
-                let rateLimited = if let gemini = error as? GeminiCloudAPIError,
-                                     case .rateLimited = gemini { true } else { false }
+                let rateLimited = if let cloud = error as? CloudAPIError,
+                                     case .rateLimited = cloud { true } else { false }
                 let base: Double = rateLimited ? (attempt == 1 ? 5 : 15) : (attempt == 1 ? 1 : 4)
                 try await Task.sleep(for: .seconds(base + Double.random(in: 0...0.5)))
                 attempt += 1
@@ -335,7 +331,7 @@ enum LLMReferenceIndexBuilder {
     nonisolated private static func pagePayload(
         from document: PDFDocument,
         pageIndex: Int,
-        geminiVision: GeminiReferenceIndexClient?
+        cloudVision: CloudReferenceIndexClient?
     ) -> PageIndexPayload {
         guard let page = document.page(at: pageIndex) else {
             return PageIndexPayload(pageText: "", pageImagePNG: nil)
@@ -345,7 +341,7 @@ enum LLMReferenceIndexBuilder {
         let pageText = LLMReferenceIndexSupport.preprocessPageText(rawText)
 
         var pageImagePNG: Data?
-        if geminiVision != nil,
+        if cloudVision != nil,
            let image = PDFRegionRenderer.renderFullPage(page),
            let png = PDFRegionRenderer.pngData(from: image) {
             pageImagePNG = png
@@ -428,8 +424,8 @@ enum LLMReferenceIndexBuilder {
         pageIndex: Int,
         model: any LanguageModel
     ) async throws -> SinglePageResult {
-        let handle = ModelHandle(model: model, geminiVision: nil)
-        let payload = pagePayload(from: document, pageIndex: pageIndex, geminiVision: nil)
+        let handle = ModelHandle(model: model, cloudVision: nil)
+        let payload = pagePayload(from: document, pageIndex: pageIndex, cloudVision: nil)
         let trimmed = payload.pageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmed) else {
@@ -457,7 +453,7 @@ enum LLMReferenceIndexBuilder {
         pageIndex: Int,
         modelHandle: ModelHandle
     ) async throws -> LLMPageReferenceResponse {
-        if modelHandle.geminiVision == nil,
+        if modelHandle.cloudVision == nil,
            let systemModel = modelHandle.model as? SystemLanguageModel {
             return try await requestGuidedPageExtraction(
                 pageText: payload.pageText,
@@ -598,12 +594,12 @@ enum LLMReferenceIndexBuilder {
         modelHandle: ModelHandle
     ) async throws -> String {
         if LLMReferenceIndexSupport.shouldUseVision(
-            geminiVisionAvailable: modelHandle.geminiVision != nil,
+            cloudVisionAvailable: modelHandle.cloudVision != nil,
             pageImagePNG: payload.pageImagePNG
         ),
-           let geminiVision = modelHandle.geminiVision,
+           let cloudVision = modelHandle.cloudVision,
            let imagePNG = payload.pageImagePNG {
-            return try await geminiVision.indexPage(
+            return try await cloudVision.indexPage(
                 imagePNG: imagePNG,
                 pageText: payload.pageText,
                 pageIndex: pageIndex
@@ -635,8 +631,8 @@ enum LLMReferenceIndexBuilder {
         previousOutput: String,
         modelHandle: ModelHandle
     ) async throws -> String {
-        if let geminiVision = modelHandle.geminiVision {
-            return try await geminiVision.repairJSON(previousOutput: previousOutput)
+        if let cloudVision = modelHandle.cloudVision {
+            return try await cloudVision.repairJSON(previousOutput: previousOutput)
         }
 
         return try await requestTextJSONRepair(
@@ -662,8 +658,8 @@ enum LLMReferenceIndexBuilder {
         previousOutput: String,
         modelHandle: ModelHandle
     ) async throws -> String {
-        if let geminiVision = modelHandle.geminiVision {
-            return try await geminiVision.repairLaTeX(previousOutput: previousOutput)
+        if let cloudVision = modelHandle.cloudVision {
+            return try await cloudVision.repairLaTeX(previousOutput: previousOutput)
         }
 
         return try await requestTextLaTeXRepair(

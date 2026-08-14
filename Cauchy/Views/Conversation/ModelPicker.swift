@@ -25,6 +25,10 @@ struct ModelPicker: View {
     private var codexToken = AssistantConnectorID.codex.connector.defaultChoice.storageToken
     @AppStorage(AssistantPreferences.modelKey(for: .gemini))
     private var geminiToken = AssistantConnectorID.gemini.connector.defaultChoice.storageToken
+    @AppStorage(AssistantPreferences.modelKey(for: .anthropicAPI))
+    private var anthropicToken = AssistantConnectorID.anthropicAPI.connector.defaultChoice.storageToken
+    @AppStorage(AssistantPreferences.modelKey(for: .openaiAPI))
+    private var openaiToken = AssistantConnectorID.openaiAPI.connector.defaultChoice.storageToken
 
     var body: some View {
         Menu {
@@ -130,6 +134,8 @@ struct ModelPicker: View {
         case .claudeCode: connector.choice(fromToken: claudeToken)
         case .codex: connector.choice(fromToken: codexToken)
         case .gemini: connector.choice(fromToken: geminiToken)
+        case .anthropicAPI: connector.choice(fromToken: anthropicToken)
+        case .openaiAPI: connector.choice(fromToken: openaiToken)
         case .onDevice, .antigravity: .connectorDefault
         }
     }
@@ -153,6 +159,8 @@ struct ModelPicker: View {
             case .claudeCode: claudeToken = choice.storageToken
             case .codex: codexToken = choice.storageToken
             case .gemini: geminiToken = choice.storageToken
+            case .anthropicAPI: anthropicToken = choice.storageToken
+            case .openaiAPI: openaiToken = choice.storageToken
             case .onDevice, .antigravity: break
             }
         }

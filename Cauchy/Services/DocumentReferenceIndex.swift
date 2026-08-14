@@ -43,10 +43,10 @@ struct DocumentReferenceIndexSnapshot: Sendable {
 
 /// How the loaded reference index was produced. Surfaced in the Reference
 /// panel so a thin or wrong index points at the model that built it — the
-/// small on-device model is the usual culprit, and the fix is a Gemini re-index.
+/// small on-device model is the usual culprit, and the fix is a cloud re-index.
 struct ReferenceIndexProvenance: Equatable, Sendable {
-    /// Matches `PersistedReferenceIndex.builtWith`: "on-device", "gemini", or
-    /// "legacy-unknown".
+    /// Matches `PersistedReferenceIndex.builtWith`: "on-device",
+    /// "legacy-unknown", or a `CloudAPIProvider` raw value.
     let builtWith: String
     let builtAt: Date
     let entryCount: Int
@@ -54,11 +54,10 @@ struct ReferenceIndexProvenance: Equatable, Sendable {
     var isOnDevice: Bool { builtWith == "on-device" }
 
     var modelDescription: String {
-        switch builtWith {
-        case "on-device": "on-device model"
-        case "gemini": "Gemini"
-        default: "an earlier version"
+        if let provider = CloudAPIProvider(rawValue: builtWith) {
+            return provider.vendor
         }
+        return builtWith == "on-device" ? "on-device model" : "an earlier version"
     }
 
     var summary: String {

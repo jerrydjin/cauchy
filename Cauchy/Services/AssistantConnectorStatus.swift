@@ -54,8 +54,8 @@ extension AssistantConnector {
             return CLIAgentRunner.locateBinary(named: binary) == nil
                 ? .cliNotInstalled(id)
                 : .available(id)
-        case .apiKey:
-            return FoundationModelsReadingAssistantService.geminiAvailability
+        case .apiKey(let provider):
+            return FoundationModelsReadingAssistantService.availability(for: provider)
         }
     }
 
@@ -70,7 +70,7 @@ extension AssistantConnector {
             case .cliSignIn: return .ready("Installed")
             case .apiKey: return .ready("Key saved")
             }
-        case .cliNotInstalled, .geminiKeyMissing, .intelligenceNotEnabled:
+        case .cliNotInstalled, .apiKeyMissing, .intelligenceNotEnabled:
             return .needsSetup(setupHint)
         case .deviceNotEligible:
             return .unavailable("This Mac isn't eligible for Apple Intelligence.")

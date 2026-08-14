@@ -30,27 +30,25 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         }
     }
 
-    static var geminiAvailability: ReadingAssistantAvailability {
-        KeychainService.hasGeminiAPIKey ? .available(.gemini) : .geminiKeyMissing
+    static func availability(for apiProvider: CloudAPIProvider) -> ReadingAssistantAvailability {
+        KeychainService.hasKey(for: apiProvider)
+            ? .available(apiProvider.connectorID)
+            : .apiKeyMissing(apiProvider)
     }
 
     var availability: ReadingAssistantAvailability {
-        switch provider {
-        case .gemini:
-            return Self.geminiAvailability
-        default:
+        guard let apiProvider = provider.connector.apiProvider else {
             return Self.localAvailability
         }
+        return Self.availability(for: apiProvider)
     }
 
     private var isAvailable: Bool {
-        switch provider {
-        case .gemini:
-            return KeychainService.hasGeminiAPIKey
-        default:
-            guard let systemModel = model as? SystemLanguageModel else { return false }
-            return systemModel.isAvailable
+        if let apiProvider = provider.connector.apiProvider {
+            return KeychainService.hasKey(for: apiProvider)
         }
+        guard let systemModel = model as? SystemLanguageModel else { return false }
+        return systemModel.isAvailable
     }
 
     var isResponding: Bool {
@@ -140,8 +138,8 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
             let final = try await ensureDisplayReady(normalized, onPartial: onPartial)
             onPartial?(final)
             return final
-        } catch let error as GeminiCloudAPIError {
-            throw mapGeminiError(error)
+        } catch let error as CloudAPIError {
+            throw Self.mapCloudError(error)
         } catch let error as LanguageModelError {
             throw ReadingAssistantError.languageModel(error)
         }
@@ -171,12 +169,12 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         return AssistantResponseValidator.isDisplayReady(normalized) ? normalized : text
     }
 
-    private func mapGeminiError(_ error: GeminiCloudAPIError) -> ReadingAssistantError {
+    static func mapCloudError(_ error: CloudAPIError) -> ReadingAssistantError {
         switch error {
-        case .invalidAPIKey:
-            return .invalidAPIKey
-        case .rateLimited:
-            return .rateLimited
+        case .invalidAPIKey(let provider):
+            return .invalidAPIKey(provider)
+        case .rateLimited(let provider):
+            return .rateLimited(provider)
         case .network(let message):
             return .network(message)
         case .api(let message):

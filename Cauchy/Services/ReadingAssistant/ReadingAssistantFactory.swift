@@ -21,15 +21,16 @@ enum ReadingAssistantFactory {
                 modelID: resolved.modelID
             )
 
-        case .apiKey:
-            guard let apiKey = KeychainService.loadGeminiAPIKey() else {
+        case .apiKey(let apiProvider):
+            guard let apiKey = KeychainService.loadKey(for: apiProvider) else {
                 // `availability` reports the missing key; the composer stays disabled.
                 return localAssistant()
             }
             return FoundationModelsReadingAssistantService(
-                model: GeminiCloudLanguageModel(
+                model: CloudLanguageModel(
+                    provider: apiProvider,
                     apiKey: apiKey,
-                    modelName: resolved.modelID ?? resolved.connector.models[0].id
+                    modelName: resolved.modelID
                 ),
                 provider: resolved.connector.id
             )

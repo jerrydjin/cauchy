@@ -1,34 +1,32 @@
 import Foundation
 import Security
 
+/// One Keychain item per BYOK provider. The item's service/account pair comes
+/// from `CloudAPIProvider`, which keeps Gemini's pre-BYOK identity so keys
+/// saved by earlier versions are still found.
 enum KeychainService {
-    private static let geminiKeyAccount = "gemini-api-key"
-    private static let geminiKeyService = "com.cauchy.gemini-api-key"
-
-    /// Whether a key is stored, without decrypting it. `loadGeminiAPIKey`
-    /// passes `kSecReturnData`, which reads the secret itself and can raise a
-    /// keychain access prompt — after any re-signing of the app, that fires on
-    /// every call. UI gating runs from SwiftUI bodies (menus re-evaluate on
-    /// each render), so it must use this instead; load the key only at the
-    /// point of actually calling Gemini.
-    static var hasGeminiAPIKey: Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: geminiKeyService,
-            kSecAttrAccount as String: geminiKeyAccount,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+    /// Whether a key is stored, without decrypting it. `loadKey` passes
+    /// `kSecReturnData`, which reads the secret itself and can raise a keychain
+    /// access prompt — after any re-signing of the app, that fires on every
+    /// call. UI gating runs from SwiftUI bodies (menus re-evaluate on each
+    /// render), so it must use this instead; load the key only at the point of
+    /// actually calling the API.
+    static func hasKey(for provider: CloudAPIProvider) -> Bool {
+        var query = baseQuery(for: provider)
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
         return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
     }
 
-    static func loadGeminiAPIKey() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: geminiKeyService,
-            kSecAttrAccount as String: geminiKeyAccount,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+    /// True when any provider has a key saved — the cheap gate for "is BYOK set
+    /// up at all", safe to call from a view body.
+    static var hasAnyKey: Bool {
+        CloudAPIProvider.allCases.contains(where: hasKey(for:))
+    }
+
+    static func loadKey(for provider: CloudAPIProvider) -> String? {
+        var query = baseQuery(for: provider)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -38,20 +36,15 @@ enum KeychainService {
         return String(data: data, encoding: .utf8)
     }
 
-    static func saveGeminiAPIKey(_ key: String) throws {
+    static func saveKey(_ key: String, for provider: CloudAPIProvider) throws {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            try deleteGeminiAPIKey()
+            try deleteKey(for: provider)
             return
         }
 
         let data = Data(trimmed.utf8)
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: geminiKeyService,
-            kSecAttrAccount as String: geminiKeyAccount,
-        ]
+        let query = baseQuery(for: provider)
 
         let attributes: [String: Any] = [
             kSecValueData as String: data,
@@ -75,16 +68,19 @@ enum KeychainService {
         throw KeychainError.saveFailed(updateStatus)
     }
 
-    static func deleteGeminiAPIKey() throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: geminiKeyService,
-            kSecAttrAccount as String: geminiKeyAccount,
-        ]
-        let status = SecItemDelete(query as CFDictionary)
+    static func deleteKey(for provider: CloudAPIProvider) throws {
+        let status = SecItemDelete(baseQuery(for: provider) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.deleteFailed(status)
         }
+    }
+
+    private static func baseQuery(for provider: CloudAPIProvider) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: provider.keychainService,
+            kSecAttrAccount as String: provider.keychainAccount,
+        ]
     }
 }
 

@@ -7,8 +7,8 @@ import FoundationModels
 /// This deliberately does not go through the chat connector. Naming a thread is
 /// a throwaway one-line job — it must not spawn a CLI child process, must not
 /// spend a subscription turn, and must not queue behind the answer the user is
-/// waiting for. It prefers the free on-device model and only falls back to
-/// Gemini when Apple Intelligence is unavailable, exactly like reference
+/// waiting for. It prefers the free on-device model and only falls back to a
+/// BYOK key when Apple Intelligence is unavailable, exactly like reference
 /// indexing does.
 @MainActor
 enum ThreadTitleGenerator {
@@ -18,7 +18,7 @@ enum ThreadTitleGenerator {
 
     static var isAvailable: Bool {
         FoundationModelsReadingAssistantService.localAvailability.isAvailable
-            || AssistantPreferences.geminiEnabled
+            || AssistantPreferences.cloudAssistEnabled
     }
 
     /// Returns a short name for the thread, or nil when no model is available
@@ -55,12 +55,9 @@ enum ThreadTitleGenerator {
         if FoundationModelsReadingAssistantService.localAvailability.isAvailable {
             return SystemLanguageModel.default
         }
-        if let apiKey = AssistantPreferences.activeGeminiAPIKey {
-            // The cheapest model in the catalog: a four-word title does not
-            // need reasoning, and this runs once per thread.
-            return GeminiCloudLanguageModel(apiKey: apiKey, modelName: "gemini-3.5-flash-lite")
-        }
-        return nil
+        // The cheapest model the active provider offers: a four-word title does
+        // not need reasoning, and this runs once per thread.
+        return AssistantPreferences.activeEconomyCloudModel()
     }
 
     private static let instructions = """

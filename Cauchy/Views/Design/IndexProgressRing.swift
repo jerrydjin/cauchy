@@ -48,9 +48,9 @@ struct ReferenceIndexMenuItems: View {
             workspace.rebuildReferenceIndex()
         }
 
-        Button("Re-index with Gemini") {
-            workspace.rebuildReferenceIndex(usingGemini: true)
+        Button("Re-index with \(workspace.cloudReindexVendor)") {
+            workspace.rebuildReferenceIndex(usingCloud: true)
         }
-        .disabled(!workspace.canRebuildReferenceIndexWithGemini)
+        .disabled(!workspace.canRebuildReferenceIndexWithCloud)
     }
 }

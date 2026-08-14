@@ -174,15 +174,15 @@ struct CauchyApp: App {
                 }
                 .disabled(workspace.pdfDocument == nil || workspace.isIndexingReferences)
 
-                // Not gated on isIndexingReferences: switching to Gemini part-way
-                // through a slow on-device build is the main reason to reach for
-                // this, and rebuilding cancels the in-flight task first.
-                Button("Re-index with Gemini") {
-                    workspace.rebuildReferenceIndex(usingGemini: true)
+                // Not gated on isIndexingReferences: switching to the cloud
+                // part-way through a slow on-device build is the main reason to
+                // reach for this, and rebuilding cancels the in-flight task first.
+                Button("Re-index with \(workspace.cloudReindexVendor)") {
+                    workspace.rebuildReferenceIndex(usingCloud: true)
                 }
                 .disabled(
                     workspace.pdfDocument == nil
-                        || !workspace.canRebuildReferenceIndexWithGemini
+                        || !workspace.canRebuildReferenceIndexWithCloud
                 )
 
                 Button("Reset All Reference Indexes…") {

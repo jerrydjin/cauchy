@@ -30,11 +30,13 @@ enum ModelTier: String, Hashable, CaseIterable, Sendable {
 struct AssistantModel: Identifiable, Hashable, Sendable {
     /// Sent verbatim as the CLI's `--model` argument, or used as the API model
     /// name. Prefer a vendor *alias* (`opus`) over a pinned build id
-    /// (`claude-opus-4-8`): an alias follows the vendor's newest release, so
+    /// (`claude-opus-5`): an alias follows the vendor's newest release, so
     /// this catalog cannot go stale between app builds.
     let id: String
-    /// Deliberately version-free where the id is an alias — the alias already
-    /// means "the current one".
+    /// Carries the generation the row currently resolves to, so a reader can
+    /// tell Opus 5 from Opus 4.8 without leaving the picker. Where the id is an
+    /// alias the number is cosmetic — the alias still follows the vendor — so
+    /// it wants a bump when a new generation ships.
     let name: String
     let tier: ModelTier
     /// Never shown as a row subtitle — the picker stays name-only and surfaces
@@ -51,7 +53,7 @@ enum ConnectorAccess: Equatable, Sendable {
     case cliSignIn(binary: String, install: String, signIn: String)
     /// A key the user pastes into Settings, stored in the Keychain and billed
     /// to their own cloud account.
-    case apiKey
+    case apiKey(CloudAPIProvider)
 }
 
 /// Which model an ask should use within a connector.
@@ -78,7 +80,11 @@ enum AssistantConnectorID: String, CaseIterable, Identifiable, Hashable, Sendabl
     case claudeCode
     case codex
     case antigravity
+    // The BYOK connectors. `gemini` keeps its original raw value so a stored
+    // selection or model choice from before the other two existed still reads.
     case gemini
+    case anthropicAPI
+    case openaiAPI
 
     var id: String { rawValue }
 
@@ -106,6 +112,11 @@ struct AssistantConnector: Identifiable, Sendable {
     /// of its own, unlike the connectors that ride a subscription the user
     /// already pays for.
     let isAdvanced: Bool
+}
+
+extension AssistantConnectorID {
+    /// The BYOK connectors, in the order Settings lists them.
+    static let byok: [AssistantConnectorID] = CloudAPIProvider.allCases.map(\.connectorID)
 }
 
 extension AssistantConnector {
@@ -146,6 +157,12 @@ extension AssistantConnector {
         return nil
     }
 
+    /// The vendor whose key this connector needs, nil for the rest.
+    var apiProvider: CloudAPIProvider? {
+        if case .apiKey(let provider) = access { return provider }
+        return nil
+    }
+
     /// One line telling the user how to make this connector work.
     var setupHint: String {
         switch access {
@@ -153,8 +170,8 @@ extension AssistantConnector {
             "Turn on Apple Intelligence in System Settings."
         case .cliSignIn(_, let install, let signIn):
             "\(install), then \(signIn.prefix(1).lowercased() + signIn.dropFirst())."
-        case .apiKey:
-            "Add a Gemini API key in Settings."
+        case .apiKey(let provider):
+            "Add your \(provider.vendor) API key in Settings."
         }
     }
 
@@ -173,7 +190,8 @@ extension AssistantConnector {
     /// Connectors offered as first-class choices: they run on hardware or a
     /// subscription the user already has.
     static var primary: [AssistantConnector] { all.filter { !$0.isAdvanced } }
-    static var advanced: [AssistantConnector] { all.filter(\.isAdvanced) }
+    /// The BYOK connectors, listed in the same order as the Settings key rows.
+    static var advanced: [AssistantConnector] { AssistantConnectorID.byok.map(\.connector) }
 
     static func `for`(_ id: AssistantConnectorID) -> AssistantConnector {
         switch id {
@@ -203,11 +221,13 @@ extension AssistantConnector {
                     signIn: "Run `claude` in Terminal and log in"
                 ),
                 // Aliases, not build ids: `opus` always resolves to the newest
-                // Opus the installed CLI knows about.
+                // Opus the installed CLI knows about. Only the displayed
+                // numbers date, and only cosmetically.
                 models: [
-                    AssistantModel(id: "opus", name: "Opus", tier: .max, blurb: "Deepest reasoning on hard proofs"),
-                    AssistantModel(id: "sonnet", name: "Sonnet", tier: .balanced, blurb: "Strong at everyday mathematics"),
-                    AssistantModel(id: "haiku", name: "Haiku", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "fable", name: "Fable 5", tier: .max, blurb: "Most capable, for the hardest proofs"),
+                    AssistantModel(id: "opus", name: "Opus 5", tier: .max, blurb: "Deep reasoning on hard proofs"),
+                    AssistantModel(id: "sonnet", name: "Sonnet 5", tier: .balanced, blurb: "Strong at everyday mathematics"),
+                    AssistantModel(id: "haiku", name: "Haiku 4.5", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: false
@@ -254,6 +274,46 @@ extension AssistantConnector {
                 isAdvanced: false
             )
 
+        case .anthropicAPI:
+            AssistantConnector(
+                id: .anthropicAPI,
+                name: "Anthropic API",
+                vendor: "Anthropic",
+                symbol: "asterisk",
+                tagline: "Direct API access. Needs your own key and billing.",
+                access: .apiKey(.anthropic),
+                // Fixed ids with no date suffix, checked against
+                // platform.claude.com/docs/en/about-claude/models/overview
+                // (August 2026). The API rejects an unknown name outright, so
+                // these need a manual bump when the line-up moves.
+                models: [
+                    AssistantModel(id: "claude-opus-5", name: "Opus 5", tier: .max, blurb: "Deep reasoning on hard proofs"),
+                    AssistantModel(id: "claude-sonnet-5", name: "Sonnet 5", tier: .balanced, blurb: "Strong at everyday mathematics"),
+                    AssistantModel(id: "claude-haiku-4-5", name: "Haiku 4.5", tier: .fast, blurb: "Quickest replies"),
+                ],
+                noModelsNote: nil,
+                isAdvanced: true
+            )
+
+        case .openaiAPI:
+            AssistantConnector(
+                id: .openaiAPI,
+                name: "OpenAI API",
+                vendor: "OpenAI",
+                symbol: "circle.hexagongrid",
+                tagline: "Direct API access. Needs your own key and billing.",
+                access: .apiKey(.openai),
+                // Pinned ids, like the Codex catalog above: OpenAI publishes no
+                // alias that follows the newest release.
+                models: [
+                    AssistantModel(id: "gpt-5.6-sol", name: "GPT-5.6 Sol", tier: .max, blurb: "Most capable"),
+                    AssistantModel(id: "gpt-5.6-terra", name: "GPT-5.6 Terra", tier: .balanced, blurb: "Balanced speed and depth"),
+                    AssistantModel(id: "gpt-5.6-luna", name: "GPT-5.6 Luna", tier: .fast, blurb: "Quickest replies"),
+                ],
+                noModelsNote: nil,
+                isAdvanced: true
+            )
+
         case .gemini:
             AssistantConnector(
                 id: .gemini,
@@ -261,16 +321,16 @@ extension AssistantConnector {
                 vendor: "Google",
                 symbol: "sparkle",
                 tagline: "Direct API access. Needs your own key and billing.",
-                access: .apiKey,
+                access: .apiKey(.gemini),
                 // The API rejects an unknown model name outright, and Google
                 // publishes no documented `-latest` alias per variant, so these
                 // are pinned ids checked against ai.google.dev/gemini-api/docs/models
                 // (August 2026) and need a manual bump when the line-up moves.
                 models: [
                     AssistantModel(id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", tier: .max, blurb: "Most capable (preview)"),
-                    AssistantModel(id: "gemini-3.6-flash", name: "Gemini 3.6 Flash", tier: .balanced, blurb: "Newest stable Flash"),
-                    AssistantModel(id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", tier: .balanced, blurb: "Strong at agentic and coding work"),
-                    AssistantModel(id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "gemini-3.7-flash", name: "Gemini 3.7 Flash", tier: .balanced, blurb: "Newest stable Flash"),
+                    AssistantModel(id: "gemini-3.6-flash", name: "Gemini 3.6 Flash", tier: .balanced, blurb: "The Flash before it"),
+                    AssistantModel(id: "gemini-3.7-flash-lite", name: "Gemini 3.7 Flash-Lite", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: true

@@ -3,6 +3,13 @@ import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import MathBackground from "@/components/MathBackground";
 
+const DOWNLOAD_URL =
+  "https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg";
+const REPO_URL = "https://github.com/jerrydjin/cauchy";
+
+const inline =
+  "text-primary underline underline-offset-4 decoration-secondary/40 hover:decoration-primary transition-colors";
+
 export default function Home() {
   return (
     <>
@@ -12,28 +19,50 @@ export default function Home() {
       </div>
       {/* Hero Section */}
       <section className="w-full pt-20 pb-16 px-6 flex flex-col items-center text-center relative z-10">
-        
+
         <div className="relative z-10 w-full flex flex-col items-center">
-          
+
           <h1 className="text-[64px] sm:text-[80px] lg:text-[100px] font-medium tracking-[-0.03em] leading-[1.05] text-primary max-w-[1000px] mb-4">
             A PDF reader that <br className="hidden sm:block"/>talks back.
           </h1>
-          
+
           <p className="text-[22px] sm:text-[28px] text-secondary max-w-3xl mb-12 font-normal tracking-[-0.01em]">
             Built for dense mathematics papers. Highlight <br className="hidden sm:block"/>equations to ask your AI assistant questions.
           </p>
-          
-          <div className="flex flex-col sm:flex-row items-center gap-4 mb-20">
+
+          <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
             <Link
-              href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg"
+              href={DOWNLOAD_URL}
               className="w-full sm:w-auto h-12 flex items-center justify-center bg-accent text-accent-text px-8 rounded-md text-[16px] font-medium whitespace-nowrap hover:bg-accent-hover transition-colors"
             >
               Download for macOS
             </Link>
-            <div className="w-full sm:w-auto h-12 flex items-center justify-center bg-card text-secondary px-6 rounded-md font-sans font-medium text-[14px]">
-              brew install --cask cauchy
-            </div>
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto h-12 flex items-center justify-center gap-1.5 bg-card text-primary px-6 rounded-md text-[16px] font-medium hover:bg-black/5 transition-colors"
+            >
+              View the source <ArrowUpRight className="w-4 h-4" />
+            </a>
           </div>
+
+          <p className="text-[14px] text-secondary mb-20">
+            Free. Requires macOS 27 (Golden Gate) or later; the first launch needs Open
+            Anyway ·{" "}
+            <Link href="/setup" className={inline}>
+              installation notes
+            </Link>{" "}
+            ·{" "}
+            <a
+              href="https://github.com/jerrydjin/cauchy/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={inline}
+            >
+              all releases
+            </a>
+          </p>
 
           {/* Hero Image / App Mockup Area */}
           <div className="w-full max-w-[1200px] bg-card rounded-3xl flex items-center justify-center overflow-hidden relative">
@@ -45,7 +74,7 @@ export default function Home() {
       {/* Features Grid */}
       <section className="w-full py-24 sm:py-32 px-6 bg-transparent relative z-10">
         <div className="max-w-[1400px] mx-auto">
-          
+
           <div className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div>
               <h2 className="text-[40px] sm:text-[56px] font-medium tracking-[-0.03em] leading-[1.1] text-primary">
@@ -57,27 +86,39 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex gap-4 mb-12">
-            <Link href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg" className="bg-accent text-accent-text px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-accent-hover transition-colors">
+          <div className="flex flex-wrap gap-4 mb-12">
+            <Link href={DOWNLOAD_URL} className="bg-accent text-accent-text px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-accent-hover transition-colors">
               Download App
             </Link>
             <Link href="/setup" className="bg-card text-primary px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-black/5 transition-colors">
-              Read Documentation
+              Setup Guide
             </Link>
+            <a
+              href={`${REPO_URL}#features`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-card text-primary px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-black/5 transition-colors flex items-center gap-1.5"
+            >
+              Read the README <ArrowUpRight className="w-4 h-4" />
+            </a>
           </div>
 
           {/* Grid Layout mimicking Ramp */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* Large Card 1 */}
             <div className="bg-card rounded-3xl p-12 min-h-[500px] flex flex-col relative overflow-hidden group">
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary max-w-[80%] z-10 mb-4">
                 <span className="text-primary">Highlight & Chat</span><br/> Ask questions directly in context
               </h3>
               <p className="text-[16px] text-secondary z-10 mb-8 max-w-[80%] leading-relaxed">
-                Highlight any text, equation, or drag a region to capture a diagram. Cauchy opens a thread directly tied to that spot, so your AI assistant knows exactly what you're looking at.
+                Select a line of text or drag a box around a figure. Cauchy saves the
+                highlight and opens a thread pinned to that spot, and sends the assistant
+                the passage, the text around it, and the page it came from. Threads are
+                saved with the document and get a title of their own once the first answer
+                lands.
               </p>
-              
+
               {/* Simple Chat UI Mockup */}
               <div className="mt-auto bg-background rounded-2xl p-6 w-[90%] mx-auto z-10 border border-border/50">
                 <div className="w-full flex justify-end mb-4">
@@ -99,9 +140,16 @@ export default function Home() {
                 <span className="text-primary">Reference Previews</span><br/> Never lose your place again
               </h3>
               <p className="text-[16px] text-secondary z-10 mb-8 max-w-[80%] leading-relaxed">
-                When an author references "Theorem 2.1" pages later, just hover over it. Cauchy generates an on-device index of all definitions, theorems, and equations, showing you a preview instantly.
+                When an author cites &ldquo;Theorem 2.1&rdquo; forty pages later, hover it.
+                Cauchy indexes the theorems, lemmas, propositions, corollaries, definitions,
+                examples and numbered equations in the document &mdash; on-device with{" "}
+                <a href="https://www.apple.com/apple-intelligence/" target="_blank" rel="noopener noreferrer" className={inline}>
+                  Apple Intelligence
+                </a>
+                , or with your Gemini key as a fallback &mdash; then caches the result so the
+                statement appears in place.
               </p>
-              
+
               {/* Abstract Reference Hover Mockup */}
               <div className="mt-auto bg-background rounded-2xl p-6 w-[85%] mx-auto z-10 border border-border/50">
                  <div className="text-secondary text-sm mb-3 leading-relaxed">
@@ -122,7 +170,12 @@ export default function Home() {
                 Native LaTeX rendering
               </h3>
               <p className="text-[16px] text-secondary max-w-[90%] leading-relaxed">
-                All assistant responses render mathematics natively using SwiftMath, meaning complex equations look perfect and scale beautifully without webviews.
+                Answers are typeset by{" "}
+                <a href="https://github.com/mgriebling/SwiftMath" target="_blank" rel="noopener noreferrer" className={inline}>
+                  SwiftMath
+                </a>
+                , a native math renderer &mdash; no webview, no MathJax, no layout jump while
+                a proof streams in.
               </p>
             </div>
 
@@ -132,37 +185,117 @@ export default function Home() {
                 On-device OCR for equations
               </h3>
               <p className="text-[16px] text-secondary max-w-[90%] leading-relaxed">
-                Drag a box over an equation and Cauchy uses Apple's Vision framework to extract the text, helping the AI understand non-selectable math formulas.
+                Drag a box over an equation the PDF stores as unselectable artwork. Apple&apos;s{" "}
+                <a href="https://developer.apple.com/documentation/vision" target="_blank" rel="noopener noreferrer" className={inline}>
+                  Vision
+                </a>{" "}
+                framework recognizes the text on your Mac, and Cauchy turns the result back
+                into LaTeX before the question goes out.
+              </p>
+            </div>
+
+            {/* Small Card 3 */}
+            <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
+              <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
+                Retrieval across the whole document
+              </h3>
+              <p className="text-[16px] text-secondary max-w-[90%] leading-relaxed">
+                An ask does not stop at the highlight. Cauchy pulls the exact statements a
+                question cites and the passages that match it, combining{" "}
+                <a href="https://en.wikipedia.org/wiki/Okapi_BM25" target="_blank" rel="noopener noreferrer" className={inline}>
+                  BM25
+                </a>{" "}
+                keyword search with on-device sentence embeddings, so page 12 can answer a
+                question you asked on page 200.
+              </p>
+            </div>
+
+            {/* Small Card 4 */}
+            <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
+              <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
+                A workspace, not a viewer
+              </h3>
+              <p className="text-[16px] text-secondary max-w-[90%] leading-relaxed">
+                Continuous, single-page and two-up layouts, a sidebar that switches between
+                thumbnails, table of contents and contact sheet, in-document find (⌘F), and a
+                dashboard of recent documents. Scroll position, highlights and threads are
+                restored per document.
               </p>
             </div>
 
           </div>
         </div>
       </section>
-      
+
       {/* Integrations & Setup */}
       <section className="w-full py-32 px-6 bg-background relative z-10">
         <div className="max-w-[1400px] mx-auto text-center">
-          <h2 className="text-[40px] sm:text-[56px] leading-[1.1] tracking-[-0.03em] font-medium text-primary mb-16">
+          <h2 className="text-[40px] sm:text-[56px] leading-[1.1] tracking-[-0.03em] font-medium text-primary mb-6">
             Bring your own intelligence.
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            <div className="bg-card p-12 rounded-3xl">
-              <h3 className="text-2xl font-medium text-primary mb-4">Claude Code & Codex</h3>
-              <p className="text-[16px] text-secondary leading-relaxed">
-                Cauchy automatically detects and uses your local CLI authentications. The app runs unsandboxed to seamlessly integrate with your terminal tools.
-              </p>
-            </div>
+          <p className="text-[18px] text-secondary max-w-2xl mx-auto mb-16">
+            Five places an answer can come from. Cauchy sells no tokens and resells no
+            plan &mdash; it uses the model you already pay for, or none at all.{" "}
+            <Link href="/setup" className={inline}>
+              See the setup guide
+            </Link>
+            .
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
             <div className="bg-card p-12 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">Apple Intelligence</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                Run models entirely on-device on macOS 27.0+. Your documents and queries never leave your Apple Silicon Mac.
+                The system model, running entirely on your Mac through the{" "}
+                <a href="https://developer.apple.com/documentation/foundationmodels" target="_blank" rel="noopener noreferrer" className={inline}>
+                  Foundation Models
+                </a>{" "}
+                framework. No key, no network, nothing to sign into. It is also what builds
+                the reference index by default.
+              </p>
+            </div>
+            <div className="bg-card p-12 rounded-3xl">
+              <h3 className="text-2xl font-medium text-primary mb-4">Claude Code</h3>
+              <p className="text-[16px] text-secondary leading-relaxed">
+                Your Anthropic subscription, through the{" "}
+                <a href="https://docs.claude.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer" className={inline}>
+                  claude
+                </a>{" "}
+                CLI you already signed into. Pick Fable, Opus, Sonnet or Haiku per thread.
+                Cauchy spawns the binary and never handles a credential.
+              </p>
+            </div>
+            <div className="bg-card p-12 rounded-3xl">
+              <h3 className="text-2xl font-medium text-primary mb-4">Codex</h3>
+              <p className="text-[16px] text-secondary leading-relaxed">
+                Your ChatGPT plan, through OpenAI&apos;s{" "}
+                <a href="https://github.com/openai/codex" target="_blank" rel="noopener noreferrer" className={inline}>
+                  Codex CLI
+                </a>
+                . Install it with <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">brew install codex</code>,
+                run <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">codex login</code> once, and choose a
+                GPT-5.6 tier in the picker.
+              </p>
+            </div>
+            <div className="bg-card p-12 rounded-3xl">
+              <h3 className="text-2xl font-medium text-primary mb-4">Antigravity</h3>
+              <p className="text-[16px] text-secondary leading-relaxed">
+                Your Google sign-in, through the{" "}
+                <a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer" className={inline}>
+                  agy
+                </a>{" "}
+                CLI. It takes no model flag, so the model stays whatever you set with{" "}
+                <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">/model</code> inside agy.
               </p>
             </div>
             <div className="bg-card p-12 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">Gemini API</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                Just drop in your Gemini API key in the settings to power your document queries directly through Google's models.
+                Direct API access with your own key from{" "}
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className={inline}>
+                  Google AI Studio
+                </a>
+                . The key is stored in your macOS Keychain and billed to your account; Pro,
+                Flash and Flash-Lite tiers are selectable.
               </p>
             </div>
           </div>
@@ -179,36 +312,56 @@ export default function Home() {
             <div className="bg-card p-10 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">What is Cauchy?</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                A native macOS app to open PDF documents, highlight text, and talk to an AI assistant about it. Perfect for dense technical textbooks and papers.
+                A native macOS app for reading PDFs: highlight a passage, ask about it, and
+                get an answer that renders real mathematics. Built for dense technical
+                textbooks, papers and problem sets.
               </p>
             </div>
             <div className="bg-card p-10 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">Where is my data stored?</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                100% locally on your machine in <code className="bg-[#E5E5E5] px-1.5 py-0.5 rounded text-[14px]">~/Library/Application Support/Cauchy/</code>.
+                On your machine only. Highlights, threads, viewport and thumbnails live in{" "}
+                <code className="bg-[#E5E5E5] px-1.5 py-0.5 rounded text-[14px]">~/Library/Application Support/Cauchy/workspaces/</code>,
+                and reference indexes in{" "}
+                <code className="bg-[#E5E5E5] px-1.5 py-0.5 rounded text-[14px]">…/Cauchy/reference-index/</code>.
               </p>
             </div>
             <div className="bg-card p-10 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">Does it upload my PDFs?</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                No. Cauchy never uploads your documents. If you use a cloud provider like Gemini or Claude, only your query and relevant snippets are sent.
+                No. The file itself never leaves your Mac. With a cloud provider, what goes
+                out is your question plus the passages retrieved for it; with Apple
+                Intelligence, nothing leaves at all.
               </p>
             </div>
             <div className="bg-card p-10 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">Why unsandboxed?</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                To utilize your locally installed terminal CLIs (like Claude Code), Cauchy needs to run outside the macOS App Sandbox.
+                The Claude Code, Codex and Antigravity connectors spawn CLIs installed in
+                your shell, which the{" "}
+                <a href={`${REPO_URL}#sandbox`} target="_blank" rel="noopener noreferrer" className={inline}>
+                  App Sandbox
+                </a>{" "}
+                forbids. That is also why Cauchy is not on the Mac App Store.
               </p>
             </div>
           </div>
-          <div className="mt-12 max-w-[1000px] mx-auto flex justify-center">
+          <div className="mt-12 max-w-[1000px] mx-auto flex flex-wrap justify-center gap-4">
             <Link href="/faq" className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors flex items-center gap-2 w-fit">
               Read all FAQs <ArrowUpRight className="w-4 h-4" />
             </Link>
+            <a
+              href={`${REPO_URL}/issues`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-card text-primary px-6 py-3 rounded-md text-[16px] font-medium hover:bg-black/5 transition-colors flex items-center gap-2 w-fit"
+            >
+              Ask on GitHub <ArrowUpRight className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </section>
-      
+
       {/* Secondary Hero */}
       <section className="w-full py-32 bg-background px-6 text-center flex flex-col items-center">
         <h2 className="text-[48px] sm:text-[64px] font-medium tracking-[-0.03em] leading-[1.1] text-primary max-w-[1000px] mb-2">
@@ -217,9 +370,21 @@ export default function Home() {
         <h2 className="text-[48px] sm:text-[64px] font-medium tracking-[-0.03em] leading-[1.1] text-secondary max-w-[1000px] mb-10">
           Understand proofs better.
         </h2>
-        <Link href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg" className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors mb-24">
+        <Link href={DOWNLOAD_URL} className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors mb-4">
           Download Cauchy
         </Link>
+        <p className="text-[14px] text-secondary mb-24">
+          Latest release notes on{" "}
+          <a
+            href={`${REPO_URL}/releases/latest`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={inline}
+          >
+            GitHub
+          </a>
+          .
+        </p>
       </section>
     </>
   );

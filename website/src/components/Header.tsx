@@ -8,7 +8,7 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-2">
             <span className="text-xl font-medium tracking-tight text-primary">cauchy</span>
           </Link>
-          
+
           <nav className="hidden lg:flex items-center gap-6 text-[15px] font-medium text-primary">
             <Link href="/setup" className="hover:opacity-60 transition-opacity flex items-center gap-1">
               Setup
@@ -16,12 +16,25 @@ export default function Header() {
             <Link href="/faq" className="hover:opacity-60 transition-opacity flex items-center gap-1">
               FAQ
             </Link>
-            <Link href="https://github.com/jerrydjin/cauchy" className="hover:opacity-60 transition-opacity">
+            <a
+              href="https://github.com/jerrydjin/cauchy/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:opacity-60 transition-opacity"
+            >
+              Releases
+            </a>
+            <a
+              href="https://github.com/jerrydjin/cauchy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:opacity-60 transition-opacity"
+            >
               GitHub
-            </Link>
+            </a>
           </nav>
         </div>
-        
+
         <div className="flex items-center gap-6">
           <Link
             href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg"

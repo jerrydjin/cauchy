@@ -14,9 +14,41 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://cauchy-wine.vercel.app";
+const DESCRIPTION =
+  "A native macOS PDF reader for mathematics. Highlight a theorem, ask about it, and get answers with real LaTeX — powered by Apple Intelligence on-device, your Claude Code, Codex or Antigravity CLI, or a Gemini key.";
+
 export const metadata: Metadata = {
-  title: "Cauchy | Intelligence Amplified",
-  description: "Next generation reading assistant and document intelligence.",
+  metadataBase: new URL(SITE_URL),
+  title: "Cauchy — a PDF reader that talks back",
+  description: DESCRIPTION,
+  applicationName: "Cauchy",
+  keywords: [
+    "PDF reader",
+    "macOS",
+    "mathematics",
+    "LaTeX",
+    "Apple Intelligence",
+    "Claude Code",
+    "Codex",
+    "Gemini",
+    "papers",
+    "theorems",
+  ],
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "Cauchy",
+    title: "Cauchy — a PDF reader that talks back",
+    description: DESCRIPTION,
+    images: [{ url: "/app-screenshot.png", width: 2400, height: 1600, alt: "Cauchy reading a mathematics paper" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cauchy — a PDF reader that talks back",
+    description: DESCRIPTION,
+    images: ["/app-screenshot.png"],
+  },
 };
 
 export default function RootLayout({

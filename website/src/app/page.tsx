@@ -48,8 +48,8 @@ export default function Home() {
           </div>
 
           <p className="text-[14px] text-secondary mb-20">
-            Free. Requires macOS 27 (Golden Gate) or later; the first launch needs Open
-            Anyway ·{" "}
+            Free and MIT licensed. Requires macOS 27 (Golden Gate) or later; the first
+            launch needs Open Anyway ·{" "}
             <Link href="/setup" className={inline}>
               installation notes
             </Link>{" "}

@@ -193,7 +193,11 @@ export default function FAQPage() {
 
         <Q q="Is it open source? Can I build it myself?">
           <p>
-            The source is public at{" "}
+            Yes, under the{" "}
+            <a href={`${REPO_URL}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer" className={inline}>
+              MIT license
+            </a>
+            , at{" "}
             <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={inline}>
               github.com/jerrydjin/cauchy
             </a>

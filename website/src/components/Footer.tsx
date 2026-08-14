@@ -53,6 +53,7 @@ export default function Footer() {
             <span className="text-[13px] font-semibold text-white mb-2">Legal</span>
             <Link href="/legal/privacy" className={linkClass}>Privacy Policy</Link>
             <Link href="/legal/terms" className={linkClass}>Terms of Use</Link>
+            <External href={`${REPO_URL}/blob/main/LICENSE`}>MIT License</External>
           </div>
 
         </div>
@@ -63,7 +64,7 @@ export default function Footer() {
             <Link href="/legal/privacy" className="hover:text-white">Privacy Policy</Link>
           </div>
           <div className="text-[12px] text-[#A8A29E]">
-            A native macOS reader for mathematics. Source at{" "}
+            A native macOS reader for mathematics. MIT licensed, source at{" "}
             <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white underline underline-offset-4">
               jerrydjin/cauchy
             </a>

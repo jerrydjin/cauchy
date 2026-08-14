@@ -32,9 +32,13 @@ export default function TermsPage() {
           . Its source is published at{" "}
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={inline}>
             github.com/jerrydjin/cauchy
+          </a>{" "}
+          under the{" "}
+          <a href={`${REPO_URL}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer" className={inline}>
+            MIT license
           </a>
-          . No license file has been added to the repository yet, so ordinary copyright
-          applies to reuse of the code; downloading and using the app is free regardless.
+          , which governs any reuse of the code and is the source of the warranty
+          disclaimer below.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">2. No Warranties</h2>

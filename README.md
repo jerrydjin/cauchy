@@ -2,6 +2,8 @@
 
 Native macOS PDF reader for dense technical textbooks, mathematics papers, and academic problem sets.
 
+MIT licensed — see [LICENSE](LICENSE).
+
 ## Requirements
 
 - macOS 27.0 (Golden Gate) or later

@@ -53,7 +53,7 @@ final class HighlightStore {
             highlight.selectedText = thread.selectedText
             highlight.surroundingText = thread.surroundingText
             highlight.bounds = thread.bounds ?? highlight.bounds
-            highlight.lineBounds = thread.lineBounds ?? highlight.lineBounds
+            highlight.lines = thread.lines ?? highlight.lines
             highlight.messages = thread.messages
             highlight.updatedAt = now
             highlights[existingIndex] = highlight
@@ -64,7 +64,7 @@ final class HighlightStore {
             id: thread.anchorID,
             pageIndex: thread.pageIndex,
             bounds: thread.bounds,
-            lineBounds: thread.lineBounds,
+            lines: thread.lines,
             selectedText: thread.selectedText,
             surroundingText: thread.surroundingText,
             messages: thread.messages,

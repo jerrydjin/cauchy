@@ -53,7 +53,7 @@ final class SelectionThreadViewModel {
             activeThread?.selectedText = context.selectedText
             activeThread?.surroundingText = context.surroundingText
             activeThread?.bounds = context.bounds
-            activeThread?.lineBounds = context.lineBounds
+            activeThread?.lines = context.lines
             return
         }
 
@@ -62,7 +62,7 @@ final class SelectionThreadViewModel {
         }) {
             restoreThread(from: existing, documentTitle: documentTitle)
             activeThread?.bounds = context.bounds ?? existing.bounds
-            activeThread?.lineBounds = context.lineBounds ?? existing.lineBounds
+            activeThread?.lines = context.lines ?? existing.lines
             activeThread?.surroundingText = context.surroundingText
             return
         }
@@ -74,7 +74,7 @@ final class SelectionThreadViewModel {
             selectedText: context.selectedText,
             surroundingText: context.surroundingText,
             bounds: context.bounds,
-            lineBounds: context.lineBounds,
+            lines: context.lines,
             messages: [],
             isPersisted: false
         )
@@ -94,7 +94,7 @@ final class SelectionThreadViewModel {
             selectedText: highlight.selectedText,
             surroundingText: highlight.surroundingText,
             bounds: highlight.bounds,
-            lineBounds: highlight.lineBounds,
+            lines: highlight.lines,
             messages: highlight.messages,
             isPersisted: true
         )

@@ -1,10 +1,20 @@
 import Foundation
 
+/// One painted line of a highlight, carrying the page it falls on. A selection
+/// dragged across a page break puts its lines on more than one page, so a line
+/// cannot inherit the highlight's anchor page.
+struct HighlightLine: Codable, Equatable, Sendable {
+    var pageIndex: Int
+    var rect: NormalizedRect
+}
+
 struct Highlight: Identifiable, Codable, Equatable, Sendable {
     var id: UUID
+    /// The page the highlight starts on — where the sidebar files it and where
+    /// navigation lands. `lines` is what says where it is actually painted.
     var pageIndex: Int
     var bounds: NormalizedRect?
-    var lineBounds: [NormalizedRect]?
+    var lines: [HighlightLine]?
     var selectedText: String
     var surroundingText: String
     var label: String
@@ -22,7 +32,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         id: UUID = UUID(),
         pageIndex: Int,
         bounds: NormalizedRect? = nil,
-        lineBounds: [NormalizedRect]? = nil,
+        lines: [HighlightLine]? = nil,
         selectedText: String,
         surroundingText: String? = nil,
         label: String? = nil,
@@ -36,7 +46,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         self.id = id
         self.pageIndex = pageIndex
         self.bounds = bounds
-        self.lineBounds = lineBounds
+        self.lines = lines
         self.selectedText = selectedText
         self.surroundingText = surroundingText ?? selectedText
         self.label = label ?? Self.defaultLabel(from: selectedText)
@@ -75,17 +85,26 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, pageIndex, bounds, lineBounds, selectedText, surroundingText, label, title, note, messages
+        case id, pageIndex, bounds, lines, selectedText, surroundingText, label, title, note, messages
         case isPinned, createdAt, updatedAt
         case excerpt
+        /// Pre-cross-page line rects, all of them implicitly on `pageIndex`.
+        case lineBounds
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
-        pageIndex = try container.decode(Int.self, forKey: .pageIndex)
+        let decodedPageIndex = try container.decode(Int.self, forKey: .pageIndex)
+        pageIndex = decodedPageIndex
         bounds = try container.decodeIfPresent(NormalizedRect.self, forKey: .bounds)
-        lineBounds = try container.decodeIfPresent([NormalizedRect].self, forKey: .lineBounds)
+        if let lines = try container.decodeIfPresent([HighlightLine].self, forKey: .lines) {
+            self.lines = lines
+        } else if let legacy = try container.decodeIfPresent([NormalizedRect].self, forKey: .lineBounds) {
+            self.lines = legacy.map { HighlightLine(pageIndex: decodedPageIndex, rect: $0) }
+        } else {
+            lines = nil
+        }
         label = try container.decode(String.self, forKey: .label)
         title = try container.decodeIfPresent(String.self, forKey: .title)
         note = try container.decodeIfPresent(String.self, forKey: .note)
@@ -109,7 +128,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         try container.encode(id, forKey: .id)
         try container.encode(pageIndex, forKey: .pageIndex)
         try container.encodeIfPresent(bounds, forKey: .bounds)
-        try container.encodeIfPresent(lineBounds, forKey: .lineBounds)
+        try container.encodeIfPresent(lines, forKey: .lines)
         try container.encode(selectedText, forKey: .selectedText)
         try container.encode(surroundingText, forKey: .surroundingText)
         try container.encode(label, forKey: .label)

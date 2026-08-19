@@ -165,9 +165,12 @@ enum PDFTextExtractor {
         }
 
         let pageIndex = document.index(for: page)
-        let surroundingText = expandContext(selectedText: selectedText, on: page)
+        // A selection dragged across a page break spans several pages; the
+        // context around it is the running text of all of them.
+        let pages = selection.pages.isEmpty ? [page] : selection.pages
+        let surroundingText = expandContext(selectedText: selectedText, on: pages)
         let bounds = normalizedBounds(for: selection, page: page, pdfView: pdfView)
-        let lineBounds = normalizedLineBounds(for: selection, page: page, pdfView: pdfView)
+        let lines = normalizedLines(for: selection, in: document, pdfView: pdfView)
         let fingerprint = fingerprint(pageIndex: pageIndex, selectedText: selectedText)
 
         return TextSelectionContext(
@@ -176,7 +179,7 @@ enum PDFTextExtractor {
             surroundingText: surroundingText,
             fingerprint: fingerprint,
             bounds: bounds,
-            lineBounds: lineBounds
+            lines: lines
         )
     }
 
@@ -193,23 +196,32 @@ enum PDFTextExtractor {
         return nil
     }
 
+    /// Each line of the selection, measured against the page it actually falls
+    /// on. Taking every line's bounds from one page would drop the lines on the
+    /// far side of a page break, which is why the page is read per line.
     @MainActor
-    private static func normalizedLineBounds(
+    private static func normalizedLines(
         for selection: PDFSelection,
-        page: PDFPage,
+        in document: PDFDocument,
         pdfView: PDFView
-    ) -> [NormalizedRect]? {
+    ) -> [HighlightLine]? {
         let lineSelections = selection.selectionsByLine()
         guard lineSelections.count > 1 else { return nil }
 
-        let rects = lineSelections.compactMap { lineSelection -> NormalizedRect? in
+        let lines = lineSelections.compactMap { lineSelection -> HighlightLine? in
+            guard let page = lineSelection.pages.first else { return nil }
             let lineBounds = lineSelection.bounds(for: page)
             guard !lineBounds.isEmpty else { return nil }
             let rectInPDFView = pdfView.convert(lineBounds, from: page)
-            return CoordinateMapper.normalizedRect(from: rectInPDFView, in: pdfView, page: page)
+            guard let rect = CoordinateMapper.normalizedRect(
+                from: rectInPDFView,
+                in: pdfView,
+                page: page
+            ) else { return nil }
+            return HighlightLine(pageIndex: document.index(for: page), rect: rect)
         }
 
-        return rects.isEmpty ? nil : rects
+        return lines.isEmpty ? nil : lines
     }
 
     @MainActor
@@ -225,10 +237,17 @@ enum PDFTextExtractor {
     }
 
     static func expandContext(selectedText: String, on page: PDFPage, padding: Int = 400) -> String {
-        let pageBounds = page.bounds(for: .mediaBox)
-        guard let fullSelection = page.selection(for: pageBounds),
-              let fullText = fullSelection.string,
-              !fullText.isEmpty else {
+        expandContext(selectedText: selectedText, on: [page], padding: padding)
+    }
+
+    /// Widens a passage to the paragraph (or `padding` characters) around it.
+    /// Several pages read as one running text, so a passage straddling a page
+    /// break still finds its surroundings on both sides.
+    static func expandContext(selectedText: String, on pages: [PDFPage], padding: Int = 400) -> String {
+        let fullText = pages
+            .compactMap { page in page.selection(for: page.bounds(for: .mediaBox))?.string }
+            .joined(separator: "\n")
+        guard !fullText.isEmpty else {
             return selectedText
         }
 

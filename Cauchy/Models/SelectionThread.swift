@@ -25,7 +25,7 @@ struct SelectionThread: Equatable, Sendable {
     var selectedText: String
     var surroundingText: String
     var bounds: NormalizedRect?
-    var lineBounds: [NormalizedRect]?
+    var lines: [HighlightLine]?
     var messages: [ThreadMessage]
     var isPersisted: Bool
     var streamingAssistantText: String?
@@ -36,7 +36,7 @@ struct SelectionThread: Equatable, Sendable {
         selectedText: String,
         surroundingText: String,
         bounds: NormalizedRect? = nil,
-        lineBounds: [NormalizedRect]? = nil,
+        lines: [HighlightLine]? = nil,
         messages: [ThreadMessage] = [],
         isPersisted: Bool = false,
         streamingAssistantText: String? = nil
@@ -46,7 +46,7 @@ struct SelectionThread: Equatable, Sendable {
         self.selectedText = selectedText
         self.surroundingText = surroundingText
         self.bounds = bounds
-        self.lineBounds = lineBounds
+        self.lines = lines
         self.messages = messages
         self.isPersisted = isPersisted
         self.streamingAssistantText = streamingAssistantText
@@ -69,7 +69,7 @@ struct TextSelectionContext: Sendable, Equatable {
     let surroundingText: String
     let fingerprint: String
     let bounds: NormalizedRect?
-    let lineBounds: [NormalizedRect]?
+    let lines: [HighlightLine]?
 
     var anchor: TextAnchor {
         TextAnchor(

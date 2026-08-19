@@ -286,6 +286,7 @@ final class WorkspaceViewModel {
         let highlight = highlightStore.upsertFromThread(thread)
         selectHighlight(highlight)
         persistWorkspace()
+        nameThreadIfNeeded(highlight)
     }
 
     func saveRegionAsHighlight() async {
@@ -302,7 +303,10 @@ final class WorkspaceViewModel {
             }
         }
 
-        if selectedText.isEmpty {
+        // A region with no text behind it has nothing to name itself by, so it
+        // keeps its placeholder rather than asking a model to invent a subject.
+        let hasText = !selectedText.isEmpty
+        if !hasText {
             selectedText = "Region on page \(capture.pageIndex + 1)"
         }
 
@@ -317,6 +321,9 @@ final class WorkspaceViewModel {
         highlightStore.pendingRegionCapture = nil
         selectHighlight(highlight)
         persistWorkspace()
+        if hasText {
+            nameThreadIfNeeded(highlight)
+        }
     }
 
     func selectHighlight(_ highlight: Highlight) {
@@ -404,15 +411,24 @@ final class WorkspaceViewModel {
 
     // MARK: - Thread names
 
-    /// Asks the model for a name once a thread has its first answer. Silent and
+    /// Asks the model for a name once a thread has its first answer, or as soon
+    /// as a highlight is saved with nothing asked about it. Silent and
     /// best-effort: a thread that can't be named keeps showing the question it
     /// started with, which is what the list did before.
     private func nameThreadIfNeeded(_ highlight: Highlight) {
         guard highlight.title == nil,
-              highlight.messages.contains(where: { $0.role == .assistant }),
+              Self.isReadyToName(highlight),
               titleTasks[highlight.id] == nil,
               ThreadTitleGenerator.isAvailable else { return }
         startNaming(highlight)
+    }
+
+    /// A thread is worth naming once it has an answer, or when it has no
+    /// conversation at all — a highlight the reader only saved. A thread whose
+    /// question is still in flight is left alone: the answer names it in a
+    /// moment, and naming it twice would rewrite the row under the reader.
+    private static func isReadyToName(_ highlight: Highlight) -> Bool {
+        highlight.messages.isEmpty || highlight.messages.contains { $0.role == .assistant }
     }
 
     /// Re-names a thread from scratch — the menu escape hatch for a title that
@@ -464,7 +480,7 @@ final class WorkspaceViewModel {
         guard ThreadTitleGenerator.isAvailable else { return }
 
         let pending = highlightStore.highlights
-            .filter { $0.title == nil && $0.messages.contains { $0.role == .assistant } }
+            .filter { $0.title == nil && Self.isReadyToName($0) }
             .sorted { $0.updatedAt > $1.updatedAt }
             .prefix(30)
             .map(\.id)

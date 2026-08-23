@@ -12,10 +12,11 @@ enum AssistantResponseNormalizer {
     )
 
     static func normalize(_ content: String) -> String {
-        // This runs on every streamed partial; skip the regex passes unless the
-        // text can actually contain something the rules below rewrite.
-        guard content.contains("\r") || content.contains("```")
-            || content.contains("\\(") || content.contains("\\[") else {
+        // This runs on every streamed partial; skip the passes below unless the
+        // text can actually contain something they rewrite. A lone backslash is
+        // the cheapest test that covers both the \( \[ delimiters and any bare
+        // LaTeX command that needs wrapping.
+        guard content.contains("\r") || content.contains("```") || content.contains("\\") else {
             return content
         }
 
@@ -25,6 +26,8 @@ enum AssistantResponseNormalizer {
         text = stripCodeFences(text)
         text = replaceInlineDelimiters(text)
         text = replaceDisplayDelimiters(text)
+        // Last, so it only ever sees what the delimiter passes left behind.
+        text = LaTeXNormalizer.wrapBareMath(text)
         return text
     }
 

@@ -7,7 +7,19 @@ final class SelectionThreadViewModel {
     var activeThread: SelectionThread?
     var isResponding = false
 
-    private var assistant: any ReadingAssistantProtocol
+    /// Built on first use, not at init. Making one reads the user's connector
+    /// choice and, for a BYOK provider, their Keychain — and a workspace is
+    /// constructed while its window is being put on screen, so doing it eagerly
+    /// blocks the first window behind a Keychain call (and, when the binary's
+    /// signature has changed, behind an authorization prompt).
+    private var loadedAssistant: (any ReadingAssistantProtocol)?
+
+    private var assistant: any ReadingAssistantProtocol {
+        if let loadedAssistant { return loadedAssistant }
+        let made = ReadingAssistantFactory.makeAssistant()
+        loadedAssistant = made
+        return made
+    }
     /// Injected by WorkspaceViewModel once the background build finishes; nil
     /// until then (asks simply run without retrieved passages).
     var documentIndex: (any DocumentIndexProtocol)?
@@ -16,8 +28,10 @@ final class SelectionThreadViewModel {
     /// WorkspaceViewModel (the same instance is cleared/refilled per document).
     var referenceIndex: DocumentReferenceIndex?
 
-    init(assistant: any ReadingAssistantProtocol = ReadingAssistantFactory.makeAssistant()) {
-        self.assistant = assistant
+    /// `assistant` is for tests and previews; production leaves it nil so the
+    /// real one is made the first time it is actually needed.
+    init(assistant: (any ReadingAssistantProtocol)? = nil) {
+        self.loadedAssistant = assistant
     }
 
     var hasSelection: Bool {
@@ -28,7 +42,7 @@ final class SelectionThreadViewModel {
     /// restored onto the new assistant so a mid-thread provider change keeps
     /// the passage context instead of falling back to a generic prompt.
     func reloadAssistant(documentTitle: String? = nil) {
-        assistant = ReadingAssistantFactory.makeAssistant()
+        loadedAssistant = ReadingAssistantFactory.makeAssistant()
         guard let thread = activeThread, let documentTitle else { return }
         let readingContext = ReadingContextBuilder.from(
             anchor: thread.anchor,

@@ -1,0 +1,54 @@
+name: Build and Test
+
+# Nothing verified `main` until a release tag was pushed, which meant a broken
+# build could sit on the branch for days. This runs on every push and PR.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: xcode-27
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Local Packages
+        run: |
+          # SwiftMath is a local package reference, not a submodule.
+          mkdir -p Packages
+          rm -rf Packages/SwiftMath
+          git clone --depth 1 --branch 1.7.3 https://github.com/mgriebling/SwiftMath.git Packages/SwiftMath
+
+      - name: Generate Xcode Project
+        run: python3 scripts/generate_xcodeproj.py
+
+      # The project file is generated from the source tree, so a stale checked-in
+      # copy is a real failure: it means someone added a file without rerunning
+      # the generator, and Xcode would not build that file.
+      - name: Check the committed project file is up to date
+        run: |
+          if ! git diff --quiet -- Cauchy.xcodeproj; then
+            echo "::error::Cauchy.xcodeproj is out of date. Run scripts/generate_xcodeproj.py and commit the result."
+            git diff --stat -- Cauchy.xcodeproj
+            exit 1
+          fi
+
+      - name: Build and Test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Cauchy.xcodeproj \
+            -scheme Cauchy \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO

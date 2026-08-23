@@ -30,8 +30,19 @@ struct SettingsView: View {
         }
     }
 
+    @State private var reopensLastDocument = WorkspaceViewModel.reopensLastDocumentAtLaunch
+
     var body: some View {
         Form {
+            Section {
+                Toggle("Reopen the last document at launch", isOn: $reopensLastDocument)
+                    .onChange(of: reopensLastDocument) { _, newValue in
+                        WorkspaceViewModel.reopensLastDocumentAtLaunch = newValue
+                    }
+            } header: {
+                Text("Reading")
+            }
+
             Section {
                 // Deliberately not a LabeledContent: its value slot swallows the
                 // menu's clicks and the picker never opens.

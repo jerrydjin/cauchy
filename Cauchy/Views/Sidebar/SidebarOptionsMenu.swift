@@ -54,6 +54,7 @@ struct SidebarOptionsMenu: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .help("Sidebar and page layout")
+        .accessibilityLabel("Sidebar and page layout")
     }
 
     private func sidebarMenuLabel(title: String, isSelected: Bool) -> some View {

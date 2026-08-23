@@ -18,6 +18,9 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
     var selectedText: String
     var surroundingText: String
     var label: String
+    /// The marker colour this highlight is painted in. Purely the reader's
+    /// own filing system — nothing in the app assigns meaning to a colour.
+    var color: HighlightColor
     /// A short name for the conversation, written by the model once the first
     /// answer lands. nil until then (and for threads that were never asked),
     /// where `displayName` falls back to the passage.
@@ -36,6 +39,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         selectedText: String,
         surroundingText: String? = nil,
         label: String? = nil,
+        color: HighlightColor = .default,
         title: String? = nil,
         note: String? = nil,
         messages: [ThreadMessage] = [],
@@ -50,6 +54,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         self.selectedText = selectedText
         self.surroundingText = surroundingText ?? selectedText
         self.label = label ?? Self.defaultLabel(from: selectedText)
+        self.color = color
         self.title = title
         self.note = note
         self.messages = messages
@@ -85,7 +90,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, pageIndex, bounds, lines, selectedText, surroundingText, label, title, note, messages
+        case id, pageIndex, bounds, lines, selectedText, surroundingText, label, color, title, note, messages
         case isPinned, createdAt, updatedAt
         case excerpt
         /// Pre-cross-page line rects, all of them implicitly on `pageIndex`.
@@ -106,6 +111,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
             lines = nil
         }
         label = try container.decode(String.self, forKey: .label)
+        color = try container.decodeIfPresent(HighlightColor.self, forKey: .color) ?? .default
         title = try container.decodeIfPresent(String.self, forKey: .title)
         note = try container.decodeIfPresent(String.self, forKey: .note)
         messages = try container.decodeIfPresent([ThreadMessage].self, forKey: .messages) ?? []
@@ -132,6 +138,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         try container.encode(selectedText, forKey: .selectedText)
         try container.encode(surroundingText, forKey: .surroundingText)
         try container.encode(label, forKey: .label)
+        try container.encode(color, forKey: .color)
         try container.encodeIfPresent(title, forKey: .title)
         try container.encodeIfPresent(note, forKey: .note)
         try container.encode(messages, forKey: .messages)

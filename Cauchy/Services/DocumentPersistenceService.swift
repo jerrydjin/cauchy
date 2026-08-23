@@ -184,6 +184,13 @@ actor DocumentPersistenceService {
         }
     }
 
+    /// Loads one workspace in full (highlights and every thread) by its id.
+    /// The summaries the dashboard lists deliberately omit all of that, so
+    /// library-wide search has to come back for it.
+    func loadWorkspace(id: UUID) -> PersistedWorkspace? {
+        persistedWorkspace(inDirectory: workspaceDirectory(for: id))
+    }
+
     /// Permanently removes a workspace directory (workspace.json, summary,
     /// thumbnails). Used by the dashboard's "Remove from Recents".
     func deleteWorkspace(id: UUID) throws {

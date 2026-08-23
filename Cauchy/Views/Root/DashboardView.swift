@@ -8,6 +8,10 @@ struct DashboardView: View {
     @State private var recentWorkspaces: [WorkspaceSummary] = []
     @State private var isHoveringDropZone = false
     @State private var workspacePendingRemoval: WorkspaceSummary?
+
+    @State private var searchText = ""
+    @State private var searchResults: [LibrarySearchResult] = []
+    @State private var isSearching = false
     
     let columns = [
         GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 24)
@@ -70,8 +74,12 @@ struct DashboardView: View {
                     return handleDrop(providers: providers)
                 }
                 
-                // Recents Grid
-                if !recentWorkspaces.isEmpty {
+                LibrarySearchField(text: $searchText)
+
+                if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+                    searchResultsSection
+                } else if !recentWorkspaces.isEmpty {
+                    // Recents grid
                     VStack(alignment: .leading, spacing: 20) {
                         Text("Recent")
                             .font(.title2.bold())
@@ -101,6 +109,7 @@ struct DashboardView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .task { await loadWorkspaces() }
+        .task(id: searchText) { await runSearch() }
         .confirmationDialog(
             "Remove “\(workspacePendingRemoval?.documentURL.deletingPathExtension().lastPathComponent ?? "")” from Recents?",
             isPresented: Binding(
@@ -124,6 +133,66 @@ struct DashboardView: View {
         // Apply scroll edge effect so it feels deeply integrated with the macOS 27 window chrome
         .sidebarScrollEdgeEffect()
         .sidebarScrollContentInsets()
+    }
+
+    /// Highlights and conversations from every document in the library, so a
+    /// half-remembered passage is findable without first remembering which
+    /// paper it was in.
+    @ViewBuilder
+    private var searchResultsSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 8) {
+                Text("Across All Documents")
+                    .font(.title2.bold())
+                if isSearching {
+                    ProgressView().controlSize(.small)
+                }
+            }
+            .padding(.leading, 4)
+
+            if searchResults.isEmpty {
+                if !isSearching {
+                    ContentUnavailableView.search(text: searchText)
+                        .frame(height: 220)
+                }
+            } else {
+                VStack(spacing: 1) {
+                    ForEach(searchResults) { result in
+                        LibrarySearchResultRow(result: result) { open(result) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func runSearch() async {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.count >= 2 else {
+            searchResults = []
+            isSearching = false
+            return
+        }
+        // Every keystroke reruns this task; the pause keeps a library of
+        // hundreds of documents from being decoded once per letter typed.
+        try? await Task.sleep(for: .milliseconds(220))
+        guard !Task.isCancelled else { return }
+
+        isSearching = true
+        let results = await LibrarySearchService.search(query: query)
+        guard !Task.isCancelled else { return }
+        searchResults = results
+        isSearching = false
+    }
+
+    private func open(_ result: LibrarySearchResult) {
+        Task {
+            var url = result.documentURL
+            if let bookmark = result.bookmarkData,
+               let resolved = try? DocumentPersistenceService.shared.resolveBookmark(bookmark) {
+                url = resolved
+            }
+            await workspace.openDocument(at: url, selecting: result.highlight.id)
+        }
     }
 
     private func loadWorkspaces() async {

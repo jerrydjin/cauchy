@@ -5,7 +5,10 @@ struct ReferencePin: Identifiable, Codable, Equatable, Sendable {
     var pageIndex: Int
     var bounds: NormalizedRect
     var label: String
-    var category: PinCategory
+    /// Kept only so old sidecars keep decoding. Nothing reads it: the pin
+    /// categories were never surfaced, and migration folds every pin into a
+    /// plain highlight.
+    var category: String?
     var createdAt: Date
     var thumbnailPath: String?
     var extractedText: String?
@@ -16,7 +19,7 @@ struct ReferencePin: Identifiable, Codable, Equatable, Sendable {
         pageIndex: Int,
         bounds: NormalizedRect,
         label: String,
-        category: PinCategory,
+        category: String? = nil,
         createdAt: Date = Date(),
         thumbnailPath: String? = nil,
         extractedText: String? = nil,

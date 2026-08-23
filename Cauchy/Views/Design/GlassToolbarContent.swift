@@ -67,6 +67,8 @@ struct GlassToolbarContent: ToolbarContent {
                 .disabled(workspace.currentPage <= 1)
 
                 TextField("", text: $pageFieldText)
+                    .accessibilityLabel("Page number")
+                    .accessibilityValue("Page \(workspace.currentPage) of \(workspace.pageCount)")
                     .frame(width: 28)
                     .multilineTextAlignment(.center)
                     .font(.callout.monospacedDigit())
@@ -109,6 +111,10 @@ struct GlassToolbarContent: ToolbarContent {
             .frame(width: 32, height: 32)
             .glassEffect(.regular, in: .circle)
             .help(indexStatusHelp)
+            // A readout, and the only place a failed index shows up outside
+            // the Reference tab — so it has to say what it means out loud.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(indexStatusHelp)
     }
 
     @ViewBuilder

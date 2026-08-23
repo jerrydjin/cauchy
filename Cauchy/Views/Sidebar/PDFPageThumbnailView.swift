@@ -45,6 +45,11 @@ struct PDFPageThumbnailView: View {
             }
         }
         .buttonStyle(.plain)
+        // The thumbnail image and the number under it read as two elements;
+        // as one, VoiceOver announces a page rather than an unlabelled image.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page \(pageNumber)")
+        .accessibilityAddTraits(isCurrentPage ? [.isButton, .isSelected] : .isButton)
         .task(id: pageNumber) {
             let renderWidth = maxWidth * 2
             if let cached = thumbnailCache.image(pageIndex: pageNumber - 1, width: renderWidth) {

@@ -39,9 +39,9 @@ enum ReadingPromptBuilder {
 
         Content rules:
         - Ground your answer in the text above (and retrieved passages if present).
-        - The notes' exact formulations of definitions and theorems are the ground source of truth. When the question concerns a definition or stated result, restate it verbatim from the notes (see EXACT STATEMENTS when present) before explaining, and keep the notes' notation.
-        - You may use standard mathematical knowledge to actually answer the question; note briefly when a result comes from outside the passage.
-        - If the passage defers a result (e.g. to a problem sheet), still state the standard result rather than only saying it is deferred.
+        - The text's exact formulations — of a definition, a theorem, an algorithm, a model, an experimental setup — are the ground source of truth. When the question concerns one of them, restate it verbatim from the text (see EXACT STATEMENTS when present) before explaining, and keep the text's own notation and naming.
+        - You may use established knowledge of the field to actually answer the question; note briefly when something comes from outside the passage.
+        - If the passage defers something (to an appendix, a problem sheet, another paper), still state the standard account of it rather than only saying it is deferred.
         - Do not summarize the whole document.
         - Be precise and concise.
         - Use plain-text section headings (for example, "1. Proof for addition"). Do not use markdown # headings or code fences.
@@ -100,7 +100,7 @@ enum ReadingPromptBuilder {
         \(latexOutputContract)
 
         Fix rules:
-        - Preserve all mathematical meaning and prose wording.
+        - Preserve all technical meaning and prose wording.
         - Only change delimiter placement and LaTeX syntax needed for valid rendering.
         - Convert \\(...\\) to $...$ and \\[...\\] to $$...$$.
         - Move any bare LaTeX commands (\\frac, \\leq, \\epsilon, \\lambda, etc.) inside delimiters.

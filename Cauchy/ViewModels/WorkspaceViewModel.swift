@@ -9,7 +9,14 @@ private let invertPageColorsKey = "reading.invertPageColors"
 
 @MainActor
 @Observable
-final class WorkspaceViewModel {
+final class WorkspaceViewModel: Equatable {
+    /// Identity, not contents: `focusedSceneValue` needs to tell one window's
+    /// workspace from another's, and comparing two live reading sessions field
+    /// by field would mean nothing.
+    nonisolated static func == (lhs: WorkspaceViewModel, rhs: WorkspaceViewModel) -> Bool {
+        lhs === rhs
+    }
+
     var workspace: DocumentWorkspace?
     var pdfDocument: PDFDocument?
     var bookmarkData: Data?
@@ -55,6 +62,20 @@ final class WorkspaceViewModel {
     /// a build finishes (or while one is running).
     var referenceIndexProvenance: ReferenceIndexProvenance?
 
+    /// The window's own undo manager, handed down from the view layer. Using
+    /// the window's rather than a private one is what puts these steps behind
+    /// the standard Edit ▸ Undo item — and what leaves text fields their own
+    /// undo while they have focus, since the field editor answers first.
+    var hostUndoManager: UndoManager?
+    /// The window this workspace is being read in, so a duplicate open can
+    /// bring it forward instead of opening the document twice.
+    weak var hostWindow: NSWindow?
+    /// Stands in before a window has handed one down (and in previews), so
+    /// registration never has to be conditional.
+    private let fallbackUndoManager = UndoManager()
+
+    var undoManager: UndoManager { hostUndoManager ?? fallbackUndoManager }
+
     private let persistence = DocumentPersistenceService.shared
     private var securityScopedURL: URL?
     private var referenceIndexTask: Task<Void, Never>?
@@ -95,6 +116,13 @@ final class WorkspaceViewModel {
         viewportCoordinator.viewport.pageIndex + 1
     }
 
+    /// A live text selection that hasn't been saved as a highlight yet — what
+    /// Reading ▸ Highlight Selection acts on.
+    var canSaveTextSelection: Bool {
+        guard let thread = selectionThread.activeThread else { return false }
+        return !thread.isPersisted
+    }
+
     var readingAssistantAvailability: ReadingAssistantAvailability {
         ReadingAssistantFactory.availability
     }
@@ -122,6 +150,41 @@ final class WorkspaceViewModel {
     }
 
     func openDocument(at url: URL) async {
+        await openDocument(at: url, selecting: nil)
+    }
+
+    /// `selecting` scrolls to and opens one highlight once the document is up —
+    /// how a library-wide search result gets the reader to the thing they
+    /// searched for rather than to page one.
+    func openDocument(at url: URL, selecting highlightID: UUID?) async {
+        await openDocument(at: url, selecting: highlightID, adopting: nil)
+    }
+
+    /// `adopting` re-homes an existing saved workspace onto a new file path —
+    /// the relocation case, where the reader has just pointed the app at a PDF
+    /// that moved and expects to find their highlights still on it.
+    private func openDocument(
+        at url: URL,
+        selecting highlightID: UUID?,
+        adopting adopted: PersistedWorkspace?
+    ) async {
+        // One document, one window. Opening a PDF a second time — from Finder,
+        // from Recents, from a search result — belongs in the window that
+        // already has it, not in a second reader saving over the same file.
+        if let existing = OpenDocumentRegistry.shared.holder(of: url), existing !== self {
+            existing.hostWindow?.makeKeyAndOrderFront(nil)
+            if let highlightID {
+                existing.selectHighlight(id: highlightID)
+            }
+            // A window macOS opened just to receive this file has nothing in
+            // it; leaving it behind as an empty dashboard is worse than
+            // closing it.
+            if pdfDocument == nil, workspace == nil {
+                hostWindow?.close()
+            }
+            return
+        }
+
         stopSecurityScopedAccess()
         // An ask still streaming from the previous document would otherwise
         // persist its answer as a highlight on the new one.
@@ -129,10 +192,13 @@ final class WorkspaceViewModel {
         cancelThreadTitleWork()
         pageThumbnailCache.removeAll()
 
-        let persisted = try? await persistence.loadWorkspace(for: url)
+        var persisted = adopted
+        if persisted == nil {
+            persisted = try? await persistence.loadWorkspace(for: url)
+        }
 
         var resolvedURL = url
-        if let bookmark = persisted?.bookmarkData,
+        if adopted == nil, let bookmark = persisted?.bookmarkData,
            let bookmarkURL = try? persistence.resolveBookmark(bookmark) {
             resolvedURL = bookmarkURL
         } else {
@@ -141,12 +207,26 @@ final class WorkspaceViewModel {
         securityScopedURL = resolvedURL
 
         guard let document = PDFDocument(url: resolvedURL) else {
-            errorMessage = "Could not open PDF."
             stopSecurityScopedAccess()
+            // A PDF that has been moved or renamed since it was last read is
+            // the ordinary case here, not a corrupt file — so offer to point
+            // the app at it again rather than dead-ending on an alert.
+            if !FileManager.default.fileExists(atPath: resolvedURL.path),
+               let relocated = promptToLocate(missing: resolvedURL) {
+                await openDocument(at: relocated, selecting: highlightID, adopting: persisted)
+            } else {
+                errorMessage = "Could not open “\(url.lastPathComponent)”. The file may have been moved, renamed, or damaged."
+            }
             return
         }
 
+        // Undo steps close over highlights of the document that produced them;
+        // carrying them into the next one would re-add a highlight where it
+        // never existed.
+        undoManager.removeAllActions()
+
         pdfDocument = document
+        OpenDocumentRegistry.shared.claim(resolvedURL, by: self)
         find.attach(to: document)
         bookmarkData = try? persistence.createBookmark(for: resolvedURL)
 
@@ -158,7 +238,9 @@ final class WorkspaceViewModel {
             workspace?.lastOpenedAt = Date()
             viewportCoordinator.viewport = persisted.workspace.primaryViewport
             highlightStore.load(from: persisted.workspace)
-            if let bookmark = persisted.bookmarkData {
+            // A relocated document needs the bookmark just minted for its new
+            // path, never the stale one that pointed at where it used to be.
+            if adopted == nil, let bookmark = persisted.bookmarkData {
                 bookmarkData = bookmark
             }
         } else {
@@ -177,12 +259,40 @@ final class WorkspaceViewModel {
         backfillThreadTitles()
         generateDashboardPreviewIfNeeded(documentURL: resolvedURL)
         persistWorkspace()
+
+        if let highlightID, let highlight = highlightStore.highlights.first(where: { $0.id == highlightID }) {
+            selectHighlight(highlight)
+        }
+    }
+
+    /// Asks the reader where a document went. Returns nil if they cancel or
+    /// pick something that isn't a readable PDF.
+    private func promptToLocate(missing url: URL) -> URL? {
+        let alert = NSAlert()
+        alert.messageText = "Can’t find “\(url.lastPathComponent)”"
+        alert.informativeText = "It isn’t at \(url.deletingLastPathComponent().path) any more. Locate it to keep this document’s highlights and conversations."
+        alert.addButton(withTitle: "Locate…")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Locate “\(url.lastPathComponent)”"
+        panel.directoryURL = url.deletingLastPathComponent()
+        panel.nameFieldStringValue = url.lastPathComponent
+        guard panel.runModal() == .OK else { return nil }
+        return panel.url
     }
 
     func closeDocument() {
         if workspace != nil {
             persistWorkspace()
         }
+
+        undoManager.removeAllActions()
+        OpenDocumentRegistry.shared.release(by: self)
 
         stopSecurityScopedAccess()
         pdfDocument = nil
@@ -266,7 +376,12 @@ final class WorkspaceViewModel {
         syncHighlightAnnotations()
     }
 
-    func deleteHighlight(_ highlight: Highlight) {
+    /// Deletes a highlight — and, with it, the whole conversation hanging off
+    /// it. A thread that has been asked something is minutes of work, so it is
+    /// confirmed before it goes; either way the delete is undoable.
+    func deleteHighlight(_ highlight: Highlight, confirm: Bool = true) {
+        if confirm, !highlight.messages.isEmpty, !confirmDelete(highlight) { return }
+
         highlightStore.remove(highlight)
         if case .detail(highlight.id) = contextEngine.route {
             contextEngine.showList()
@@ -274,8 +389,83 @@ final class WorkspaceViewModel {
         if highlightStore.selectedHighlightID == highlight.id {
             highlightStore.selectedHighlightID = nil
         }
+        // The thread panel is still showing what was just deleted; drop it so
+        // an Ask cannot resurrect the highlight through upsertFromThread.
+        if selectionThread.activeThread?.anchorID == highlight.id {
+            selectionThread.activeThread = nil
+        }
         syncHighlightAnnotations()
         persistWorkspace()
+
+        registerUndo("Delete Highlight") { $0.restoreHighlight(highlight) }
+    }
+
+    /// Puts a deleted highlight back exactly as it was, conversation included,
+    /// and re-arms redo.
+    private func restoreHighlight(_ highlight: Highlight) {
+        guard !highlightStore.highlights.contains(where: { $0.id == highlight.id }) else { return }
+        highlightStore.add(highlight)
+        syncHighlightAnnotations()
+        persistWorkspace()
+
+        registerUndo("Delete Highlight") { $0.deleteHighlight(highlight, confirm: false) }
+    }
+
+    private func confirmDelete(_ highlight: Highlight) -> Bool {
+        let count = highlight.messages.count
+        let messages = count == 1 ? "1 message" : "\(count) messages"
+        let alert = NSAlert()
+        alert.messageText = "Delete “\(highlight.displayName)”?"
+        alert.informativeText = "Its conversation (\(messages)) is deleted with it. You can undo this with ⌘Z."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        alert.buttons.first?.hasDestructiveAction = true
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    // MARK: - Notes and colour
+
+    /// The reader's own note on a highlight, kept apart from the conversation.
+    func setNote(_ note: String?, for id: UUID) {
+        guard var highlight = highlightStore.highlights.first(where: { $0.id == id }) else { return }
+        let cleaned = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newValue = (cleaned?.isEmpty ?? true) ? nil : cleaned
+        guard newValue != highlight.note else { return }
+
+        let previous = highlight.note
+        highlight.note = newValue
+        highlight.updatedAt = Date()
+        highlightStore.update(highlight)
+        persistWorkspace()
+
+        registerUndo(previous == nil ? "Add Note" : "Edit Note") { $0.setNote(previous, for: id) }
+    }
+
+    func setColor(_ color: HighlightColor, for id: UUID) {
+        guard var highlight = highlightStore.highlights.first(where: { $0.id == id }),
+              highlight.color != color else { return }
+
+        let previous = highlight.color
+        highlight.color = color
+        highlightStore.update(highlight)
+        syncHighlightAnnotations()
+        persistWorkspace()
+
+        registerUndo("Change Highlight Colour") { $0.setColor(previous, for: id) }
+    }
+
+    // MARK: - Undo
+
+    /// Registers one undoable step. The handler runs on whichever thread calls
+    /// `undo()`, which for a menu command is always the main one.
+    private func registerUndo(
+        _ actionName: String,
+        _ undo: @escaping @MainActor @Sendable (WorkspaceViewModel) -> Void
+    ) {
+        undoManager.registerUndo(withTarget: self) { target in
+            MainActor.assumeIsolated { undo(target) }
+        }
+        undoManager.setActionName(actionName)
     }
 
     func saveTextSelectionAsHighlight() {

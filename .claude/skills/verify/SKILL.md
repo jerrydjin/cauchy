@@ -16,7 +16,16 @@ xcodebuild -project Cauchy.xcodeproj -scheme Cauchy -configuration Debug build
 ```
 
 Built app: `~/Library/Developer/Xcode/DerivedData/Cauchy-*/Build/Products/Debug/Cauchy.app`.
-No test target — verification is build + driving the app.
+
+There is a `CauchyTests` unit-test target (generated alongside the app target,
+so it needs the generator rerun after adding a test file):
+
+```bash
+xcodebuild test -project Cauchy.xcodeproj -scheme Cauchy -destination 'platform=macOS'
+```
+
+The tests cover pure logic only — parsing, export, model decoding. Anything
+touching the reader itself is still verified by build + driving the app.
 
 ## Gotcha: stale debug instances eat open events
 

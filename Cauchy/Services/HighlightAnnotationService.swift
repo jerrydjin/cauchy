@@ -1,19 +1,21 @@
 import AppKit
 import PDFKit
 
-@MainActor
 enum HighlightAnnotationService {
     static let markerUserName = "Cauchy"
     private static let highlightIDKey = PDFAnnotationKey(rawValue: "/CauchyHighlightID")
 
-    static func sync(document: PDFDocument, highlights: [Highlight], activeID: UUID?) {
+    /// Repaints every Cauchy annotation in `document`. Deliberately not
+    /// isolated: the export path builds its own `PDFDocument` off the main
+    /// actor and paints into that one, and none of this touches shared state.
+    nonisolated static func sync(document: PDFDocument, highlights: [Highlight], activeID: UUID?) {
         removeAllCauchyAnnotations(from: document)
         for highlight in highlights {
             addAnnotations(for: highlight, to: document, isActive: highlight.id == activeID)
         }
     }
 
-    static func removeAllCauchyAnnotations(from document: PDFDocument) {
+    nonisolated static func removeAllCauchyAnnotations(from document: PDFDocument) {
         for index in 0..<document.pageCount {
             guard let page = document.page(at: index) else { continue }
             let toRemove = page.annotations.filter { $0.userName == markerUserName }
@@ -23,21 +25,20 @@ enum HighlightAnnotationService {
         }
     }
 
-    static func highlightID(from annotation: PDFAnnotation) -> UUID? {
+    nonisolated static func highlightID(from annotation: PDFAnnotation) -> UUID? {
         guard annotation.userName == markerUserName,
               let idString = annotation.value(forAnnotationKey: highlightIDKey) as? String
         else { return nil }
         return UUID(uuidString: idString)
     }
 
-    private static func addAnnotations(
+    nonisolated private static func addAnnotations(
         for highlight: Highlight,
         to document: PDFDocument,
         isActive: Bool
     ) {
-        let color = isActive
-            ? NSColor.systemYellow.withAlphaComponent(0.45)
-            : NSColor.systemYellow.withAlphaComponent(0.30)
+        let color = highlight.color.pageColor
+            .withAlphaComponent(isActive ? 0.45 : 0.30)
 
         for (pageIndex, rects) in annotationRects(for: highlight, in: document) {
             guard let page = document.page(at: pageIndex) else { continue }
@@ -56,7 +57,7 @@ enum HighlightAnnotationService {
     /// The rects to paint, keyed by the page they belong to. An annotation only
     /// draws on the page it is added to, so a highlight dragged across a page
     /// break has to be split back out per page.
-    private static func annotationRects(for highlight: Highlight, in document: PDFDocument) -> [Int: [CGRect]] {
+    nonisolated private static func annotationRects(for highlight: Highlight, in document: PDFDocument) -> [Int: [CGRect]] {
         if let lines = highlight.lines, !lines.isEmpty {
             var rectsByPage: [Int: [CGRect]] = [:]
             for line in lines {

@@ -11,12 +11,12 @@ enum ReferenceIndexPromptBuilder {
     /// output shape is enforced by the @Generable schema, so all JSON-format
     /// prose is dropped to leave room in the small context window.
     static let onDeviceInstructions = """
-    You extract numbered academic references (theorems, lemmas, definitions, equations, etc.) from one PDF page.
+    You extract numbered academic references (theorems, lemmas, definitions, propositions, equations, etc.) from one PDF page. The document may be from any field — pure mathematics, machine learning, the sciences — so take every subject and every name from the page itself.
 
     Rules:
     - Include ONLY numbered references that appear in the provided page text. Do not invent any.
     - Keep reference numbers exactly as printed (e.g. "1.4", "2.3.1").
-    - name is the printed title only, e.g. "Definition 3.2 (Compactness)" → name "Compactness"; leave empty when none is printed.
+    - name is the printed title only, e.g. "Definition 3.2 (Compactness)" → name "Compactness", "Assumption 2 (Bounded Gradients)" → name "Bounded Gradients"; leave empty when none is printed. Never carry a name over from these examples — take it only from this page.
     - For equations: the body is ONLY the equation itself, no surrounding prose.
     - For theorems/lemmas/definitions/examples: the body is ONLY the statement, never the proof.
     - Write all mathematics inside $...$ (inline) or $$...$$ (display) LaTeX delimiters; never emit LaTeX commands outside delimiters. Prose stays plain text.
@@ -54,7 +54,7 @@ enum ReferenceIndexPromptBuilder {
     Rules:
     - Include ONLY references that appear on this page in the provided text.
     - Do not invent references.
-    - "name" is the reference's printed title when one exists — e.g. "Definition 3.2 (Compactness)" has name "Compactness", "Theorem 4.1 (Heine–Borel)" has name "Heine–Borel". Use null when no title is printed.
+    - "name" is the reference's printed title when one exists — e.g. "Definition 3.2 (Compactness)" has name "Compactness", "Proposition 1 (Sample Complexity)" has name "Sample Complexity". Use null when no title is printed, and never reuse a name from these examples: the document may be about anything, and a borrowed name is worse than none.
     - For equations: formatted_body is ONLY the equation, no surrounding prose.
     - For theorems/lemmas/definitions/examples: formatted_body is ONLY the statement, never the proof.
     - Keep prose as plain text outside math delimiters.

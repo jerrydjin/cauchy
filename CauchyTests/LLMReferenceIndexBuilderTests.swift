@@ -65,7 +65,11 @@ final class ReferenceIndexCacheStoreTests: XCTestCase {
         let second = try ReferenceIndexCacheStore.fingerprint(for: url)
 
         XCTAssertEqual(first, second)
-        XCTAssertTrue(first.hasSuffix("-v\(PersistedReferenceIndex.schemaVersion)"))
+        // A bare SHA-256 of the file's bytes. The schema version used to be
+        // glued on the end; it lives in the cache file itself now, so the
+        // fingerprint stays a pure content hash.
+        XCTAssertEqual(first.count, 64)
+        XCTAssertTrue(first.allSatisfy(\.isHexDigit))
     }
 
     func testFingerprintChangesWhenContentChanges() throws {
@@ -96,7 +100,9 @@ final class ReferenceIndexCacheStoreTests: XCTestCase {
         let persisted = PersistedReferenceIndex(
             documentFingerprint: fingerprint,
             builtAt: Date(timeIntervalSince1970: 1_700_000_000),
-            entries: entries
+            entries: entries,
+            builtWith: "on-device",
+            failedPageIndices: []
         )
 
         try ReferenceIndexCacheStore.save(persisted)
@@ -121,7 +127,9 @@ final class ReferenceIndexCacheStoreTests: XCTestCase {
         let persisted = PersistedReferenceIndex(
             documentFingerprint: "fp",
             builtAt: Date(),
-            entries: entries
+            entries: entries,
+            builtWith: "on-device",
+            failedPageIndices: []
         )
         let snapshot = persisted.asSnapshot(pageCount: 10)
         let entry = snapshot.entries[ReferenceKey(kind: .theorem, number: "3.1")]
@@ -133,8 +141,11 @@ final class ReferenceIndexCacheStoreTests: XCTestCase {
 }
 
 final class LLMReferenceIndexSupportTests: XCTestCase {
-    func testSchemaVersionIsV2() {
-        XCTAssertEqual(PersistedReferenceIndex.schemaVersion, 2)
+    /// A tripwire, not a fact worth asserting on its own: bumping the schema
+    /// strands every cache on disk, so the bump and the migration that goes
+    /// with it should be a deliberate edit here too.
+    func testSchemaVersionMatchesTheMigrationsThatExist() {
+        XCTAssertEqual(PersistedReferenceIndex.schemaVersion, 4)
     }
 
     func testShouldUseVisionWhenCloudAndImagePresent() {

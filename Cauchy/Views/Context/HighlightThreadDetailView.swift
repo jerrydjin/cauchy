@@ -38,6 +38,21 @@ struct HighlightThreadDetailView: View {
     /// slab behind the whole row reads as one enormous button, which is both
     /// wrong and a lie about what is clickable.
     private var header: some View {
+        VStack(spacing: 8) {
+            headerRow
+
+            // Only saved highlights can carry a note: a draft selection has no
+            // highlight behind it to hang one on yet.
+            if let id = savedHighlightID {
+                HighlightNoteEditor(workspace: workspace, highlightID: id)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+    }
+
+    private var headerRow: some View {
         HStack(spacing: 10) {
             GlassIconButton(
                 systemName: "chevron.left",
@@ -66,6 +81,28 @@ struct HighlightThreadDetailView: View {
 
             Spacer(minLength: 6)
 
+            if let id = savedHighlightID, let highlight = savedHighlight {
+                Menu {
+                    HighlightColorMenu(current: highlight.color) { colour in
+                        workspace.setColor(colour, for: id)
+                    }
+                    Divider()
+                    Button("Copy as Markdown") {
+                        workspace.copyThreadAsMarkdown(highlight)
+                    }
+                    Divider()
+                    Button("Delete Highlight", role: .destructive) {
+                        workspace.deleteHighlight(highlight)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 22)
+                .accessibilityLabel("Highlight options")
+            }
+
             if thread?.isPersisted == false {
                 Button("Save as Highlight") {
                     workspace.saveTextSelectionAsHighlight()
@@ -74,10 +111,15 @@ struct HighlightThreadDetailView: View {
                 .controlSize(.small)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
     }
+
+    /// The saved highlight this thread belongs to, if it has been saved at all.
+    private var savedHighlight: Highlight? {
+        guard let anchorID = thread?.anchorID else { return nil }
+        return workspace.highlightStore.highlights.first { $0.id == anchorID }
+    }
+
+    private var savedHighlightID: UUID? { savedHighlight?.id }
 
     /// The saved thread's name when there is one; a draft selection has no
     /// highlight behind it yet, so it is named by its passage.

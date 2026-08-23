@@ -21,12 +21,18 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 
 ## Features
 
-- **PDF reading workspace** — continuous, single-page, and two-up layouts, thumbnails/contents sidebar, dashboard of recent documents, in-document find (⌘F)
+- **PDF reading workspace** — continuous, single-page, and two-up layouts, thumbnails/contents sidebar, dashboard of recent documents, in-document find (⌘F), one document per window (⌘N) so a paper can sit beside the one it cites
 - **Highlights with AI threads** — select text or drag regions, save highlights, and ask questions about them; answers render LaTeX via SwiftMath
+- **Notes and colours** — write your own note on a highlight, and file highlights under five marker colours
+- **Undo** — deleting a highlight (and its conversation), editing a note, and recolouring are all undoable with ⌘Z; a delete that would take a conversation with it asks first
+- **Export** — highlights and their conversations as Markdown (File ▸ Export Highlights as Markdown), or a copy of the PDF with the highlights written in as real annotations (File ▸ Save a Copy with Highlights) so they survive in Preview
+- **Library-wide search** — search every highlight and conversation across every document from the dashboard, and jump straight to the one you meant
 - **Reference hover previews** — an LLM-built index of theorems/lemmas/definitions/equations, indexed on-device with Apple Intelligence (Gemini only as fallback), lets you hover "Theorem 2.1" anywhere and see its statement
 - **Ask-time retrieval** — a BM25 index over the document supplies relevant passages from other pages to the assistant
 - **Multiple assistant providers** — on-device Apple Intelligence, Gemini (API key), or your own Claude Code / Codex CLI sign-ins
 - **On-device OCR** — Vision framework text recognition with LaTeX formatting assist
+
+The last document you were reading reopens at launch; turn that off in Settings ▸ Reading.
 
 Headless tooling: `Cauchy --benchmark-indexing <pdf> [--pages N]` benchmarks on-device reference indexing; `Cauchy --probe-retrieval <pdf> <query>` prints what retrieval would feed the assistant.
 
@@ -56,6 +62,17 @@ Or use the all-in-one script:
 ./scripts/run.sh
 ```
 
+## Tests
+
+```bash
+xcodebuild test -project Cauchy.xcodeproj -scheme Cauchy -destination 'platform=macOS'
+```
+
+`CauchyTests` is generated alongside the app target, so rerun
+`scripts/generate_xcodeproj.py` after adding a test file. The suite covers pure
+logic — reference parsing, LaTeX normalization, export, model decoding, undo —
+and runs on every push and pull request via `.github/workflows/ci.yml`.
+
 After regenerating, **close and reopen** the Xcode project if you see “Missing package product 'SwiftMath'”.
 
 ## Project Structure
@@ -73,7 +90,7 @@ Cauchy/
 
 ## Persistence
 
-Workspace state is saved under Application Support at `~/Library/Application Support/Cauchy/workspaces/<id>/` (highlights, viewport, thumbnails). Reference-index caches live in `…/Cauchy/reference-index/`. Legacy sidecars beside the PDF are migrated automatically on open.
+Workspace state is saved under Application Support at `~/Library/Application Support/Cauchy/workspaces/<id>/` (highlights, notes, colours, viewport, thumbnails). A document belongs to exactly one window: opening one that is already open brings its window forward rather than starting a second reader that would save over the first. Reference-index caches live in `…/Cauchy/reference-index/`. Legacy sidecars beside the PDF are migrated automatically on open.
 
 ## Sandbox
 

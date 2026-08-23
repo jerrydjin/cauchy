@@ -27,6 +27,8 @@ struct HighlightListView: View {
                                 highlight: highlight,
                                 onOpen: { workspace.selectHighlight(highlight) },
                                 onRename: { workspace.regenerateThreadTitle(for: highlight) },
+                                onRecolour: { workspace.setColor($0, for: highlight.id) },
+                                onCopyMarkdown: { workspace.copyThreadAsMarkdown(highlight) },
                                 onDelete: { workspace.deleteHighlight(highlight) }
                             )
                         }
@@ -107,6 +109,8 @@ private struct HighlightRow: View {
     let highlight: Highlight
     var onOpen: () -> Void
     var onRename: () -> Void
+    var onRecolour: (HighlightColor) -> Void
+    var onCopyMarkdown: () -> Void
     var onDelete: () -> Void
 
     @State private var isHovering = false
@@ -114,6 +118,8 @@ private struct HighlightRow: View {
     var body: some View {
         Button(action: onOpen) {
             HStack(spacing: 10) {
+                HighlightColorDot(color: highlight.color)
+
                 Text(highlight.displayName)
                     .font(.body)
                     .foregroundStyle(.primary)
@@ -121,6 +127,13 @@ private struct HighlightRow: View {
                     .truncationMode(.tail)
 
                 Spacer(minLength: 8)
+
+                if highlight.note?.isEmpty == false {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityLabel("Has a note")
+                }
 
                 HStack(spacing: 3) {
                     Image(systemName: "doc.text")
@@ -143,12 +156,26 @@ private struct HighlightRow: View {
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isHovering)
         .help(highlight.selectedText)
+        .accessibilityLabel(accessibilityLabel)
         .contextMenu {
             Button("Rename with AI", action: onRename)
+            HighlightColorMenu(current: highlight.color, onSelect: onRecolour)
+            Divider()
             Button("Copy Passage") { copyPassage() }
+            Button("Copy as Markdown", action: onCopyMarkdown)
             Divider()
             Button("Delete", role: .destructive, action: onDelete)
         }
+    }
+
+    /// VoiceOver reads the row as one thing: what the thread is called, where
+    /// it is, and its colour — which is otherwise only a dot.
+    private var accessibilityLabel: String {
+        var parts = [highlight.displayName, "page \(highlight.pageIndex + 1)", highlight.color.displayName]
+        if highlight.note?.isEmpty == false {
+            parts.append("has a note")
+        }
+        return parts.joined(separator: ", ")
     }
 
     private func copyPassage() {

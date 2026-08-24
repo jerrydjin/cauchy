@@ -1,6 +1,10 @@
 .DS_Store
 build/
 DerivedData/
+# Cloned by scripts/run.sh and by CI, not vendored. It used to be recorded as a
+# gitlink with no .gitmodules entry, which made every checkout end with
+# "No url found for submodule path 'Packages/SwiftMath'".
+/Packages/SwiftMath/
 *.xcuserstate
 xcuserdata/
 .build/

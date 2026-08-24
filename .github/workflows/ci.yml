@@ -42,13 +42,36 @@ jobs:
             exit 1
           fi
 
-      - name: Build and Test
+      # Compiles the app and the test bundle. This is the step that catches
+      # tests rotting against the code they cover — which is exactly how five
+      # of them ended up months out of date while nothing compiled them.
+      - name: Build app and tests
         run: |
           set -o pipefail
-          xcodebuild test \
+          xcodebuild build-for-testing \
             -project Cauchy.xcodeproj \
             -scheme Cauchy \
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY=- \
             CODE_SIGNING_REQUIRED=NO
+
+      # The tests are app-hosted, so running them means launching an app whose
+      # deployment target is macOS 27. The xcode-27 image ships Xcode 27 on
+      # macOS 26, which can build against the 27 SDK but cannot run it — so the
+      # run is gated on the runner's own OS rather than skipped outright, and
+      # starts happening by itself once the image moves to macOS 27.
+      - name: Run tests
+        run: |
+          set -o pipefail
+          runner_major=$(sw_vers -productVersion | cut -d. -f1)
+          target_major=$(awk -F'= *' '/MACOSX_DEPLOYMENT_TARGET/ {print $2; exit}' scripts/generate_xcodeproj.py | cut -d. -f1)
+          if [ "$runner_major" -lt "$target_major" ]; then
+            echo "::notice::Runner is on macOS $(sw_vers -productVersion); the app requires macOS ${target_major}.0, so the tests cannot be launched here. They were compiled by the previous step. Run them locally with: xcodebuild test -project Cauchy.xcodeproj -scheme Cauchy -destination 'platform=macOS'"
+            exit 0
+          fi
+          xcodebuild test-without-building \
+            -project Cauchy.xcodeproj \
+            -scheme Cauchy \
+            -configuration Debug \
+            -destination 'platform=macOS'

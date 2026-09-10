@@ -148,7 +148,10 @@ enum LLMReferenceIndexSupport {
     ) {
         let key = indexed.reference.key
         if let existing = results[key] {
-            if indexed.formattedBody.count > existing.formattedBody.count {
+            // A later citation or proof discussion must not displace the
+            // original statement merely because its transcription is longer.
+            if indexed.pageIndex < existing.pageIndex ||
+                (indexed.pageIndex == existing.pageIndex && indexed.formattedBody.count > existing.formattedBody.count) {
                 results[key] = indexed
             }
         } else {
@@ -261,14 +264,8 @@ enum LLMReferenceIndexBuilder {
                         failed.append(pageIndex)
                         continue
                     }
-                    for (key, entry) in entries {
-                        if let existing = merged[key] {
-                            if entry.formattedBody.count > existing.formattedBody.count {
-                                merged[key] = entry
-                            }
-                        } else {
-                            merged[key] = entry
-                        }
+                    for entry in entries.values {
+                        LLMReferenceIndexSupport.merge(entry, into: &merged)
                     }
                 }
             }

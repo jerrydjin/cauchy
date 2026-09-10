@@ -31,19 +31,24 @@ actor DocumentPersistenceService {
         return d
     }()
 
-    // Saves are debounced on the actor, but scheduleSave itself is called
-    // synchronously from the main actor; the ticket makes ordering explicit so
-    // a slow-to-arrive older snapshot can never overwrite a newer one.
-    private let scheduleTicket = OSAllocatedUnfairLock(initialState: 0)
-    private var latestTicket = 0
-    private var pendingSave: Task<Void, Never>?
+    private struct PendingSnapshot: Sendable {
+        let revision: UUID
+        let workspace: DocumentWorkspace
+        let bookmarkData: Data?
+        let onError: (@Sendable (Error) -> Void)?
+    }
+    // Enqueue synchronously so a shutdown flush also sees saves whose actor
+    // scheduling tasks have not run yet. Each document owns its pending value.
+    private let snapshots = OSAllocatedUnfairLock(initialState: [UUID: PendingSnapshot]())
+    private var pendingSaves: [UUID: Task<Void, Never>] = [:]
+    private let rootOverride: URL?
 
-    private init() {}
+    init(root: URL? = nil) { rootOverride = root }
 
     // MARK: - Paths (pure, callable synchronously from anywhere)
 
     nonisolated func applicationSupportRoot() -> URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        rootOverride ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Cauchy/workspaces", isDirectory: true)
     }
 
@@ -122,6 +127,8 @@ actor DocumentPersistenceService {
     // MARK: - Load / save
 
     func loadWorkspace(for documentURL: URL) throws -> PersistedWorkspace? {
+        // A close followed immediately by reopen must not load an older file.
+        try flushAll()
         if let appSupport = try loadFromApplicationSupport(matching: documentURL) {
             return appSupport
         }
@@ -154,46 +161,59 @@ actor DocumentPersistenceService {
         bookmarkData: Data?,
         onError: (@Sendable (Error) -> Void)? = nil
     ) {
-        let ticket = scheduleTicket.withLock { state in
-            state += 1
-            return state
-        }
-        Task {
-            await self.debounceSave(ticket: ticket, workspace: workspace, bookmarkData: bookmarkData, onError: onError)
+        let snapshot = PendingSnapshot(revision: UUID(), workspace: workspace,
+                                       bookmarkData: bookmarkData, onError: onError)
+        snapshots.withLock { $0[workspace.id] = snapshot }
+        Task { await debounceSave(id: workspace.id, revision: snapshot.revision) }
+    }
+
+    private func debounceSave(id: UUID, revision: UUID) {
+        guard snapshots.withLock({ $0[id]?.revision }) == revision else { return }
+        pendingSaves[id]?.cancel()
+        pendingSaves[id] = Task {
+            do { try await Task.sleep(for: .seconds(0.5)) } catch { return }
+            guard !Task.isCancelled else { return }
+            try? flush(id: id)
         }
     }
 
-    private func debounceSave(
-        ticket: Int,
-        workspace: DocumentWorkspace,
-        bookmarkData: Data?,
-        onError: (@Sendable (Error) -> Void)?
-    ) {
-        guard ticket > latestTicket else { return }
-        latestTicket = ticket
-
-        pendingSave?.cancel()
-        pendingSave = Task {
-            try? await Task.sleep(for: .seconds(0.5))
-            guard !Task.isCancelled else { return }
-            do {
-                try saveWorkspace(workspace, bookmarkData: bookmarkData)
-            } catch {
-                onError?(error)
+    func flush(id: UUID) throws {
+        pendingSaves.removeValue(forKey: id)?.cancel()
+        guard let snapshot = snapshots.withLock({ $0[id] }) else { return }
+        do {
+            try saveWorkspace(snapshot.workspace, bookmarkData: snapshot.bookmarkData)
+            snapshots.withLock {
+                if $0[id]?.revision == snapshot.revision { $0[id] = nil }
             }
+        } catch {
+            snapshot.onError?(error)
+            throw error
         }
+    }
+
+    func flushAll() throws {
+        var firstError: Error?
+        for id in snapshots.withLock({ Array($0.keys) }) {
+            do { try flush(id: id) } catch { firstError = firstError ?? error }
+        }
+        if let firstError { throw firstError }
     }
 
     /// Loads one workspace in full (highlights and every thread) by its id.
     /// The summaries the dashboard lists deliberately omit all of that, so
     /// library-wide search has to come back for it.
     func loadWorkspace(id: UUID) -> PersistedWorkspace? {
-        persistedWorkspace(inDirectory: workspaceDirectory(for: id))
+        if let pending = snapshots.withLock({ $0[id] }) {
+            return PersistedWorkspace(workspace: pending.workspace, bookmarkData: pending.bookmarkData)
+        }
+        return persistedWorkspace(inDirectory: workspaceDirectory(for: id))
     }
 
     /// Permanently removes a workspace directory (workspace.json, summary,
-    /// thumbnails). Used by the dashboard's "Remove from Recents".
+    /// thumbnails). Hiding a recent document deliberately does not call this.
     func deleteWorkspace(id: UUID) throws {
+        pendingSaves.removeValue(forKey: id)?.cancel()
+        snapshots.withLock { $0[id] = nil }
         let directory = workspaceDirectory(for: id)
         guard FileManager.default.fileExists(atPath: directory.path) else { return }
         try FileManager.default.removeItem(at: directory)
@@ -203,12 +223,9 @@ actor DocumentPersistenceService {
 
     func listWorkspaceSummaries() -> [WorkspaceSummary] {
         let root = applicationSupportRoot()
-        guard FileManager.default.fileExists(atPath: root.path),
-              let entries = try? FileManager.default.contentsOfDirectory(
-                  at: root,
-                  includingPropertiesForKeys: nil
-              )
-        else { return [] }
+        let entries = (try? FileManager.default.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: nil
+        )) ?? []
 
         var summaries: [WorkspaceSummary] = []
         for entry in entries where entry.hasDirectoryPath {
@@ -216,7 +233,12 @@ actor DocumentPersistenceService {
                 summaries.append(summary)
             }
         }
-        return summaries.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
+        var byID = Dictionary(summaries.map { ($0.workspaceID, $0) }, uniquingKeysWith: { _, last in last })
+        for pending in snapshots.withLock({ Array($0.values) }) {
+            byID[pending.workspace.id] = Self.makeSummary(for: PersistedWorkspace(
+                workspace: pending.workspace, bookmarkData: pending.bookmarkData))
+        }
+        return byID.values.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
     }
 
     /// Reads a directory's summary, falling back to a full workspace decode

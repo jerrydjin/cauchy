@@ -1,4 +1,6 @@
 import XCTest
+import PDFKit
+import AppKit
 @testable import Cauchy
 
 @MainActor
@@ -117,5 +119,115 @@ final class WorkspaceUndoTests: XCTestCase {
         workspace.closeDocument()
 
         XCTAssertFalse(workspace.undoManager.canUndo)
+    }
+}
+
+@MainActor
+final class WorkspacePersistenceTests: XCTestCase {
+    func testDebouncedSavesKeepBothDocumentsAndLatestRevision() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let persistence = DocumentPersistenceService(root: root)
+        var first = DocumentWorkspace(documentURL: URL(fileURLWithPath: "/tmp/first.pdf"))
+        let second = DocumentWorkspace(documentURL: URL(fileURLWithPath: "/tmp/second.pdf"))
+        persistence.scheduleSave(first, bookmarkData: nil)
+        persistence.scheduleSave(second, bookmarkData: nil)
+        first.highlights = [Highlight(pageIndex: 0, selectedText: "A saved theorem")]
+        persistence.scheduleSave(first, bookmarkData: nil)
+        try await Task.sleep(for: .seconds(0.8))
+        let reader = DocumentPersistenceService(root: root)
+        let savedFirst = await reader.loadWorkspace(id: first.id)
+        let savedSecond = await reader.loadWorkspace(id: second.id)
+        XCTAssertEqual(savedFirst?.workspace.highlights.first?.selectedText, "A saved theorem")
+        XCTAssertEqual(savedSecond?.workspace.id, second.id)
+    }
+
+    func testImmediateFlushIncludesSynchronouslyEnqueuedSaves() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let persistence = DocumentPersistenceService(root: root)
+        let workspace = DocumentWorkspace(documentURL: URL(fileURLWithPath: "/tmp/paper.pdf"))
+        persistence.scheduleSave(workspace, bookmarkData: nil)
+        try await persistence.flushAll()
+        let reader = DocumentPersistenceService(root: root)
+        let saved = await reader.loadWorkspace(id: workspace.id)
+        XCTAssertEqual(saved?.workspace.id, workspace.id)
+    }
+
+    func testFailedFlushRetainsChangesForRetry() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("blocked".utf8).write(to: root)
+        let persistence = DocumentPersistenceService(root: root)
+        let workspace = DocumentWorkspace(documentURL: URL(fileURLWithPath: "/tmp/paper.pdf"))
+        persistence.scheduleSave(workspace, bookmarkData: nil)
+        do {
+            try await persistence.flushAll()
+            XCTFail("Writing into a file should fail")
+        } catch {}
+        try FileManager.default.removeItem(at: root)
+        try await persistence.flushAll()
+        let reader = DocumentPersistenceService(root: root)
+        let saved = await reader.loadWorkspace(id: workspace.id)
+        XCTAssertEqual(saved?.workspace.id, workspace.id)
+    }
+}
+
+@MainActor
+final class WorkspaceReopenTests: XCTestCase {
+    func testReopenBeforeDebounceReturnsLatestNotes() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let persistence = DocumentPersistenceService(root: root)
+        var workspace = DocumentWorkspace(documentURL: URL(fileURLWithPath: "/tmp/paper.pdf"))
+        try await persistence.saveWorkspace(workspace, bookmarkData: nil)
+        workspace.highlights = [Highlight(pageIndex: 0, selectedText: "Latest passage")]
+        persistence.scheduleSave(workspace, bookmarkData: nil)
+        let reopened = try await persistence.loadWorkspace(for: workspace.documentURL)
+        XCTAssertEqual(reopened?.workspace.highlights.first?.selectedText, "Latest passage")
+    }
+}
+
+@MainActor
+final class ReadingLayoutTests: XCTestCase {
+    func testFitToWidthFollowsReaderResize() throws {
+        let image = NSImage(size: NSSize(width: 600, height: 800), flipped: false) { rect in
+            NSColor.white.setFill()
+            rect.fill()
+            return true
+        }
+        let document = PDFDocument()
+        document.insert(try XCTUnwrap(PDFPage(image: image)), at: 0)
+        let view = PDFView(frame: NSRect(x: 0, y: 0, width: 600, height: 800))
+        view.document = document
+        let controller = PDFViewportController(role: .primary)
+        controller.attach(to: view)
+        var state = ViewportState.default
+        state.scaleFactor = -1
+        controller.apply(state: state, animated: false)
+        let initialScale = view.scaleFactor
+        view.frame.size.width = 300
+        controller.applyFitToWidthIfNeeded()
+        XCTAssertEqual(view.scaleFactor, initialScale / 2, accuracy: 0.01)
+    }
+
+    func testExplicitZoomIsPreservedWhenReaderResizes() throws {
+        let image = NSImage(size: NSSize(width: 600, height: 800), flipped: false) { rect in
+            NSColor.white.setFill()
+            rect.fill()
+            return true
+        }
+        let document = PDFDocument()
+        document.insert(try XCTUnwrap(PDFPage(image: image)), at: 0)
+        let view = PDFView(frame: NSRect(x: 0, y: 0, width: 600, height: 800))
+        view.document = document
+        let controller = PDFViewportController(role: .primary)
+        controller.attach(to: view)
+        var state = ViewportState.default
+        state.scaleFactor = 1.5
+        controller.apply(state: state, animated: false)
+        view.frame.size.width = 300
+        controller.applyFitToWidthIfNeeded()
+        XCTAssertEqual(view.scaleFactor, 1.5, accuracy: 0.01)
     }
 }

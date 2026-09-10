@@ -42,6 +42,13 @@ struct GlassToolbarContent: ToolbarContent {
 
             if hasDocument {
                 Button {
+                    workspace.toggleContextPanel()
+                } label: {
+                    Label(workspace.contextPanelVisible ? "Hide Context" : "Show Context", systemImage: "sidebar.trailing")
+                }
+                .help("Show or hide highlights and references (⇧⌘I)")
+
+                Button {
                     workspace.zoomOut()
                 } label: {
                     Label("Zoom Out", systemImage: "minus.magnifyingglass")

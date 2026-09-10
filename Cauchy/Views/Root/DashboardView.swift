@@ -7,7 +7,12 @@ struct DashboardView: View {
     
     @State private var recentWorkspaces: [WorkspaceSummary] = []
     @State private var isHoveringDropZone = false
-    @State private var workspacePendingRemoval: WorkspaceSummary?
+    @AppStorage("library.hiddenRecents") private var hiddenRecents = ""
+    @State private var showHiddenRecents = false
+
+    private var visibleRecents: [WorkspaceSummary] {
+        recentWorkspaces.filter { showHiddenRecents || !hiddenRecents.split(separator: ",").contains(Substring($0.workspaceID.uuidString)) }
+    }
 
     @State private var searchText = ""
     @State private var searchResults: [LibrarySearchResult] = []
@@ -19,61 +24,76 @@ struct DashboardView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 48) {
-                // Header
-                VStack(spacing: 12) {
-                    Image(systemName: "book.pages")
-                        .font(.system(size: 56, weight: .thin))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 80)
+            VStack(spacing: 24) {
+                if recentWorkspaces.isEmpty {
+                    // Header
+                    VStack(spacing: 12) {
+                        Image(systemName: "book.pages")
+                            .font(.system(size: 56, weight: .thin))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 80)
                     
-                    Text("Cauchy")
-                        .font(.system(size: 36, weight: .medium, design: .serif))
+                        Text("Cauchy")
+                            .font(.system(size: 36, weight: .medium, design: .serif))
                     
-                    Text("Mathematical PDF Workspace")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-                
-                // Primary action (Drop zone & Open button)
-                GlassEffectContainer {
-                    VStack(spacing: 16) {
-                        Image(systemName: "arrow.down.doc.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(isHoveringDropZone ? Color.accentColor : Color.secondary)
-                        
-                        Text("Drop a PDF here")
-                            .font(.headline)
-                        
-                        Text("or")
-                            .foregroundStyle(.tertiary)
-                        
-                        Button {
-                            workspace.openDocument()
-                        } label: {
-                            Text("Open PDF…")
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 8)
-                        }
-                        .buttonStyle(.glassProminent)
-                        .keyboardShortcut("o", modifiers: .command)
+                        Text("A workspace for papers and textbooks")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(48)
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                }
-                .glassEffect(in: .rect(cornerRadius: 24))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(
-                            isHoveringDropZone ? Color.accentColor : Color.clear,
-                            lineWidth: 2
-                        )
-                }
-                .onDrop(of: [.fileURL], isTargeted: $isHoveringDropZone) { providers in
-                    return handleDrop(providers: providers)
-                }
                 
+                    // Primary action (Drop zone & Open button)
+                    GlassEffectContainer {
+                        VStack(spacing: 16) {
+                            Image(systemName: "arrow.down.doc.fill")
+                                .font(.system(size: 32))
+                                .foregroundStyle(isHoveringDropZone ? Color.accentColor : Color.secondary)
+                        
+                            Text("Drop a PDF here")
+                                .font(.headline)
+                        
+                            Text("or")
+                                .foregroundStyle(.tertiary)
+                        
+                            Button {
+                                workspace.openDocument()
+                            } label: {
+                                Text("Open PDF…")
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.glassProminent)
+                            .keyboardShortcut("o", modifiers: .command)
+                        }
+                        .padding(48)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                    }
+                    .glassEffect(in: .rect(cornerRadius: 24))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 24)
+                            .strokeBorder(
+                                isHoveringDropZone ? Color.accentColor : Color.clear,
+                                lineWidth: 2
+                            )
+                    }
+                    .onDrop(of: [.fileURL], isTargeted: $isHoveringDropZone) { providers in
+                        return handleDrop(providers: providers)
+                    }
+                
+                } else {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Library").font(.largeTitle.weight(.semibold))
+                            Text("Continue reading, or find a passage in your notes.")
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Open PDF…") { workspace.openDocument() }
+                            .buttonStyle(.glassProminent)
+                    }
+                    .padding(.top, 32)
+                }
+
                 LibrarySearchField(text: $searchText)
 
                 if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -81,19 +101,26 @@ struct DashboardView: View {
                 } else if !recentWorkspaces.isEmpty {
                     // Recents grid
                     VStack(alignment: .leading, spacing: 20) {
-                        Text("Recent")
-                            .font(.title2.bold())
-                            .padding(.leading, 4)
+                        HStack {
+                            Text("Recent").font(.title2.bold())
+                            Spacer()
+                            if !hiddenRecents.isEmpty {
+                                Toggle("Show hidden", isOn: $showHiddenRecents).toggleStyle(.checkbox)
+                            }
+                        }
                         
                         LazyVGrid(columns: columns, spacing: 24) {
-                            ForEach(recentWorkspaces, id: \.workspaceID) { summary in
+                            ForEach(visibleRecents, id: \.workspaceID) { summary in
                                 RecentDocumentCard(
                                     summary: summary,
                                     action: { open(summary) }
                                 )
                                 .contextMenu {
-                                    Button("Remove from Recents", role: .destructive) {
-                                        workspacePendingRemoval = summary
+                                    Button(isHidden(summary) ? "Show in Recents" : "Hide from Recents") {
+                                        var ids = Set(hiddenRecents.split(separator: ",").map(String.init))
+                                        if isHidden(summary) { ids.remove(summary.workspaceID.uuidString) }
+                                        else { ids.insert(summary.workspaceID.uuidString) }
+                                        hiddenRecents = ids.sorted().joined(separator: ",")
                                     }
                                 }
                             }
@@ -110,26 +137,6 @@ struct DashboardView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .task { await loadWorkspaces() }
         .task(id: searchText) { await runSearch() }
-        .confirmationDialog(
-            "Remove “\(workspacePendingRemoval?.documentURL.deletingPathExtension().lastPathComponent ?? "")” from Recents?",
-            isPresented: Binding(
-                get: { workspacePendingRemoval != nil },
-                set: { if !$0 { workspacePendingRemoval = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Remove", role: .destructive) {
-                if let summary = workspacePendingRemoval {
-                    remove(summary)
-                }
-                workspacePendingRemoval = nil
-            }
-            Button("Cancel", role: .cancel) {
-                workspacePendingRemoval = nil
-            }
-        } message: {
-            Text("This deletes its saved highlights, chat threads, and reading position. The PDF file itself is not touched.")
-        }
         // Apply scroll edge effect so it feels deeply integrated with the macOS 27 window chrome
         .sidebarScrollEdgeEffect()
         .sidebarScrollContentInsets()
@@ -195,6 +202,10 @@ struct DashboardView: View {
         }
     }
 
+    private func isHidden(_ summary: WorkspaceSummary) -> Bool {
+        hiddenRecents.split(separator: ",").contains(Substring(summary.workspaceID.uuidString))
+    }
+
     private func loadWorkspaces() async {
         recentWorkspaces = await DocumentPersistenceService.shared.listWorkspaceSummaries()
     }
@@ -208,13 +219,6 @@ struct DashboardView: View {
             }
         }
         return true
-    }
-
-    private func remove(_ summary: WorkspaceSummary) {
-        Task {
-            try? await DocumentPersistenceService.shared.deleteWorkspace(id: summary.workspaceID)
-            await loadWorkspaces()
-        }
     }
 
     private func open(_ summary: WorkspaceSummary) {
@@ -265,7 +269,8 @@ struct RecentDocumentCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(summary.documentURL.deletingPathExtension().lastPathComponent)
                             .font(.headline)
-                            .lineLimit(1)
+                            .lineLimit(2, reservesSpace: true)
+                            .help(summary.documentURL.deletingPathExtension().lastPathComponent)
 
                         HStack {
                             Text("\(summary.lastOpenedAt, style: .relative) ago")

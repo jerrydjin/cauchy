@@ -21,6 +21,7 @@ final class WorkspaceViewModel: Equatable {
     var pdfDocument: PDFDocument?
     var bookmarkData: Data?
 
+    var contextPanelVisible = true
     var sidebarVisible = true
     var sidebarContentMode: SidebarContentMode = .thumbnails
     var pdfPageLayoutMode: PDFPageLayoutMode = .continuousScroll
@@ -517,6 +518,7 @@ final class WorkspaceViewModel: Equatable {
     }
 
     func selectHighlight(_ highlight: Highlight) {
+        contextPanelVisible = true
         highlightStore.selectedHighlightID = highlight.id
         contextEngine.showDetail(highlight.id)
         selectionThread.restoreThread(from: highlight, documentTitle: documentTitle)
@@ -793,6 +795,11 @@ final class WorkspaceViewModel: Equatable {
         var state = viewportCoordinator.viewport
         state.scaleFactor = 1.0
         viewportCoordinator.applyProgrammaticViewport(state)
+    }
+
+    func toggleContextPanel() {
+        contextPanelVisible.toggle()
+        zoomToFitWidth()
     }
 
     func zoomToFitWidth() {

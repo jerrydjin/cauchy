@@ -168,8 +168,8 @@ extension AssistantConnector {
         switch access {
         case .onDevice:
             "Turn on Apple Intelligence in System Settings."
-        case .cliSignIn(_, let install, let signIn):
-            "\(install), then \(signIn.prefix(1).lowercased() + signIn.dropFirst())."
+        case .cliSignIn:
+            "Open Settings to install and connect \(name)."
         case .apiKey(let provider):
             "Add your \(provider.vendor) API key in Settings."
         }
@@ -177,7 +177,7 @@ extension AssistantConnector {
 
     /// What to say when the CLI reports an auth failure mid-answer.
     var signInHint: String {
-        if case .cliSignIn(_, _, let signIn) = access { return signIn + ", then try again." }
+        if case .cliSignIn = access { return "Reconnect \(name) in Settings, then try again." }
         return setupHint
     }
 }
@@ -214,7 +214,7 @@ extension AssistantConnector {
                 name: "Claude Code",
                 vendor: "Anthropic",
                 symbol: "asterisk",
-                tagline: "Your Claude subscription, through the CLI you already signed into.",
+                tagline: "Connect your Claude account and use your existing subscription.",
                 access: .cliSignIn(
                     binary: "claude",
                     install: "Install Claude Code",
@@ -239,7 +239,7 @@ extension AssistantConnector {
                 name: "Codex",
                 vendor: "OpenAI",
                 symbol: "chevron.left.forwardslash.chevron.right",
-                tagline: "Your ChatGPT plan, through the Codex CLI.",
+                tagline: "Connect your ChatGPT account and use your existing plan.",
                 access: .cliSignIn(
                     binary: "codex",
                     install: "Install Codex (`brew install codex`)",
@@ -262,7 +262,7 @@ extension AssistantConnector {
                 name: "Antigravity",
                 vendor: "Google",
                 symbol: "arrow.up.circle",
-                tagline: "Your Google sign-in, through the agy CLI.",
+                tagline: "Connect your Google account to use Antigravity.",
                 access: .cliSignIn(
                     binary: "agy",
                     install: "Install it (`curl -fsSL https://antigravity.google/cli/install.sh | bash`)",

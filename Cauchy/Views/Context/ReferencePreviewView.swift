@@ -1,7 +1,11 @@
 import SwiftUI
+import PDFKit
 
 struct ReferencePreviewView: View {
     @Bindable var workspace: WorkspaceViewModel
+    @State private var showsTranscription = false
+    @State private var sourceImage: NSImage?
+    @State private var isLoadingSource = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,9 +64,48 @@ struct ReferencePreviewView: View {
     @ViewBuilder
     private func formattedView(block: DocumentBlock) -> some View {
         ScrollView {
-            ReadingBlockCard(block: block, displayBody: block.formattedBody)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(block.title).font(.headline)
+                    Spacer()
+                    Button("Go to page \(block.pageIndex + 1)", systemImage: "arrow.up.forward") {
+                        workspace.goToPage(block.pageIndex + 1)
+                    }
+                    .buttonStyle(.borderless)
+                }
+                Picker("Reference view", selection: $showsTranscription) {
+                    Text("Original page").tag(false)
+                    Text("Index text").tag(true)
+                }
+                .pickerStyle(.segmented)
+                if showsTranscription {
+                    Text("AI transcription · compare with the original page for exact notation.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    ReadingBlockCard(block: block, displayBody: block.formattedBody)
+                } else if let sourceImage {
+                    Image(nsImage: sourceImage)
+                        .resizable().scaledToFit()
+                        .accessibilityLabel("Original PDF page \(block.pageIndex + 1) for \(block.title)")
+                } else if isLoadingSource {
+                    ProgressView("Loading original page…")
+                } else {
+                    Text("Preview unavailable. Open the source page to read this reference.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(16)
+        }
+        .task(id: block.pageIndex) {
+            sourceImage = nil
+            isLoadingSource = true
+            defer { isLoadingSource = false }
+            guard let page = workspace.pdfDocument?.page(at: block.pageIndex),
+                  let data = page.dataRepresentation else { return }
+            let image = await Task.detached(priority: .userInitiated) {
+                PDFDocument(data: data)?.page(at: 0)?.thumbnail(of: NSSize(width: 1200, height: 1600), for: .mediaBox)
+            }.value
+            guard !Task.isCancelled else { return }
+            sourceImage = image
         }
     }
 

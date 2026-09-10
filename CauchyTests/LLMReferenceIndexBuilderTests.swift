@@ -195,7 +195,7 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         )
     }
 
-    func testMergePrefersLongerFormattedBody() {
+    func testMergeKeepsOriginalStatementOverLongerLaterDiscussion() {
         var results: [ReferenceKey: IndexedReference] = [:]
         let key = ReferenceKey(kind: .theorem, number: "3.1")
 
@@ -216,8 +216,8 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
             into: &results
         )
 
-        XCTAssertEqual(results[key]?.formattedBody, "A much longer theorem statement.")
-        XCTAssertEqual(results[key]?.pageIndex, 2)
+        XCTAssertEqual(results[key]?.formattedBody, "Short.")
+        XCTAssertEqual(results[key]?.pageIndex, 0)
     }
 }
 

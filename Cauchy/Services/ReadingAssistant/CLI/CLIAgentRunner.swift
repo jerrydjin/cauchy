@@ -28,7 +28,7 @@ enum CLIAgentRunner {
     /// locations explicitly in addition to whatever PATH we inherited.
     @MainActor
     static func locateBinary(named name: String) -> URL? {
-        if let cached = locateCache[name] {
+        if let cached = locateCache[name], FileManager.default.isExecutableFile(atPath: cached.path) {
             return cached
         }
 
@@ -59,6 +59,25 @@ enum CLIAgentRunner {
     @MainActor
     static func invalidateBinaryCache() {
         locateCache.removeAll()
+    }
+
+    /// Shared by reading requests and the embedded provider sign-in.
+    nonisolated static var environment: [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        // Make sure the CLI can find its own helpers (node, etc.).
+        let extraPaths = [
+            "\(NSHomeDirectory())/.local/bin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+        ]
+        environment["PATH"] = (extraPaths + [environment["PATH"] ?? "/usr/bin:/bin"]).joined(separator: ":")
+        // The whole point of this provider is the user's own CLI sign-in.
+        // Strip API-key/base-URL overrides so a stray environment variable
+        // can never silently reroute or re-bill the request.
+        for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"] {
+            environment.removeValue(forKey: key)
+        }
+        return environment
     }
 
     // MARK: - Process execution
@@ -95,21 +114,7 @@ enum CLIAgentRunner {
             process.standardError = child.stderr
             process.standardInput = FileHandle.nullDevice
 
-            var environment = ProcessInfo.processInfo.environment
-            // Make sure the CLI can find its own helpers (node, etc.).
-            let extraPaths = [
-                "\(NSHomeDirectory())/.local/bin",
-                "/opt/homebrew/bin",
-                "/usr/local/bin",
-            ]
-            environment["PATH"] = (extraPaths + [environment["PATH"] ?? "/usr/bin:/bin"]).joined(separator: ":")
-            // The whole point of this provider is the user's own CLI sign-in.
-            // Strip API-key/base-URL overrides so a stray environment variable
-            // can never silently reroute or re-bill the request.
-            for key in ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"] {
-                environment.removeValue(forKey: key)
-            }
-            process.environment = environment
+            process.environment = Self.environment
 
             // Drain stderr as it arrives so a chatty child can't deadlock.
             let stderrBuffer = Mutex(Data())

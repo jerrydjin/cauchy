@@ -87,6 +87,12 @@ struct ReaderCommands: Commands {
         }
 
         CommandMenu("Reading") {
+            Button(workspace?.contextPanelVisible == true ? "Hide Context Panel" : "Show Context Panel") {
+                workspace?.toggleContextPanel()
+            }
+            .keyboardShortcut("i", modifiers: [.command, .shift])
+            .disabled(!hasDocument)
+
             Button("Zoom In") { workspace?.zoomIn() }
                 .keyboardShortcut("+", modifiers: .command)
                 .disabled(!hasDocument)

@@ -56,7 +56,7 @@ IDS = {k: gid(k) for k in [
     "cl_project", "cl_target", "debug_p", "release_p", "debug_t", "release_t",
     "assets", "assets_build", "entitlements", "root", "cauchy_group", "products",
     "fm_build", "fm_ref", "swiftmath_build", "swiftmath_ref", "swiftmath_pkg",
-    "swiftmath_product",
+    "swiftmath_product", "swiftterm_build", "swiftterm_product", "swiftterm_pkg",
     "tests_target", "tests_product", "tests_group", "tests_sources",
     "tests_cl", "tests_debug", "tests_release", "tests_dep", "tests_proxy",
 ]}
@@ -105,6 +105,7 @@ emit(f'\t\t{IDS["swiftmath_build"]} /* SwiftMath in Frameworks */ = {{isa = PBXB
 emit(f'\t\t{IDS["assets_build"]} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {IDS["assets"]} /* Assets.xcassets */; }};')
 for tf in test_files:
     emit(f'\t\t{test_build_ids[tf]} /* {tf} in Sources */ = {{isa = PBXBuildFile; fileRef = {test_ref_ids[tf]} /* {tf} */; }};')
+emit(f'\t\t{IDS["swiftterm_build"]} /* SwiftTerm in Frameworks */ = {{isa = PBXBuildFile; productRef = {IDS["swiftterm_product"]}; }};')
 emit("/* End PBXBuildFile section */\n")
 
 emit("/* Begin PBXFileReference section */")
@@ -121,7 +122,7 @@ for tf in test_files:
 emit("/* End PBXFileReference section */\n")
 
 emit("/* Begin PBXFrameworksBuildPhase section */")
-emit(f'\t\t{IDS["frameworks"]} /* Frameworks */ = {{ isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = ({IDS["fm_build"]} /* FoundationModels.framework in Frameworks */, {IDS["swiftmath_build"]} /* SwiftMath in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; }};')
+emit(f'\t\t{IDS["frameworks"]} /* Frameworks */ = {{ isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = ({IDS["fm_build"]} /* FoundationModels.framework in Frameworks */, {IDS["swiftmath_build"]} /* SwiftMath in Frameworks */, {IDS["swiftterm_build"]},); runOnlyForDeploymentPostprocessing = 0; }};')
 emit("/* End PBXFrameworksBuildPhase section */\n")
 
 emit("/* Begin PBXGroup section */")
@@ -151,7 +152,7 @@ emit(f'\t\t{IDS["root"]} = {{ isa = PBXGroup; children = ({IDS["cauchy_group"]} 
 emit("/* End PBXGroup section */\n")
 
 emit("/* Begin PBXNativeTarget section */")
-emit(f'\t\t{IDS["target"]} /* Cauchy */ = {{ isa = PBXNativeTarget; buildConfigurationList = {IDS["cl_target"]}; buildPhases = ({IDS["sources"]}, {IDS["frameworks"]}, {IDS["resources"]},); buildRules = (); dependencies = (); name = Cauchy; packageProductDependencies = ({IDS["swiftmath_product"]} /* SwiftMath */,); productName = Cauchy; productReference = {IDS["product"]}; productType = "com.apple.product-type.application"; }};')
+emit(f'\t\t{IDS["target"]} /* Cauchy */ = {{ isa = PBXNativeTarget; buildConfigurationList = {IDS["cl_target"]}; buildPhases = ({IDS["sources"]}, {IDS["frameworks"]}, {IDS["resources"]},); buildRules = (); dependencies = (); name = Cauchy; packageProductDependencies = ({IDS["swiftmath_product"]} /* SwiftMath */, {IDS["swiftterm_product"]},); productName = Cauchy; productReference = {IDS["product"]}; productType = "com.apple.product-type.application"; }};')
 emit(f'\t\t{IDS["tests_target"]} /* CauchyTests */ = {{ isa = PBXNativeTarget; buildConfigurationList = {IDS["tests_cl"]}; buildPhases = ({IDS["tests_sources"]},); buildRules = (); dependencies = ({IDS["tests_dep"]},); name = CauchyTests; productName = CauchyTests; productReference = {IDS["tests_product"]}; productType = "com.apple.product-type.bundle.unit-test"; }};')
 emit("/* End PBXNativeTarget section */\n")
 
@@ -164,7 +165,7 @@ emit(f'\t\t{IDS["tests_dep"]} /* PBXTargetDependency */ = {{ isa = PBXTargetDepe
 emit("/* End PBXTargetDependency section */\n")
 
 emit("/* Begin PBXProject section */")
-emit(f'\t\t{IDS["project"]} /* Project object */ = {{ isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2700; LastUpgradeCheck = 2700; }}; buildConfigurationList = {IDS["cl_project"]}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = {IDS["root"]}; packageReferences = ({IDS["swiftmath_pkg"]} /* XCLocalSwiftPackageReference "SwiftMath" */,); productRefGroup = {IDS["products"]}; projectDirPath = ""; projectRoot = ""; targets = ({IDS["target"]}, {IDS["tests_target"]},); }};')
+emit(f'\t\t{IDS["project"]} /* Project object */ = {{ isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2700; LastUpgradeCheck = 2700; }}; buildConfigurationList = {IDS["cl_project"]}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = {IDS["root"]}; packageReferences = ({IDS["swiftmath_pkg"]} /* XCLocalSwiftPackageReference "SwiftMath" */, {IDS["swiftterm_pkg"]},); productRefGroup = {IDS["products"]}; projectDirPath = ""; projectRoot = ""; targets = ({IDS["target"]}, {IDS["tests_target"]},); }};')
 emit("/* End PBXProject section */\n")
 
 emit("/* Begin PBXResourcesBuildPhase section */")
@@ -255,7 +256,11 @@ emit('\t\t\tisa = XCSwiftPackageProductDependency;')
 emit(f'\t\t\tpackage = {IDS["swiftmath_pkg"]} /* XCLocalSwiftPackageReference "SwiftMath" */;')
 emit('\t\t\tproductName = SwiftMath;')
 emit('\t\t};')
+emit(f'\t\t{IDS["swiftterm_product"]} = {{isa = XCSwiftPackageProductDependency; package = {IDS["swiftterm_pkg"]}; productName = SwiftTerm; }};')
 emit("/* End XCSwiftPackageProductDependency section */")
+emit("/* Begin XCRemoteSwiftPackageReference section */")
+emit(f'\t\t{IDS["swiftterm_pkg"]} = {{isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git"; requirement = {{kind = exactVersion; version = 1.10.0; }}; }};')
+emit("/* End XCRemoteSwiftPackageReference section */")
 
 emit("\t};")
 emit(f'\trootObject = {IDS["project"]} /* Project object */;')

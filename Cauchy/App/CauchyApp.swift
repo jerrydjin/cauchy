@@ -4,11 +4,13 @@ import SwiftUI
 extension Notification.Name {
     /// Posted when Settings changes which model answers questions. Every open
     /// window has its own assistant, so this is a broadcast rather than a call.
+    static let commitReadingEdits = Notification.Name("CauchyCommitReadingEdits")
     static let assistantPreferencesChanged = Notification.Name("CauchyAssistantPreferencesChanged")
 }
 
 @main
 struct CauchyApp: App {
+    @NSApplicationDelegateAdaptor(SaveLifecycleDelegate.self) private var saveLifecycle
     /// True when the app was launched only to host a test bundle. The unit
     /// tests exercise pure logic, so a reader reopening yesterday's paper and
     /// starting an on-device index behind them is pure interference — enough
@@ -111,5 +113,27 @@ private struct ReaderWindow: View {
         guard !launchRestoreClaimed else { return false }
         launchRestoreClaimed = true
         return true
+    }
+}
+
+@MainActor
+final class SaveLifecycleDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !CauchyApp.isHostingTests else { return .terminateNow }
+        NotificationCenter.default.post(name: .commitReadingEdits, object: nil)
+        Task {
+            do {
+                try await DocumentPersistenceService.shared.flushAll()
+                sender.reply(toApplicationShouldTerminate: true)
+            } catch {
+                let alert = NSAlert()
+                alert.messageText = "Your latest changes could not be saved"
+                alert.informativeText = error.localizedDescription
+                alert.addButton(withTitle: "Keep Cauchy Open")
+                alert.runModal()
+                sender.reply(toApplicationShouldTerminate: false)
+            }
+        }
+        return .terminateLater
     }
 }

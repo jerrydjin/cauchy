@@ -40,6 +40,7 @@ struct HighlightNoteEditor: View {
             if !focused { commit() }
         }
         .onDisappear { commit() }
+        .onReceive(NotificationCenter.default.publisher(for: .commitReadingEdits)) { _ in commit() }
     }
 
     private func commit() {

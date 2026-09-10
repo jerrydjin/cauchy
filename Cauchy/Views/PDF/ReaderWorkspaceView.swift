@@ -7,72 +7,78 @@ struct ReaderWorkspaceView: View {
     var body: some View {
         Group {
             if let document = workspace.pdfDocument {
-                HStack(spacing: 0) {
-                    PDFViewportView(
-                        document: document,
-                        viewportState: $workspace.viewportCoordinator.viewport,
-                        role: .primary,
-                        selectionModeActive: workspace.selectionModeActive,
-                        pageLayoutMode: workspace.pdfPageLayoutMode,
-                        onSelectionCompleted: { capture in
-                            workspace.handleSelection(capture)
-                        },
-                        onViewportChanged: { state in
-                            workspace.viewportCoordinator.handleViewportChange(state: state)
-                            workspace.persistWorkspace()
-                        },
-                        onTextSelectionChanged: { context in
-                            workspace.handleTextSelection(context)
-                        },
-                        onBlockDetected: { block in
-                            workspace.handleDetectedBlock(block)
-                        },
-                        onHighlightSelected: { id in
-                            workspace.selectHighlight(id: id)
-                        },
-                        referenceIndex: workspace.referenceIndex,
-                        referenceIndexReady: !workspace.isIndexingReferences && workspace.referenceIndexError == nil,
-                        applyTrigger: workspace.viewportCoordinator.applyTrigger,
-                        findMatches: workspace.find.matches,
-                        activeFindMatch: workspace.find.activeMatch,
-                        findRevision: workspace.find.revision,
-                        viewCommand: workspace.pdfViewCommand,
-                        viewCommandRevision: workspace.pdfViewCommandRevision,
-                        invertPageColors: workspace.invertPageColors
-                    )
-                    .frame(maxWidth: 900)
-                    .frame(maxHeight: .infinity)
-                    .overlay(alignment: .top) {
-                        if workspace.find.isVisible {
-                            FindBarView(find: workspace.find)
-                                .padding(.top, 12)
-                                .transition(.move(edge: .top).combined(with: .opacity))
+                GeometryReader { geometry in
+                    let panelLimit = max(300, geometry.size.width - 488)
+                    let panelWidth = min(workspace.contextPanelWidth, panelLimit)
+                    HStack(spacing: 0) {
+                        PDFViewportView(
+                            document: document,
+                            viewportState: $workspace.viewportCoordinator.viewport,
+                            role: .primary,
+                            selectionModeActive: workspace.selectionModeActive,
+                            pageLayoutMode: workspace.pdfPageLayoutMode,
+                            onSelectionCompleted: { capture in
+                                workspace.handleSelection(capture)
+                            },
+                            onViewportChanged: { state in
+                                workspace.viewportCoordinator.handleViewportChange(state: state)
+                                workspace.persistWorkspace()
+                            },
+                            onTextSelectionChanged: { context in
+                                workspace.handleTextSelection(context)
+                            },
+                            onBlockDetected: { block in
+                                workspace.handleDetectedBlock(block)
+                            },
+                            onHighlightSelected: { id in
+                                workspace.selectHighlight(id: id)
+                            },
+                            referenceIndex: workspace.referenceIndex,
+                            referenceIndexReady: !workspace.isIndexingReferences && workspace.referenceIndexError == nil,
+                            applyTrigger: workspace.viewportCoordinator.applyTrigger,
+                            findMatches: workspace.find.matches,
+                            activeFindMatch: workspace.find.activeMatch,
+                            findRevision: workspace.find.revision,
+                            viewCommand: workspace.pdfViewCommand,
+                            viewCommandRevision: workspace.pdfViewCommandRevision,
+                            invertPageColors: workspace.invertPageColors
+                        )
+                        .frame(maxWidth: 900)
+                        .frame(maxHeight: .infinity)
+                        .overlay(alignment: .top) {
+                            if workspace.find.isVisible {
+                                FindBarView(find: workspace.find)
+                                    .padding(.top, 12)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+                        }
+                        .animation(.easeInOut(duration: 0.15), value: workspace.find.isVisible)
+                        // The page is centred in the space the context panel leaves,
+                        // not pushed up against it. A single leading Spacer used to
+                        // absorb every extra point of window width, so widening the
+                        // window slid the page rightwards into the panel.
+                        //
+                        // No padding around this: the column's edge is where the
+                        // resize grip sits, and page and panel share one backdrop,
+                        // so any inset here shows up as dark on the reader's side of
+                        // the grip — reading as a lopsided panel border rather than
+                        // as breathing room. Centring alone spaces the page in a
+                        // wide window; in a narrow one the page should meet the grip.
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        if workspace.contextPanelVisible {
+                            ContextPanelResizeHandle(
+                                width: Binding(
+                                    get: { panelWidth },
+                                    set: { workspace.contextPanelWidth = min($0, panelLimit) }
+                                )
+                            )
+
+                            ContextPanelView(workspace: workspace)
+                                .frame(width: panelWidth)
+                                .frame(maxHeight: .infinity)
                         }
                     }
-                    .animation(.easeInOut(duration: 0.15), value: workspace.find.isVisible)
-                    // The page is centred in the space the context panel leaves,
-                    // not pushed up against it. A single leading Spacer used to
-                    // absorb every extra point of window width, so widening the
-                    // window slid the page rightwards into the panel.
-                    //
-                    // No padding around this: the column's edge is where the
-                    // resize grip sits, and page and panel share one backdrop,
-                    // so any inset here shows up as dark on the reader's side of
-                    // the grip — reading as a lopsided panel border rather than
-                    // as breathing room. Centring alone spaces the page in a
-                    // wide window; in a narrow one the page should meet the grip.
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    ContextPanelResizeHandle(
-                        width: Binding(
-                            get: { workspace.contextPanelWidth },
-                            set: { workspace.contextPanelWidth = $0 }
-                        )
-                    )
-
-                    ContextPanelView(workspace: workspace)
-                        .frame(width: workspace.contextPanelWidth)
-                        .frame(maxHeight: .infinity)
                 }
             } else {
                 VStack(spacing: 16) {

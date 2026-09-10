@@ -6,6 +6,9 @@ struct SettingsView: View {
     /// Typed-but-unsaved key text, per provider. Cleared the moment a key is
     /// committed to the Keychain — the app never keeps a secret in view state
     /// longer than the user is typing it.
+    @State private var setupConnector: AssistantConnectorID?
+    @State private var setup = ConnectorSetupService.shared
+    @State private var refreshID = UUID()
     @State private var draftKeys: [CloudAPIProvider: String] = [:]
     @State private var storedKeys: Set<CloudAPIProvider> = Set(
         CloudAPIProvider.allCases.filter(KeychainService.hasKey(for:))
@@ -65,9 +68,9 @@ struct SettingsView: View {
                     connectorRow(connector)
                 }
             } header: {
-                Text("Connectors")
+                Text("Connect your assistant")
             } footer: {
-                Text("Each of these runs under a sign-in you already have — the app never sees a credential. Install or sign in from Terminal; the list refreshes when you reopen Settings.")
+                Text("Choose a provider to install it and sign in here. Cauchy uses your existing plan; your provider handles authentication.")
             }
 
             Section {
@@ -83,41 +86,51 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 520, height: 560)
         .padding()
+        .sheet(item: $setupConnector) { id in
+            ConnectorSetupView(connector: id.connector) {
+                CLIAgentRunner.invalidateBinaryCache()
+                refreshID = UUID()
+                onSettingsChanged?()
+            }
+        }
+        .onAppear { CLIAgentRunner.invalidateBinaryCache(); refreshID = UUID() }
     }
 
     // MARK: - Connector status
 
     @ViewBuilder
     private func connectorRow(_ connector: AssistantConnector) -> some View {
+        let _ = refreshID
         let status = connector.status
-
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
-                Image(systemName: connector.symbol)
-                    .frame(width: 16)
-                Text(connector.name)
-                Spacer()
-                Label(status.badge, systemImage: status.isReady ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(status.isReady ? Color.green : Color.orange)
-                    .labelStyle(.titleAndIcon)
-            }
-
-            // When it works, show where it was found; when it doesn't, show the
-            // one thing the user has to do about it.
-            Group {
-                if let hint = status.hint {
-                    Text(hint)
-                } else if let path = connector.resolvedBinaryURL?.path {
-                    Text(path)
-                } else {
-                    Text(connector.tagline)
+        let connected = setup.authenticated.contains(connector.id) && connector.resolvedBinaryURL != nil
+        HStack(spacing: 12) {
+            Image(systemName: connector.symbol)
+                .font(.title3).frame(width: 34, height: 38)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(connector.name).fontWeight(.medium)
+                    if connected {
+                        Label("Connected", systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(.green)
+                    }
                 }
+                Text(connector.binaryName == nil ? (status.hint ?? connector.tagline) :
+                     connected ? "Ready to answer your questions" :
+                     connector.resolvedBinaryURL == nil ? "Install and connect your \(connector.vendor) account" : "Already installed · Connect your account")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            if connector.binaryName != nil {
+                Button(connected ? "Manage" : connector.resolvedBinaryURL == nil ? "Install & connect" : "Connect") {
+                    setupConnector = connector.id
+                }
+                .controlSize(.small)
+                .disabled(setup.busy)
+            } else {
+                Text(status.badge).font(.caption).foregroundStyle(.secondary)
+            }
         }
+        .padding(.vertical, 6)
         .font(.callout)
     }
 

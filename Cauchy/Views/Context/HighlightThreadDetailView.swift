@@ -11,24 +11,26 @@ struct HighlightThreadDetailView: View {
     }
 
     var body: some View {
-        ConversationPanel(
-            selectedText: thread?.selectedText,
-            messages: thread?.messages ?? [],
-            streamingText: thread?.streamingAssistantText,
-            isResponding: workspace.selectionThread.isResponding,
-            isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
-            unavailabilityMessage: unavailabilityMessage,
-            panelWidth: workspace.contextPanelWidth,
-            question: $question,
-            onSend: { sendQuestion() },
-            onStop: {
-                if let unanswered = workspace.stopThreadMessage() {
-                    question = unanswered
-                }
-            },
-            onModelChange: { workspace.refreshReadingAssistant() },
-            header: { header }
-        )
+        GeometryReader { geometry in
+            ConversationPanel(
+                selectedText: thread?.selectedText,
+                messages: thread?.messages ?? [],
+                streamingText: thread?.streamingAssistantText,
+                isResponding: workspace.selectionThread.isResponding,
+                isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
+                unavailabilityMessage: unavailabilityMessage,
+                panelWidth: geometry.size.width,
+                question: $question,
+                onSend: { sendQuestion() },
+                onStop: {
+                    if let unanswered = workspace.stopThreadMessage() {
+                        question = unanswered
+                    }
+                },
+                onModelChange: { workspace.refreshReadingAssistant() },
+                header: { header }
+            )
+        }
     }
 
     /// Floats over the conversation. Nothing here is a surface: the glass

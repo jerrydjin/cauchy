@@ -32,10 +32,12 @@ enum LibrarySearchService {
         var results: [LibrarySearchResult] = []
 
         for summary in summaries {
+            guard !Task.isCancelled else { return [] }
             guard summary.highlightCount > 0 else { continue }
             guard let persisted = await persistence.loadWorkspace(id: summary.workspaceID) else { continue }
 
             for highlight in HighlightExportService.readingOrder(persisted.workspace.highlights) {
+                guard !Task.isCancelled else { return [] }
                 guard let snippet = match(highlight, needle: needle) else { continue }
                 results.append(
                     LibrarySearchResult(

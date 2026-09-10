@@ -26,6 +26,9 @@ struct ConversationPanel<Header: View>: View {
     var onModelChange: () -> Void = {}
     @ViewBuilder var header: Header
 
+    @State private var followsLatest = true
+    @State private var userIsScrolling = false
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -77,6 +80,28 @@ struct ConversationPanel<Header: View>: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 80
+            } action: { _, nearBottom in
+                if userIsScrolling { followsLatest = nearBottom }
+            }
+            .onScrollPhaseChange { oldPhase, newPhase, context in
+                userIsScrolling = newPhase == .interacting || newPhase == .decelerating
+                if newPhase == .idle && (oldPhase == .interacting || oldPhase == .decelerating) {
+                    let geometry = context.geometry
+                    followsLatest = geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 80
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if !followsLatest {
+                    Button("Jump to latest", systemImage: "arrow.down") {
+                        followsLatest = true
+                        scrollToBottom(proxy: proxy)
+                    }
+                    .buttonStyle(.glass)
+                    .padding(12)
+                }
+            }
             .safeAreaBar(edge: .top) { header }
             .safeAreaBar(edge: .bottom) { composerBar }
             // `.soft` at both edges: a progressive blur that fades the messages
@@ -89,10 +114,11 @@ struct ConversationPanel<Header: View>: View {
                 scrollToBottom(proxy: proxy)
             }
             .onChange(of: messages.count) { _, _ in
-                scrollToBottom(proxy: proxy)
+                if messages.last?.role == .user { followsLatest = true }
+                if followsLatest { scrollToBottom(proxy: proxy) }
             }
             .onChange(of: streamingText) { _, _ in
-                scrollToBottom(proxy: proxy)
+                if followsLatest { scrollToBottom(proxy: proxy) }
             }
         }
     }
@@ -123,7 +149,7 @@ struct ConversationPanel<Header: View>: View {
     /// view's own 16pt inset each side is the bubble's, which is what long
     /// equations need.
     private var bubbleWidth: CGFloat {
-        max(280, panelWidth - 32 - ConversationChrome.bubbleHorizontalInset)
+        max(120, panelWidth - 32 - ConversationChrome.bubbleHorizontalInset)
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {

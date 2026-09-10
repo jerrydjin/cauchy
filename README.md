@@ -26,8 +26,10 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 - **Notes and colours** — write your own note on a highlight, and file highlights under five marker colours
 - **Undo** — deleting a highlight (and its conversation), editing a note, and recolouring are all undoable with ⌘Z; a delete that would take a conversation with it asks first
 - **Export** — highlights and their conversations as Markdown (File ▸ Export Highlights as Markdown), or a copy of the PDF with the highlights written in as real annotations (File ▸ Save a Copy with Highlights) so they survive in Preview
+- **Library dashboard** — recent papers appear immediately; Hide from Recents preserves notes and conversations, with Show hidden to restore them
+- **Focused reading** — collapse the context panel with ⇧⌘I; Fit to Width follows changes in the reading area
 - **Library-wide search** — search every highlight and conversation across every document from the dashboard, and jump straight to the one you meant
-- **Reference hover previews** — an LLM-built index of theorems/lemmas/definitions/equations, indexed on-device with Apple Intelligence (Gemini only as fallback), lets you hover "Theorem 2.1" anywhere and see its statement
+- **Reference hover previews** — an LLM-built index of theorems/lemmas/definitions/equations, indexed on-device with Apple Intelligence (Gemini only as fallback), lets you hover "Theorem 2.1" to view the indexed source page, jump to it, or inspect the AI transcription
 - **Ask-time retrieval** — a BM25 index over the document supplies relevant passages from other pages to the assistant
 - **Multiple assistant providers** — on-device Apple Intelligence, Gemini (API key), or your own Claude Code / Codex CLI sign-ins
 - **On-device OCR** — Vision framework text recognition with LaTeX formatting assist
@@ -90,7 +92,7 @@ Cauchy/
 
 ## Persistence
 
-Workspace state is saved under Application Support at `~/Library/Application Support/Cauchy/workspaces/<id>/` (highlights, notes, colours, viewport, thumbnails). A document belongs to exactly one window: opening one that is already open brings its window forward rather than starting a second reader that would save over the first. Reference-index caches live in `…/Cauchy/reference-index/`. Legacy sidecars beside the PDF are migrated automatically on open.
+Saves are debounced independently per document and flushed before quitting; a failed write keeps the app open for retry. Workspace state is saved under Application Support at `~/Library/Application Support/Cauchy/workspaces/<id>/` (highlights, notes, colours, viewport, thumbnails). A document belongs to exactly one window: opening one that is already open brings its window forward rather than starting a second reader that would save over the first. Reference-index caches live in `…/Cauchy/reference-index/`. Legacy sidecars beside the PDF are migrated automatically on open.
 
 ## Sandbox
 

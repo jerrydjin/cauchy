@@ -15,6 +15,8 @@ final class PDFViewportController: NSObject {
     var isApplyingProgrammaticChange = false
 
     private var pendingFitToWidth = false
+    private var followsWidth = false
+    private var lastFittedWidth: CGFloat = 0
     private var pendingViewChange: Task<Void, Never>?
 
     init(role: ViewportRole) {
@@ -26,13 +28,13 @@ final class PDFViewportController: NSObject {
         self.pdfView = pdfView
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleViewChanged),
+            selector: #selector(handleViewChanged(_:)),
             name: Notification.Name.PDFViewScaleChanged,
             object: pdfView
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleViewChanged),
+            selector: #selector(handleViewChanged(_:)),
             name: Notification.Name.PDFViewPageChanged,
             object: pdfView
         )
@@ -42,8 +44,9 @@ final class PDFViewportController: NSObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    @objc private func handleViewChanged() {
+    @objc private func handleViewChanged(_ notification: Notification) {
         guard !isApplyingProgrammaticChange else { return }
+        if notification.name == .PDFViewScaleChanged { followsWidth = false }
         pendingViewChange?.cancel()
         pendingViewChange = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(50))
@@ -72,8 +75,10 @@ final class PDFViewportController: NSObject {
         isApplyingProgrammaticChange = true
 
         if state.scaleFactor < 0 {
+            followsWidth = true
             applyFitToWidth(in: pdfView)
         } else if abs(pdfView.scaleFactor - state.scaleFactor) > 0.001 {
+            followsWidth = false
             pdfView.scaleFactor = state.scaleFactor
         }
 
@@ -95,7 +100,8 @@ final class PDFViewportController: NSObject {
     }
 
     func applyFitToWidthIfNeeded() {
-        guard pendingFitToWidth, let pdfView, pdfView.bounds.width > 50 else { return }
+        guard let pdfView, pdfView.bounds.width > 50,
+              pendingFitToWidth || (followsWidth && abs(pdfView.bounds.width - lastFittedWidth) > 1) else { return }
         pendingFitToWidth = false
         isApplyingProgrammaticChange = true
         applyFitToWidth(in: pdfView)
@@ -113,6 +119,7 @@ final class PDFViewportController: NSObject {
             return
         }
         pendingFitToWidth = false
+        lastFittedWidth = viewWidth
         pdfView.scaleFactor = fitToWidthScale(in: pdfView)
     }
 

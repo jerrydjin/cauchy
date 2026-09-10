@@ -17,6 +17,7 @@ enum ReferenceIndexPromptBuilder {
     - Include ONLY numbered references that appear in the provided page text. Do not invent any.
     - Keep reference numbers exactly as printed (e.g. "1.4", "2.3.1").
     - name is the printed title only, e.g. "Definition 3.2 (Compactness)" → name "Compactness", "Assumption 2 (Bounded Gradients)" → name "Bounded Gradients"; leave empty when none is printed. Never carry a name over from these examples — take it only from this page.
+    - Extract definitions/statements introduced here, not citations such as "by Theorem 2.1" or "the proof of Theorem 2.1". A mention does not define a reference.
     - For equations: the body is ONLY the equation itself, no surrounding prose.
     - For theorems/lemmas/definitions/examples: the body is ONLY the statement, never the proof.
     - Write all mathematics inside $...$ (inline) or $$...$$ (display) LaTeX delimiters; never emit LaTeX commands outside delimiters. Prose stays plain text.
@@ -29,7 +30,7 @@ enum ReferenceIndexPromptBuilder {
     static let textArtifactHints = """
     Text-layer artifact hints (when no image is provided):
     - Map double-struck unicode to LaTeX: ℝ → $\\mathbb{R}$, ℕ → $\\mathbb{N}$, ℤ → $\\mathbb{Z}$, ℂ → $\\mathbb{C}$
-    - Map norm bars: ‖x‖ or |x| → $\\left\\| x \\right\\|$ inside math delimiters
+    - Map norm bars: ‖x‖ → $\\left\\| x \\right\\|$ inside math delimiters
     - Preserve reference numbers exactly as in the text layer
     """
 
@@ -55,6 +56,7 @@ enum ReferenceIndexPromptBuilder {
     - Include ONLY references that appear on this page in the provided text.
     - Do not invent references.
     - "name" is the reference's printed title when one exists — e.g. "Definition 3.2 (Compactness)" has name "Compactness", "Proposition 1 (Sample Complexity)" has name "Sample Complexity". Use null when no title is printed, and never reuse a name from these examples: the document may be about anything, and a borrowed name is worse than none.
+    - Extract definitions/statements introduced here, not citations such as "by Theorem 2.1" or "the proof of Theorem 2.1". A mention does not define a reference.
     - For equations: formatted_body is ONLY the equation, no surrounding prose.
     - For theorems/lemmas/definitions/examples: formatted_body is ONLY the statement, never the proof.
     - Keep prose as plain text outside math delimiters.
@@ -63,7 +65,7 @@ enum ReferenceIndexPromptBuilder {
     - If the page has no numbered references, return {"references": []}.
     - formatted_body must be parseable by a strict LaTeX engine (SwiftMath).
     - Prefer \\leq and \\geq over \\leqslant and \\geqslant.
-    - Use \\left\\| ... \\right\\| for norms and absolute values inside math delimiters.
+    - Use \\left\\| ... \\right\\| for norms; use single bars | ... | for absolute values. Never change an absolute value into a norm.
 
     \(textArtifactHints)
 

@@ -40,15 +40,7 @@ struct HighlightThreadDetailView: View {
     /// slab behind the whole row reads as one enormous button, which is both
     /// wrong and a lie about what is clickable.
     private var header: some View {
-        VStack(spacing: 8) {
-            headerRow
-
-            // Only saved highlights can carry a note: a draft selection has no
-            // highlight behind it to hang one on yet.
-            if let id = savedHighlightID {
-                HighlightNoteEditor(workspace: workspace, highlightID: id)
-            }
-        }
+        headerRow
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)

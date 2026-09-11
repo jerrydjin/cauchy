@@ -23,8 +23,8 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 
 - **PDF reading workspace** — continuous, single-page, and two-up layouts, thumbnails/contents sidebar, dashboard of recent documents, in-document find (⌘F), one document per window (⌘N) so a paper can sit beside the one it cites
 - **Highlights with AI threads** — select text or drag regions, save highlights, and ask questions about them; answers render LaTeX via SwiftMath
-- **Notes and colours** — write your own note on a highlight, and file highlights under five marker colours
-- **Undo** — deleting a highlight (and its conversation), editing a note, and recolouring are all undoable with ⌘Z; a delete that would take a conversation with it asks first
+- **Highlight colours** — file highlights under five marker colours
+- **Undo** — deleting a highlight (and its conversation) and recolouring are undoable with ⌘Z; a delete that would take a conversation with it asks first
 - **Export** — highlights and their conversations as Markdown (File ▸ Export Highlights as Markdown), or a copy of the PDF with the highlights written in as real annotations (File ▸ Save a Copy with Highlights) so they survive in Preview
 - **Library dashboard** — recent papers appear immediately; Hide from Recents preserves notes and conversations, with Show hidden to restore them
 - **Focused reading** — collapse the context panel with ⇧⌘I; Fit to Width follows changes in the reading area

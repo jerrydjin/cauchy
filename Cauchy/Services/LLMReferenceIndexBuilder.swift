@@ -16,8 +16,8 @@ enum ReferenceIndexBuildError: LocalizedError {
     }
 }
 
-struct LLMPageReferenceResponse: Decodable, Equatable {
-    struct Item: Decodable, Equatable {
+struct LLMPageReferenceResponse: Codable, Equatable {
+    struct Item: Codable, Equatable {
         let kind: String
         let number: String
         let formattedBody: String
@@ -69,12 +69,38 @@ enum LLMReferenceIndexResponseParser {
             candidates.append(text)
         }
 
-        if let regex = try? NSRegularExpression(pattern: #"\{[\s\S]*\}"#) {
-            let range = NSRange(text.startIndex..., in: text)
-            let matches = regex.matches(in: text, range: range)
-            for match in matches.reversed() {
-                guard let jsonRange = Range(match.range, in: text) else { continue }
-                candidates.append(String(text[jsonRange]))
+        // Find balanced JSON objects rather than greedily taking everything
+        // between the first and last brace. This tolerates prose, fenced JSON,
+        // braces inside strings, and a model emitting a corrected second object.
+        var objectStart: String.Index?
+        var depth = 0
+        var isInString = false
+        var isEscaped = false
+        for index in text.indices {
+            let character = text[index]
+            if isInString {
+                if isEscaped {
+                    isEscaped = false
+                } else if character == "\\" {
+                    isEscaped = true
+                } else if character == "\"" {
+                    isInString = false
+                }
+                continue
+            }
+
+            if character == "\"" {
+                isInString = true
+            } else if character == "{" {
+                if depth == 0 { objectStart = index }
+                depth += 1
+            } else if character == "}", depth > 0 {
+                depth -= 1
+                if depth == 0, let start = objectStart {
+                    let end = text.index(after: index)
+                    candidates.append(String(text[start..<end]))
+                    objectStart = nil
+                }
             }
         }
 
@@ -83,7 +109,8 @@ enum LLMReferenceIndexResponseParser {
             candidates.append(normalized)
         }
 
-        return Array(Set(candidates))
+        var seen = Set<String>()
+        return candidates.filter { seen.insert($0).inserted }
     }
 }
 
@@ -158,13 +185,30 @@ enum LLMReferenceIndexSupport {
             results[key] = indexed
         }
     }
+
+    /// Model output is allowed into the index only when its type and number
+    /// occur in the source page. This is deliberately stricter than the prompt:
+    /// prompts reduce hallucinations, while this check prevents storing them.
+    static func isGrounded(kind: ReferenceKind, number: String, in pageText: String) -> Bool {
+        ReferenceDetector.allReferences(in: pageText).contains {
+            $0.reference.kind == kind && $0.reference.number == number
+        }
+    }
+
+    static func groundedName(_ name: String?, in pageText: String) -> String? {
+        guard let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        return pageText.range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) == nil
+            ? nil
+            : trimmed
+    }
 }
 
 enum LLMReferenceIndexBuilder {
     static let maxConcurrentPages = 4
     /// The system serializes on-device inference anyway; extra in-flight
     /// requests only queue up and risk timeouts.
-    static let maxConcurrentPagesOnDevice = 2
+    static let maxConcurrentPagesOnDevice = 1
 
     private struct ModelHandle: Sendable {
         let model: any LanguageModel
@@ -354,7 +398,8 @@ enum LLMReferenceIndexBuilder {
     ) async throws -> [ReferenceKey: IndexedReference] {
         let trimmedPageText = payload.pageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPageText.isEmpty,
-              !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmedPageText) else {
+              !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmedPageText),
+              !ReferenceDetector.allReferences(in: trimmedPageText).isEmpty else {
             return [:]
         }
 
@@ -363,13 +408,19 @@ enum LLMReferenceIndexBuilder {
             pageIndex: pageIndex,
             modelHandle: modelHandle
         )
-        return await finalizeItems(parsed, pageIndex: pageIndex, modelHandle: modelHandle)
+        return await finalizeItems(
+            parsed,
+            pageText: trimmedPageText,
+            pageIndex: pageIndex,
+            modelHandle: modelHandle
+        )
     }
 
     /// Normalizes, repairs, and validates the extracted items into indexable
     /// entries, dropping any whose LaTeX cannot be made display-ready.
     nonisolated private static func finalizeItems(
         _ parsed: LLMPageReferenceResponse,
+        pageText: String,
         pageIndex: Int,
         modelHandle: ModelHandle
     ) async -> [ReferenceKey: IndexedReference] {
@@ -377,7 +428,12 @@ enum LLMReferenceIndexBuilder {
         for item in parsed.references {
             let trimmedBody = item.formattedBody.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedBody.isEmpty else { continue }
-            guard let kind = ReferenceKind(rawValue: item.kind.lowercased()) else { continue }
+            let kindName = item.kind.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard let kind = ReferenceKind(rawValue: kindName) else { continue }
+            let number = item.number.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard LLMReferenceIndexSupport.isGrounded(kind: kind, number: number, in: pageText) else {
+                continue
+            }
 
             let normalized = AssistantResponseNormalizer.normalize(trimmedBody)
             guard !normalized.isEmpty else { continue }
@@ -390,12 +446,11 @@ enum LLMReferenceIndexBuilder {
                 continue
             }
 
-            let trimmedName = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
             let indexed = IndexedReference(
-                reference: DetectedReference(kind: kind, number: item.number),
+                reference: DetectedReference(kind: kind, number: number),
                 formattedBody: formattedBody,
                 pageIndex: pageIndex,
-                name: (trimmedName?.isEmpty ?? true) ? nil : trimmedName
+                name: LLMReferenceIndexSupport.groundedName(item.name, in: pageText)
             )
             LLMReferenceIndexSupport.merge(indexed, into: &results)
         }
@@ -425,7 +480,8 @@ enum LLMReferenceIndexBuilder {
         let payload = pagePayload(from: document, pageIndex: pageIndex, cloudVision: nil)
         let trimmed = payload.pageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
-              !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmed) else {
+              !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmed),
+              !ReferenceDetector.allReferences(in: trimmed).isEmpty else {
             return SinglePageResult(parsedCount: 0, entries: [:], pageTextCharacters: 0)
         }
 
@@ -434,7 +490,12 @@ enum LLMReferenceIndexBuilder {
             pageIndex: pageIndex,
             modelHandle: handle
         )
-        let entries = await finalizeItems(parsed, pageIndex: pageIndex, modelHandle: handle)
+        let entries = await finalizeItems(
+            parsed,
+            pageText: trimmed,
+            pageIndex: pageIndex,
+            modelHandle: handle
+        )
         return SinglePageResult(
             parsedCount: parsed.references.count,
             entries: entries,
@@ -452,11 +513,20 @@ enum LLMReferenceIndexBuilder {
     ) async throws -> LLMPageReferenceResponse {
         if modelHandle.cloudVision == nil,
            let systemModel = modelHandle.model as? SystemLanguageModel {
-            return try await requestGuidedPageExtraction(
-                pageText: payload.pageText,
-                pageIndex: pageIndex,
-                model: systemModel
+            let chunks = ReferenceIndexPromptBuilder.pageTextChunks(
+                payload.pageText,
+                maxCharacters: ReferenceIndexPromptBuilder.maxPageCharactersOnDevice
             )
+            var references: [LLMPageReferenceResponse.Item] = []
+            for chunk in chunks {
+                let response = try await requestGuidedPageExtraction(
+                    pageText: chunk,
+                    pageIndex: pageIndex,
+                    model: systemModel
+                )
+                references.append(contentsOf: response.references)
+            }
+            return LLMPageReferenceResponse(references: references)
         }
 
         let rawResponse = try await requestPageExtraction(
@@ -477,14 +547,13 @@ enum LLMReferenceIndexBuilder {
         model: SystemLanguageModel,
         depth: Int = 0
     ) async throws -> LLMPageReferenceResponse {
-        let budgeted = String(pageText.prefix(ReferenceIndexPromptBuilder.maxPageCharactersOnDevice))
         do {
             let session = LanguageModelSession(
                 model: model,
                 instructions: ReferenceIndexPromptBuilder.onDeviceInstructions
             )
             let prompt = ReferenceIndexPromptBuilder.onDeviceUserPrompt(
-                pageText: budgeted,
+                pageText: pageText,
                 pageIndex: pageIndex
             )
             let response = try await session.respond(to: prompt, generating: GeneratedPageReferences.self)
@@ -493,10 +562,10 @@ enum LLMReferenceIndexBuilder {
             // Even a budgeted page can overflow the window once the schema and
             // generated output are counted; split at a paragraph boundary and
             // index each half separately.
-            guard isContextOverflow(error), depth < 2, budgeted.count >= 1_000 else {
+            guard isContextOverflow(error), depth < 2, pageText.count >= 1_000 else {
                 throw error
             }
-            let (head, tail) = splitNearMidpoint(budgeted)
+            let (head, tail) = splitNearMidpoint(pageText)
             let first = try await requestGuidedPageExtraction(
                 pageText: head, pageIndex: pageIndex, model: model, depth: depth + 1
             )
@@ -603,11 +672,24 @@ enum LLMReferenceIndexBuilder {
             )
         }
 
-        return try await requestTextPageExtraction(
-            pageText: payload.pageText,
-            pageIndex: pageIndex,
-            modelHandle: modelHandle
+        let chunks = ReferenceIndexPromptBuilder.pageTextChunks(
+            payload.pageText,
+            maxCharacters: ReferenceIndexPromptBuilder.maxPageCharacters
         )
+        var references: [LLMPageReferenceResponse.Item] = []
+        for chunk in chunks {
+            let raw = try await requestTextPageExtraction(
+                pageText: chunk,
+                pageIndex: pageIndex,
+                modelHandle: modelHandle
+            )
+            guard let parsed = await parsePageResponse(raw, modelHandle: modelHandle) else {
+                throw ReferenceIndexBuildError.unparseableResponse
+            }
+            references.append(contentsOf: parsed.references)
+        }
+        let encoded = try JSONEncoder().encode(LLMPageReferenceResponse(references: references))
+        return String(decoding: encoded, as: UTF8.self)
     }
 
     @MainActor

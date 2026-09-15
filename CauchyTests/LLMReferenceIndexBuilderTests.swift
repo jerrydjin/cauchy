@@ -49,6 +49,20 @@ final class LLMReferenceIndexResponseParserTests: XCTestCase {
     func testRejectsInvalidJSON() {
         XCTAssertThrowsError(try LLMReferenceIndexResponseParser.parse("not json at all"))
     }
+
+    func testParsesCorrectedObjectAfterInvalidObject() throws {
+        let raw = """
+        {"references": [invalid]}
+        Corrected:
+        {"references": [{"kind":"lemma","number":"4.2","formatted_body":"A result with {braces}."}]}
+        """
+
+        let parsed = try LLMReferenceIndexResponseParser.parse(raw)
+
+        XCTAssertEqual(parsed.references.count, 1)
+        XCTAssertEqual(parsed.references[0].number, "4.2")
+        XCTAssertEqual(parsed.references[0].formattedBody, "A result with {braces}.")
+    }
 }
 
 final class ReferenceIndexCacheStoreTests: XCTestCase {
@@ -142,10 +156,10 @@ final class ReferenceIndexCacheStoreTests: XCTestCase {
 
 final class LLMReferenceIndexSupportTests: XCTestCase {
     /// A tripwire, not a fact worth asserting on its own: bumping the schema
-    /// strands every cache on disk, so the bump and the migration that goes
-    /// with it should be a deliberate edit here too.
-    func testSchemaVersionMatchesTheMigrationsThatExist() {
-        XCTAssertEqual(PersistedReferenceIndex.schemaVersion, 4)
+    /// invalidates every cache on disk, so each quality-driven rebuild must be
+    /// a deliberate edit here too.
+    func testSchemaVersionMatchesCurrentIndexQualityContract() {
+        XCTAssertEqual(PersistedReferenceIndex.schemaVersion, 5)
     }
 
     func testShouldUseVisionWhenCloudAndImagePresent() {
@@ -158,6 +172,10 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(
             LLMReferenceIndexSupport.shouldUseVision(cloudVisionAvailable: true, pageImagePNG: nil)
         )
+    }
+
+    func testOnDeviceIndexingUsesOneModelCallAtATime() {
+        XCTAssertEqual(LLMReferenceIndexBuilder.maxConcurrentPagesOnDevice, 1)
     }
 
     func testPreprocessPageTextConvertsUnicodeMath() {
@@ -218,6 +236,35 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
 
         XCTAssertEqual(results[key]?.formattedBody, "Short.")
         XCTAssertEqual(results[key]?.pageIndex, 0)
+    }
+
+    func testLongPageChunkingPreservesBeginningMiddleAndEnd() {
+        let text = "BEGIN " + String(repeating: "a", count: 5_000)
+            + "\n\nMIDDLE\n\n" + String(repeating: "b", count: 5_000) + " END"
+
+        let chunks = ReferenceIndexPromptBuilder.pageTextChunks(text, maxCharacters: 2_000, overlapCharacters: 200)
+
+        XCTAssertGreaterThan(chunks.count, 1)
+        XCTAssertTrue(chunks.allSatisfy { $0.count <= 2_000 })
+        XCTAssertTrue(chunks.contains { $0.contains("BEGIN") })
+        XCTAssertTrue(chunks.contains { $0.contains("MIDDLE") })
+        XCTAssertTrue(chunks.contains { $0.contains("END") })
+    }
+
+    func testGroundingRequiresMatchingKindAndNumber() {
+        let page = "Definition 3.2 (Compactness). A space is compact when... Equation (4.1) follows."
+
+        XCTAssertTrue(LLMReferenceIndexSupport.isGrounded(kind: .definition, number: "3.2", in: page))
+        XCTAssertTrue(LLMReferenceIndexSupport.isGrounded(kind: .equation, number: "4.1", in: page))
+        XCTAssertFalse(LLMReferenceIndexSupport.isGrounded(kind: .theorem, number: "3.2", in: page))
+        XCTAssertFalse(LLMReferenceIndexSupport.isGrounded(kind: .definition, number: "9.9", in: page))
+    }
+
+    func testGroundedNameDropsInventedTitle() {
+        let page = "Definition 3.2 (Compactness). A space is compact when..."
+
+        XCTAssertEqual(LLMReferenceIndexSupport.groundedName("compactness", in: page), "compactness")
+        XCTAssertNil(LLMReferenceIndexSupport.groundedName("Completeness", in: page))
     }
 }
 

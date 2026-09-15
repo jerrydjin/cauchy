@@ -139,4 +139,58 @@ enum ReferenceIndexPromptBuilder {
         let end = pageText.index(pageText.startIndex, offsetBy: maxPageCharacters)
         return String(pageText[..<end])
     }
+
+    /// Splits long extracted pages without discarding their tail. Adjacent
+    /// chunks overlap so a theorem or equation crossing a hard PDF text-layer
+    /// boundary is still presented whole to at least one model call.
+    static func pageTextChunks(
+        _ pageText: String,
+        maxCharacters: Int,
+        overlapCharacters: Int = 600
+    ) -> [String] {
+        guard maxCharacters > 0, pageText.count > maxCharacters else {
+            return pageText.isEmpty ? [] : [pageText]
+        }
+
+        let overlap = min(max(overlapCharacters, 0), maxCharacters / 3)
+        var chunks: [String] = []
+        var start = pageText.startIndex
+
+        while start < pageText.endIndex {
+            let hardEnd = pageText.index(
+                start,
+                offsetBy: maxCharacters,
+                limitedBy: pageText.endIndex
+            ) ?? pageText.endIndex
+
+            if hardEnd == pageText.endIndex {
+                chunks.append(String(pageText[start..<hardEnd]))
+                break
+            }
+
+            // Prefer a paragraph/line boundary in the final third of the
+            // budget. Very long unbroken paragraphs fall back to a hard cut.
+            let searchStart = pageText.index(start, offsetBy: maxCharacters * 2 / 3)
+            let searchRange = searchStart..<hardEnd
+            let breakIndex = pageText.range(
+                of: "\n\n",
+                options: .backwards,
+                range: searchRange
+            )?.upperBound ?? pageText.range(
+                of: "\n",
+                options: .backwards,
+                range: searchRange
+            )?.upperBound ?? hardEnd
+
+            chunks.append(String(pageText[start..<breakIndex]))
+            let proposedStart = pageText.index(
+                breakIndex,
+                offsetBy: -overlap,
+                limitedBy: pageText.startIndex
+            ) ?? pageText.startIndex
+            start = proposedStart > start ? proposedStart : breakIndex
+        }
+
+        return chunks
+    }
 }

@@ -88,9 +88,15 @@ private struct ReaderWindow: View {
             // application(_:open:) would ALSO be called, double-opening
             // every file.
             .onOpenURL { url in
-                guard url.isFileURL, url.pathExtension.lowercased() == "pdf" else { return }
+                guard url.isFileURL else { return }
                 didAttemptRestore = true
-                Task { await workspace.openDocument(at: url) }
+                Task {
+                    if url.pathExtension.lowercased() == ReadingSessionPackageService.filenameExtension {
+                        await workspace.openReadingSession(at: url)
+                    } else if url.pathExtension.lowercased() == "pdf" {
+                        await workspace.openDocument(at: url)
+                    }
+                }
             }
             .focusedSceneValue(\.readerWorkspace, workspace)
             .onChange(of: windowUndoManager, initial: true) {

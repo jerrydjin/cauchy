@@ -77,7 +77,7 @@ final class WorkspaceViewModel: Equatable {
 
     var undoManager: UndoManager { hostUndoManager ?? fallbackUndoManager }
 
-    private let persistence = DocumentPersistenceService.shared
+    let persistence = DocumentPersistenceService.shared
     private var securityScopedURL: URL?
     private var referenceIndexTask: Task<Void, Never>?
     private var lexicalIndexTask: Task<Void, Never>?
@@ -164,7 +164,7 @@ final class WorkspaceViewModel: Equatable {
     /// `adopting` re-homes an existing saved workspace onto a new file path —
     /// the relocation case, where the reader has just pointed the app at a PDF
     /// that moved and expects to find their highlights still on it.
-    private func openDocument(
+    func openDocument(
         at url: URL,
         selecting highlightID: UUID?,
         adopting adopted: PersistedWorkspace?

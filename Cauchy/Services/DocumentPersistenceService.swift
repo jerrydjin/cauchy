@@ -154,6 +154,30 @@ actor DocumentPersistenceService {
         try writeSummary(for: persisted)
     }
 
+    /// Imports a portable handoff as a new local workspace. A fresh identity
+    /// avoids silently replacing this Mac's existing notes if the same package
+    /// is opened more than once, while the managed PDF copy means the session
+    /// keeps working after an AirDrop/download staging file is removed.
+    func importReadingSession(from packageURL: URL) throws -> PersistedWorkspace {
+        let (package, packagedPDF) = try ReadingSessionPackageService.read(from: packageURL)
+        var workspace = package.workspace
+        workspace.id = UUID()
+        workspace.lastOpenedAt = Date()
+
+        let directory = workspaceDirectory(for: workspace.id)
+        let documentURL = directory.appendingPathComponent(package.documentFilename)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: packagedPDF, to: documentURL)
+            workspace.documentURL = documentURL
+            try saveWorkspace(workspace, bookmarkData: nil)
+            return PersistedWorkspace(workspace: workspace, bookmarkData: nil)
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            throw error
+        }
+    }
+
     /// Debounced save; safe to call at any frequency from the main actor. The
     /// encode and disk write happen on this actor, off the main thread.
     nonisolated func scheduleSave(

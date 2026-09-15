@@ -4,10 +4,77 @@ import UniformTypeIdentifiers
 
 private let reopenLastDocumentKey = "reading.reopenLastDocument"
 
+extension UTType {
+    static let cauchyReadingSession = UTType(
+        exportedAs: "com.cauchy.reading-session",
+        conformingTo: .package
+    )
+}
+
 @MainActor
 extension WorkspaceViewModel {
     var canExportHighlights: Bool {
         pdfDocument != nil && !highlightStore.highlights.isEmpty
+    }
+
+    var canExportReadingSession: Bool {
+        pdfDocument != nil && workspace?.documentURL != nil
+    }
+
+    // MARK: - Reading session handoff
+
+    func exportReadingSession() {
+        guard canExportReadingSession else { return }
+        // Capture the live viewport and highlight store before taking the
+        // snapshot; the normal persistence debounce may not have fired yet.
+        persistWorkspace()
+        guard let snapshot = workspace else { return }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.cauchyReadingSession]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.nameFieldStringValue = "\(documentTitle).\(ReadingSessionPackageService.filenameExtension)"
+        panel.message = "Save the PDF and your reading progress for another Mac"
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        let sourcePDF = snapshot.documentURL
+        Task {
+            do {
+                try await Task.detached(priority: .userInitiated) {
+                    try ReadingSessionPackageService.write(
+                        sourcePDF: sourcePDF,
+                        destination: destination,
+                        workspace: snapshot
+                    )
+                }.value
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func openReadingSession() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.cauchyReadingSession]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Open a Cauchy reading session"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task { await openReadingSession(at: url) }
+    }
+
+    func openReadingSession(at url: URL) async {
+        do {
+            let imported = try await persistence.importReadingSession(from: url)
+            await openDocument(
+                at: imported.workspace.documentURL,
+                selecting: nil,
+                adopting: imported
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: - Markdown

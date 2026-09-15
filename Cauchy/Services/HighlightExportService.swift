@@ -119,3 +119,125 @@ enum HighlightExportService {
         }
     }
 }
+
+// MARK: - Portable reading session
+
+enum ReadingSessionPackageError: LocalizedError {
+    case invalidPackage
+    case unsupportedVersion
+    case cannotWritePackage
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidPackage:
+            "This Cauchy reading session is incomplete or damaged."
+        case .unsupportedVersion:
+            "This reading session was created by a newer version of Cauchy."
+        case .cannotWritePackage:
+            "The reading session could not be written."
+        }
+    }
+}
+
+struct ReadingSessionPackage: Codable, Sendable {
+    var formatVersion: Int
+    var documentFilename: String
+    var workspace: DocumentWorkspace
+}
+
+/// A `.cauchyreading` package is deliberately ordinary files in a directory:
+/// the original PDF plus a JSON snapshot of the page, zoom, highlights, and
+/// conversations. It can travel through AirDrop or iCloud Drive without an
+/// account or a Cauchy server, and a damaged manifest never touches the PDF.
+enum ReadingSessionPackageService {
+    static let filenameExtension = "cauchyreading"
+    static let manifestFilename = "session.json"
+    static let currentFormatVersion = 1
+
+    nonisolated static func write(
+        sourcePDF: URL,
+        destination: URL,
+        workspace: DocumentWorkspace
+    ) throws {
+        let manager = FileManager.default
+        let parent = destination.deletingLastPathComponent()
+        let temporary = parent.appendingPathComponent(
+            ".cauchy-reading-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        defer { try? manager.removeItem(at: temporary) }
+
+        do {
+            try manager.createDirectory(at: temporary, withIntermediateDirectories: false)
+
+            let documentFilename = sourcePDF.lastPathComponent
+            guard !documentFilename.isEmpty,
+                  documentFilename.lowercased().hasSuffix(".pdf")
+            else { throw ReadingSessionPackageError.invalidPackage }
+
+            try manager.copyItem(
+                at: sourcePDF,
+                to: temporary.appendingPathComponent(documentFilename)
+            )
+
+            // The source machine's absolute path and bookmark are neither
+            // useful nor desirable in a portable file. Import always points
+            // the snapshot at its own managed PDF copy.
+            var portableWorkspace = workspace
+            portableWorkspace.documentURL = URL(fileURLWithPath: documentFilename)
+            let package = ReadingSessionPackage(
+                formatVersion: currentFormatVersion,
+                documentFilename: documentFilename,
+                workspace: portableWorkspace
+            )
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(package).write(
+                to: temporary.appendingPathComponent(manifestFilename),
+                options: .atomic
+            )
+
+            if manager.fileExists(atPath: destination.path) {
+                _ = try manager.replaceItemAt(destination, withItemAt: temporary)
+            } else {
+                try manager.moveItem(at: temporary, to: destination)
+            }
+        } catch let error as ReadingSessionPackageError {
+            throw error
+        } catch {
+            throw ReadingSessionPackageError.cannotWritePackage
+        }
+    }
+
+    nonisolated static func read(from packageURL: URL) throws -> (ReadingSessionPackage, URL) {
+        let manifestURL = packageURL.appendingPathComponent(manifestFilename)
+        var packageIsDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(
+            atPath: packageURL.path,
+            isDirectory: &packageIsDirectory
+        ), packageIsDirectory.boolValue,
+              let data = try? Data(contentsOf: manifestURL)
+        else { throw ReadingSessionPackageError.invalidPackage }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let package = try? decoder.decode(ReadingSessionPackage.self, from: data)
+        else { throw ReadingSessionPackageError.invalidPackage }
+        guard package.formatVersion <= currentFormatVersion else {
+            throw ReadingSessionPackageError.unsupportedVersion
+        }
+
+        let filename = package.documentFilename
+        guard filename == URL(fileURLWithPath: filename).lastPathComponent,
+              filename.lowercased().hasSuffix(".pdf")
+        else { throw ReadingSessionPackageError.invalidPackage }
+
+        let documentURL = packageURL.appendingPathComponent(filename)
+        let values = try? documentURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        guard values?.isRegularFile == true,
+              values?.isSymbolicLink != true
+        else { throw ReadingSessionPackageError.invalidPackage }
+        return (package, documentURL)
+    }
+}

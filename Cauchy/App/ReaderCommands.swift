@@ -30,6 +30,11 @@ struct ReaderCommands: Commands {
             .keyboardShortcut("o")
             .disabled(workspace == nil)
 
+            Button("Open Reading Session…") {
+                workspace?.openReadingSession()
+            }
+            .disabled(workspace == nil)
+
             Button("Close Document") {
                 workspace?.closeDocument()
             }
@@ -38,6 +43,13 @@ struct ReaderCommands: Commands {
         }
 
         CommandGroup(after: .saveItem) {
+            Button("Export Reading Session…") {
+                workspace?.exportReadingSession()
+            }
+            .disabled(workspace?.canExportReadingSession != true)
+
+            Divider()
+
             Button("Export Highlights as Markdown…") {
                 workspace?.exportHighlightsAsMarkdown()
             }

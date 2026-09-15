@@ -171,6 +171,33 @@ final class WorkspacePersistenceTests: XCTestCase {
         let saved = await reader.loadWorkspace(id: workspace.id)
         XCTAssertEqual(saved?.workspace.id, workspace.id)
     }
+
+    func testImportReadingSessionCreatesManagedIndependentWorkspace() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("source.pdf")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("test-pdf".utf8).write(to: source)
+        var exported = DocumentWorkspace(documentURL: source)
+        exported.primaryViewport.pageIndex = 8
+        exported.highlights = [Highlight(pageIndex: 4, selectedText: "carry me")]
+        let originalID = exported.id
+        let packageURL = root.appendingPathComponent("handoff.cauchyreading", isDirectory: true)
+        try ReadingSessionPackageService.write(
+            sourcePDF: source,
+            destination: packageURL,
+            workspace: exported
+        )
+
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("library"))
+        let imported = try await persistence.importReadingSession(from: packageURL)
+
+        XCTAssertNotEqual(imported.workspace.id, originalID)
+        XCTAssertEqual(imported.workspace.primaryViewport.pageIndex, 8)
+        XCTAssertEqual(imported.workspace.highlights.first?.selectedText, "carry me")
+        XCTAssertEqual(imported.workspace.documentURL.lastPathComponent, "source.pdf")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: imported.workspace.documentURL.path))
+    }
 }
 
 @MainActor

@@ -26,6 +26,7 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 - **Highlight colours** — file highlights under five marker colours
 - **Undo** — deleting a highlight (and its conversation) and recolouring are undoable with ⌘Z; a delete that would take a conversation with it asks first
 - **Export** — highlights and their conversations as Markdown (File ▸ Export Highlights as Markdown), or a copy of the PDF with the highlights written in as real annotations (File ▸ Save a Copy with Highlights) so they survive in Preview
+- **Continue on another Mac** — File ▸ Export Reading Session packages the PDF, current page and zoom, highlights, and conversations into one `.cauchyreading` file; open it in Cauchy on the other Mac to pick up where you left off
 - **Library dashboard** — recent papers appear immediately; Hide from Recents preserves notes and conversations, with Show hidden to restore them
 - **Focused reading** — collapse the context panel with ⇧⌘I; Fit to Width follows changes in the reading area
 - **Library-wide search** — search every highlight and conversation across every document from the dashboard, and jump straight to the one you meant

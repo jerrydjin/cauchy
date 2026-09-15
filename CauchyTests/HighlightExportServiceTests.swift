@@ -93,4 +93,32 @@ final class HighlightExportServiceTests: XCTestCase {
         XCTAssertTrue(markdown.contains("## Just this"))
         XCTAssertFalse(markdown.contains("---"))
     }
+
+    func testReadingSessionRoundTripIncludesPDFProgressAndHighlights() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let source = root.appendingPathComponent("A Paper.pdf")
+        try Data("test-pdf".utf8).write(to: source)
+        let destination = root.appendingPathComponent("handoff.cauchyreading", isDirectory: true)
+
+        var workspace = DocumentWorkspace(documentURL: source)
+        workspace.primaryViewport.pageIndex = 37
+        workspace.primaryViewport.scaleFactor = 1.4
+        workspace.highlights = [highlight(page: 12, text: "portable passage")]
+
+        try ReadingSessionPackageService.write(
+            sourcePDF: source,
+            destination: destination,
+            workspace: workspace
+        )
+        let (package, packagedPDF) = try ReadingSessionPackageService.read(from: destination)
+
+        XCTAssertEqual(package.documentFilename, "A Paper.pdf")
+        XCTAssertEqual(package.workspace.primaryViewport.pageIndex, 37)
+        XCTAssertEqual(package.workspace.primaryViewport.scaleFactor, 1.4)
+        XCTAssertEqual(package.workspace.highlights.first?.selectedText, "portable passage")
+        XCTAssertEqual(try Data(contentsOf: packagedPDF), Data("test-pdf".utf8))
+        XCTAssertFalse(package.workspace.documentURL.path.contains(root.path))
+    }
 }

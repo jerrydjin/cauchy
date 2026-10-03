@@ -12,10 +12,11 @@ enum AssistantResponseNormalizer {
     )
 
     static func normalize(_ content: String) -> String {
-        // This runs on every streamed partial; skip the regex passes unless the
-        // text can actually contain something the rules below rewrite.
+        // This runs on every streamed partial; skip the rewrite passes unless
+        // the text can actually contain something the rules below rewrite
+        // (a backslash covers \(...\), \[...\], and bare LaTeX commands).
         guard content.contains("\r") || content.contains("```")
-            || content.contains("\\(") || content.contains("\\[") else {
+            || content.contains("\\") else {
             return content
         }
 
@@ -25,6 +26,7 @@ enum AssistantResponseNormalizer {
         text = stripCodeFences(text)
         text = replaceInlineDelimiters(text)
         text = replaceDisplayDelimiters(text)
+        text = LaTeXNormalizer.wrapBareMath(text)
         return text
     }
 

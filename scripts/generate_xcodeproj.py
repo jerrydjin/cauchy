@@ -6,6 +6,7 @@ from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_DIR = os.path.join(ROOT, "Cauchy")
+TESTS_DIR = os.path.join(ROOT, "CauchyTests")
 
 
 def gid(s: str) -> str:
@@ -37,6 +38,9 @@ IDS = {k: gid(k) for k in [
     "assets", "assets_build", "entitlements", "root", "cauchy_group", "products",
     "fm_build", "fm_ref", "swiftmath_build", "swiftmath_ref", "swiftmath_pkg",
     "swiftmath_product",
+    "test_target", "test_product", "test_sources", "test_frameworks",
+    "cl_test", "debug_test", "release_test", "tests_group",
+    "test_dependency", "test_proxy",
 ]}
 
 group_ids = {}
@@ -49,6 +53,18 @@ def group_id(path: str) -> str:
 
 file_ref_ids = {sf: gid("file_" + sf) for sf in swift_files}
 build_file_ids = {sf: gid("build_" + sf) for sf in swift_files}
+
+test_files = []
+if os.path.isdir(TESTS_DIR):
+    for dirpath, _, filenames in os.walk(TESTS_DIR):
+        for f in sorted(filenames):
+            if f.endswith(".swift"):
+                rel = os.path.relpath(os.path.join(dirpath, f), TESTS_DIR)
+                test_files.append(rel.replace("\\", "/"))
+test_files.sort()
+
+test_file_ref_ids = {tf: gid("test_file_" + tf) for tf in test_files}
+test_build_file_ids = {tf: gid("test_build_" + tf) for tf in test_files}
 
 all_dirs = set()
 for sf in swift_files:
@@ -75,6 +91,9 @@ emit("/* Begin PBXBuildFile section */")
 for sf in swift_files:
     bn = os.path.basename(sf)
     emit(f'\t\t{build_file_ids[sf]} /* {bn} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_ref_ids[sf]} /* {bn} */; }};')
+for tf in test_files:
+    bn = os.path.basename(tf)
+    emit(f'\t\t{test_build_file_ids[tf]} /* {bn} in Sources */ = {{isa = PBXBuildFile; fileRef = {test_file_ref_ids[tf]} /* {bn} */; }};')
 emit(f'\t\t{IDS["fm_build"]} /* FoundationModels.framework in Frameworks */ = {{isa = PBXBuildFile; fileRef = {IDS["fm_ref"]} /* FoundationModels.framework */; }};')
 emit(f'\t\t{IDS["swiftmath_build"]} /* SwiftMath in Frameworks */ = {{isa = PBXBuildFile; productRef = {IDS["swiftmath_product"]} /* SwiftMath */; }};')
 emit(f'\t\t{IDS["assets_build"]} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {IDS["assets"]} /* Assets.xcassets */; }};')
@@ -85,6 +104,10 @@ emit(f'\t\t{IDS["product"]} /* Cauchy.app */ = {{isa = PBXFileReference; explici
 for sf in swift_files:
     bn = os.path.basename(sf)
     emit(f'\t\t{file_ref_ids[sf]} /* {bn} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {bn}; sourceTree = "<group>"; }};')
+emit(f'\t\t{IDS["test_product"]} /* CauchyTests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CauchyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; }};')
+for tf in test_files:
+    bn = os.path.basename(tf)
+    emit(f'\t\t{test_file_ref_ids[tf]} /* {bn} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {tf}; sourceTree = "<group>"; }};')
 emit(f'\t\t{IDS["assets"]} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; }};')
 emit(f'\t\t{IDS["entitlements"]} /* Cauchy.entitlements */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cauchy.entitlements; sourceTree = "<group>"; }};')
 emit(f'\t\t{IDS["fm_ref"]} /* FoundationModels.framework */ = {{isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = System/Library/Frameworks/FoundationModels.framework; sourceTree = SDKROOT; }};')
@@ -92,10 +115,23 @@ emit("/* End PBXFileReference section */\n")
 
 emit("/* Begin PBXFrameworksBuildPhase section */")
 emit(f'\t\t{IDS["frameworks"]} /* Frameworks */ = {{ isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = ({IDS["fm_build"]} /* FoundationModels.framework in Frameworks */, {IDS["swiftmath_build"]} /* SwiftMath in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; }};')
+emit(f'\t\t{IDS["test_frameworks"]} /* Frameworks */ = {{ isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};')
 emit("/* End PBXFrameworksBuildPhase section */\n")
 
+emit("/* Begin PBXContainerItemProxy section */")
+emit(f'\t\t{IDS["test_proxy"]} /* PBXContainerItemProxy */ = {{ isa = PBXContainerItemProxy; containerPortal = {IDS["project"]} /* Project object */; proxyType = 1; remoteGlobalIDString = {IDS["target"]}; remoteInfo = Cauchy; }};')
+emit("/* End PBXContainerItemProxy section */\n")
+
+emit("/* Begin PBXTargetDependency section */")
+emit(f'\t\t{IDS["test_dependency"]} /* PBXTargetDependency */ = {{ isa = PBXTargetDependency; target = {IDS["target"]} /* Cauchy */; targetProxy = {IDS["test_proxy"]} /* PBXContainerItemProxy */; }};')
+emit("/* End PBXTargetDependency section */\n")
+
 emit("/* Begin PBXGroup section */")
-emit(f'\t\t{IDS["products"]} /* Products */ = {{ isa = PBXGroup; children = ({IDS["product"]} /* Cauchy.app */,); name = Products; sourceTree = "<group>"; }};')
+emit(f'\t\t{IDS["products"]} /* Products */ = {{ isa = PBXGroup; children = ({IDS["product"]} /* Cauchy.app */, {IDS["test_product"]} /* CauchyTests.xctest */,); name = Products; sourceTree = "<group>"; }};')
+emit(f'\t\t{IDS["tests_group"]} /* CauchyTests */ = {{ isa = PBXGroup; children = (')
+for tf in test_files:
+    emit(f'\t\t\t{test_file_ref_ids[tf]} /* {os.path.basename(tf)} */,')
+emit('\t\t); path = CauchyTests; sourceTree = "<group>"; };')
 emit(f'\t\t{IDS["cauchy_group"]} /* Cauchy */ = {{ isa = PBXGroup; children = (')
 for sub in sorted(dirs_by_dir[""]):
     emit(f'\t\t\t{group_id(sub)} /* {sub} */,')
@@ -112,15 +148,16 @@ for d in sorted(all_dirs):
         emit(f'\t\t\t{file_ref_ids[sf]} /* {f} */,')
     emit(f'\t\t); path = {name}; sourceTree = "<group>"; }};')
 
-emit(f'\t\t{IDS["root"]} = {{ isa = PBXGroup; children = ({IDS["cauchy_group"]} /* Cauchy */, {IDS["products"]} /* Products */,); sourceTree = "<group>"; }};')
+emit(f'\t\t{IDS["root"]} = {{ isa = PBXGroup; children = ({IDS["cauchy_group"]} /* Cauchy */, {IDS["tests_group"]} /* CauchyTests */, {IDS["products"]} /* Products */,); sourceTree = "<group>"; }};')
 emit("/* End PBXGroup section */\n")
 
 emit("/* Begin PBXNativeTarget section */")
 emit(f'\t\t{IDS["target"]} /* Cauchy */ = {{ isa = PBXNativeTarget; buildConfigurationList = {IDS["cl_target"]}; buildPhases = ({IDS["sources"]}, {IDS["frameworks"]}, {IDS["resources"]},); buildRules = (); dependencies = (); name = Cauchy; packageProductDependencies = ({IDS["swiftmath_product"]} /* SwiftMath */,); productName = Cauchy; productReference = {IDS["product"]}; productType = "com.apple.product-type.application"; }};')
+emit(f'\t\t{IDS["test_target"]} /* CauchyTests */ = {{ isa = PBXNativeTarget; buildConfigurationList = {IDS["cl_test"]}; buildPhases = ({IDS["test_sources"]}, {IDS["test_frameworks"]},); buildRules = (); dependencies = ({IDS["test_dependency"]} /* PBXTargetDependency */,); name = CauchyTests; packageProductDependencies = (); productName = CauchyTests; productReference = {IDS["test_product"]}; productType = "com.apple.product-type.bundle.unit-test"; }};')
 emit("/* End PBXNativeTarget section */\n")
 
 emit("/* Begin PBXProject section */")
-emit(f'\t\t{IDS["project"]} /* Project object */ = {{ isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2700; LastUpgradeCheck = 2700; }}; buildConfigurationList = {IDS["cl_project"]}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = {IDS["root"]}; packageReferences = ({IDS["swiftmath_pkg"]} /* XCLocalSwiftPackageReference "SwiftMath" */,); productRefGroup = {IDS["products"]}; projectDirPath = ""; projectRoot = ""; targets = ({IDS["target"]},); }};')
+emit(f'\t\t{IDS["project"]} /* Project object */ = {{ isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2700; LastUpgradeCheck = 2700; TargetAttributes = {{ {IDS["test_target"]} = {{ TestTargetID = {IDS["target"]}; }}; }}; }}; buildConfigurationList = {IDS["cl_project"]}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = {IDS["root"]}; packageReferences = ({IDS["swiftmath_pkg"]} /* XCLocalSwiftPackageReference "SwiftMath" */,); productRefGroup = {IDS["products"]}; projectDirPath = ""; projectRoot = ""; targets = ({IDS["target"]}, {IDS["test_target"]},); }};')
 emit("/* End PBXProject section */\n")
 
 emit("/* Begin PBXResourcesBuildPhase section */")
@@ -131,6 +168,10 @@ emit("/* Begin PBXSourcesBuildPhase section */")
 emit(f'\t\t{IDS["sources"]} /* Sources */ = {{ isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (')
 for sf in swift_files:
     emit(f'\t\t\t{build_file_ids[sf]},')
+emit('\t\t); runOnlyForDeploymentPostprocessing = 0; };')
+emit(f'\t\t{IDS["test_sources"]} /* Sources */ = {{ isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (')
+for tf in test_files:
+    emit(f'\t\t\t{test_build_file_ids[tf]},')
 emit('\t\t); runOnlyForDeploymentPostprocessing = 0; };')
 emit("/* End PBXSourcesBuildPhase section */\n")
 
@@ -156,16 +197,34 @@ def target_settings(cid, name):
     emit('\t\t\tSWIFT_VERSION = 6.0;')
     emit('\t\t}; name = %s; };' % name)
 
+def test_target_settings(cid, name):
+    emit(f'\t\t{cid} /* {name} */ = {{ isa = XCBuildConfiguration; buildSettings = {{')
+    emit('\t\t\tBUNDLE_LOADER = "$(TEST_HOST)";')
+    emit('\t\t\tCODE_SIGN_STYLE = Automatic;')
+    emit('\t\t\tCURRENT_PROJECT_VERSION = 1;')
+    emit('\t\t\tGENERATE_INFOPLIST_FILE = YES;')
+    emit('\t\t\tMACOSX_DEPLOYMENT_TARGET = 27.0;')
+    emit('\t\t\tMARKETING_VERSION = 1.0;')
+    emit('\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.cauchy.app.tests;')
+    emit('\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";')
+    emit('\t\t\tSWIFT_EMIT_LOC_STRINGS = NO;')
+    emit('\t\t\tSWIFT_VERSION = 6.0;')
+    emit('\t\t\tTEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cauchy.app/Contents/MacOS/Cauchy";')
+    emit('\t\t}; name = %s; };' % name)
+
 emit("/* Begin XCBuildConfiguration section */")
-emit(f'\t\t{IDS["debug_p"]} /* Debug */ = {{ isa = XCBuildConfiguration; buildSettings = {{ ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; GCC_DYNAMIC_NO_PIC = NO; MACOSX_DEPLOYMENT_TARGET = 27.0; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }}; name = Debug; }};')
+emit(f'\t\t{IDS["debug_p"]} /* Debug */ = {{ isa = XCBuildConfiguration; buildSettings = {{ ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; GCC_DYNAMIC_NO_PIC = NO; MACOSX_DEPLOYMENT_TARGET = 27.0; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }}; name = Debug; }};')
 emit(f'\t\t{IDS["release_p"]} /* Release */ = {{ isa = XCBuildConfiguration; buildSettings = {{ ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_STRICT_OBJC_MSGSEND = YES; MACOSX_DEPLOYMENT_TARGET = 27.0; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; }}; name = Release; }};')
 target_settings(IDS["debug_t"], "Debug")
 target_settings(IDS["release_t"], "Release")
+test_target_settings(IDS["debug_test"], "Debug")
+test_target_settings(IDS["release_test"], "Release")
 emit("/* End XCBuildConfiguration section */\n")
 
 emit("/* Begin XCConfigurationList section */")
 emit(f'\t\t{IDS["cl_project"]} = {{ isa = XCConfigurationList; buildConfigurations = ({IDS["debug_p"]}, {IDS["release_p"]},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};')
 emit(f'\t\t{IDS["cl_target"]} = {{ isa = XCConfigurationList; buildConfigurations = ({IDS["debug_t"]}, {IDS["release_t"]},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};')
+emit(f'\t\t{IDS["cl_test"]} = {{ isa = XCConfigurationList; buildConfigurations = ({IDS["debug_test"]}, {IDS["release_test"]},); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; }};')
 emit("/* End XCConfigurationList section */")
 
 emit("\n/* Begin XCLocalSwiftPackageReference section */")
@@ -197,13 +256,24 @@ if os.path.exists(scheme_path):
     with open(scheme_path) as f:
         scheme = f.read()
     import re
-    scheme = re.sub(r'BlueprintIdentifier = "[A-F0-9]+"', f'BlueprintIdentifier = "{IDS["target"]}"', scheme)
+    scheme = re.sub(
+        r'BlueprintIdentifier = "[^"]*"(\s+BuildableName = "Cauchy\.app")',
+        f'BlueprintIdentifier = "{IDS["target"]}"\\1',
+        scheme,
+    )
+    scheme = re.sub(
+        r'BlueprintIdentifier = "[^"]*"(\s+BuildableName = "CauchyTests\.xctest")',
+        f'BlueprintIdentifier = "{IDS["test_target"]}"\\1',
+        scheme,
+    )
     with open(scheme_path, "w") as f:
         f.write(scheme)
 
 print(f"Wrote {out}")
 print(f"Target ID: {IDS['target']}")
+print(f"Test target ID: {IDS['test_target']}")
 print(f"Swift files: {len(swift_files)}")
+print(f"Test files: {len(test_files)}")
 
 resolve = subprocess.run(
     [

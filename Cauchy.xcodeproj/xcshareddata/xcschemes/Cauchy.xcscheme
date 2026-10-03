@@ -28,7 +28,7 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "C1A2U3C4H5Y6T7E8S9T0T1"
+               BlueprintIdentifier = "048E9F614D9021752813BB2F"
                BuildableName = "CauchyTests.xctest"
                BlueprintName = "CauchyTests"
                ReferencedContainer = "container:Cauchy.xcodeproj">
@@ -48,7 +48,7 @@
             parallelizable = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "C1A2U3C4H5Y6T7E8S9T0T1"
+               BlueprintIdentifier = "048E9F614D9021752813BB2F"
                BuildableName = "CauchyTests.xctest"
                BlueprintName = "CauchyTests"
                ReferencedContainer = "container:Cauchy.xcodeproj">

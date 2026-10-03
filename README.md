@@ -22,22 +22,30 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 ## Features
 
 - **PDF reading workspace** — continuous, single-page, and two-up layouts, thumbnails/contents sidebar, dashboard of recent documents, in-document find (⌘F), one document per window (⌘N) so a paper can sit beside the one it cites
-- **Highlights with AI threads** — select text or drag regions, save highlights, and ask questions about them; answers render LaTeX via SwiftMath
+- **Highlights with evidence-bound AI threads** — select text or drag regions, save highlights, and ask questions about them; answers render LaTeX via SwiftMath and retain a visible, portable boundary between PDF-only claims, outside knowledge, insufficient evidence, and an unverified model declaration. Each answer records the exact PDF pages supplied to its provider/model without pretending that page access proves every claim.
 - **Highlight colours** — file highlights under five marker colours
 - **Undo** — deleting a highlight (and its conversation) and recolouring are undoable with ⌘Z; a delete that would take a conversation with it asks first
-- **Export** — highlights and their conversations as Markdown (File ▸ Export Highlights as Markdown), or a copy of the PDF with the highlights written in as real annotations (File ▸ Save a Copy with Highlights) so they survive in Preview
-- **Continue on another Mac** — File ▸ Export Reading Session packages the PDF, current page and zoom, highlights, and conversations into one `.cauchyreading` file; open it in Cauchy on the other Mac to pick up where you left off
+- **Export** — highlights and their conversations as Markdown, including each answer's evidence boundary and supplied pages (File ▸ Export Highlights as Markdown), or a copy of the PDF with the highlights written in as real annotations (File ▸ Save a Copy with Highlights) so they survive in Preview
+- **Continue on another Mac** — File ▸ Export Reading Session packages the PDF, current page and zoom, highlights, conversations, and any completed evidence index/citation graph into one `.cauchyreading` file; imported evidence is SHA-256-bound to the packaged PDF and retains its model provenance, while older sessions remain compatible
 - **Library dashboard** — recent papers appear immediately; Hide from Recents preserves notes and conversations, with Show hidden to restore them
 - **Focused reading** — collapse the context panel with ⇧⌘I; Fit to Width follows changes in the reading area
 - **Library-wide search** — search every highlight and conversation across every document from the dashboard, and jump straight to the one you meant
-- **Reference hover previews** — an LLM-built index of theorems/lemmas/definitions/equations, indexed on-device with Apple Intelligence (Gemini only as fallback), lets you hover "Theorem 2.1" to view the indexed source page, jump to it, or inspect the AI transcription
-- **Ask-time retrieval** — a BM25 index over the document supplies relevant passages from other pages to the assistant
+- **Reference hover previews** — an evidence-first index of numbered statements, equations, and figure captions. Apple Intelligence builds it by default; the Reference panel lets you rebuild with any available assistant model. Previews lead with PDF text and the original page, label AI formatting separately, and keep later printed mentions collapsed. Local OCR labels on image-only pages remain visibly unverified. Ask uses PDF text excerpts, never OCR or model transcription, as reference evidence.
+- **Ask-time retrieval** — a hybrid lexical/semantic index supplies relevant PDF text passages from other pages; saved answers retain clickable original-page regions for selected text, indexed references, and uniquely located, untruncated retrieved passages. These identify supplied inputs, not proof that the answer follows from them.
 - **Multiple assistant providers** — on-device Apple Intelligence, Gemini (API key), or your own Claude Code / Codex CLI sign-ins
 - **On-device OCR** — Vision framework text recognition with LaTeX formatting assist
 
 The last document you were reading reopens at launch; turn that off in Settings ▸ Reading.
 
-Headless tooling: `Cauchy --benchmark-indexing <pdf> [--pages N]` benchmarks on-device reference indexing; `Cauchy --probe-retrieval <pdf> <query>` prints what retrieval would feed the assistant.
+Headless tooling: `Cauchy --benchmark-indexing <pdf> [--ground-truth labels.json] [--pages N]` measures the production extractor against labelled truth and two deterministic baselines, including abstention, evidence ambiguity, and a failure atlas. See [`Benchmarks/README.md`](Benchmarks/README.md). `Cauchy --probe-retrieval <pdf> <query>` prints what retrieval would feed the assistant and whether each passage resolves to an exact PDF text region; `Cauchy --probe-mentions <pdf> <kind> <number> <defining-page>` prints later citation anchors without invoking a model; `Cauchy --probe-ocr <pdf> <page> fast --json [--output <dir>]` reports local OCR candidates and can render their page-region overlays.
+
+Image-only pages—or scans whose text layer contains only a page number or short
+watermark—receive conservative on-device OCR navigation candidates when
+Cauchy can identify a numbered heading or right-margin equation label. These
+candidates are orange, retain the imperfect OCR line and exact page region, and
+are never supplied to Ask or included in portable evidence. If OCR finds no
+reliable label, Cauchy reports the limitation instead of caching a successful
+empty index.
 
 ## Open in Xcode
 

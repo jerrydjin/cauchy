@@ -44,13 +44,33 @@ struct ReferenceIndexMenuItems: View {
     @Bindable var workspace: WorkspaceViewModel
 
     var body: some View {
-        Button("Rebuild Index") {
+        Button("Rebuild automatically") {
             workspace.rebuildReferenceIndex()
         }
 
-        Button("Re-index with \(workspace.cloudReindexVendor)") {
-            workspace.rebuildReferenceIndex(usingCloud: true)
+        Divider()
+
+        ForEach(AssistantConnector.primary + AssistantConnector.advanced) { connector in
+            let title = connector.status.shortNote.map { "\(connector.name) — \($0)" }
+                ?? connector.name
+            if connector.hasModelChoice {
+                Menu(title) {
+                    ForEach(connector.models) { model in
+                        Button(model.name) {
+                            workspace.rebuildReferenceIndex(
+                                connectorID: connector.id,
+                                modelID: model.id
+                            )
+                        }
+                    }
+                }
+                .disabled(!connector.isReady)
+            } else {
+                Button(title) {
+                    workspace.rebuildReferenceIndex(connectorID: connector.id)
+                }
+                .disabled(!connector.isReady)
+            }
         }
-        .disabled(!workspace.canRebuildReferenceIndexWithCloud)
     }
 }

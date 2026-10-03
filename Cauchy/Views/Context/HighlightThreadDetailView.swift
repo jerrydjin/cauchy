@@ -28,6 +28,7 @@ struct HighlightThreadDetailView: View {
                     }
                 },
                 onModelChange: { workspace.refreshReadingAssistant() },
+                onOpenSource: { workspace.goToAnswerSource($0) },
                 header: { header }
             )
         }

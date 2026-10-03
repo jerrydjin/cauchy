@@ -113,13 +113,15 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         // at reset/restore time). Exact statements come first and get priority
         // budget; both budgets stay small enough for the local window.
         var prompt = trimmed
-        let statementBudget = provider == .onDevice ? 1_200 : 2_500
-        let passageBudget = provider == .onDevice ? 800 : 4_000
+        let budgets = ReadingPromptBuilder.evidenceBudgets(for: provider)
         var blocks: [String] = []
-        if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: statementBudget) {
+        if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: budgets.statements) {
             blocks.append(block)
         }
-        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrieval.passages, characterBudget: passageBudget) {
+        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrieval.passages, characterBudget: budgets.passages) {
+            blocks.append(block)
+        }
+        if let block = ReadingPromptBuilder.citableSourcesBlock(retrieval.citableSources) {
             blocks.append(block)
         }
         if !blocks.isEmpty {

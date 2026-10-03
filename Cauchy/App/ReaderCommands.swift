@@ -173,18 +173,12 @@ struct ReaderCommands: Commands {
 
             Divider()
 
-            Button("Rebuild Reference Index") {
-                workspace?.rebuildReferenceIndex()
+            Menu("Rebuild Reference Index") {
+                if let workspace {
+                    ReferenceIndexMenuItems(workspace: workspace)
+                }
             }
-            .disabled(!hasDocument || workspace?.isIndexingReferences == true)
-
-            // Not gated on isIndexingReferences: switching to the cloud
-            // part-way through a slow on-device build is the main reason to
-            // reach for this, and rebuilding cancels the in-flight task first.
-            Button("Re-index with \(workspace?.cloudReindexVendor ?? "Cloud")") {
-                workspace?.rebuildReferenceIndex(usingCloud: true)
-            }
-            .disabled(!hasDocument || workspace?.canRebuildReferenceIndexWithCloud != true)
+            .disabled(!hasDocument)
 
             Button("Reset All Reference Indexes…") {
                 workspace?.resetAllReferenceIndexes()

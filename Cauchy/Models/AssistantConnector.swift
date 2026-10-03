@@ -30,11 +30,11 @@ enum ModelTier: String, Hashable, CaseIterable, Sendable {
 struct AssistantModel: Identifiable, Hashable, Sendable {
     /// Sent verbatim as the CLI's `--model` argument, or used as the API model
     /// name. Prefer a vendor *alias* (`opus`) over a pinned build id
-    /// (`claude-opus-5`): an alias follows the vendor's newest release, so
+    /// (`claude-opus-5-5`): an alias follows the vendor's newest release, so
     /// this catalog cannot go stale between app builds.
     let id: String
     /// Carries the generation the row currently resolves to, so a reader can
-    /// tell Opus 5 from Opus 4.8 without leaving the picker. Where the id is an
+    /// tell Opus 5.5 from Opus 5 without leaving the picker. Where the id is an
     /// alias the number is cosmetic — the alias still follows the vendor — so
     /// it wants a bump when a new generation ships.
     let name: String
@@ -143,7 +143,20 @@ extension AssistantConnector {
     /// stored model has since left the catalog.
     func choice(fromToken token: String?) -> ModelChoice {
         guard let token, token != ModelChoice.defaultToken else { return defaultChoice }
-        return model(id: token) == nil ? defaultChoice : .model(token)
+        if model(id: token) != nil { return .model(token) }
+
+        // Keep an explicit tier choice when a pinned API or Codex model is
+        // replaced. Older selections are read here without rewriting defaults.
+        let replacement: String? = switch (id, token) {
+        case (.codex, "gpt-5.6-sol"), (.openaiAPI, "gpt-5.6-sol"): "gpt-6-astra"
+        case (.codex, "gpt-5.6-terra"), (.openaiAPI, "gpt-5.6-terra"): "gpt-6-sol"
+        case (.codex, "gpt-5.6-luna"), (.openaiAPI, "gpt-5.6-luna"): "gpt-6-luna"
+        case (.anthropicAPI, "claude-opus-5"): "claude-opus-5-5"
+        case (.gemini, "gemini-3.6-flash"): "gemini-3.7-flash"
+        case (.gemini, "gemini-3.7-flash-lite"): "gemini-3.5-flash-lite"
+        default: nil
+        }
+        return replacement.map(ModelChoice.model) ?? defaultChoice
     }
 
     /// The name for the collapsed picker button.
@@ -224,8 +237,8 @@ extension AssistantConnector {
                 // Opus the installed CLI knows about. Only the displayed
                 // numbers date, and only cosmetically.
                 models: [
-                    AssistantModel(id: "fable", name: "Fable 5", tier: .max, blurb: "Most capable, for the hardest proofs"),
-                    AssistantModel(id: "opus", name: "Opus 5", tier: .max, blurb: "Deep reasoning on hard proofs"),
+                    AssistantModel(id: "fable", name: "Fable 5.1", tier: .max, blurb: "Most capable, for the hardest proofs"),
+                    AssistantModel(id: "opus", name: "Opus 5.5", tier: .max, blurb: "Deep reasoning on hard proofs"),
                     AssistantModel(id: "sonnet", name: "Sonnet 5", tier: .balanced, blurb: "Strong at everyday mathematics"),
                     AssistantModel(id: "haiku", name: "Haiku 4.5", tier: .fast, blurb: "Quickest replies"),
                 ],
@@ -248,9 +261,9 @@ extension AssistantConnector {
                 // Codex takes no aliases, so these are pinned ids and do need
                 // a catalog bump when OpenAI ships a new family.
                 models: [
-                    AssistantModel(id: "gpt-5.6-sol", name: "GPT-5.6 Sol", tier: .max, blurb: "Most capable"),
-                    AssistantModel(id: "gpt-5.6-terra", name: "GPT-5.6 Terra", tier: .balanced, blurb: "Balanced speed and depth"),
-                    AssistantModel(id: "gpt-5.6-luna", name: "GPT-5.6 Luna", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
+                    AssistantModel(id: "gpt-6-sol", name: "GPT-6 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
+                    AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: false
@@ -282,12 +295,11 @@ extension AssistantConnector {
                 symbol: "asterisk",
                 tagline: "Direct API access. Needs your own key and billing.",
                 access: .apiKey(.anthropic),
-                // Fixed ids with no date suffix, checked against
-                // platform.claude.com/docs/en/about-claude/models/overview
-                // (August 2026). The API rejects an unknown name outright, so
-                // these need a manual bump when the line-up moves.
+                // API aliases checked against platform.claude.com/docs/en/models/overview
+                // (September 2026). Recheck the names when the line-up moves.
                 models: [
-                    AssistantModel(id: "claude-opus-5", name: "Opus 5", tier: .max, blurb: "Deep reasoning on hard proofs"),
+                    AssistantModel(id: "claude-fable-5-1", name: "Fable 5.1", tier: .max, blurb: "Most capable, for the hardest proofs"),
+                    AssistantModel(id: "claude-opus-5-5", name: "Opus 5.5", tier: .max, blurb: "Deep reasoning on hard proofs"),
                     AssistantModel(id: "claude-sonnet-5", name: "Sonnet 5", tier: .balanced, blurb: "Strong at everyday mathematics"),
                     AssistantModel(id: "claude-haiku-4-5", name: "Haiku 4.5", tier: .fast, blurb: "Quickest replies"),
                 ],
@@ -306,9 +318,9 @@ extension AssistantConnector {
                 // Pinned ids, like the Codex catalog above: OpenAI publishes no
                 // alias that follows the newest release.
                 models: [
-                    AssistantModel(id: "gpt-5.6-sol", name: "GPT-5.6 Sol", tier: .max, blurb: "Most capable"),
-                    AssistantModel(id: "gpt-5.6-terra", name: "GPT-5.6 Terra", tier: .balanced, blurb: "Balanced speed and depth"),
-                    AssistantModel(id: "gpt-5.6-luna", name: "GPT-5.6 Luna", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
+                    AssistantModel(id: "gpt-6-sol", name: "GPT-6 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
+                    AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: true
@@ -323,14 +335,14 @@ extension AssistantConnector {
                 tagline: "Direct API access. Needs your own key and billing.",
                 access: .apiKey(.gemini),
                 // The API rejects an unknown model name outright, and Google
-                // publishes no documented `-latest` alias per variant, so these
+                // publishes no documented versioned alias per variant, so these
                 // are pinned ids checked against ai.google.dev/gemini-api/docs/models
-                // (August 2026) and need a manual bump when the line-up moves.
+                // (September 2026) and need a manual bump when the line-up moves.
                 models: [
                     AssistantModel(id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", tier: .max, blurb: "Most capable (preview)"),
-                    AssistantModel(id: "gemini-3.7-flash", name: "Gemini 3.7 Flash", tier: .balanced, blurb: "Newest stable Flash"),
-                    AssistantModel(id: "gemini-3.6-flash", name: "Gemini 3.6 Flash", tier: .balanced, blurb: "The Flash before it"),
-                    AssistantModel(id: "gemini-3.7-flash-lite", name: "Gemini 3.7 Flash-Lite", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", tier: .balanced, blurb: "Newest stable Flash"),
+                    AssistantModel(id: "gemini-3.7-flash", name: "Gemini 3.7 Flash", tier: .balanced, blurb: "The Flash before it"),
+                    AssistantModel(id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: true

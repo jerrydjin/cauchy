@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "document": "sha256:05654bfce0ad7652155e57ce4c3b552ff20781d3bef32757ef8388a238f072b1",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "references": [],
+      "notes": "Title page; 2025 version date is not an equation label."
+    },
+    {
+      "pageNumber": 8,
+      "references": [],
+      "notes": "Distribution examples are unnumbered; 1.5 and 1.5.1 are section headings."
+    },
+    {
+      "pageNumber": 16,
+      "references": [],
+      "notes": "Chebyshev theorem and remark are unnumbered; (2.5) and (2.6) are citations to earlier equations."
+    },
+    {
+      "pageNumber": 24,
+      "references": [
+        { "kind": "theorem", "number": "3.4" },
+        { "kind": "theorem", "number": "3.5" },
+        { "kind": "theorem", "number": "3.6" },
+        { "kind": "example", "number": "3.7" }
+      ],
+      "notes": "Three numbered theorems and one numbered example introduced on the page."
+    },
+    {
+      "pageNumber": 32,
+      "references": [
+        { "kind": "example", "number": "4.2" },
+        { "kind": "example", "number": "4.3" }
+      ],
+      "notes": "Two examples; 4.2.1 is a subsection heading."
+    },
+    {
+      "pageNumber": 40,
+      "references": [
+        { "kind": "equation", "number": "5.1" }
+      ],
+      "notes": "The Markov property display introduces (5.1); the nearby (5.1) prose is a citation."
+    },
+    {
+      "pageNumber": 48,
+      "references": [
+        { "kind": "equation", "number": "5.4" }
+      ],
+      "notes": "Display (5.4) is first introduced inside a proof; repeated (5.3) and (5.4) in prose are citations."
+    },
+    {
+      "pageNumber": 64,
+      "references": [
+        { "kind": "theorem", "number": "6.13" },
+        { "kind": "theorem", "number": "6.14" },
+        { "kind": "remark", "number": "6.15" },
+        { "kind": "equation", "number": "6.8" }
+      ],
+      "notes": "Two theorems, one remark and the displayed detailed-balance equation; (6.7) is cited only."
+    }
+  ]
+}

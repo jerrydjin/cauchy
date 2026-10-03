@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "split": "development",
+  "cases": [
+    {
+      "pdfFilename": "part_a_a2_complexanalysis_notes.pdf",
+      "referenceLabelsFilename": "complex-analysis.ground-truth.json",
+      "document": "sha256:2f375d8be6bfe948e98813d01bbc272293dbf618b371c269fef0b6d821b1a942",
+      "kind": "theorem",
+      "number": "2.2.13",
+      "definingPage": 44,
+      "expectedPages": [45, 46, 51],
+      "notes": "A consequence and two later proof citations; all three PDF pages visually checked."
+    },
+    {
+      "pdfFilename": "part_a_a0_linearalgebra_notes.pdf",
+      "referenceLabelsFilename": "linear-algebra-notes.holdout.ground-truth.json",
+      "document": "sha256:551b2c1bfe0df47942e455914e21481a002b360b49d0fa2caa3428de29473a8a",
+      "kind": "theorem",
+      "number": "3.9",
+      "definingPage": 16,
+      "expectedPages": [17],
+      "notes": "The citation follows By at a PDF text-layer line break inside a proof."
+    },
+    {
+      "pdfFilename": "part_a_a8_probability_notes.pdf",
+      "referenceLabelsFilename": "probability-notes.holdout.ground-truth.json",
+      "document": "sha256:05654bfce0ad7652155e57ce4c3b552ff20781d3bef32757ef8388a238f072b1",
+      "kind": "equation",
+      "number": "5.1",
+      "definingPage": 40,
+      "expectedPages": [40],
+      "notes": "Same-page citation beneath the displayed defining equation."
+    },
+    {
+      "pdfFilename": "part_a_a2_metricspaces_notes.pdf",
+      "referenceLabelsFilename": "metric-spaces-notes.ground-truth.json",
+      "document": "sha256:175c8e5f99b96fea35b0a67abdc5404dc71ae7600d1e5e257ee3d68240e05675",
+      "kind": "definition",
+      "number": "3.1.1",
+      "definingPage": 29,
+      "expectedPages": [],
+      "notes": "No later explicit text-layer mention of this printed reference."
+    }
+  ]
+}

@@ -24,6 +24,7 @@ struct ConversationPanel<Header: View>: View {
     var onSend: () -> Void
     var onStop: () -> Void = {}
     var onModelChange: () -> Void = {}
+    var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     @ViewBuilder var header: Header
 
     @State private var followsLatest = true
@@ -55,7 +56,8 @@ struct ConversationPanel<Header: View>: View {
                         MessageBubble(
                             message: message,
                             quotedText: nil,
-                            maxBubbleWidth: bubbleWidth
+                            maxBubbleWidth: bubbleWidth,
+                            onOpenSource: onOpenSource
                         )
                         .id(message.id)
                     }

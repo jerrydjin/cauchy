@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "split": "holdout",
+  "cases": [
+    {
+      "pdfFilename": "part_a_a1_differentialequationsI_notes.pdf",
+      "referenceLabelsFilename": "differential-equations-i.ground-truth.json",
+      "document": "sha256:b6e5ced9649b761cdb2a49051380fd6b5b210533645cedec8d671d6ba212f7f2",
+      "kind": "theorem",
+      "number": "1.4",
+      "definingPage": 20,
+      "expectedPages": [20, 25],
+      "notes": "Visually labelled before running the mention finder: a same-page proof heading and a later discussion that explicitly refers to the theorem's proof."
+    }
+  ]
+}

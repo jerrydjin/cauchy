@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "document": "sha256:a3e2d69edbfb7670511f55d1a15f809aa9a5e432fdc29caedb834296749d51ea",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "references": [
+        { "kind": "example", "number": "1.2.1" },
+        { "kind": "theorem", "number": "1.2.2" },
+        { "kind": "equation", "number": "1.2.1" },
+        { "kind": "remark", "number": "1.2.3" }
+      ],
+      "notes": "Image-only development control made from printed page 12; section heading 1.2 and unnumbered displays are excluded."
+    }
+  ]
+}

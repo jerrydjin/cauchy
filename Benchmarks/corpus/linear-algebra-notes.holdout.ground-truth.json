@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "document": "sha256:551b2c1bfe0df47942e455914e21481a002b360b49d0fa2caa3428de29473a8a",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "references": [],
+      "notes": "Contents page; chapter and section numbers are not introductions."
+    },
+    {
+      "pageNumber": 8,
+      "references": [
+        { "kind": "corollary", "number": "2.9" },
+        { "kind": "corollary", "number": "2.10" },
+        { "kind": "proposition", "number": "2.11" }
+      ],
+      "notes": "Corollaries and proposition introduced; Theorem 2.8 in the proof is a citation."
+    },
+    {
+      "pageNumber": 16,
+      "references": [
+        { "kind": "theorem", "number": "3.9" }
+      ],
+      "notes": "Theorem 3.9 introduced; Lemma 3.7 is mentioned, not introduced."
+    },
+    {
+      "pageNumber": 24,
+      "references": [
+        { "kind": "theorem", "number": "6.1" }
+      ],
+      "notes": "Theorem 6.1 begins; Proposition 3.3 is cited twice in its proof."
+    },
+    {
+      "pageNumber": 32,
+      "references": [
+        { "kind": "theorem", "number": "7.10" }
+      ],
+      "notes": "Theorem 7.10 introduced below a prior proof; Theorem 7.8 cited later."
+    },
+    {
+      "pageNumber": 40,
+      "references": [
+        { "kind": "proposition", "number": "8.11" }
+      ],
+      "notes": "Proposition 8.11 introduced after the proof of the preceding result."
+    },
+    {
+      "pageNumber": 48,
+      "references": [
+        { "kind": "theorem", "number": "9.1" }
+      ],
+      "notes": "SVD theorem introduced; Theorem 8.29, Lemma 8.26 and Example 8.31 are citations."
+    },
+    {
+      "pageNumber": 54,
+      "references": [],
+      "notes": "Final page is only the continuation and end of a lemma proof."
+    }
+  ]
+}

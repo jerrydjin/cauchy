@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "document": "Stable title, DOI, URL, or content hash",
+  "pages": [
+    {
+      "pageNumber": 3,
+      "references": [
+        {
+          "kind": "definition",
+          "number": "1.1"
+        },
+        {
+          "kind": "equation",
+          "number": "1.2"
+        }
+      ],
+      "notes": "Positive page: both statements are introduced here."
+    },
+    {
+      "pageNumber": 4,
+      "references": [],
+      "notes": "Hard negative: cites Definition 1.1 but introduces no numbered statement."
+    }
+  ]
+}

@@ -80,6 +80,7 @@ final class WorkspaceViewModel: Equatable {
     let persistence = DocumentPersistenceService.shared
     private var securityScopedURL: URL?
     private var referenceIndexTask: Task<Void, Never>?
+    private var referenceRebuildID: UUID?
     private var lexicalIndexTask: Task<Void, Never>?
     /// The in-flight Ask, retained so the user can stop it. Cancelling it
     /// terminates the CLI child process / cloud stream.
@@ -227,6 +228,7 @@ final class WorkspaceViewModel: Equatable {
         undoManager.removeAllActions()
 
         pdfDocument = document
+        selectionThread.pdfDocument = document
         OpenDocumentRegistry.shared.claim(resolvedURL, by: self)
         find.attach(to: document)
         bookmarkData = try? persistence.createBookmark(for: resolvedURL)
@@ -297,6 +299,7 @@ final class WorkspaceViewModel: Equatable {
 
         stopSecurityScopedAccess()
         pdfDocument = nil
+        selectionThread.pdfDocument = nil
         workspace = nil
         bookmarkData = nil
 
@@ -726,41 +729,49 @@ final class WorkspaceViewModel: Equatable {
     /// extraction — e.g. after an indexing-quality upgrade, or when a cache
     /// predates reference names.
     ///
-    /// `usingCloud` forces the active BYOK provider instead of the usual
-    /// on-device preference. A plain rebuild re-runs the same model that
-    /// produced the existing entries, so it cannot improve a document the small
-    /// on-device model indexed badly — this is the escape hatch that can.
-    func rebuildReferenceIndex(usingCloud: Bool = false) {
+    /// Explicit choices use the selected connector and model. With no choice,
+    /// the normal on-device-first policy applies.
+    func rebuildReferenceIndex(connectorID: AssistantConnectorID? = nil, modelID: String? = nil) {
         guard let url = workspace?.documentURL else { return }
 
         var forcedModel: (any LanguageModel)?
-        if usingCloud {
-            guard let model = AssistantPreferences.activeCloudModel() else {
-                referenceIndexError = "Re-indexing in the cloud needs an API key — add one in Settings."
+        var modelDescription: String?
+        if let connectorID {
+            let connector = connectorID.connector
+            guard connector.isReady else {
+                referenceIndexError = "Set up \(connector.name) in Settings before indexing."
                 return
             }
-            forcedModel = model
+            let choice = modelID.map(ModelChoice.model) ?? connector.defaultChoice
+            let chosenModelID: String?
+            if case .model(let id) = choice { chosenModelID = id } else { chosenModelID = nil }
+            modelDescription = connector.label(for: choice)
+            switch connector.access {
+            case .onDevice:
+                forcedModel = SystemLanguageModel.default
+            case .apiKey(let provider):
+                guard let key = KeychainService.loadKey(for: provider) else {
+                    referenceIndexError = "Add your \(provider.vendor) API key in Settings."
+                    return
+                }
+                forcedModel = CloudLanguageModel(provider: provider, apiKey: key, modelName: chosenModelID)
+                modelDescription = "\(connector.vendor) \(connector.label(for: choice))"
+            case .cliSignIn:
+                forcedModel = CLIIndexLanguageModel(connectorID: connectorID, modelID: chosenModelID)
+                modelDescription = "\(connector.name) · \(connector.label(for: choice))"
+            }
         }
 
         referenceIndexTask?.cancel()
+        let rebuildID = UUID()
+        referenceRebuildID = rebuildID
         Task {
             await Task.detached(priority: .utility) {
                 ReferenceIndexCacheStore.removeCache(for: url)
             }.value
-            buildReferenceIndex(for: url, forcedModel: forcedModel)
+            guard referenceRebuildID == rebuildID, workspace?.documentURL == url else { return }
+            buildReferenceIndex(for: url, forcedModel: forcedModel, modelDescription: modelDescription)
         }
-    }
-
-    /// Cloud re-indexing is offered only when some provider has a key. It stays
-    /// hidden when the assistant is pinned to the on-device model, since that
-    /// choice is what makes `activeCloudProvider` nil.
-    var canRebuildReferenceIndexWithCloud: Bool {
-        AssistantPreferences.cloudAssistEnabled
-    }
-
-    /// Names the vendor a cloud re-index would call, for the menu item.
-    var cloudReindexVendor: String {
-        AssistantPreferences.activeCloudProvider?.vendor ?? "Cloud"
     }
 
     /// Deletes every document's cached reference index (after confirmation);
@@ -853,6 +864,37 @@ final class WorkspaceViewModel: Equatable {
         viewportCoordinator.applyProgrammaticViewport(state)
     }
 
+    /// Follow a citation edge to the printed location, retaining enough
+    /// surrounding page to read the sentence rather than zooming to a glyph.
+    func goToReferenceMention(_ mention: ReferenceMention) {
+        guard let document = pdfDocument,
+              mention.pageIndex >= 0,
+              mention.pageIndex < document.pageCount else { return }
+        var state = viewportCoordinator.viewport
+        state.pageIndex = mention.pageIndex
+        state.visibleRectNormalized = ReferenceEvidenceRegionResolver.contextRegion(for: mention.region)
+        viewportCoordinator.applyProgrammaticViewport(state)
+    }
+
+    /// Open a source location retained with an answer. The region is an
+    /// inspectable input, not an automatically verified citation for its prose.
+    func goToAnswerSource(_ source: AnswerSourceAnchor) {
+        guard let document = pdfDocument,
+              source.pageIndex >= 0,
+              source.pageIndex < document.pageCount else { return }
+        let region = source.region
+        guard region.x.isFinite, region.y.isFinite,
+              region.width.isFinite, region.height.isFinite,
+              region.x >= 0, region.y >= 0,
+              region.width > 0, region.height > 0,
+              region.x + region.width <= 1,
+              region.y + region.height <= 1 else { return }
+        var state = viewportCoordinator.viewport
+        state.pageIndex = source.pageIndex
+        state.visibleRectNormalized = ReferenceEvidenceRegionResolver.contextRegion(for: region)
+        viewportCoordinator.applyProgrammaticViewport(state)
+    }
+
     func navigateToDestination(_ destination: PDFDestination) {
         guard let document = pdfDocument,
               let page = destination.page else { return }
@@ -919,10 +961,13 @@ final class WorkspaceViewModel: Equatable {
         viewportCoordinator.applyProgrammaticViewport(state)
     }
 
-    /// `forcedModel` overrides the usual provider preference — set only by an
-    /// explicit "re-index in the cloud", which also skips the availability
-    /// check because the caller already resolved a usable model.
-    private func buildReferenceIndex(for url: URL, forcedModel: (any LanguageModel)? = nil) {
+    /// An explicit model skips the default availability check because the
+    /// caller has already resolved a ready connector.
+    private func buildReferenceIndex(
+        for url: URL,
+        forcedModel: (any LanguageModel)? = nil,
+        modelDescription: String? = nil
+    ) {
         referenceIndexTask?.cancel()
         referenceIndex.clear()
         referenceIndexError = nil
@@ -953,7 +998,8 @@ final class WorkspaceViewModel: Equatable {
             do {
                 let outcome = try await LLMReferenceIndexBuilder.build(
                     documentURL: url,
-                    model: model
+                    model: model,
+                    modelDescription: modelDescription
                 ) { completed, total in
                     Task { @MainActor in
                         self.referenceIndexProgress = total > 0 ? Double(completed) / Double(total) : 1

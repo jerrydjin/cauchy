@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "split": "holdout",
+  "document": "sha256:b6e5ced9649b761cdb2a49051380fd6b5b210533645cedec8d671d6ba212f7f2",
+  "evaluatedKinds": ["figure"],
+  "pages": [
+    { "pageNumber": 7, "references": [{ "kind": "figure", "number": "1.1" }], "notes": "The rectangle drawing has a Figure 1.1 caption; the paragraph above also cites it." },
+    { "pageNumber": 30, "references": [], "notes": "Phase-plane derivation and equations but no figure caption." },
+    { "pageNumber": 31, "references": [{ "kind": "figure", "number": "2.1" }], "notes": "Harmonic-oscillator phase portrait and its caption." },
+    { "pageNumber": 32, "references": [], "notes": "Numbered equations and references to them, but no figure caption." },
+    { "pageNumber": 33, "references": [{ "kind": "figure", "number": "2.2" }], "notes": "Unstable-node sketch and caption." },
+    { "pageNumber": 34, "references": [{ "kind": "figure", "number": "2.3" }, { "kind": "figure", "number": "2.4" }], "notes": "Two distinct phase-portrait captions on one page." },
+    { "pageNumber": 35, "references": [{ "kind": "figure", "number": "2.5" }], "notes": "Saddle sketch and caption." },
+    { "pageNumber": 36, "references": [{ "kind": "figure", "number": "2.6" }, { "kind": "figure", "number": "2.7" }], "notes": "Two spiral/centre plots with separate captions." },
+    { "pageNumber": 37, "references": [], "notes": "Equation 2.9 and phase-portrait prose, but no figure caption." },
+    { "pageNumber": 38, "references": [], "notes": "Prose about phase diagrams and nullclines, but no numbered figure caption." }
+  ]
+}

@@ -272,8 +272,8 @@ export default function Home() {
                   Codex CLI
                 </a>
                 . Install it with <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">brew install codex</code>,
-                run <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">codex login</code> once, and choose a
-                GPT-5.6 tier in the picker.
+                run <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">codex login</code> once, and choose
+                GPT-6 Astra, Sol or Luna in the picker.
               </p>
             </div>
             <div className="bg-card p-12 rounded-3xl">

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "document": "doi:10.1038/s41586-023-06735-9;sha256:f1af6c92eda54f5bd84eb5012f3010d7bb9167dca337414cffca81623b4a535a",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "references": [],
+      "notes": "Hard negative: article title, abstract, author affiliations, and many superscript citations, but no numbered statements or equations."
+    },
+    {
+      "pageNumber": 2,
+      "references": [{ "kind": "figure", "number": "1" }],
+      "notes": "Fig. 1 is introduced beneath its multipanel chart; unrelated numeric labels and citations are excluded."
+    },
+    {
+      "pageNumber": 3,
+      "references": [{ "kind": "figure", "number": "2" }],
+      "notes": "Fig. 2 is introduced; Fig. 1 panel citations and other numeric text are excluded."
+    },
+    {
+      "pageNumber": 4,
+      "references": [],
+      "notes": "Hard negative: Figure 3, table-like chart labels, chemical formulae, and citations."
+    },
+    {
+      "pageNumber": 5,
+      "references": [{ "kind": "figure", "number": "3" }],
+      "notes": "Fig. 3 is introduced above the bibliography; bibliography item numbers are excluded."
+    },
+    {
+      "pageNumber": 6,
+      "references": [],
+      "notes": "Hard negative: dense numbered bibliography entries only."
+    },
+    {
+      "pageNumber": 7,
+      "references": [],
+      "notes": "Hard negative: Methods text with unnumbered inline formulae, numeric thresholds, and section headings."
+    },
+    {
+      "pageNumber": 8,
+      "references": [],
+      "notes": "Hard negative: Methods text with unnumbered mathematical notation and numbered list-like prose."
+    },
+    {
+      "pageNumber": 9,
+      "references": [],
+      "notes": "Hard negative: Methods text, chemical formulae, citations, and figure citations without numbered statements or equations."
+    },
+    {
+      "pageNumber": 10,
+      "references": [
+        { "kind": "equation", "number": "1" }
+      ],
+      "notes": "The joint Huber loss is introduced as displayed equation (1); nearby superscript citations and unnumbered formulae are excluded."
+    },
+    {
+      "pageNumber": 11,
+      "references": [],
+      "notes": "Hard negative: Methods continuation, data and code availability, and bibliography entries."
+    }
+  ]
+}

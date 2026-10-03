@@ -84,6 +84,20 @@ enum HighlightExportService {
                 out += "**Q:** \(content)\n\n"
             case .assistant:
                 out += "\(content)\n\n"
+                if let evidence = message.answerEvidence {
+                    out += "*Answer basis: \(evidence.basis.label) · PDF sources supplied: \(evidence.sourcePagesLabel)*\n\n"
+                    if let status = evidence.citationStatus {
+                        out += "*Citation links: \(status.label). IDs identify source locations, not proof of claims.*\n\n"
+                    }
+                    if let anchors = evidence.sourceAnchors, !anchors.isEmpty {
+                        out += "Supplied PDF locations (inputs, not verified claim citations):\n"
+                        for anchor in anchors {
+                            out += "- \(anchor.sourceID.map { "[\($0)] " } ?? "")\(anchor.label), p. \(anchor.pageIndex + 1)"
+                            out += " (region \(anchor.region.x), \(anchor.region.y), \(anchor.region.width), \(anchor.region.height))\n"
+                        }
+                        out += "\n"
+                    }
+                }
             }
         }
         return out
@@ -143,6 +157,30 @@ struct ReadingSessionPackage: Codable, Sendable {
     var formatVersion: Int
     var documentFilename: String
     var workspace: DocumentWorkspace
+    /// Optional in v1 packages. When present, names a hash-bound reference
+    /// index and citation graph that can be installed without rerunning AI.
+    var evidenceFilename: String?
+
+    init(
+        formatVersion: Int,
+        documentFilename: String,
+        workspace: DocumentWorkspace,
+        evidenceFilename: String? = nil
+    ) {
+        self.formatVersion = formatVersion
+        self.documentFilename = documentFilename
+        self.workspace = workspace
+        self.evidenceFilename = evidenceFilename
+    }
+}
+
+struct PortableReferenceEvidence: Codable, Sendable {
+    static let schemaVersion = 1
+
+    let schemaVersion: Int
+    let documentFingerprint: String
+    let referenceIndex: PersistedReferenceIndex
+    let mentionGraph: ReferenceMentionGraph
 }
 
 /// A `.cauchyreading` package is deliberately ordinary files in a directory:
@@ -152,7 +190,8 @@ struct ReadingSessionPackage: Codable, Sendable {
 enum ReadingSessionPackageService {
     static let filenameExtension = "cauchyreading"
     static let manifestFilename = "session.json"
-    static let currentFormatVersion = 1
+    static let evidenceFilename = "evidence.json"
+    static let currentFormatVersion = 2
 
     nonisolated static func write(
         sourcePDF: URL,
@@ -180,6 +219,19 @@ enum ReadingSessionPackageService {
                 to: temporary.appendingPathComponent(documentFilename)
             )
 
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            // Reading progress remains exportable if an optional local cache
+            // is missing or damaged; never package unvalidated partial data.
+            let portableEvidence = try? makePortableEvidence(for: sourcePDF)
+            if let portableEvidence {
+                try encoder.encode(portableEvidence).write(
+                    to: temporary.appendingPathComponent(evidenceFilename),
+                    options: .atomic
+                )
+            }
+
             // The source machine's absolute path and bookmark are neither
             // useful nor desirable in a portable file. Import always points
             // the snapshot at its own managed PDF copy.
@@ -188,11 +240,9 @@ enum ReadingSessionPackageService {
             let package = ReadingSessionPackage(
                 formatVersion: currentFormatVersion,
                 documentFilename: documentFilename,
-                workspace: portableWorkspace
+                workspace: portableWorkspace,
+                evidenceFilename: portableEvidence == nil ? nil : evidenceFilename
             )
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(package).write(
                 to: temporary.appendingPathComponent(manifestFilename),
                 options: .atomic
@@ -239,5 +289,168 @@ enum ReadingSessionPackageService {
               values?.isSymbolicLink != true
         else { throw ReadingSessionPackageError.invalidPackage }
         return (package, documentURL)
+    }
+
+    /// Decode and validate portable evidence against the packaged PDF bytes.
+    /// A package that declares evidence but cannot prove it belongs to its PDF
+    /// is damaged rather than silently trusted or partially imported.
+    nonisolated static func readEvidence(
+        from packageURL: URL,
+        package: ReadingSessionPackage,
+        documentURL: URL
+    ) throws -> PortableReferenceEvidence? {
+        guard let filename = package.evidenceFilename else { return nil }
+        guard filename == URL(fileURLWithPath: filename).lastPathComponent,
+              filename == evidenceFilename else {
+            throw ReadingSessionPackageError.invalidPackage
+        }
+        let url = packageURL.appendingPathComponent(filename)
+        let values = try? url.resourceValues(forKeys: [
+            .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey,
+        ])
+        guard values?.isRegularFile == true, values?.isSymbolicLink != true,
+              (values?.fileSize ?? .max) <= 100 * 1_024 * 1_024,
+              let data = try? Data(contentsOf: url) else {
+            throw ReadingSessionPackageError.invalidPackage
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let evidence = try? decoder.decode(PortableReferenceEvidence.self, from: data),
+              try validate(evidence, documentURL: documentURL) else {
+            throw ReadingSessionPackageError.invalidPackage
+        }
+        return evidence
+    }
+
+    private nonisolated static func makePortableEvidence(
+        for documentURL: URL
+    ) throws -> PortableReferenceEvidence? {
+        let fingerprint = try ReferenceIndexCacheStore.fingerprint(for: documentURL)
+        guard let index = try ReferenceIndexCacheStore.load(fingerprint: fingerprint),
+              index.failedPageIndices.isEmpty else { return nil }
+        let definitions = index.entries.compactMap { entry -> ReferenceGraphDefinition? in
+            guard let kind = ReferenceKind(rawValue: entry.kind) else { return nil }
+            return ReferenceGraphDefinition(
+                reference: DetectedReference(kind: kind, number: entry.number),
+                pageIndex: entry.pageIndex,
+                definingEndOffset: entry.evidence?.textLayerMatchEndOffset
+            )
+        }
+        let expected = Set(definitions.map {
+            "\($0.reference.kind.rawValue):\($0.reference.number):\($0.pageIndex)"
+        })
+        let graph: ReferenceMentionGraph
+        if let cached = try ReferenceIndexCacheStore.loadGraph(fingerprint: fingerprint),
+           Set(cached.records.map {
+               "\($0.definition.reference.kind.rawValue):\($0.definition.reference.number):\($0.definition.pageIndex)"
+           }) == expected {
+            graph = cached
+        } else {
+            graph = try ReferenceMentionFinder.buildGraph(
+                documentURL: documentURL,
+                definitions: definitions
+            )
+            try ReferenceIndexCacheStore.saveGraph(graph)
+        }
+        let evidence = PortableReferenceEvidence(
+            schemaVersion: PortableReferenceEvidence.schemaVersion,
+            documentFingerprint: fingerprint,
+            referenceIndex: index,
+            mentionGraph: graph
+        )
+        // Keep export and import on the same trust boundary: if the local
+        // cache cannot prove its offsets and page regions against the source
+        // PDF, omit it instead of writing evidence the destination will reject.
+        guard try validate(evidence, documentURL: documentURL) else { return nil }
+        return evidence
+    }
+
+    private nonisolated static func validate(
+        _ evidence: PortableReferenceEvidence,
+        documentURL: URL
+    ) throws -> Bool {
+        guard evidence.schemaVersion == PortableReferenceEvidence.schemaVersion,
+              evidence.referenceIndex.schemaVersion == PersistedReferenceIndex.schemaVersion,
+              evidence.mentionGraph.schemaVersion == ReferenceMentionGraph.schemaVersion else {
+            return false
+        }
+        let fingerprint = try ReferenceIndexCacheStore.fingerprint(for: documentURL)
+        guard evidence.documentFingerprint == fingerprint,
+              evidence.referenceIndex.documentFingerprint == fingerprint,
+              evidence.mentionGraph.documentFingerprint == fingerprint,
+              let document = PDFDocument(url: documentURL) else { return false }
+        guard evidence.referenceIndex.failedPageIndices.allSatisfy({
+            $0 >= 0 && $0 < document.pageCount
+        }) else { return false }
+
+        guard evidence.referenceIndex.entries.count <= 100_000,
+              evidence.mentionGraph.records.count <= 100_000 else { return false }
+        var entries: [ReferenceKey: Int] = [:]
+        for entry in evidence.referenceIndex.entries {
+            guard let kind = ReferenceKind(rawValue: entry.kind),
+                  !entry.number.isEmpty,
+                  entry.pageIndex >= 0, entry.pageIndex < document.pageCount,
+                  entry.formattedBody.count <= 100_000,
+                  let source = entry.evidence,
+                  source.effectiveSource == .pdfText,
+                  let page = document.page(at: entry.pageIndex),
+                  let pageText = page.string else { return false }
+            let key = ReferenceKey(kind: kind, number: entry.number)
+            guard entries[key] == nil,
+                  source.startOffset >= 0,
+                  source.endOffset >= source.startOffset,
+                  source.endOffset <= (pageText as NSString).length,
+                  (pageText as NSString).substring(with: NSRange(
+                    location: source.startOffset,
+                    length: source.endOffset - source.startOffset
+                  )) == source.sourceExcerpt,
+                  ReferenceEvidenceRegionResolver.exactRegion(for: source, on: page) != nil else {
+                return false
+            }
+            entries[key] = entry.pageIndex
+        }
+
+        var graphKeys = Set<ReferenceKey>()
+        for record in evidence.mentionGraph.records {
+            let definition = record.definition
+            let key = definition.reference.key
+            guard entries[key] == definition.pageIndex,
+                  graphKeys.insert(key).inserted,
+                  definition.pageIndex >= 0,
+                  definition.pageIndex < document.pageCount,
+                  record.result.mentions.count <= 200,
+                  record.result.pagesWithoutText >= 0,
+                  record.result.pagesWithoutText <= document.pageCount,
+                  record.result.unresolvedMatches >= 0 else { return false }
+            if let definingEndOffset = definition.definingEndOffset {
+                guard definingEndOffset >= 0,
+                      let page = document.page(at: definition.pageIndex),
+                      definingEndOffset <= page.numberOfCharacters else { return false }
+            }
+            for mention in record.result.mentions {
+                guard mention.pageIndex >= definition.pageIndex,
+                      mention.pageIndex < document.pageCount,
+                      mention.context.count <= 1_000,
+                      let page = document.page(at: mention.pageIndex),
+                      let pageText = page.string,
+                      ReferenceEvidenceRegionResolver.exactRegion(
+                        matchedText: mention.matchedText,
+                        startOffset: mention.startOffset,
+                        endOffset: mention.startOffset + mention.matchedText.utf16.count,
+                        on: page
+                      ) == mention.region,
+                      ReferenceMentionFinder.candidateMatches(
+                        in: pageText,
+                        for: definition.reference
+                      ).contains(where: {
+                        $0.startOffset == mention.startOffset &&
+                            $0.matchedText == mention.matchedText &&
+                            $0.context == mention.context
+                      }),
+                      mention.pageIndex > definition.pageIndex ||
+                        mention.startOffset >= (definition.definingEndOffset ?? 0) else { return false }
+            }
+        }
+        return graphKeys == Set(entries.keys)
     }
 }

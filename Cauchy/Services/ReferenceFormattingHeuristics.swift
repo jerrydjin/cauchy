@@ -50,4 +50,11 @@ enum ReferenceFormattingHeuristics {
         guard score.total > 0 else { return true }
         return Double(score.valid) / Double(score.total) >= 0.5
     }
+
+    /// A model that stops after an operator has not finished transcribing an
+    /// equation, even if the text contains no invalid LaTeX delimiters.
+    static func hasDanglingMathEnding(_ text: String) -> Bool {
+        guard let last = text.trimmingCharacters(in: .whitespacesAndNewlines).last else { return false }
+        return "=+−-≤≥<>⇒→∈∉⊂⊆≈≠×÷/^_".contains(last)
+    }
 }

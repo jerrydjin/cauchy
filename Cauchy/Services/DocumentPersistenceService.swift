@@ -160,6 +160,11 @@ actor DocumentPersistenceService {
     /// keeps working after an AirDrop/download staging file is removed.
     func importReadingSession(from packageURL: URL) throws -> PersistedWorkspace {
         let (package, packagedPDF) = try ReadingSessionPackageService.read(from: packageURL)
+        let portableEvidence = try ReadingSessionPackageService.readEvidence(
+            from: packageURL,
+            package: package,
+            documentURL: packagedPDF
+        )
         var workspace = package.workspace
         workspace.id = UUID()
         workspace.lastOpenedAt = Date()
@@ -171,6 +176,10 @@ actor DocumentPersistenceService {
             try FileManager.default.copyItem(at: packagedPDF, to: documentURL)
             workspace.documentURL = documentURL
             try saveWorkspace(workspace, bookmarkData: nil)
+            if let portableEvidence {
+                try ReferenceIndexCacheStore.save(portableEvidence.referenceIndex)
+                try ReferenceIndexCacheStore.saveGraph(portableEvidence.mentionGraph)
+            }
             return PersistedWorkspace(workspace: workspace, bookmarkData: nil)
         } catch {
             try? FileManager.default.removeItem(at: directory)

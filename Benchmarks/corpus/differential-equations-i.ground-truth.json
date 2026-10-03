@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "document": "sha256:b6e5ced9649b761cdb2a49051380fd6b5b210533645cedec8d671d6ba212f7f2",
+  "pages": [
+    {
+      "pageNumber": 4,
+      "references": [],
+      "notes": "Hard negative: book recommendations with parenthesized publication years."
+    },
+    {
+      "pageNumber": 9,
+      "references": [
+        { "kind": "example", "number": "2" }
+      ],
+      "notes": "Example 2 is introduced; equation references 1.6 and 1.7 and inline initial conditions are excluded."
+    },
+    {
+      "pageNumber": 15,
+      "references": [
+        { "kind": "lemma", "number": "1.2" },
+        { "kind": "equation", "number": "1.17" }
+      ],
+      "notes": "Lemma 1.2 and displayed equation 1.17 are introduced; IVP 1.1 and proof citations are excluded."
+    },
+    {
+      "pageNumber": 20,
+      "references": [
+        { "kind": "theorem", "number": "1.4" }
+      ],
+      "notes": "Theorem 1.4 is introduced; section 1.6 and the later proof heading are not separate references."
+    },
+    {
+      "pageNumber": 27,
+      "references": [],
+      "notes": "Hard negative: an unnumbered remark, unnumbered displays, and a citation of section 1.8."
+    },
+    {
+      "pageNumber": 34,
+      "references": [
+        { "kind": "figure", "number": "2.3" },
+        { "kind": "figure", "number": "2.4" }
+      ],
+      "notes": "Two phase-portrait figures are introduced; citations of equations 2.7 and 2.8 are excluded."
+    },
+    {
+      "pageNumber": 42,
+      "references": [{ "kind": "figure", "number": "2.11" }],
+      "notes": "Figure 2.11 is introduced beneath the phase portrait; matrices and unnumbered equations are excluded."
+    },
+    {
+      "pageNumber": 50,
+      "references": [
+        { "kind": "figure", "number": "3.1" },
+        { "kind": "equation", "number": "3.2" },
+        { "kind": "equation", "number": "3.3" }
+      ],
+      "notes": "Figure 3.1 and displayed equations 3.2 and 3.3 are introduced; citations of PDE 3.1 are excluded."
+    },
+    {
+      "pageNumber": 60,
+      "references": [],
+      "notes": "Hard negative: a plotted surface and an unnumbered worked example."
+    },
+    {
+      "pageNumber": 72,
+      "references": [],
+      "notes": "Hard negative: unnumbered boundary-value examples and many unnumbered displayed equations."
+    }
+  ]
+}

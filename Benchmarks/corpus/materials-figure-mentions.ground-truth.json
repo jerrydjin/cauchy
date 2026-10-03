@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "split": "development",
+  "cases": [
+    {
+      "pdfFilename": "s41586-023-06735-9.pdf",
+      "referenceLabelsFilename": "materials-figures.ground-truth.json",
+      "document": "sha256:f1af6c92eda54f5bd84eb5012f3010d7bb9167dca337414cffca81623b4a535a",
+      "kind": "figure",
+      "number": "1",
+      "definingPage": 2,
+      "expectedPages": [2, 3, 3, 3, 3, 4, 9, 9],
+      "notes": "Same-page panel cite, four page-3 cites including Figs. 1 and 2, one on page 4, and two on page 9 including Figures 1e and 3a,b."
+    },
+    {
+      "pdfFilename": "s41586-023-06735-9.pdf",
+      "referenceLabelsFilename": "materials-figures.ground-truth.json",
+      "document": "sha256:f1af6c92eda54f5bd84eb5012f3010d7bb9167dca337414cffca81623b4a535a",
+      "kind": "figure",
+      "number": "2",
+      "definingPage": 3,
+      "expectedPages": [3, 3, 4, 4, 4],
+      "notes": "Two same-page cites, including Figs. 1 and 2, and three panel cites on page 4."
+    },
+    {
+      "pdfFilename": "s41586-023-06735-9.pdf",
+      "referenceLabelsFilename": "materials-figures.ground-truth.json",
+      "document": "sha256:f1af6c92eda54f5bd84eb5012f3010d7bb9167dca337414cffca81623b4a535a",
+      "kind": "figure",
+      "number": "3",
+      "definingPage": 5,
+      "expectedPages": [9, 10],
+      "notes": "A paired plural citation on page 9 and a panel cite on page 10; earlier page-4 cites precede the caption and are outside later-mention scope."
+    }
+  ]
+}

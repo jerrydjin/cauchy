@@ -1,6 +1,10 @@
 import Foundation
 
 enum ReadingPromptBuilder {
+    static func evidenceBudgets(for provider: AssistantConnectorID) -> (statements: Int, passages: Int) {
+        provider == .onDevice ? (1_200, 800) : (2_500, 4_000)
+    }
+
     static func instructions(for context: ReadingContext, provider: AssistantConnectorID = .onDevice) -> String {
         var prompt = """
         You are helping someone read "\(context.documentTitle)".
@@ -39,12 +43,21 @@ enum ReadingPromptBuilder {
 
         Content rules:
         - Ground your answer in the text above (and retrieved passages if present).
-        - The text's exact formulations — of a definition, a theorem, an algorithm, a model, an experimental setup — are the ground source of truth. When the question concerns one of them, restate it verbatim from the text (see EXACT STATEMENTS when present) before explaining, and keep the text's own notation and naming.
+        - Use supplied PDF text rather than a model's restatement. Excerpts can be clipped or have lossy math extraction; do not silently complete missing notation. Say when a precise formula needs checking on the original page.
+        - A CITABLE PDF LOCATIONS block accompanies each question when Cauchy has resolved exact original-page regions. S1 identifies the selected text, R1/R2/... identify PDF source excerpts in order, and P1/P2/... identify relevant passages in order. A source without an ID is context only, not a verified location.
+        - Put a source ID such as [S1] or [R1] immediately after each material claim drawn directly from a cited PDF excerpt. Keep separate claims in separate sentences or paragraphs, and cite each substantive paragraph or list item. Keep IDs outside math delimiters. Use only listed IDs; do not invent one or substitute a page number. An ID identifies an inspectable input, not automatic proof of your reasoning.
         - You may use established knowledge of the field to actually answer the question; note briefly when something comes from outside the passage.
         - If the passage defers something (to an appendix, a problem sheet, another paper), still state the standard account of it rather than only saying it is deferred.
         - Do not summarize the whole document.
         - Be precise and concise.
         - Use plain-text section headings (for example, "1. Proof for addition"). Do not use markdown # headings or code fences.
+
+        Evidence boundary (mandatory):
+        - End every reply with exactly one machine-readable marker on its own line. The app hides it from the reader.
+        - Use [[CAUCHY_BASIS: PDF]] only when every material mathematical or factual claim follows directly from a source with a listed, resolvable ID and each such claim carries its source ID. If no ID is available, do not declare PDF-only.
+        - Use [[CAUCHY_BASIS: MIXED]] when any material claim uses established knowledge, an inference not stated in the supplied PDF text, or a completion of clipped/lossy notation. Clearly separate that outside material in the prose.
+        - Use [[CAUCHY_BASIS: INSUFFICIENT]] when the supplied evidence is too incomplete or ambiguous to answer reliably. State what the PDF does and does not establish; do not guess.
+        - Never cite or imply access to a page that was not supplied in the prompt.
 
         \(latexOutputContract)
         """
@@ -52,13 +65,12 @@ enum ReadingPromptBuilder {
         return prompt
     }
 
-    /// Formats exact reference statements for the prompt, clipped to a
-    /// character budget. These sit above the passages block: they are the
-    /// notes' ground-truth formulations.
+    /// Formats PDF source excerpts for the prompt, clipped to a character
+    /// budget. They sit above the passages block, but may be incomplete.
     static func referencedStatementsBlock(_ statements: [String], characterBudget: Int) -> String? {
         guard let clipped = clip(statements, to: characterBudget) else { return nil }
         return """
-        EXACT STATEMENTS FROM THE NOTES (ground truth — quote verbatim, use their notation):
+        PDF SOURCE EXCERPTS (verbatim text layer; may be clipped or lose math layout — do not assume a complete statement):
 
         \(clipped.joined(separator: "\n\n"))
         """
@@ -76,9 +88,21 @@ enum ReadingPromptBuilder {
         """
     }
 
+    /// Source IDs are generated only after the current PDF revalidates the
+    /// corresponding page region. Keep this compact so local models receive it.
+    static func citableSourcesBlock(_ sources: [AnswerSourceAnchor]) -> String? {
+        let lines = sources.compactMap { source -> String? in
+            guard let id = source.sourceID else { return nil }
+            return "[\(id)] \(source.label), PDF p. \(source.pageIndex + 1)"
+        }
+        guard !lines.isEmpty else { return nil }
+        return "CITABLE PDF LOCATIONS (IDs map to the selected text, numbered source excerpts, and passages above):\n"
+            + lines.joined(separator: "\n")
+    }
+
     /// Greedily fits items into a character budget, clipping the last one;
     /// fragments under 40 characters are dropped. Returns nil if nothing fits.
-    private static func clip(_ items: [String], to characterBudget: Int) -> [String]? {
+    static func clip(_ items: [String], to characterBudget: Int) -> [String]? {
         guard !items.isEmpty, characterBudget > 0 else { return nil }
         var clipped: [String] = []
         var used = 0
@@ -101,6 +125,7 @@ enum ReadingPromptBuilder {
 
         Fix rules:
         - Preserve all technical meaning and prose wording.
+        - Preserve a final [[CAUCHY_BASIS: PDF]], [[CAUCHY_BASIS: MIXED]], or [[CAUCHY_BASIS: INSUFFICIENT]] marker exactly.
         - Only change delimiter placement and LaTeX syntax needed for valid rendering.
         - Convert \\(...\\) to $...$ and \\[...\\] to $$...$$.
         - Move any bare LaTeX commands (\\frac, \\leq, \\epsilon, \\lambda, etc.) inside delimiters.

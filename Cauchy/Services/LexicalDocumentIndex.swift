@@ -10,6 +10,7 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
     private struct Chunk: Sendable {
         let pageIndex: Int
         let text: String
+        let location: PDFTextLocation?
         let termFrequencies: [String: Int]
         let tokenCount: Int
     }
@@ -35,7 +36,15 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
         var chunks: [Chunk] = []
         for pageIndex in 0..<document.pageCount {
             guard let text = document.page(at: pageIndex)?.string else { continue }
+            var sourceCursor = 0
             for chunkText in chunkTexts(from: text) {
+                let location = sourceLocation(
+                    for: chunkText,
+                    in: text,
+                    pageIndex: pageIndex,
+                    after: sourceCursor
+                )
+                if let location { sourceCursor = location.endOffset }
                 let tokens = tokenize(chunkText)
                 guard tokens.count >= 8 else { continue }
                 var frequencies: [String: Int] = [:]
@@ -45,6 +54,7 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
                 chunks.append(Chunk(
                     pageIndex: pageIndex,
                     text: chunkText,
+                    location: location,
                     termFrequencies: frequencies,
                     tokenCount: tokens.count
                 ))
@@ -85,15 +95,29 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
         limit: Int,
         excludingPage: Int?
     ) -> [String] {
+        passageRecords(
+            matching: query,
+            queryVector: queryVector,
+            limit: limit,
+            excludingPage: excludingPage
+        ).map(\.text)
+    }
+
+    func passageRecords(
+        matching query: String,
+        queryVector: [Float]?,
+        limit: Int,
+        excludingPage: Int?
+    ) -> [DocumentPassage] {
         guard limit > 0 else { return [] }
         let lexicalRanking = lexicalRanking(query: query, excludingPage: excludingPage)
 
         guard let queryVector, chunkEmbeddings != nil else {
-            return format(Array(lexicalRanking.prefix(limit)))
+            return records(Array(lexicalRanking.prefix(limit)))
         }
         let semanticRanking = semanticRanking(queryVector: queryVector, excludingPage: excludingPage)
         guard !semanticRanking.isEmpty else {
-            return format(Array(lexicalRanking.prefix(limit)))
+            return records(Array(lexicalRanking.prefix(limit)))
         }
 
         // Reciprocal Rank Fusion: robust to the incomparable score scales of
@@ -110,7 +134,7 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
             .sorted { $0.value > $1.value }
             .prefix(limit)
             .map(\.key)
-        return format(top)
+        return records(top)
     }
 
     /// Chunk indices ranked by BM25 score, best first (positive scores only).
@@ -156,8 +180,49 @@ struct LexicalDocumentIndex: DocumentIndexProtocol, Sendable {
             .map(\.index)
     }
 
-    private func format(_ chunkIndices: [Int]) -> [String] {
-        chunkIndices.map { "[p. \(chunks[$0].pageIndex + 1)] \(chunks[$0].text)" }
+    private func records(_ chunkIndices: [Int]) -> [DocumentPassage] {
+        chunkIndices.map { index in
+            let chunk = chunks[index]
+            return DocumentPassage(
+                text: "[p. \(chunk.pageIndex + 1)] \(chunk.text)",
+                location: chunk.location
+            )
+        }
+    }
+
+    /// Chunking joins paragraph breaks and trims edges for useful retrieval.
+    /// Recover a unique contiguous source span while tolerating only whitespace
+    /// differences. An ambiguous/missing match stays unanchored; never guess.
+    nonisolated static func sourceLocation(
+        for chunk: String,
+        in pageText: String,
+        pageIndex: Int,
+        after cursor: Int
+    ) -> PDFTextLocation? {
+        let words = chunk.split(whereSeparator: \.isWhitespace)
+        guard !words.isEmpty else { return nil }
+        let pattern = words
+            .map { NSRegularExpression.escapedPattern(for: String($0)) }
+            .joined(separator: #"\s+"#)
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let source = pageText as NSString
+        guard cursor >= 0, cursor < source.length else { return nil }
+        let remaining = NSRange(location: cursor, length: source.length - cursor)
+        guard let first = regex.firstMatch(in: pageText, range: remaining) else { return nil }
+        let nextStart = NSMaxRange(first.range)
+        if nextStart < source.length,
+           regex.firstMatch(
+               in: pageText,
+               range: NSRange(location: nextStart, length: source.length - nextStart)
+           ) != nil {
+            return nil
+        }
+        return PDFTextLocation(
+            pageIndex: pageIndex,
+            matchedText: source.substring(with: first.range),
+            startOffset: first.range.location,
+            endOffset: NSMaxRange(first.range)
+        )
     }
 
     // MARK: - Chunking & tokenization

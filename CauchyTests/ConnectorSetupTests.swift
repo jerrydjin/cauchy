@@ -52,3 +52,27 @@ final class ConnectorSetupTests: XCTestCase {
         } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
     }
 }
+
+final class ModelCatalogTests: XCTestCase {
+    func testRetiredChoicesKeepTheirCapabilityTier() {
+        let cases: [(AssistantConnectorID, String, String)] = [
+            (.codex, "gpt-5.6-sol", "gpt-6-astra"),
+            (.codex, "gpt-5.6-terra", "gpt-6-sol"),
+            (.codex, "gpt-5.6-luna", "gpt-6-luna"),
+            (.openaiAPI, "gpt-5.6-sol", "gpt-6-astra"),
+            (.anthropicAPI, "claude-opus-5", "claude-opus-5-5"),
+            (.gemini, "gemini-3.6-flash", "gemini-3.7-flash"),
+            (.gemini, "gemini-3.7-flash-lite", "gemini-3.5-flash-lite"),
+        ]
+
+        for (connectorID, storedID, expectedID) in cases {
+            XCTAssertEqual(connectorID.connector.choice(fromToken: storedID), .model(expectedID))
+        }
+    }
+
+    func testCurrentGeminiChoiceRemainsPinnedAndNewDefaultIsLatest() {
+        let connector = AssistantConnectorID.gemini.connector
+        XCTAssertEqual(connector.choice(fromToken: "gemini-3.7-flash"), .model("gemini-3.7-flash"))
+        XCTAssertEqual(connector.defaultChoice, .model("gemini-3.8-flash"))
+    }
+}

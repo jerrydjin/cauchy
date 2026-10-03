@@ -14,6 +14,12 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertEqual(reference?.number, "3.4")
     }
 
+    func testAppendixReference() {
+        let reference = ReferenceDetector.firstReference(in: "Remark A.0.5. This is an appendix statement.")
+        XCTAssertEqual(reference?.kind, .remark)
+        XCTAssertEqual(reference?.number, "A.0.5")
+    }
+
     func testEquationCiteByParenthetical() {
         let reference = ReferenceDetector.firstReference(in: "as shown by (1.2)")
         XCTAssertEqual(reference?.kind, .equation)
@@ -24,6 +30,29 @@ final class ReferenceDetectorTests: XCTestCase {
         let reference = ReferenceDetector.firstReference(in: "from Eq. (2.3) it follows")
         XCTAssertEqual(reference?.kind, .equation)
         XCTAssertEqual(reference?.number, "2.3")
+    }
+
+    func testFigurePanelMentionResolvesToNumberedFigure() {
+        let reference = ReferenceDetector.firstReference(in: "See Fig. 3a,b for the comparison.")
+        XCTAssertEqual(reference, DetectedReference(kind: .figure, number: "3"))
+    }
+
+    func testFigureCaptionAndFullWordMentionShareIdentity() {
+        let references = ReferenceDetector.allReferences(in: "Fig. 2 | Results. Later, Figure 2a shows the trend.")
+        XCTAssertEqual(references.map(\.reference), [
+            DetectedReference(kind: .figure, number: "2"),
+            DetectedReference(kind: .figure, number: "2")
+        ])
+    }
+
+    func testPairedPluralFigureCitationCreatesTwoAnchors() {
+        let text = "Figures 1e and 3a,b show the result."
+        let matches = ReferenceDetector.allReferences(in: text)
+        XCTAssertEqual(matches.map(\.reference), [
+            DetectedReference(kind: .figure, number: "1"),
+            DetectedReference(kind: .figure, number: "3")
+        ])
+        XCTAssertEqual(matches.map { String(text[$0.range]) }, ["Figures 1e", "3a,b"])
     }
 
     func testBestReferencePrefersCursorPosition() {

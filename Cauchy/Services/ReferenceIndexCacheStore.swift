@@ -2,9 +2,9 @@ import CryptoKit
 import Foundation
 
 struct PersistedReferenceIndex: Codable, Sendable {
-    // v5 invalidates indexes built before full-page chunking and source
-    // grounding; migrating those caches would preserve missing/bogus entries.
-    static let schemaVersion = 5
+    // v11 adds figure caption objects and their source-anchored mention edges.
+    // Existing caches must rebuild so figure-bearing PDFs gain these nodes.
+    static let schemaVersion = 11
 
     /// Which model family produced the entries: "on-device" or a cloud
     /// provider name. Recorded so a future policy change can decide what is
@@ -35,7 +35,9 @@ struct PersistedReferenceIndex: Codable, Sendable {
                     number: key.number,
                     formattedBody: value.formattedBody,
                     pageIndex: value.pageIndex,
-                    name: value.name
+                    name: value.name,
+                    evidence: value.evidence,
+                    contentOrigin: value.contentOrigin
                 )
             },
             builtWith: builtWith,
@@ -67,7 +69,9 @@ struct PersistedReferenceIndex: Codable, Sendable {
                 reference: DetectedReference(kind: kind, number: entry.number),
                 formattedBody: entry.formattedBody,
                 pageIndex: entry.pageIndex,
-                name: entry.name
+                name: entry.name,
+                evidence: entry.evidence,
+                contentOrigin: entry.contentOrigin ?? .modelTranscription
             )
             if let existing = merged[key] {
                 if indexed.formattedBody.count > existing.formattedBody.count {
@@ -88,13 +92,26 @@ struct PersistedReferenceEntry: Codable, Sendable, Equatable {
     let pageIndex: Int
     /// Printed title (schema v4+); nil for entries migrated from older caches.
     var name: String?
+    /// Verbatim source evidence (schema v6+, region offsets in v8).
+    var evidence: ReferenceEvidence?
+    var contentOrigin: ReferenceContentOrigin?
 
-    init(kind: String, number: String, formattedBody: String, pageIndex: Int, name: String? = nil) {
+    init(
+        kind: String,
+        number: String,
+        formattedBody: String,
+        pageIndex: Int,
+        name: String? = nil,
+        evidence: ReferenceEvidence? = nil,
+        contentOrigin: ReferenceContentOrigin? = nil
+    ) {
         self.kind = kind
         self.number = number
         self.formattedBody = formattedBody
         self.pageIndex = pageIndex
         self.name = name
+        self.evidence = evidence
+        self.contentOrigin = contentOrigin
     }
 }
 
@@ -128,8 +145,8 @@ enum ReferenceIndexCacheStore {
             return persisted
         }
         // Earlier schemas may contain entries created from truncated input or
-        // ungrounded model output. They intentionally rebuild under v5 rather
-        // than migrating unreliable data forward.
+        // ungrounded or evidence-free model output. They intentionally rebuild
+        // rather than migrating unreliable data forward.
         return nil
     }
 
@@ -179,6 +196,23 @@ enum ReferenceIndexCacheStore {
         try data.write(to: cacheFileURL(for: index.documentFingerprint), options: .atomic)
     }
 
+    static func loadGraph(fingerprint: String) throws -> ReferenceMentionGraph? {
+        let url = graphFileURL(for: fingerprint)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let graph = try decoder.decode(ReferenceMentionGraph.self, from: Data(contentsOf: url))
+        guard graph.schemaVersion == ReferenceMentionGraph.schemaVersion,
+              graph.documentFingerprint == fingerprint else { return nil }
+        touch(url)
+        return graph
+    }
+
+    static func saveGraph(_ graph: ReferenceMentionGraph) throws {
+        let directory = cacheDirectory()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let data = try encoder.encode(graph)
+        try data.write(to: graphFileURL(for: graph.documentFingerprint), options: .atomic)
+    }
+
     /// Deletes every cached index (any schema version) for one document, so
     /// the next build re-indexes it from scratch.
     static func removeCache(for documentURL: URL) {
@@ -200,6 +234,12 @@ enum ReferenceIndexCacheStore {
 
     static func cacheFileURL(for fingerprint: String) -> URL {
         cacheDirectory().appendingPathComponent("\(fingerprint)-v\(PersistedReferenceIndex.schemaVersion).json")
+    }
+
+    static func graphFileURL(for fingerprint: String) -> URL {
+        cacheDirectory().appendingPathComponent(
+            "\(fingerprint)-graph-v\(ReferenceMentionGraph.schemaVersion).json"
+        )
     }
 
     private static func cacheDirectory() -> URL {

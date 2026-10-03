@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "document": "doi:10.1038/s41586-023-06735-9;sha256:f1af6c92eda54f5bd84eb5012f3010d7bb9167dca337414cffca81623b4a535a",
+  "evaluatedKinds": ["figure"],
+  "pages": [
+    { "pageNumber": 1, "references": [], "notes": "Article title and abstract; no numbered figure caption." },
+    { "pageNumber": 2, "references": [{ "kind": "figure", "number": "1" }], "notes": "Fig. 1 caption appears below the multipanel chart." },
+    { "pageNumber": 3, "references": [{ "kind": "figure", "number": "2" }], "notes": "Fig. 2 caption and later panel citations to Fig. 1 and Fig. 2." },
+    { "pageNumber": 4, "references": [], "notes": "Fig. 1, Fig. 2, and Fig. 3 are cited in prose; none is introduced here." },
+    { "pageNumber": 5, "references": [{ "kind": "figure", "number": "3" }], "notes": "Fig. 3 caption appears below the multipanel chart." },
+    { "pageNumber": 6, "references": [], "notes": "Numbered bibliography entries are not figures." },
+    { "pageNumber": 7, "references": [], "notes": "Methods text contains no printed figure caption." },
+    { "pageNumber": 8, "references": [], "notes": "Methods continuation contains no printed figure caption." },
+    { "pageNumber": 9, "references": [], "notes": "Mentions Figures 1 and 3 in Methods, without a new caption." },
+    { "pageNumber": 11, "references": [], "notes": "Availability and references, without a new caption." }
+  ]
+}

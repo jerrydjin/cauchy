@@ -11,6 +11,7 @@ enum ReferenceKind: String, CaseIterable, Equatable, Sendable, Codable {
     case remark
     case proof
     case equation
+    case figure
 
     var displayName: String {
         switch self {
@@ -24,6 +25,7 @@ enum ReferenceKind: String, CaseIterable, Equatable, Sendable, Codable {
         case .remark: "Remark"
         case .proof: "Proof"
         case .equation: "Equation"
+        case .figure: "Figure"
         }
     }
 

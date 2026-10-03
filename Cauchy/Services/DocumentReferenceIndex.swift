@@ -1,20 +1,340 @@
 import Foundation
 import PDFKit
 
+/// A text-layer citation after the defining statement. This is an observed
+/// mention, not a claim that the later passage logically depends on it.
+struct ReferenceMention: Codable, Equatable, Sendable, Identifiable {
+    let pageIndex: Int
+    let startOffset: Int
+    let matchedText: String
+    let context: String
+    let region: NormalizedRect
+
+    var id: String { "\(pageIndex):\(startOffset)" }
+}
+
+struct ReferenceMentionSearchResult: Codable, Equatable, Sendable {
+    let mentions: [ReferenceMention]
+    let pagesWithoutText: Int
+    let unresolvedMatches: Int
+    let truncated: Bool
+}
+
+struct ReferenceGraphDefinition: Codable, Equatable, Sendable {
+    let reference: DetectedReference
+    let pageIndex: Int
+    /// Fallback only: the graph builder prefers a fresh declaration check in
+    /// the exact PDF bytes it is scanning.
+    let definingEndOffset: Int?
+}
+
+struct ReferenceGraphRecord: Codable, Equatable, Sendable {
+    let definition: ReferenceGraphDefinition
+    let result: ReferenceMentionSearchResult
+}
+
+/// A portable, inspectable snapshot of observed citation edges. It is not a
+/// semantic dependency graph: edges prove a printed mention at a page region.
+struct ReferenceMentionGraph: Codable, Equatable, Sendable {
+    static let schemaVersion = 1
+
+    let schemaVersion: Int
+    let documentFingerprint: String
+    let records: [ReferenceGraphRecord]
+
+    func result(for reference: DetectedReference) -> ReferenceMentionSearchResult? {
+        records.first { $0.definition.reference.key == reference.key }?.result
+    }
+}
+
+enum ReferenceMentionFinder {
+    enum SearchError: LocalizedError {
+        case documentUnavailable
+        case duplicateDefinition
+
+        var errorDescription: String? {
+            switch self {
+            case .documentUnavailable: "The PDF could not be opened for later-reference search."
+            case .duplicateDefinition: "The same reference was defined twice in the graph input."
+            }
+        }
+    }
+
+    /// Open a separate PDFDocument so a background search never races the
+    /// reader's live PDFView. The result includes only resolvable page anchors.
+    nonisolated static func find(
+        documentURL: URL,
+        reference: DetectedReference,
+        after definingPageIndex: Int,
+        definingEndOffset: Int? = nil,
+        limit: Int = 30
+    ) throws -> ReferenceMentionSearchResult {
+        guard let document = PDFDocument(url: documentURL) else {
+            throw SearchError.documentUnavailable
+        }
+        var mentions: [ReferenceMention] = []
+        var pagesWithoutText = 0
+        var unresolvedMatches = 0
+        var truncated = false
+        guard definingPageIndex >= 0, definingPageIndex < document.pageCount, limit > 0 else {
+            return ReferenceMentionSearchResult(
+                mentions: [], pagesWithoutText: 0, unresolvedMatches: 0, truncated: false
+            )
+        }
+        // Prefer a fresh declaration check over an older cached evidence
+        // offset. Ambiguous evidence may otherwise point at a later citation
+        // and silently hide real same-page mentions before that offset.
+        let definitionEnd = declarationEndOffset(
+            in: document,
+            reference: reference,
+            pageIndex: definingPageIndex
+        ) ?? definingEndOffset
+        let firstPage = definitionEnd == nil ? definingPageIndex + 1 : definingPageIndex
+
+        for pageIndex in firstPage..<document.pageCount {
+            try Task.checkCancellation()
+            guard let page = document.page(at: pageIndex), let text = page.string,
+                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                pagesWithoutText += 1
+                continue
+            }
+            if LLMReferenceIndexSupport.isLikelyTableOfContents(text) { continue }
+            let candidates = candidateMatches(in: text, for: reference)
+            guard !candidates.isEmpty else { continue }
+
+            let equationPositions = LLMReferenceIndexSupport.equationLabelPositions(in: text, on: page)
+            let declarations = Set(LLMReferenceIndexSupport.declarationMatches(
+                in: text,
+                equationLabelX: equationPositions
+            ).filter { $0.reference.key == reference.key }
+                .map { $0.range.lowerBound.utf16Offset(in: text) })
+
+            for candidate in candidates
+                where (pageIndex > definingPageIndex || candidate.startOffset >= (definitionEnd ?? .max))
+                    && !declarations.contains(candidate.startOffset) {
+                guard let region = ReferenceEvidenceRegionResolver.exactRegion(
+                    matchedText: candidate.matchedText,
+                    startOffset: candidate.startOffset,
+                    endOffset: candidate.endOffset,
+                    on: page
+                ) else {
+                    unresolvedMatches += 1
+                    continue
+                }
+                if mentions.count >= limit {
+                    truncated = true
+                    break
+                }
+                mentions.append(ReferenceMention(
+                    pageIndex: pageIndex,
+                    startOffset: candidate.startOffset,
+                    matchedText: candidate.matchedText,
+                    context: candidate.context,
+                    region: region
+                ))
+            }
+            if truncated { break }
+        }
+        return ReferenceMentionSearchResult(
+            mentions: mentions,
+            pagesWithoutText: pagesWithoutText,
+            unresolvedMatches: unresolvedMatches,
+            truncated: truncated
+        )
+    }
+
+    /// Build all observed citation edges in one document pass. This is the
+    /// format that can travel with a reading session; a per-hover scan remains
+    /// available while no graph snapshot is installed in the reader.
+    nonisolated static func buildGraph(
+        documentURL: URL,
+        definitions: [ReferenceGraphDefinition],
+        limitPerReference: Int = 200
+    ) throws -> ReferenceMentionGraph {
+        guard let document = PDFDocument(url: documentURL) else {
+            throw SearchError.documentUnavailable
+        }
+        var byKey: [ReferenceKey: ReferenceGraphDefinition] = [:]
+        for definition in definitions {
+            guard byKey[definition.reference.key] == nil else {
+                throw SearchError.duplicateDefinition
+            }
+            byKey[definition.reference.key] = definition
+        }
+        var mentions: [ReferenceKey: [ReferenceMention]] = [:]
+        var unresolved: [ReferenceKey: Int] = [:]
+        var truncated = Set<ReferenceKey>()
+        var pagesWithoutText: [Int] = []
+
+        for pageIndex in 0..<document.pageCount {
+            try Task.checkCancellation()
+            guard let page = document.page(at: pageIndex), let text = page.string,
+                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                pagesWithoutText.append(pageIndex)
+                continue
+            }
+            if LLMReferenceIndexSupport.isLikelyTableOfContents(text) { continue }
+            let candidates = ReferenceDetector.allReferences(in: text).filter {
+                guard let definition = byKey[$0.reference.key] else { return false }
+                return pageIndex >= definition.pageIndex
+            }
+            guard !candidates.isEmpty else { continue }
+
+            let equationPositions = LLMReferenceIndexSupport.equationLabelPositions(in: text, on: page)
+            let declarations = LLMReferenceIndexSupport.declarationMatches(
+                in: text, equationLabelX: equationPositions
+            )
+            var declarationStarts: [ReferenceKey: Set<Int>] = [:]
+            var declarationEnds: [ReferenceKey: Int] = [:]
+            for declaration in declarations {
+                let key = declaration.reference.key
+                guard byKey[key] != nil else { continue }
+                declarationStarts[key, default: []].insert(
+                    declaration.range.lowerBound.utf16Offset(in: text)
+                )
+                if declarationEnds[key] == nil {
+                    declarationEnds[key] = declaration.range.upperBound.utf16Offset(in: text)
+                }
+            }
+
+            for match in candidates {
+                let key = match.reference.key
+                guard let definition = byKey[key] else { continue }
+                let candidate = candidate(from: match, in: text)
+                if pageIndex == definition.pageIndex {
+                    guard let end = declarationEnds[key] ?? definition.definingEndOffset,
+                          candidate.startOffset >= end else { continue }
+                }
+                if declarationStarts[key]?.contains(candidate.startOffset) == true { continue }
+                guard let region = ReferenceEvidenceRegionResolver.exactRegion(
+                    matchedText: candidate.matchedText,
+                    startOffset: candidate.startOffset,
+                    endOffset: candidate.endOffset,
+                    on: page
+                ) else {
+                    unresolved[key, default: 0] += 1
+                    continue
+                }
+                if mentions[key, default: []].count >= max(0, limitPerReference) {
+                    truncated.insert(key)
+                    continue
+                }
+                mentions[key, default: []].append(ReferenceMention(
+                    pageIndex: pageIndex,
+                    startOffset: candidate.startOffset,
+                    matchedText: candidate.matchedText,
+                    context: candidate.context,
+                    region: region
+                ))
+            }
+        }
+
+        let records = byKey.values.sorted {
+            if $0.pageIndex != $1.pageIndex { return $0.pageIndex < $1.pageIndex }
+            if $0.reference.kind.rawValue != $1.reference.kind.rawValue {
+                return $0.reference.kind.rawValue < $1.reference.kind.rawValue
+            }
+            return $0.reference.number < $1.reference.number
+        }.map { definition in
+            let key = definition.reference.key
+            return ReferenceGraphRecord(
+                definition: definition,
+                result: ReferenceMentionSearchResult(
+                    mentions: mentions[key] ?? [],
+                    pagesWithoutText: pagesWithoutText.filter { $0 > definition.pageIndex }.count,
+                    unresolvedMatches: unresolved[key] ?? 0,
+                    truncated: truncated.contains(key)
+                )
+            )
+        }
+        return ReferenceMentionGraph(
+            schemaVersion: ReferenceMentionGraph.schemaVersion,
+            documentFingerprint: try ReferenceIndexCacheStore.fingerprint(for: documentURL),
+            records: records
+        )
+    }
+
+    private nonisolated static func declarationEndOffset(
+        in document: PDFDocument,
+        reference: DetectedReference,
+        pageIndex: Int
+    ) -> Int? {
+        guard let page = document.page(at: pageIndex), let text = page.string else { return nil }
+        let positions = LLMReferenceIndexSupport.equationLabelPositions(in: text, on: page)
+        return LLMReferenceIndexSupport.declarationMatches(
+            in: text, equationLabelX: positions
+        ).first { $0.reference.key == reference.key }?
+            .range.upperBound.utf16Offset(in: text)
+    }
+
+    struct Candidate: Equatable {
+        let startOffset: Int
+        let endOffset: Int
+        let matchedText: String
+        let context: String
+    }
+
+    /// Pure text-layer stage, tested without an AI model or PDF rendering.
+    nonisolated static func candidateMatches(
+        in text: String,
+        for reference: DetectedReference
+    ) -> [Candidate] {
+        ReferenceDetector.allReferences(in: text)
+            .filter { $0.reference.key == reference.key }
+            .map { candidate(from: $0, in: text) }
+    }
+
+    private nonisolated static func candidate(
+        from match: DetectedReferenceMatch,
+        in text: String
+    ) -> Candidate {
+        let lineStart = text[..<match.range.lowerBound].lastIndex(of: "\n")
+            .map { text.index(after: $0) } ?? text.startIndex
+        let lineEnd = text[match.range.upperBound...].firstIndex(of: "\n")
+            ?? text.endIndex
+        let line = text[lineStart..<lineEnd]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let matchedText = String(text[match.range])
+        var contextStart = lineStart
+        if line == matchedText, lineStart > text.startIndex {
+            let previousEnd = text.index(before: lineStart)
+            contextStart = text[..<previousEnd].lastIndex(of: "\n")
+                .map { text.index(after: $0) } ?? text.startIndex
+        }
+        let before = text[contextStart..<match.range.lowerBound]
+        let after = text[match.range.upperBound..<lineEnd]
+        let leading = String(before.suffix(140))
+        let trailing = String(after.prefix(140))
+        let excerpt = (before.count > 140 ? "…" : "") + leading
+            + matchedText + trailing + (after.count > 140 ? "…" : "")
+        let context = excerpt.split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+        return Candidate(
+            startOffset: match.range.lowerBound.utf16Offset(in: text),
+            endOffset: match.range.upperBound.utf16Offset(in: text),
+            matchedText: matchedText,
+            context: context
+        )
+    }
+}
+
 struct DocumentReferenceIndexSnapshot: Sendable {
     let entries: [ReferenceKey: IndexedReference]
     let pageCount: Int
-    /// Embedding of each entry's searchable text (name + de-LaTeXed body);
+    let mentionGraph: ReferenceMentionGraph?
+    /// Embedding of each entry's searchable text (name + PDF-source excerpt);
     /// nil when the on-device embedding model is unavailable.
     let bodyEmbeddings: [ReferenceKey: [Float]]?
 
     init(
         entries: [ReferenceKey: IndexedReference],
         pageCount: Int,
+        mentionGraph: ReferenceMentionGraph? = nil,
         bodyEmbeddings: [ReferenceKey: [Float]]? = nil
     ) {
         self.entries = entries
         self.pageCount = pageCount
+        self.mentionGraph = mentionGraph
         self.bodyEmbeddings = bodyEmbeddings
     }
 
@@ -37,7 +357,7 @@ struct DocumentReferenceIndexSnapshot: Sendable {
         let heading = [entry.reference.kind.displayName, entry.name ?? ""]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return heading + ". " + SentenceEmbedder.plainText(fromLaTeX: entry.formattedBody)
+        return heading + ". " + SentenceEmbedder.plainText(fromLaTeX: entry.groundingBody)
     }
 }
 
@@ -54,10 +374,21 @@ struct ReferenceIndexProvenance: Equatable, Sendable {
     var isOnDevice: Bool { builtWith == "on-device" }
 
     var modelDescription: String {
+        if builtWith == "Vision OCR candidates" {
+            return "local OCR candidates"
+        }
+        if builtWith.contains("Vision OCR candidates") {
+            let base = builtWith.replacingOccurrences(
+                of: " + Vision OCR candidates",
+                with: ""
+            )
+            return "\(base) + local OCR candidates"
+        }
         if let provider = CloudAPIProvider(rawValue: builtWith) {
             return provider.vendor
         }
-        return builtWith == "on-device" ? "on-device model" : "an earlier version"
+        if builtWith == "on-device" { return "on-device model" }
+        return builtWith == "legacy-unknown" ? "an earlier version" : builtWith
     }
 
     var summary: String {
@@ -83,6 +414,7 @@ final class DocumentReferenceIndex {
     /// definition-kind entries whose body talks about continuous maps).
     private var bodyStems: [ReferenceKey: Set<String>] = [:]
     private var stemDocumentFrequency: [String: Int] = [:]
+    private var mentionGraph: ReferenceMentionGraph?
 
     func lookup(_ reference: DetectedReference) -> IndexedReference? {
         entries[reference.key]
@@ -92,8 +424,23 @@ final class DocumentReferenceIndex {
 
     var count: Int { entries.count }
 
+    var allBlocks: [DocumentBlock] {
+        entries.values.sorted {
+            if $0.pageIndex != $1.pageIndex { return $0.pageIndex < $1.pageIndex }
+            if $0.reference.kind.rawValue != $1.reference.kind.rawValue {
+                return $0.reference.kind.rawValue < $1.reference.kind.rawValue
+            }
+            return $0.reference.number.localizedStandardCompare($1.reference.number) == .orderedAscending
+        }.map(\.documentBlock)
+    }
+
+    func laterMentions(for reference: DetectedReference) -> ReferenceMentionSearchResult? {
+        mentionGraph?.result(for: reference)
+    }
+
     func replace(with snapshot: DocumentReferenceIndexSnapshot) {
         entries = snapshot.entries
+        mentionGraph = snapshot.mentionGraph
         bodyEmbeddings = snapshot.bodyEmbeddings ?? [:]
         termIndex = snapshot.entries.compactMap { key, entry in
             guard let name = entry.name else { return nil }
@@ -120,6 +467,7 @@ final class DocumentReferenceIndex {
         termIndex = []
         bodyStems = [:]
         stemDocumentFrequency = [:]
+        mentionGraph = nil
     }
 
     /// Crude prefix stem so inflections meet: "continuity"/"continuous" →
@@ -167,6 +515,7 @@ final class DocumentReferenceIndex {
         "theore": .theorem, "lemma": .lemma, "lemmas": .lemma,
         "propos": .proposition, "coroll": .corollary,
         "exampl": .example, "remark": .remark, "equati": .equation,
+        "figure": .figure, "fig": .figure,
     ]
 
     /// Statements whose printed name appears in the question ("how does this

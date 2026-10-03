@@ -26,11 +26,15 @@ struct DetectedReferenceMatch: Equatable, Sendable {
 enum ReferenceDetector {
     private static let namedBlockRegex = try! NSRegularExpression(pattern: ReferenceParsing.namedBlockPattern)
     private static let equationCiteRegex = try! NSRegularExpression(pattern: ReferenceParsing.equationCitePattern)
+    private static let figureRegex = try! NSRegularExpression(pattern: ReferenceParsing.figurePattern)
+    private static let pairedFiguresRegex = try! NSRegularExpression(pattern: ReferenceParsing.pairedFiguresPattern)
 
     static func allReferences(in text: String) -> [DetectedReferenceMatch] {
         var matches: [DetectedReferenceMatch] = []
         matches.append(contentsOf: namedBlockMatches(in: text))
         matches.append(contentsOf: equationCiteMatches(in: text))
+        matches.append(contentsOf: figureMatches(in: text))
+        matches.append(contentsOf: pairedFigureMatches(in: text))
         return matches.sorted { $0.range.lowerBound < $1.range.lowerBound }
     }
 
@@ -79,6 +83,38 @@ enum ReferenceDetector {
                 reference: DetectedReference(kind: .equation, number: number),
                 range: range
             )
+        }
+    }
+
+    private static func figureMatches(in text: String) -> [DetectedReferenceMatch] {
+        matches(from: figureRegex, in: text) { match, source in
+            guard let numberRange = Range(match.range(at: 1), in: source),
+                  let range = Range(match.range, in: source) else { return nil }
+            return DetectedReferenceMatch(
+                reference: DetectedReference(kind: .figure, number: String(source[numberRange])),
+                range: range
+            )
+        }
+    }
+
+    private static func pairedFigureMatches(in text: String) -> [DetectedReferenceMatch] {
+        let range = NSRange(text.startIndex..., in: text)
+        return pairedFiguresRegex.matches(in: text, range: range).flatMap { match in
+            guard let firstNumber = Range(match.range(at: 2), in: text),
+                  let firstPanel = Range(match.range(at: 1), in: text),
+                  let secondNumber = Range(match.range(at: 4), in: text),
+                  let secondPanel = Range(match.range(at: 3), in: text),
+                  let phrase = Range(match.range, in: text) else { return [DetectedReferenceMatch]() }
+            return [
+                DetectedReferenceMatch(
+                    reference: DetectedReference(kind: .figure, number: String(text[firstNumber])),
+                    range: phrase.lowerBound..<firstPanel.upperBound
+                ),
+                DetectedReferenceMatch(
+                    reference: DetectedReference(kind: .figure, number: String(text[secondNumber])),
+                    range: secondPanel
+                )
+            ]
         }
     }
 

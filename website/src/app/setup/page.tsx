@@ -144,7 +144,7 @@ export default function SetupPage() {
         </p>
         <Block>brew install codex &amp;&amp; codex login</Block>
         <p>
-          The picker then offers the GPT-5.6 Sol, Terra and Luna tiers.
+          The picker then offers GPT-6 Astra, Sol and Luna.
         </p>
 
         <h3 className="text-xl mt-8 mb-4 text-primary font-medium">
@@ -174,7 +174,8 @@ export default function SetupPage() {
           </a>{" "}
           and paste it into Cauchy&apos;s Settings. It is stored in the macOS Keychain, never
           in a plist, and usage is billed to your Google account. Gemini is also the
-          fallback that builds reference indexes on Macs without Apple Intelligence.
+          fallback that builds reference indexes on Macs without Apple Intelligence. You can
+          also choose another available model when rebuilding an index.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">

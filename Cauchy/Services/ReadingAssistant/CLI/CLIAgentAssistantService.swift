@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 
 /// Reading assistant backed by a locally installed agent CLI (Claude Code,
 /// Codex, or Antigravity). The user signs in once in their terminal with their own plan; the
@@ -110,12 +111,16 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
     private func makeArguments(question: String, retrieval: AskRetrieval) -> [String] {
         // Retrieval rides the one-shot prompt only — it is never appended to
         // the stored history, so re-asks don't compound it. Exact statements
-        // come before passages: they are the notes' ground truth.
+        // come before passages: they are source text, though extraction can be lossy.
         var instructions = instructionsText()
-        if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: 2_500) {
+        let budgets = ReadingPromptBuilder.evidenceBudgets(for: provider)
+        if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: budgets.statements) {
             instructions += "\n\n" + block
         }
-        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrieval.passages, characterBudget: 4_000) {
+        if let block = ReadingPromptBuilder.retrievedPassagesBlock(retrieval.passages, characterBudget: budgets.passages) {
+            instructions += "\n\n" + block
+        }
+        if let block = ReadingPromptBuilder.citableSourcesBlock(retrieval.citableSources) {
             instructions += "\n\n" + block
         }
         let transcript = Self.transcriptPrompt(history: history, question: question)
@@ -197,5 +202,91 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
             return "\(connector.name) is not signed in. \(connector.signInHint)"
         }
         return raw
+    }
+}
+
+/// Adapts the signed-in CLI connectors to the same text-generation interface
+/// used by reference indexing. Each request is isolated, read-only, and has no
+/// tools; the indexer still checks every result against the PDF text.
+struct CLIIndexLanguageModel: LanguageModel {
+    typealias Executor = CLIIndexLanguageModelExecutor
+
+    let connectorID: AssistantConnectorID
+    let modelID: String?
+
+    var capabilities: LanguageModelCapabilities { LanguageModelCapabilities([]) }
+
+    var executorConfiguration: CLIIndexLanguageModelExecutor.Configuration {
+        .init(connectorID: connectorID, modelID: modelID)
+    }
+}
+
+struct CLIIndexLanguageModelExecutor: LanguageModelExecutor {
+    typealias Model = CLIIndexLanguageModel
+
+    struct Configuration: Hashable, Sendable {
+        let connectorID: AssistantConnectorID
+        let modelID: String?
+    }
+
+    let configuration: Configuration
+
+    init(configuration: Configuration) throws {
+        self.configuration = configuration
+    }
+
+    func prewarm(model: CLIIndexLanguageModel, transcript: Transcript) {}
+
+    func respond(
+        to request: LanguageModelExecutorGenerationRequest,
+        model: CLIIndexLanguageModel,
+        streamingInto channel: LanguageModelExecutorGenerationChannel
+    ) async throws {
+        let connector = configuration.connectorID.connector
+        guard let binary = connector.binaryName,
+              let binaryURL = await CLIAgentRunner.locateBinary(named: binary) else {
+            throw ReadingAssistantError.notAvailable(.cliNotInstalled(configuration.connectorID))
+        }
+        let prompt = CloudPrompt(transcript: request.transcript)
+        let question = prompt.sendableTurns.last?.text ?? ""
+        let instructions = prompt.instructions ?? ""
+        let fullPrompt = instructions + "\n\n" + question
+        let modelArguments = configuration.modelID.map { ["--model", $0] } ?? []
+        let arguments: [String]
+        var parser: any CLIAgentStreamParsing
+        switch configuration.connectorID {
+        case .codex:
+            arguments = ["exec", fullPrompt, "--json", "--skip-git-repo-check",
+                         "--sandbox", "read-only", "-c", "model_reasoning_effort=\"medium\""]
+                + modelArguments
+            parser = CodexStreamParser()
+        case .antigravity:
+            arguments = ["-p", fullPrompt, "--sandbox"]
+            parser = AntigravityStreamParser()
+        default:
+            arguments = ["-p", question, "--output-format", "stream-json",
+                         "--verbose", "--tools", "", "--no-session-persistence",
+                         "--append-system-prompt", instructions] + modelArguments
+            parser = ClaudeCodeStreamParser()
+        }
+
+        let lines = CLIAgentRunner.streamLines(
+            binary: binaryURL,
+            arguments: arguments,
+            workingDirectory: FileManager.default.temporaryDirectory
+        )
+        for try await line in lines {
+            _ = parser.consume(line: line)
+        }
+        if let error = parser.errorMessage {
+            throw ReadingAssistantError.api(error)
+        }
+        guard let answer = parser.finalText, !answer.isEmpty else {
+            throw ReadingAssistantError.api("\(connector.name) produced no index response.")
+        }
+        await channel.send(.response(
+            entryID: UUID().uuidString,
+            action: .appendText(answer, segmentID: nil, tokenCount: 0)
+        ))
     }
 }

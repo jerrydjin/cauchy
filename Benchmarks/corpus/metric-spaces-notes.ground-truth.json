@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "document": "sha256:175c8e5f99b96fea35b0a67abdc5404dc71ae7600d1e5e257ee3d68240e05675",
+  "pages": [
+    {
+      "pageNumber": 4,
+      "references": [],
+      "notes": "Hard negative: table of contents with many numbered section headings."
+    },
+    {
+      "pageNumber": 10,
+      "references": [
+        { "kind": "example", "number": "1.4.1" },
+        { "kind": "example", "number": "1.4.2" }
+      ],
+      "notes": "Theorem 1.3.1 and equation 1.4 are citations, not statements introduced here."
+    },
+    {
+      "pageNumber": 17,
+      "references": [
+        { "kind": "equation", "number": "1.10" },
+        { "kind": "example", "number": "1.7.3" }
+      ],
+      "notes": "Equation 1.9 is cited; equation 1.10 and Example 1.7.3 are introduced on this page."
+    },
+    {
+      "pageNumber": 23,
+      "references": [
+        { "kind": "example", "number": "2.3.7" },
+        { "kind": "example", "number": "2.3.8" },
+        { "kind": "example", "number": "2.3.9" },
+        { "kind": "definition", "number": "2.4.1" }
+      ],
+      "notes": "Example 2.3.2 appears twice as a citation and is excluded."
+    },
+    {
+      "pageNumber": 29,
+      "references": [
+        { "kind": "definition", "number": "3.1.1" },
+        { "kind": "definition", "number": "3.1.2" },
+        { "kind": "definition", "number": "3.1.3" }
+      ],
+      "notes": "Three definitions are introduced; the unnumbered displayed inequality is not labelled."
+    },
+    {
+      "pageNumber": 36,
+      "references": [],
+      "notes": "Intentionally blank PDF page."
+    },
+    {
+      "pageNumber": 42,
+      "references": [],
+      "notes": "Hard negative: four-line continuation from the previous page."
+    },
+    {
+      "pageNumber": 49,
+      "references": [
+        { "kind": "definition", "number": "7.2.2" },
+        { "kind": "lemma", "number": "7.2.3" },
+        { "kind": "theorem", "number": "7.3.1" }
+      ],
+      "notes": "Corollary 6.1.5 is cited in the proof and excluded."
+    },
+    {
+      "pageNumber": 55,
+      "references": [
+        { "kind": "lemma", "number": "8.1.6" },
+        { "kind": "proposition", "number": "8.1.7" },
+        { "kind": "theorem", "number": "8.1.8" }
+      ],
+      "notes": "Lemma 8.1.3 is cited twice in the preceding proof and excluded."
+    },
+    {
+      "pageNumber": 62,
+      "references": [
+        { "kind": "proposition", "number": "9.4.2" },
+        { "kind": "corollary", "number": "9.4.3" },
+        { "kind": "proposition", "number": "9.5.1" }
+      ],
+      "notes": "Proposition 9.4.2 and Lemma 9.2.2 later reappear as citations."
+    },
+    {
+      "pageNumber": 68,
+      "references": [],
+      "notes": "Intentionally blank PDF page."
+    },
+    {
+      "pageNumber": 74,
+      "references": [
+        { "kind": "proposition", "number": "11.1.11" },
+        { "kind": "definition", "number": "11.2.1" },
+        { "kind": "definition", "number": "11.2.2" }
+      ],
+      "notes": "Lemma 11.1.9 is a proof citation and excluded."
+    }
+  ]
+}

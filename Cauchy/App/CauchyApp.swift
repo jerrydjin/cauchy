@@ -19,6 +19,11 @@ struct CauchyApp: App {
 
     /// Non-nil when launched headlessly as `Cauchy --benchmark-indexing …`.
     private static let benchmarkConfig = ReferenceIndexBenchmark.Config(arguments: CommandLine.arguments)
+    private static let isRetrievalProbe = CommandLine.arguments.contains("--probe-retrieval")
+    private static let isOCRProbe = CommandLine.arguments.contains("--probe-ocr")
+    private static let isVisionProbe = CommandLine.arguments.contains("--probe-vision")
+    private static let isMentionProbe = CommandLine.arguments.contains("--probe-mentions")
+    private static let isGraphProbe = CommandLine.arguments.contains("--probe-graph")
 
     init() {
         if let config = Self.benchmarkConfig {
@@ -32,6 +37,72 @@ struct CauchyApp: App {
             let query = CommandLine.arguments[flagIndex + 2]
             Task.detached {
                 exit(await ReferenceIndexBenchmark.runRetrievalProbe(pdfPath: pdfPath, query: query))
+            }
+        } else if let flagIndex = CommandLine.arguments.firstIndex(of: "--probe-ocr"),
+                  CommandLine.arguments.indices.contains(flagIndex + 2) {
+            let pdfPath = CommandLine.arguments[flagIndex + 1]
+            let pageNumber = Int(CommandLine.arguments[flagIndex + 2]) ?? 0
+            let useFastRecognition = CommandLine.arguments.indices.contains(flagIndex + 3)
+                && CommandLine.arguments[flagIndex + 3] == "fast"
+            let overlayDirectory: String? = if let outputIndex = CommandLine.arguments.firstIndex(of: "--output"),
+                                               CommandLine.arguments.indices.contains(outputIndex + 1) {
+                CommandLine.arguments[outputIndex + 1]
+            } else {
+                nil
+            }
+            Task.detached {
+                exit(await ReferenceIndexBenchmark.runOCRProbe(
+                    pdfPath: pdfPath,
+                    pageNumber: pageNumber,
+                    useFastRecognition: useFastRecognition,
+                    jsonOutput: CommandLine.arguments.contains("--json"),
+                    overlayDirectory: overlayDirectory
+                ))
+            }
+        } else if let flagIndex = CommandLine.arguments.firstIndex(of: "--probe-vision"),
+                  CommandLine.arguments.indices.contains(flagIndex + 2) {
+            let pdfPath = CommandLine.arguments[flagIndex + 1]
+            let pageNumber = Int(CommandLine.arguments[flagIndex + 2]) ?? 0
+            Task.detached {
+                exit(await ReferenceIndexBenchmark.runVisionProbe(pdfPath: pdfPath, pageNumber: pageNumber))
+            }
+        } else if let flagIndex = CommandLine.arguments.firstIndex(of: "--probe-mentions") {
+            if CommandLine.arguments.indices.contains(flagIndex + 4) {
+                let pdfPath = CommandLine.arguments[flagIndex + 1]
+                let kind = CommandLine.arguments[flagIndex + 2]
+                let number = CommandLine.arguments[flagIndex + 3]
+                let definingPage = Int(CommandLine.arguments[flagIndex + 4]) ?? 0
+                Task.detached {
+                    exit(ReferenceIndexBenchmark.runMentionProbe(
+                        pdfPath: pdfPath,
+                        kind: kind,
+                        number: number,
+                        definingPage: definingPage,
+                        jsonOutput: CommandLine.arguments.contains("--json")
+                    ))
+                }
+            } else {
+                Task.detached {
+                    print("ERROR: use --probe-mentions <pdf> <kind> <number> <defining-page>")
+                    exit(2)
+                }
+            }
+        } else if let flagIndex = CommandLine.arguments.firstIndex(of: "--probe-graph") {
+            if CommandLine.arguments.indices.contains(flagIndex + 2) {
+                let pdfPath = CommandLine.arguments[flagIndex + 1]
+                let labelsPath = CommandLine.arguments[flagIndex + 2]
+                Task.detached {
+                    exit(ReferenceIndexBenchmark.runGraphProbe(
+                        pdfPath: pdfPath,
+                        groundTruthPath: labelsPath,
+                        jsonOutput: CommandLine.arguments.contains("--json")
+                    ))
+                }
+            } else {
+                Task.detached {
+                    print("ERROR: use --probe-graph <pdf> <reference-labels.json> [--json]")
+                    exit(2)
+                }
             }
         } else if !Self.isHostingTests {
             // Normal GUI launch: sweep reference-index caches that no document
@@ -49,8 +120,8 @@ struct CauchyApp: App {
         // else. Unidentified, SwiftUI presents the first window and supplies
         // File ▸ New Window itself.
         WindowGroup {
-            if Self.benchmarkConfig != nil {
-                ProgressView("Running indexing benchmark — see terminal output…")
+            if Self.benchmarkConfig != nil || Self.isRetrievalProbe || Self.isOCRProbe || Self.isVisionProbe || Self.isMentionProbe || Self.isGraphProbe {
+                ProgressView("Running document probe — see terminal output…")
                     .padding(40)
             } else {
                 ReaderWindow()

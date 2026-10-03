@@ -5,6 +5,7 @@ struct MessageBubble: View {
     let message: ThreadMessage
     var quotedText: String?
     var maxBubbleWidth: CGFloat = 300
+    var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
 
     private var isUser: Bool {
         message.role == .user
@@ -65,11 +66,56 @@ struct MessageBubble: View {
                 }
             }
         } else {
-            MessageContentView(
-                content: message.content,
-                font: .body,
-                textColor: .primary
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                MessageContentView(
+                    content: message.content,
+                    font: .body,
+                    textColor: .primary
+                )
+                if let evidence = message.answerEvidence {
+                    Divider().opacity(0.25)
+                    Label(
+                        "\(evidence.basis.label) · \(evidence.sourcePagesLabel)",
+                        systemImage: evidence.basis.systemImage
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .help(evidence.auditDescription)
+                    .accessibilityLabel("Answer basis: \(evidence.basis.label). Sources supplied: \(evidence.sourcePagesLabel).")
+                    .accessibilityHint(evidence.auditDescription)
+
+                    if let status = evidence.citationStatus {
+                        Text(status.label)
+                            .font(.caption2)
+                            .foregroundStyle(status == .idsResolve ? Color.secondary : Color.orange)
+                            .help("This checks source IDs and PDF locations, not whether the answer follows from them.")
+                    }
+
+                    if let anchors = evidence.sourceAnchors, !anchors.isEmpty {
+                        let citedIDs = Set(evidence.citedSourceIDs ?? [])
+                        let shown = citedIDs.isEmpty
+                            ? anchors
+                            : anchors.filter { $0.sourceID.map(citedIDs.contains) == true }
+                        DisclosureGroup(citedIDs.isEmpty ? "PDF locations supplied" : "Cited PDF locations") {
+                            ForEach(Array(shown.enumerated()), id: \.offset) { _, anchor in
+                                Button {
+                                    onOpenSource(anchor)
+                                } label: {
+                                    Label(
+                                        "\(anchor.sourceID.map { "[\($0)] " } ?? "")\(anchor.label) · p. \(anchor.pageIndex + 1)",
+                                        systemImage: "arrow.up.forward.square"
+                                    )
+                                }
+                                .buttonStyle(.link)
+                                .font(.caption)
+                                .help("Open the original PDF source. This does not prove the answer's claims.")
+                            }
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 }

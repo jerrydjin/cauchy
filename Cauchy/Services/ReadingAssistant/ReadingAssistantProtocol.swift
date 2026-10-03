@@ -30,7 +30,7 @@ protocol ReadingAssistantProtocol: AnyObject {
     var isResponding: Bool { get }
     func resetSession(context: ReadingContext)
     func restoreSession(context: ReadingContext, messages: [ThreadMessage])
-    /// `retrieval` (exact statements + passages) reaches the model's prompt but
+    /// `retrieval` (PDF source excerpts + passages) reaches the model's prompt but
     /// is never stored in thread history or shown in the chat UI.
     func ask(question: String, retrieval: AskRetrieval, onPartial: ((String) -> Void)?) async throws -> String
 }

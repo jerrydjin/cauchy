@@ -68,12 +68,8 @@ export default function Home() {
           {/* Hero Image / App Mockup Area */}
           <figure className="w-full max-w-[1200px]">
             <div className="bg-card rounded-3xl overflow-hidden relative">
-            <Image src="/app-screenshot.png" width={3078} height={2504} className="w-full h-auto" alt="Cauchy reading a mathematics PDF with thumbnails and a reference panel" priority quality={100} />
+              <Image src="/app-screenshot.png" width={3300} height={2168} className="w-full h-auto" alt="Cauchy showing a highlighted Cayley–Hamilton theorem and a conversation with answer evidence and PDF source links" priority quality={100} />
             </div>
-            <figcaption className="text-[14px] text-secondary mt-4">
-              Reading workspace from an earlier build. Current reference previews also
-              show source evidence and model provenance.
-            </figcaption>
           </figure>
         </div>
       </section>

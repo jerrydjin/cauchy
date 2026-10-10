@@ -46,13 +46,13 @@ export const metadata: Metadata = {
     siteName: "Cauchy",
     title: "Cauchy — a PDF reader that talks back",
     description: DESCRIPTION,
-    images: [{ url: "/app-screenshot.png", width: 3078, height: 2504, alt: "Cauchy reading a mathematics paper" }],
+    images: [{ url: "/app-screenshot.png", width: 3300, height: 2168, alt: "Cauchy showing a highlighted Cayley–Hamilton theorem and a conversation with answer evidence and PDF source links" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Cauchy — a PDF reader that talks back",
     description: DESCRIPTION,
-    images: ["/app-screenshot.png"],
+    images: [{ url: "/app-screenshot.png", alt: "Cauchy showing a highlighted Cayley–Hamilton theorem and a conversation with answer evidence and PDF source links" }],
   },
 };
 

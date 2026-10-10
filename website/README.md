@@ -41,7 +41,8 @@ font fetcher and its configured proxy.
 - Download links use GitHub's `releases/latest/download/Cauchy.dmg` URL so they
   follow the latest published release without a pinned version.
 
-The hero currently uses `public/app-screenshot.png` from an earlier app build,
-labelled in its caption. Replace it with a fresh capture from macOS when
-available, update its dimensions in the homepage and social metadata, and remove
-that caption once the image shows the current interface.
+The hero uses the native, shadow-free app capture in
+`public/app-screenshot.png` (3300 × 2168), showing a highlighted Cayley–Hamilton
+theorem, the answer's evidence boundary and expanded PDF source links. When
+replacing it, update its dimensions and alt text in both the homepage and social
+metadata.

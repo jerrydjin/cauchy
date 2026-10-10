@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { assistants } from "@/lib/assistants";
 
 const REPO_URL = "https://github.com/jerrydjin/cauchy";
 
@@ -32,11 +33,9 @@ export default function Footer() {
           {/* Assistants */}
           <div className="flex flex-col gap-4">
             <span className="text-[13px] font-semibold text-white mb-2">Assistants</span>
-            <External href="https://www.apple.com/apple-intelligence/">Apple Intelligence</External>
-            <External href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</External>
-            <External href="https://github.com/openai/codex">Codex CLI</External>
-            <External href="https://antigravity.google/">Antigravity</External>
-            <External href="https://aistudio.google.com/apikey">Gemini API key</External>
+            {assistants.map((assistant) => (
+              <External key={assistant.id} href={assistant.url}>{assistant.name}</External>
+            ))}
           </div>
 
           {/* Project */}

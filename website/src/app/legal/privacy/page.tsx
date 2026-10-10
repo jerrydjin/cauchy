@@ -20,7 +20,7 @@ export default function PrivacyPage() {
 
       <div className="max-w-none text-[16px] leading-relaxed text-secondary [&>p]:mb-4">
         <p className="text-secondary text-lg mb-8">
-          Last updated: August 15, 2026
+          Last updated: October 10, 2026
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">Local-First Architecture</h2>
@@ -38,18 +38,20 @@ export default function PrivacyPage() {
           written to{" "}
           <code>~/Library/Application Support/Cauchy/workspaces/</code>, and cached
           reference indexes to <code>~/Library/Application Support/Cauchy/reference-index/</code>.
-          A Gemini API key, if you add one, lives in the macOS Keychain. Deleting those
-          folders deletes the data; nothing is synced anywhere.
+          Anthropic, OpenAI and Gemini API keys live in the macOS Keychain. There is no
+          automatic cloud sync. Deleting those folders removes local workspace and index
+          data; saved API keys and any exports you created are stored separately.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">
           What Leaves Your Mac When You Ask
         </h2>
         <p>
-          The PDF itself is never uploaded. With a cloud connector, a question sends the
-          text you highlighted, the text around it, and the statements and passages
-          retrieval selected from elsewhere in the same document. Which provider receives
-          it depends on the connector you chose:
+          Ask sends your question, selected text, surrounding context, conversation
+          history, and reference excerpts and passages retrieved from the same PDF to
+          the chosen assistant. Ask reference evidence uses PDF text excerpts, not OCR
+          navigation candidates or model transcriptions. Which provider receives the
+          request depends on your connector:
         </p>
         <ul className="list-disc pl-6 space-y-2 mt-4">
           <li>
@@ -82,6 +84,20 @@ export default function PrivacyPage() {
             .
           </li>
           <li>
+            <strong className="text-primary">Anthropic API:</strong> sent directly to
+            Anthropic with your API key, under Anthropic&apos;s{" "}
+            <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer" className={inline}>
+              privacy policy
+            </a>.
+          </li>
+          <li>
+            <strong className="text-primary">OpenAI API:</strong> sent directly to
+            OpenAI with your API key, under OpenAI&apos;s{" "}
+            <a href="https://openai.com/policies/privacy-policy/" target="_blank" rel="noopener noreferrer" className={inline}>
+              privacy policy
+            </a>.
+          </li>
+          <li>
             <strong className="text-primary">Gemini API (Google):</strong> sent directly to
             the Gemini API with your key, under the{" "}
             <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" className={inline}>
@@ -91,17 +107,37 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p className="mt-4">
-          Cauchy holds no credentials for these services. CLI connectors use the sign-in
-          already on your machine; the Gemini key is yours and is read from the Keychain
-          only to make the call.
+          CLI connectors use your provider-managed local sign-in. The guided setup
+          opens that provider&apos;s sign-in in an embedded terminal and does not persist
+          a credential transcript. Some connection checks send a tiny test message
+          using your plan without sharing a document. API keys you add are stored in
+          the Keychain and read to authenticate requests to their corresponding vendor.
+          Automatic selection prefers a ready CLI, then Apple Intelligence, then an
+          available API key; select Apple Intelligence explicitly for on-device answers.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">Reference Indexing</h2>
         <p>
-          Building the theorem and definition index reads pages of your document through a
-          model. It prefers the on-device Apple Intelligence model, and falls back to
-          Gemini only when you have supplied a key and the on-device model is unavailable.
-          Results are cached locally and never leave your Mac.
+          Building the reference index prefers on-device Apple Intelligence. If it is
+          unavailable, a saved Gemini, Anthropic or OpenAI API key can supply the
+          fallback. You can also choose an available assistant model when rebuilding.
+          Cloud API indexing can send page text and rendered images of individual
+          pages to that provider; CLI indexing sends page text through the selected CLI.
+          Index results and the builder&apos;s model provenance are cached locally.
+        </p>
+
+        <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">OCR and Exports</h2>
+        <p>
+          Vision text recognition runs on-device. OCR reference candidates retain the
+          imperfect transcript and page region as unverified navigation aids; they are
+          excluded from Ask reference evidence and portable evidence indexes.
+        </p>
+        <p>
+          Markdown exports contain highlights, conversations and answer evidence.
+          Annotated PDF copies contain the document and its highlights. A .cauchyreading
+          export packages the PDF, page and zoom, highlights, conversations, and any
+          completed evidence index and citation graph. These files go wherever you
+          save or transfer them; anyone you share them with can read the included content.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">This Website</h2>

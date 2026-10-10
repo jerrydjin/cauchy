@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 const SITE_URL = "https://cauchy-wine.vercel.app";
 const DESCRIPTION =
-  "A native macOS PDF reader for mathematics. Highlight a theorem, ask about it, and get answers with real LaTeX — powered by Apple Intelligence on-device, your Claude Code, Codex or Antigravity CLI, or a Gemini key.";
+  "A native macOS PDF reader for mathematics with evidence-bound AI answers, source-first reference previews, library search and portable reading sessions. Use Apple Intelligence, Claude Code, Codex, Antigravity, or your own Anthropic, OpenAI or Gemini API key.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -32,6 +32,11 @@ export const metadata: Metadata = {
     "Claude Code",
     "Codex",
     "Gemini",
+    "Anthropic API",
+    "OpenAI API",
+    "Antigravity",
+    "reading sessions",
+    "library search",
     "papers",
     "theorems",
   ],
@@ -41,7 +46,7 @@ export const metadata: Metadata = {
     siteName: "Cauchy",
     title: "Cauchy — a PDF reader that talks back",
     description: DESCRIPTION,
-    images: [{ url: "/app-screenshot.png", width: 2400, height: 1600, alt: "Cauchy reading a mathematics paper" }],
+    images: [{ url: "/app-screenshot.png", width: 3078, height: 2504, alt: "Cauchy reading a mathematics paper" }],
   },
   twitter: {
     card: "summary_large_image",

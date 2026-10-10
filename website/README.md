@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cauchy website
 
-## Getting Started
+The Next.js site for the native macOS Cauchy PDF reader. Product, setup, FAQ and
+privacy content should describe the app in this repository.
 
-First, run the development server:
+## Develop and verify
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. Routes live in `src/app/` and shared components in
+`src/components/`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+npm run lint
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Google fonts are fetched at build time. In a proxy-based environment where
+Turbopack cannot fetch them, `npm run build -- --webpack` uses Next.js's Node
+font fetcher and its configured proxy.
 
-## Learn More
+## Keep content aligned with the app
 
-To learn more about Next.js, take a look at the following resources:
+- `src/lib/assistants.ts` supplies the homepage, setup guide, FAQ and footer.
+  Compare it with `Cauchy/Models/AssistantConnector.swift` and
+  `Cauchy/Models/CloudAPIProvider.swift` when adding a connector or changing its
+  model choices. The connector count is derived from the shared catalog.
+- Verify setup steps and Automatic selection against `SettingsView.swift`,
+  `ConnectorSetupView.swift` and `AssistantPreferences.swift`.
+- Check reading and export instructions against `Cauchy/App/ReaderCommands.swift`
+  and `Cauchy/ViewModels/WorkspaceViewModel+Export.swift`.
+- Keep evidence and privacy wording aligned with `SelectionThread.swift`,
+  `ReadingPromptBuilder.swift` and `LLMReferenceIndexBuilder.swift`. Cloud API
+  reference indexing can send rendered page images as well as text. Evidence
+  labels and source links do not prove an answer's claims.
+- Update `/`, `/setup`, `/faq`, `/legal/privacy`, `/legal/terms` and the metadata
+  in `src/app/layout.tsx` together when app behavior changes.
+- Download links use GitHub's `releases/latest/download/Cauchy.dmg` URL so they
+  follow the latest published release without a pinned version.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The hero currently uses `public/app-screenshot.png` from an earlier app build,
+labelled in its caption. Replace it with a fresh capture from macOS when
+available, update its dimensions in the homepage and social metadata, and remove
+that caption once the image shows the current interface.

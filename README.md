@@ -2,6 +2,15 @@
 
 Native macOS PDF reader for dense technical textbooks, mathematics papers, and academic problem sets.
 
+Not notarised yet: open Cauchy.app once.
+Then System Settings > Privacy & Security > Open Anyway.
+
+<!-- TODO: screenshot of System Settings > Privacy & Security showing the Open Anyway button for Cauchy.
+     Save it as docs/images/open-anyway.png and uncomment the next line.
+![System Settings > Privacy & Security showing Open Anyway](docs/images/open-anyway.png)
+-->
+TODO: screenshot of System Settings > Privacy & Security showing the Open Anyway button (`docs/images/open-anyway.png`).
+
 MIT licensed — see [LICENSE](LICENSE).
 
 ## Requirements
@@ -30,10 +39,10 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 - **Library dashboard** — recent papers appear immediately; Hide from Recents preserves notes and conversations, with Show hidden to restore them
 - **Focused reading** — collapse the context panel with ⇧⌘I; Fit to Width follows changes in the reading area
 - **Library-wide search** — search every highlight and conversation across every document from the dashboard, and jump straight to the one you meant
-- **Reference hover previews** — an evidence-first index of numbered statements, equations, and figure captions. Apple Intelligence builds it by default; the Reference panel lets you rebuild with any available assistant model. Previews lead with PDF text and the original page, label AI formatting separately, and keep later printed mentions collapsed. Local OCR labels on image-only pages remain visibly unverified. Ask uses PDF text excerpts, never OCR or model transcription, as reference evidence.
+- **Reference hover previews** — an evidence-first index of numbered statements, equations, and figure captions. Apple Intelligence builds it by default; the Reference panel lets you rebuild with any available assistant model. Previews lead with PDF text and the original page, label AI formatting separately, and keep later printed mentions collapsed. Local OCR labels on image-only pages remain visibly unverified and are not used as reference evidence (that evidence is the PDF text layer, not a model transcription). A dragged region with no text layer falls back to on-device Vision OCR, and that recognized text is what Ask sees for the highlight.
 - **Ask-time retrieval** — a hybrid lexical/semantic index supplies relevant PDF text passages from other pages; saved answers retain clickable original-page regions for selected text, indexed references, and uniquely located, untruncated retrieved passages. These identify supplied inputs, not proof that the answer follows from them.
-- **Multiple assistant providers** — on-device Apple Intelligence, Gemini (API key), or your own Claude Code / Codex CLI sign-ins
-- **On-device OCR** — Vision framework text recognition with LaTeX formatting assist
+- **Multiple assistant providers** — Apple Intelligence on-device; Claude Code, Codex, or Antigravity (agy) CLIs using your own sign-in; or your own Anthropic, OpenAI, or Gemini API key
+- **On-device OCR** — on-device Apple Vision text recognition, with a copy-as-LaTeX helper
 
 The last document you were reading reopens at launch; turn that off in Settings ▸ Reading.
 
@@ -43,7 +52,7 @@ Image-only pages—or scans whose text layer contains only a page number or shor
 watermark—receive conservative on-device OCR navigation candidates when
 Cauchy can identify a numbered heading or right-margin equation label. These
 candidates are orange, retain the imperfect OCR line and exact page region, and
-are never supplied to Ask or included in portable evidence. If OCR finds no
+are not used as reference evidence or included in portable evidence. If OCR finds no
 reliable label, Cauchy reports the limitation instead of caching a successful
 empty index.
 
@@ -105,7 +114,7 @@ Saves are debounced independently per document and flushed before quitting; a fa
 
 ## Sandbox
 
-The app ships **unsandboxed** — the Claude Code / Codex assistant providers spawn the user's locally installed CLIs, which App Sandbox forbids. Bookmarks fall back to plain (non-security-scoped) bookmarks accordingly.
+The app ships **unsandboxed** — the Claude Code, Codex, and Antigravity assistant providers spawn the user's locally installed CLIs, which App Sandbox forbids. Bookmarks fall back to plain (non-security-scoped) bookmarks accordingly.
 
 ## Releases & Distribution
 

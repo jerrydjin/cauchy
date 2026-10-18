@@ -424,6 +424,13 @@ final class DocumentReferenceIndex {
 
     var count: Int { entries.count }
 
+    /// Keys of indexed results. A citation is only linked when its key is here.
+    var referenceKeys: Set<ReferenceKey> { Set(entries.keys) }
+
+    func block(for reference: DetectedReference) -> DocumentBlock? {
+        entries[reference.key]?.documentBlock
+    }
+
     var allBlocks: [DocumentBlock] {
         entries.values.sorted {
             if $0.pageIndex != $1.pageIndex { return $0.pageIndex < $1.pageIndex }
@@ -491,6 +498,16 @@ final class DocumentReferenceIndex {
     }
 
     // MARK: - Ask-time statement retrieval
+
+    /// Statements whose defining page falls inside a chapter or section span.
+    func statements(onPages pages: Range<Int>) -> [IndexedReference] {
+        entries.values
+            .filter { pages.contains($0.pageIndex) }
+            .sorted { lhs, rhs in
+                if lhs.pageIndex != rhs.pageIndex { return lhs.pageIndex < rhs.pageIndex }
+                return lhs.reference.number.localizedStandardCompare(rhs.reference.number) == .orderedAscending
+            }
+    }
 
     /// Statements explicitly cited ("Definition 3.2", "(4.1)") anywhere in the
     /// given texts, in citation order, deduped.

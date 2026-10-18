@@ -386,6 +386,9 @@ final class LearningWorkspaceTests: XCTestCase {
         OpenDocumentRegistry.shared.claim(document.snapshot.documentURL, by: reader)
         document.learning.answerDraft = "Latest learning draft"
         let date = Date(timeIntervalSince1970: 1_711_111_111)
+        let conversationID = UUID()
+        let conversation = [ThreadMessage(role: .user, content: "A whole-document reader question", createdAt: date)]
+        reader.selectionThread.loadDocumentConversation(id: conversationID, messages: conversation)
         let highlight = Highlight(pageIndex: 0, selectedText: "A reader annotation", note: "Keep this note", createdAt: date, updatedAt: date)
         reader.highlightStore.highlights = [highlight]
         reader.contextPanelWidth = 480
@@ -395,6 +398,9 @@ final class LearningWorkspaceTests: XCTestCase {
         XCTAssertEqual(saved?.workspace.highlights, [highlight])
         XCTAssertEqual(saved?.workspace.contextPanelWidth, 480)
         XCTAssertEqual(saved?.workspace.learningSessions.first?.answerDraft, "Latest learning draft")
+        XCTAssertEqual(saved?.workspace.documentConversationID, conversationID)
+        XCTAssertEqual(saved?.workspace.documentConversation, conversation)
+        XCTAssertEqual(document.snapshot.documentConversation, conversation)
 
         reader.closeDocument()
         document.learning.answerDraft = "A later learning edit"
@@ -403,6 +409,13 @@ final class LearningWorkspaceTests: XCTestCase {
         XCTAssertEqual(saved?.workspace.highlights, [highlight])
         XCTAssertEqual(saved?.workspace.contextPanelWidth, 480)
         XCTAssertEqual(saved?.workspace.learningSessions.first?.answerDraft, "A later learning edit")
+        XCTAssertEqual(saved?.workspace.documentConversationID, conversationID)
+        XCTAssertEqual(saved?.workspace.documentConversation, conversation)
+        let restarted = DocumentPersistenceService(root: persistence.applicationSupportRoot())
+        let reloaded = await restarted.loadWorkspace(id: document.id)
+        XCTAssertEqual(reloaded?.workspace.documentConversationID, conversationID)
+        XCTAssertEqual(reloaded?.workspace.documentConversation, conversation)
+        XCTAssertEqual(reloaded?.workspace.learningSessions.first?.answerDraft, "A later learning edit")
         XCTAssertTrue(library.selectedDocument === document)
     }
 

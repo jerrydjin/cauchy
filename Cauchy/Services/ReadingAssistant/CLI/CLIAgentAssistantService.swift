@@ -114,6 +114,9 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         // come before passages: they are source text, though extraction can be lossy.
         var instructions = instructionsText()
         let budgets = ReadingPromptBuilder.evidenceBudgets(for: provider)
+        if let preface = retrieval.turnPreface?.trimmingCharacters(in: .whitespacesAndNewlines), !preface.isEmpty {
+            instructions += "\n\n" + preface
+        }
         if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: budgets.statements) {
             instructions += "\n\n" + block
         }
@@ -123,7 +126,13 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         if let block = ReadingPromptBuilder.citableSourcesBlock(retrieval.citableSources) {
             instructions += "\n\n" + block
         }
-        let transcript = Self.transcriptPrompt(history: history, question: question)
+        if let earlier = retrieval.priorConversation?.trimmingCharacters(in: .whitespacesAndNewlines), !earlier.isEmpty {
+            instructions += "\n\n" + earlier
+        }
+        // `priorConversation` is the trimmed follow-up context. Skip the stored
+        // session history when it is present so the same turns are not sent twice.
+        let transcriptHistory = retrieval.priorConversation == nil ? history : []
+        let transcript = Self.transcriptPrompt(history: transcriptHistory, question: question)
 
         switch provider {
         case .codex:
@@ -186,7 +195,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
     /// cost of resending history — which the user's plan quota absorbs).
     static func transcriptPrompt(history: [ThreadMessage], question: String) -> String {
         guard !history.isEmpty else { return question }
-        var lines = ["Earlier conversation about this passage:", ""]
+        var lines = ["Earlier conversation:", ""]
         for message in history {
             lines.append("\(message.role == .user ? "User" : "Assistant"): \(message.content)")
         }

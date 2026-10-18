@@ -1,12 +1,5 @@
 import Foundation
 
-/// How much of an answer the reader asked for. The ask box defaults to a hint;
-/// "Show full solution" re-asks the same question at `.fullSolution`.
-enum AskAnswerDepth: String, Codable, Equatable, Sendable {
-    case hint
-    case fullSolution
-}
-
 /// The optional highlight tag above the ask box. Absent means the question is
 /// about the whole open document.
 struct AskHighlightFocus: Equatable, Sendable {
@@ -167,10 +160,9 @@ enum AskPromptBuilder {
     static func turnPreface(
         scope: AskScope,
         sheet: AskProblemSheet?,
-        depth: AskAnswerDepth,
         provider: AssistantConnectorID
     ) -> String {
-        var parts: [String] = [depthInstruction(depth), citationInstruction]
+        var parts: [String] = [fullAnswerInstruction, citationInstruction]
 
         switch scope {
         case .wholeDocument:
@@ -195,6 +187,20 @@ enum AskPromptBuilder {
         return parts.joined(separator: "\n\n")
     }
 
+    /// Prior turns for this follow-up, already trimmed to the provider budget.
+    /// Empty when this is the first question. Not stored again inside the thread.
+    static func priorConversation(_ messages: [ThreadMessage], provider: AssistantConnectorID) -> String? {
+        let kept = trimmedHistory(messages, provider: provider)
+        guard !kept.isEmpty else { return nil }
+        var lines = ["EARLIER CONVERSATION:"]
+        for message in kept {
+            let speaker = message.role == .user ? "User" : "Assistant"
+            lines.append("\(speaker): \(message.content)")
+        }
+        lines.append("Answer the new question. Use the earlier turns as context, and do not repeat them unless the reader asks.")
+        return lines.joined(separator: "\n")
+    }
+
     static func clippedSheetText(_ text: String, provider: AssistantConnectorID) -> String {
         let budget = sheetCharacterBudget(for: provider)
         guard text.count > budget else { return text }
@@ -209,26 +215,21 @@ enum AskPromptBuilder {
         question: String,
         scope: AskScope,
         sheet: AskProblemSheet?,
-        depth: AskAnswerDepth,
+        history: [ThreadMessage] = [],
         provider: AssistantConnectorID
     ) -> String {
         let instructions = sessionInstructions(documentTitle: documentTitle, scope: scope, provider: provider)
-        let preface = turnPreface(scope: scope, sheet: sheet, depth: depth, provider: provider)
-        return instructions + "\n\n" + preface + "\n\nQUESTION: " + question
+        let preface = turnPreface(scope: scope, sheet: sheet, provider: provider)
+        var parts = [instructions, preface]
+        if let earlier = priorConversation(history, provider: provider) {
+            parts.append(earlier)
+        }
+        return parts.joined(separator: "\n\n") + "\n\nQUESTION: " + question
     }
 
-    private static func depthInstruction(_ depth: AskAnswerDepth) -> String {
-        switch depth {
-        case .hint:
-            """
-            RESPONSE STYLE: Give a hint or an approach only. Name which results from these notes apply and how the reader should use them. Do not write the full worked solution.
-            """
-        case .fullSolution:
-            """
-            RESPONSE STYLE: Give the full worked solution, step by step, still citing the notes' own results at the steps that use them.
-            """
-        }
-    }
+    private static let fullAnswerInstruction = """
+    RESPONSE STYLE: Give the full answer. Work through the question, and cite this document's own results at the steps that use them.
+    """
 
     private static let citationInstruction = """
     CITATIONS: Ground the answer in this document's own numbered results. Cite them in the form "by Theorem 3.2" or "Lemma 2.1", and only when that result appears in the supplied PDF source excerpts. Do not invent a number.

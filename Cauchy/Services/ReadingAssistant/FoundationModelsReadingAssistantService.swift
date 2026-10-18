@@ -127,6 +127,9 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         if let block = ReadingPromptBuilder.citableSourcesBlock(retrieval.citableSources) {
             blocks.append(block)
         }
+        if let earlier = retrieval.priorConversation?.trimmingCharacters(in: .whitespacesAndNewlines), !earlier.isEmpty {
+            blocks.append(earlier)
+        }
         if !blocks.isEmpty {
             prompt = blocks.joined(separator: "\n\n") + "\n\nQUESTION: " + trimmed
         }

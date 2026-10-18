@@ -126,7 +126,13 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         if let block = ReadingPromptBuilder.citableSourcesBlock(retrieval.citableSources) {
             instructions += "\n\n" + block
         }
-        let transcript = Self.transcriptPrompt(history: history, question: question)
+        if let earlier = retrieval.priorConversation?.trimmingCharacters(in: .whitespacesAndNewlines), !earlier.isEmpty {
+            instructions += "\n\n" + earlier
+        }
+        // `priorConversation` is the trimmed follow-up context. Skip the stored
+        // session history when it is present so the same turns are not sent twice.
+        let transcriptHistory = retrieval.priorConversation == nil ? history : []
+        let transcript = Self.transcriptPrompt(history: transcriptHistory, question: question)
 
         switch provider {
         case .codex:

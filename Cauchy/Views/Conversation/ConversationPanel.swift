@@ -35,7 +35,6 @@ struct ConversationPanel<Header: View>: View {
     var referenceBlock: (DetectedReference) -> DocumentBlock? = { _ in nil }
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     var onHoverReference: (DetectedReference) -> Void = { _ in }
-    var onShowFullSolution: () -> Void = {}
     var emptyPrompt: String = "Ask a question about this passage"
     @ViewBuilder var header: Header
 
@@ -73,8 +72,7 @@ struct ConversationPanel<Header: View>: View {
                             referenceKeys: referenceKeys,
                             referenceBlock: referenceBlock,
                             onOpenReference: onOpenReference,
-                            onHoverReference: onHoverReference,
-                            onShowFullSolution: message.answerDepth == .hint ? { onShowFullSolution() } : nil
+                            onHoverReference: onHoverReference
                         )
                         .id(message.id)
                     }

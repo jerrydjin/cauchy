@@ -187,7 +187,6 @@ final class SelectionThreadViewModel {
         documentTitle: String,
         scope explicitScope: AskScope? = nil,
         sheet: AskProblemSheet? = nil,
-        depth: AskAnswerDepth = .hint,
         onPersist: (SelectionThread) -> Void
     ) async throws {
         guard var thread = activeThread else { return }
@@ -222,9 +221,12 @@ final class SelectionThreadViewModel {
         }
 
         let prior = Array(thread.messages.dropLast())
+        // Instructions only. The trimmed turns ride `priorConversation` so
+        // Foundation Models, the cloud API, and the CLI agent all see the same
+        // follow-up context, once, inside the provider's character budget.
         answeringAssistant.restoreSession(
             context: AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: scope),
-            messages: AskPromptBuilder.trimmedHistory(prior, provider: answerProvider)
+            messages: []
         )
 
         // Retrieval happens now — at ask time — because the query needs the
@@ -242,9 +244,9 @@ final class SelectionThreadViewModel {
         retrieval.turnPreface = AskPromptBuilder.turnPreface(
             scope: scope,
             sheet: sheet,
-            depth: depth,
             provider: answerProvider
         )
+        retrieval.priorConversation = AskPromptBuilder.priorConversation(prior, provider: answerProvider)
 
         // onPartial already runs on the main actor (ReadingAssistantProtocol is
         // @MainActor); the coalescer keeps re-renders at ~12/s instead of per token.
@@ -272,8 +274,7 @@ final class SelectionThreadViewModel {
         thread.messages.append(ThreadMessage(
             role: .assistant,
             content: parsed.content,
-            answerEvidence: evidence,
-            answerDepth: depth
+            answerEvidence: evidence
         ))
         if thread.anchorID != documentThread.anchorID {
             thread.isPersisted = true

@@ -40,7 +40,6 @@ struct HighlightThreadDetailView: View {
                 referenceBlock: { workspace.referenceIndex.block(for: $0) },
                 onOpenReference: { workspace.openCitedReference($0) },
                 onHoverReference: { workspace.previewCitedReference($0) },
-                onShowFullSolution: { workspace.showFullSolution() },
                 emptyPrompt: workspace.attachedHighlight == nil
                     ? "Ask a question about this document"
                     : "Ask a question about this passage",
@@ -209,7 +208,6 @@ struct DocumentConversationView: View {
                 referenceBlock: { workspace.referenceIndex.block(for: $0) },
                 onOpenReference: { workspace.openCitedReference($0) },
                 onHoverReference: { workspace.previewCitedReference($0) },
-                onShowFullSolution: { workspace.showFullSolution() },
                 emptyPrompt: "Ask a question about this document",
                 header: { header }
             )

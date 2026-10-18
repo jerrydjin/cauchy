@@ -685,7 +685,7 @@ final class WorkspaceViewModel: Equatable {
     /// Starts an Ask and retains the task so `stopThreadMessage()` can stop it.
     /// The user's message stays in the thread if the answer is stopped, so
     /// nothing they typed is lost.
-    func sendThreadMessage(_ question: String, depth: AskAnswerDepth = .hint) {
+    func sendThreadMessage(_ question: String) {
         let scope: AskScope
         if let attachedHighlight {
             scope = .highlight(attachedHighlight)
@@ -721,8 +721,7 @@ final class WorkspaceViewModel: Equatable {
                     question,
                     documentTitle: self.documentTitle,
                     scope: scope,
-                    sheet: sheet,
-                    depth: depth
+                    sheet: sheet
                 ) { [weak self] thread in
                     guard let self else { return }
                     if thread.anchorID == self.selectionThread.documentConversationID {
@@ -758,14 +757,6 @@ final class WorkspaceViewModel: Equatable {
         askTask?.cancel()
         askTask = nil
         return selectionThread.discardUnansweredQuestion()
-    }
-
-    /// Re-asks the latest question for the full worked solution, keeping the
-    /// same highlight tag and problem sheet.
-    func showFullSolution() {
-        let messages = selectionThread.activeThread?.messages ?? []
-        let previous = messages.last { $0.role == .user }?.content ?? "the previous question"
-        sendThreadMessage("Show the full worked solution for: \(previous)", depth: .fullSolution)
     }
 
     func startNewConversation() {

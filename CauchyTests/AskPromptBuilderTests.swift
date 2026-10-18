@@ -20,7 +20,6 @@ final class AskPromptBuilderTests: XCTestCase {
             question: "Which results apply to uniform convergence?",
             scope: .wholeDocument,
             sheet: nil,
-            depth: .hint,
             provider: .onDevice
         )
 
@@ -31,6 +30,9 @@ final class AskPromptBuilderTests: XCTestCase {
         XCTAssertFalse(prompt.contains("HIGHLIGHTED PASSAGE"))
         XCTAssertTrue(prompt.contains("by Theorem 3.2"))
         XCTAssertTrue(prompt.contains("Lemma 2.1"))
+        XCTAssertTrue(prompt.contains("Give the full answer"))
+        XCTAssertFalse(prompt.contains("EARLIER CONVERSATION:"))
+        XCTAssertFalse(prompt.contains("Give a hint"))
     }
 
     func testPromptWithHighlightIncludesThePassage() {
@@ -39,7 +41,6 @@ final class AskPromptBuilderTests: XCTestCase {
             question: "Why is this continuous?",
             scope: .highlight(highlight),
             sheet: nil,
-            depth: .hint,
             provider: .onDevice
         )
 
@@ -56,7 +57,6 @@ final class AskPromptBuilderTests: XCTestCase {
             question: "How do I start this problem?",
             scope: .wholeDocument,
             sheet: sheet,
-            depth: .hint,
             provider: .onDevice
         )
 
@@ -66,35 +66,50 @@ final class AskPromptBuilderTests: XCTestCase {
         XCTAssertTrue(prompt.contains("whole open document"))
     }
 
-    func testHintPromptDoesNotAskForTheFullSolution() {
+    func testDefaultPromptAsksForTheFullAnswer() {
         let prompt = AskPromptBuilder.modelPrompt(
             documentTitle: "Notes",
             question: "Prove it.",
-            scope: .wholeDocument,
-            sheet: nil,
-            depth: .hint,
-            provider: .onDevice
-        )
-
-        XCTAssertTrue(prompt.contains("Give a hint or an approach only"))
-        XCTAssertTrue(prompt.contains("Do not write the full worked solution."))
-        XCTAssertFalse(prompt.contains("Give the full worked solution"))
-    }
-
-    func testFullSolutionPromptAsksForTheWorkedSolution() {
-        let prompt = AskPromptBuilder.modelPrompt(
-            documentTitle: "Notes",
-            question: "Show the full worked solution for: Prove it.",
             scope: .highlight(highlight),
             sheet: sheet,
-            depth: .fullSolution,
             provider: .anthropicAPI
         )
 
-        XCTAssertTrue(prompt.contains("Give the full worked solution, step by step"))
+        XCTAssertTrue(prompt.contains("Give the full answer"))
+        XCTAssertTrue(prompt.contains("Work through the question"))
+        XCTAssertFalse(prompt.contains("Give a hint"))
         XCTAssertFalse(prompt.contains("Do not write the full worked solution."))
+        XCTAssertFalse(prompt.contains("Show full solution"))
         XCTAssertTrue(prompt.contains(highlight.excerpt))
         XCTAssertTrue(prompt.contains("sheet.pdf"))
+    }
+
+    func testFollowUpPromptIncludesEarlierTurns() {
+        let history = [
+            ThreadMessage(role: .user, content: "Does Theorem 3.2 apply here?"),
+            ThreadMessage(role: .assistant, content: "Yes. Start from Theorem 3.2."),
+        ]
+        let prompt = AskPromptBuilder.modelPrompt(
+            documentTitle: "Analysis Notes",
+            question: "What is the next step?",
+            scope: .wholeDocument,
+            sheet: nil,
+            history: history,
+            provider: .onDevice
+        )
+
+        XCTAssertTrue(prompt.contains("EARLIER CONVERSATION:"))
+        XCTAssertTrue(prompt.contains("User: Does Theorem 3.2 apply here?"))
+        XCTAssertTrue(prompt.contains("Assistant: Yes. Start from Theorem 3.2."))
+        XCTAssertTrue(prompt.contains("QUESTION: What is the next step?"))
+        XCTAssertTrue(prompt.contains("Give the full answer"))
+        let earlier = prompt.range(of: "EARLIER CONVERSATION:")
+        let question = prompt.range(of: "QUESTION: What is the next step?")
+        XCTAssertNotNil(earlier)
+        XCTAssertNotNil(question)
+        if let earlier, let question {
+            XCTAssertLessThan(earlier.lowerBound, question.lowerBound)
+        }
     }
 
     func testOnDeviceSheetAndHistoryStayInsideTheContextBudget() {
@@ -119,6 +134,31 @@ final class AskPromptBuilderTests: XCTestCase {
 
         let cloud = AskPromptBuilder.trimmedHistory([older, middle, latest], provider: .anthropicAPI)
         XCTAssertEqual(cloud.count, 3)
+
+        let onDevicePrompt = AskPromptBuilder.modelPrompt(
+            documentTitle: "Notes",
+            question: "follow up",
+            scope: .wholeDocument,
+            sheet: nil,
+            history: [older, middle, latest],
+            provider: .onDevice
+        )
+        XCTAssertFalse(onDevicePrompt.contains(older.content))
+        XCTAssertFalse(onDevicePrompt.contains(middle.content))
+        XCTAssertTrue(onDevicePrompt.contains("User: latest question"))
+        XCTAssertTrue(onDevicePrompt.contains("QUESTION: follow up"))
+
+        let cloudPrompt = AskPromptBuilder.modelPrompt(
+            documentTitle: "Notes",
+            question: "follow up",
+            scope: .wholeDocument,
+            sheet: nil,
+            history: [older, middle, latest],
+            provider: .anthropicAPI
+        )
+        XCTAssertTrue(cloudPrompt.contains(older.content))
+        XCTAssertTrue(cloudPrompt.contains(middle.content))
+        XCTAssertTrue(cloudPrompt.contains("User: latest question"))
     }
 
     func testWholeDocumentInstructionsStillRequireAnEvidenceBoundary() {

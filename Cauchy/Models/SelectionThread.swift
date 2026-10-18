@@ -151,24 +151,19 @@ struct ThreadMessage: Identifiable, Codable, Equatable, Sendable {
     var createdAt: Date
     /// nil for user messages and replies saved before evidence-bound answers.
     var answerEvidence: AnswerEvidence?
-    /// Set on assistant replies. `.hint` is what the ask box asks for first;
-    /// `.fullSolution` is the follow-up from "Show full solution".
-    var answerDepth: AskAnswerDepth?
 
     init(
         id: UUID = UUID(),
         role: ThreadRole,
         content: String,
         createdAt: Date = Date(),
-        answerEvidence: AnswerEvidence? = nil,
-        answerDepth: AskAnswerDepth? = nil
+        answerEvidence: AnswerEvidence? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.createdAt = createdAt
         self.answerEvidence = answerEvidence
-        self.answerDepth = answerDepth
     }
 }
 

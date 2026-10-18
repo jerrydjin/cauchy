@@ -149,14 +149,20 @@ extension AssistantConnector {
         // replaced. Older selections are read here without rewriting defaults.
         let replacement: String? = switch (id, token) {
         case (.codex, "gpt-5.6-sol"), (.openaiAPI, "gpt-5.6-sol"): "gpt-6-astra"
-        case (.codex, "gpt-5.6-terra"), (.openaiAPI, "gpt-5.6-terra"): "gpt-6-sol"
+        case (.codex, "gpt-5.6-terra"), (.openaiAPI, "gpt-5.6-terra"),
+             (.codex, "gpt-6-sol"), (.openaiAPI, "gpt-6-sol"): "gpt-6.1-sol"
         case (.codex, "gpt-5.6-luna"), (.openaiAPI, "gpt-5.6-luna"): "gpt-6-luna"
         case (.anthropicAPI, "claude-opus-5"): "claude-opus-5-5"
-        case (.gemini, "gemini-3.6-flash"): "gemini-3.7-flash"
+        case (.anthropicAPI, "claude-sonnet-5"): "claude-sonnet-5-5"
+        case (.anthropicAPI, "claude-haiku-4-5"),
+             (.anthropicAPI, "claude-haiku-4-5-20251001"): "claude-haiku-5-5"
+        case (.gemini, "gemini-3.5-flash"), (.gemini, "gemini-3.6-flash"),
+             (.gemini, "gemini-3.7-flash"): "gemini-3.8-flash"
         case (.gemini, "gemini-3.7-flash-lite"): "gemini-3.5-flash-lite"
         default: nil
         }
-        return replacement.map(ModelChoice.model) ?? defaultChoice
+        guard let replacement, model(id: replacement) != nil else { return defaultChoice }
+        return .model(replacement)
     }
 
     /// The name for the collapsed picker button.
@@ -196,6 +202,14 @@ extension AssistantConnector {
 }
 
 // MARK: - The catalog
+
+// Text/vision models verified on October 11, 2026:
+// https://learn.chatgpt.com/docs/models (Codex IDs also present in the local CLI catalog)
+// https://developers.openai.com/api/docs/models/gpt-6.1-sol
+// https://platform.claude.com/docs/en/models/overview
+// https://code.claude.com/docs/en/model-config
+// https://ai.google.dev/gemini-api/docs/models
+// https://ai.google.dev/gemini-api/docs/changelog (3.7 Flash now redirects to 3.8)
 
 extension AssistantConnector {
     static let all: [AssistantConnector] = AssistantConnectorID.allCases.map(AssistantConnector.for)
@@ -239,8 +253,8 @@ extension AssistantConnector {
                 models: [
                     AssistantModel(id: "fable", name: "Fable 5.1", tier: .max, blurb: "Most capable, for the hardest proofs"),
                     AssistantModel(id: "opus", name: "Opus 5.5", tier: .max, blurb: "Deep reasoning on hard proofs"),
-                    AssistantModel(id: "sonnet", name: "Sonnet 5", tier: .balanced, blurb: "Strong at everyday mathematics"),
-                    AssistantModel(id: "haiku", name: "Haiku 4.5", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "sonnet", name: "Sonnet 5.5", tier: .balanced, blurb: "Strong at everyday mathematics"),
+                    AssistantModel(id: "haiku", name: "Haiku 5.5", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: false
@@ -262,8 +276,9 @@ extension AssistantConnector {
                 // a catalog bump when OpenAI ships a new family.
                 models: [
                     AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
-                    AssistantModel(id: "gpt-6-sol", name: "GPT-6 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
+                    AssistantModel(id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
                     AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "gpt-5.5", name: "GPT-5.5", tier: .balanced, blurb: "General reasoning with Codex account compatibility"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: false
@@ -295,13 +310,12 @@ extension AssistantConnector {
                 symbol: "asterisk",
                 tagline: "Direct API access. Needs your own key and billing.",
                 access: .apiKey(.anthropic),
-                // API aliases checked against platform.claude.com/docs/en/models/overview
-                // (September 2026). Recheck the names when the line-up moves.
+                // API aliases; unlike CLI family aliases, these need a version bump.
                 models: [
                     AssistantModel(id: "claude-fable-5-1", name: "Fable 5.1", tier: .max, blurb: "Most capable, for the hardest proofs"),
                     AssistantModel(id: "claude-opus-5-5", name: "Opus 5.5", tier: .max, blurb: "Deep reasoning on hard proofs"),
-                    AssistantModel(id: "claude-sonnet-5", name: "Sonnet 5", tier: .balanced, blurb: "Strong at everyday mathematics"),
-                    AssistantModel(id: "claude-haiku-4-5", name: "Haiku 4.5", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "claude-sonnet-5-5", name: "Sonnet 5.5", tier: .balanced, blurb: "Strong at everyday mathematics"),
+                    AssistantModel(id: "claude-haiku-5-5", name: "Haiku 5.5", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: true
@@ -315,11 +329,11 @@ extension AssistantConnector {
                 symbol: "circle.hexagongrid",
                 tagline: "Direct API access. Needs your own key and billing.",
                 access: .apiKey(.openai),
-                // Pinned ids, like the Codex catalog above: OpenAI publishes no
-                // alias that follows the newest release.
+                // Pinned production ids. chat-latest follows ChatGPT snapshots,
+                // rather than this workload's recommended model family.
                 models: [
                     AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
-                    AssistantModel(id: "gpt-6-sol", name: "GPT-6 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
+                    AssistantModel(id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
                     AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
@@ -334,14 +348,10 @@ extension AssistantConnector {
                 symbol: "sparkle",
                 tagline: "Direct API access. Needs your own key and billing.",
                 access: .apiKey(.gemini),
-                // The API rejects an unknown model name outright, and Google
-                // publishes no documented versioned alias per variant, so these
-                // are pinned ids checked against ai.google.dev/gemini-api/docs/models
-                // (September 2026) and need a manual bump when the line-up moves.
+                // Explicit text/vision ids; keep Pro's preview status visible.
                 models: [
                     AssistantModel(id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", tier: .max, blurb: "Most capable (preview)"),
                     AssistantModel(id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", tier: .balanced, blurb: "Newest stable Flash"),
-                    AssistantModel(id: "gemini-3.7-flash", name: "Gemini 3.7 Flash", tier: .balanced, blurb: "The Flash before it"),
                     AssistantModel(id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,

@@ -45,6 +45,12 @@ struct MathSegmentView: View {
         }
         .fixedSize(horizontal: mode == .inline, vertical: true)
         .frame(maxWidth: mode == .display ? .infinity : nil, alignment: mode == .display ? .center : .leading)
+        // SwiftMath draws the formula without exposing its text to assistive
+        // technology. Preserve the original expression, including commands
+        // approximated for rendering, instead of leaving a silent gap.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Math expression: \(fallbackText)")
+        .accessibilityAddTraits(.isStaticText)
     }
 
     private var fallbackText: String {

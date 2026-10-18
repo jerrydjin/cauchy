@@ -57,23 +57,50 @@ final class ModelCatalogTests: XCTestCase {
     func testRetiredChoicesKeepTheirCapabilityTier() {
         let cases: [(AssistantConnectorID, String, String)] = [
             (.codex, "gpt-5.6-sol", "gpt-6-astra"),
-            (.codex, "gpt-5.6-terra", "gpt-6-sol"),
+            (.codex, "gpt-5.6-terra", "gpt-6.1-sol"),
+            (.codex, "gpt-6-sol", "gpt-6.1-sol"),
             (.codex, "gpt-5.6-luna", "gpt-6-luna"),
             (.openaiAPI, "gpt-5.6-sol", "gpt-6-astra"),
+            (.openaiAPI, "gpt-5.6-terra", "gpt-6.1-sol"),
+            (.openaiAPI, "gpt-6-sol", "gpt-6.1-sol"),
             (.anthropicAPI, "claude-opus-5", "claude-opus-5-5"),
-            (.gemini, "gemini-3.6-flash", "gemini-3.7-flash"),
+            (.anthropicAPI, "claude-sonnet-5", "claude-sonnet-5-5"),
+            (.anthropicAPI, "claude-haiku-4-5", "claude-haiku-5-5"),
+            (.anthropicAPI, "claude-haiku-4-5-20251001", "claude-haiku-5-5"),
+            (.gemini, "gemini-3.6-flash", "gemini-3.8-flash"),
+            (.gemini, "gemini-3.7-flash", "gemini-3.8-flash"),
             (.gemini, "gemini-3.7-flash-lite", "gemini-3.5-flash-lite"),
         ]
 
         for (connectorID, storedID, expectedID) in cases {
             XCTAssertEqual(connectorID.connector.choice(fromToken: storedID), .model(expectedID))
+            XCTAssertNotNil(connectorID.connector.model(id: expectedID))
         }
     }
 
-    func testCurrentGeminiChoiceRemainsPinnedAndNewDefaultIsLatest() {
-        let connector = AssistantConnectorID.gemini.connector
-        XCTAssertEqual(connector.choice(fromToken: "gemini-3.7-flash"), .model("gemini-3.7-flash"))
-        XCTAssertEqual(connector.defaultChoice, .model("gemini-3.8-flash"))
+    func testFreshAndUnknownChoicesUseCurrentBalancedModels() {
+        let defaults: [(AssistantConnectorID, String)] = [
+            (.codex, "gpt-6.1-sol"), (.openaiAPI, "gpt-6.1-sol"),
+            (.claudeCode, "sonnet"), (.anthropicAPI, "claude-sonnet-5-5"),
+            (.gemini, "gemini-3.8-flash"),
+        ]
+        for (id, modelID) in defaults {
+            let connector = id.connector
+            XCTAssertEqual(connector.defaultChoice, .model(modelID))
+            for token in [nil, ModelChoice.defaultToken, "unknown-model"] as [String?] {
+                XCTAssertEqual(connector.choice(fromToken: token), .model(modelID))
+            }
+        }
+    }
+
+    func testCurrentExplicitChoicesRemainSelectable() {
+        for connector in AssistantConnector.all {
+            for model in connector.models {
+                XCTAssertEqual(connector.choice(fromToken: model.id), .model(model.id))
+            }
+        }
+        // Preserve the user's existing compatibility option, without making it the default.
+        XCTAssertEqual(AssistantConnectorID.codex.connector.choice(fromToken: "gpt-5.5"), .model("gpt-5.5"))
     }
 }
 

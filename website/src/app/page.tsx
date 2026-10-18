@@ -66,7 +66,7 @@ export default function Home() {
 
           {/* Hero Image / App Mockup Area */}
           <div className="w-full max-w-[1200px] bg-card rounded-3xl flex items-center justify-center overflow-hidden relative">
-            <Image src="/app-screenshot.png" width={2400} height={1600} className="w-full h-auto" alt="Cauchy Interface" priority quality={100} />
+            <Image src="/app-screenshot.png" width={3300} height={2168} className="w-full h-auto" alt="Cauchy showing a highlighted Cayley–Hamilton theorem and a conversation with answer evidence and PDF source links" priority quality={100} />
           </div>
         </div>
       </section>

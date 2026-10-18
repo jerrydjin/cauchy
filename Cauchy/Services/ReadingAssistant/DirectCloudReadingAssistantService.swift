@@ -83,17 +83,15 @@ final class DirectCloudReadingAssistantService: ReadingAssistantProtocol {
             turns.append(CloudPrompt.Turn(role: .user, text: prompt))
             let cloudPrompt = CloudPrompt(instructions: instructions, turns: turns)
 
-            var accumulated = ""
-            try await CloudStreamingClient.stream(
+            // `stream`'s callback is main-actor isolated here and cannot be sent
+            // into that concurrent method. The text client accumulates off the
+            // actor; the ask field updates when the answer is complete.
+            let accumulated = try await CloudStreamingClient.text(
                 provider: apiProvider,
                 apiKey: apiKey,
                 modelName: modelName,
                 prompt: cloudPrompt
-            ) { delta in
-                accumulated += delta
-                onPartial?(AssistantResponseNormalizer.normalize(accumulated))
-            }
-
+            )
             let normalized = AssistantResponseNormalizer.normalize(accumulated)
             let final = try await ensureDisplayReady(normalized, onPartial: onPartial)
             onPartial?(final)

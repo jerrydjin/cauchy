@@ -9,6 +9,8 @@ alwaysApply: true
   ChatGPT learning workstream. Inspect the code and live GitHub state first.
 - Choose a coherent, committed and verified milestone as the sync boundary.
   Do not pull, rebase, switch, stash or reset over another agent's active edits.
+- Use one coordinator for each shared-baseline handoff. Other agents checkpoint
+  their work and hold shared edits until that coordinator confirms completion.
 - Rehearse integration in an isolated checkout when work is concurrent. Pin
   exact input commits. Pending PR heads are preview inputs, not released code.
 - Preserve both workstreams at shared boundaries: reader conversations and

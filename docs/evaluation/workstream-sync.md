@@ -1,20 +1,21 @@
-# Reader/Learn integration rehearsal — 18 October 2026
+# Reader/Learn checkpoint synchronization — 18 October 2026
 
-Tracked by [JERRY-69](https://linear.app/jerryjin/issue/JERRY-69). This is a local integration preview, not a GitHub merge, Learn publication or release.
+Tracked by [JERRY-69](https://linear.app/jerryjin/issue/JERRY-69). This is a verified local development baseline, not a GitHub merge, Learn publication or release.
 
 ## Inputs
 
 | Workstream | Exact input |
 | --- | --- |
 | Committed Learn baseline | `e29c97ee42b9d1173410dcf20cca2145c098bdae` |
+| Verified contextual-question checkpoint | `0ad339a` |
 | GitHub reader main | `42e1f78` |
 | Reader reference-hover PR #6 | `395aaecba42fbbd8591f5671a9b42341ac7b7316` |
 | Reader Ask/attachment PR #7 | `b999fecd430db1fe5e14a84c6b495db7438049a6` |
 | Reader reliability/model/accessibility PR #8 | `7d7d1ca2240e19f49af91ff5eb8978ec10b376a0` |
 
-All three reader PRs had passing GitHub build/test checks when inspected. Their heads were still open PRs. Reader main already contains the website refresh and download/documentation changes. Current contextual-question work in the shared Learn checkout is outside the baseline above until its owner checkpoints it.
+All three reader PRs had passing GitHub build/test checks when inspected. Their heads were still open PRs. Reader main already contains the website refresh and download/documentation changes. The contextual-question milestone was incorporated only after its owner finished verification and committed `0ad339a`.
 
-The rehearsal uses `codex/learn-reader-sync-20261018` in a separate temporary worktree. The active shared checkout, its branch, index and pending source files are untouched. No real notes, learner answers or saved workspace records are used in this integration test.
+The rehearsal used `codex/learn-reader-sync-20261018` in a separate temporary worktree, leaving the shared checkout untouched while its owner worked. The added persistence regression uses authored temporary workspace data and makes no live model requests. The final coordinated handoff is recorded below.
 
 ## Conflict and regression
 
@@ -28,4 +29,10 @@ The resulting preview passes **292 macOS tests, zero failures or skips** (`/tmp/
 
 ## Sync boundary
 
-The current Learn agent is finishing its contextual-question milestone and a keyboard activation issue found in native verification. Use that verified commit as the next candidate input, then rerun the combined checks before adopting a development baseline. Do not pull into its dirty checkout merely because the separate reader PRs have green CI. Pending reader PRs can be rehearsed locally while their owning workstream reviews and lands them.
+The Learn owner finished its contextual-question and keyboard milestone, committed `0ad339a`, and agreed to hold further edits during handoff. That commit merged into the preview without conflicts. The full combined tree passed **304 macOS tests, zero failures or skips** (`/tmp/cauchy-sync-clarification-tests-20261018.xcresult`), checkpointed as `cec0fb2`. The source milestone's own native observations remain documented in [learning clarification](learning-clarification.md); this combined run is not a new native UI audit.
+
+The seven previously pending reader/website files were then preserved as `ea9e786` on the shared branch. All four reader code/test files matched the published PR #8 snapshot byte-for-byte. The image matched GitHub main, and every added website line already existed there. Reconciliation kept the newer GitHub website `figure` layout and its identical image metadata rather than restoring the older wrapper. The staged tree was compared with `cec0fb2` and was identical, so no additional code test run was needed.
+
+The resulting integration checkpoint `adcb283` was adopted by a coordinated **fast-forward** of shared local `main`. No reset, stash, branch switch or history rewrite was used. The untracked local design skill was preserved, and the shared index is empty. Reader PR #6/#7/#8 remain separate public review decisions; no GitHub merge, push of Learn or release occurred. Refresh and retest changed remote heads at future verified milestones under the [sync policy](../../.cursor/rules/workstream-sync.mdc).
+
+The adopted combined source also builds successfully in **Release** (`/tmp/cauchy-sync-release-build-20261018.log`). A final live remote-ref check found reader main and all three PR heads unchanged from the pinned inputs. The handoff therefore covers the exact recorded source, not an assumed later remote revision.

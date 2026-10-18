@@ -51,12 +51,7 @@ struct LearningWorkspaceView: View {
                 if let document = library.selectedDocument, !document.learning.sessions.isEmpty {
                     Section("Lessons") {
                         ForEach(document.learning.sessions.sorted { $0.updatedAt > $1.updatedAt }) { session in
-                            VStack(alignment: .leading, spacing: 5) {
-                                Label(session.lesson.title, systemImage: session.passedExitCheck ? "checkmark.circle" : "book")
-                                    .lineLimit(2)
-                                Text(session.progressLabel).font(.caption).foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 4)
+                            LearningHistoryRow(session: session)
                             .tag(LearningDestination.session(document: document.id, session: session.id))
                         }
                     }
@@ -191,6 +186,39 @@ struct LearningWorkspaceView: View {
         restoredSession = document.learning.selectedSessionID?.uuidString ?? ""
         restoredStudyMap = library.destination == .studyMap(document.id)
         restoredPassage = library.destination == .passage(document.id)
+    }
+}
+
+private struct LearningHistoryRow: View {
+    let session: LearningSession
+
+    private var context: String {
+        let category = session.delayedReview != nil ? "Delayed check" : session.chapter != nil ? "Chapter challenge" : "Lesson"
+        let kind = session.studyTarget?.kind ?? session.lesson.exitCheck.kind
+        let kindLabel: String? = switch kind {
+        case .concept: "Concept"
+        case .proof: "Proof"
+        case .application: "Application"
+        case nil: nil
+        }
+        return kindLabel.map { "\(category) · \($0)" } ?? category
+    }
+
+    private var startedAt: Date { session.delayedReview?.startedAt ?? session.createdAt }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(session.lesson.title, systemImage: session.delayedReview != nil ? "clock.arrow.circlepath" : session.passedExitCheck ? "checkmark.circle" : "book")
+                .lineLimit(2)
+            Text(context).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(session.progressLabel).font(.caption).foregroundStyle(.secondary)
+            Text("Started \(startedAt.formatted(date: .abbreviated, time: .shortened))")
+                .font(.caption2).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 }
 

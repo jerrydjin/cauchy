@@ -51,7 +51,7 @@ struct HighlightThreadDetailView: View {
                 allowedContentTypes: [.pdf, .image],
                 allowsMultipleSelection: false
             ) { result in
-                if case .success(let url) = result {
+                if case .success(let urls) = result, let url = urls.first {
                     workspace.attachProblemSheet(at: url)
                 }
             }
@@ -219,7 +219,7 @@ struct DocumentConversationView: View {
             allowedContentTypes: [.pdf, .image],
             allowsMultipleSelection: false
         ) { result in
-            if case .success(let url) = result {
+            if case .success(let urls) = result, let url = urls.first {
                 workspace.attachProblemSheet(at: url)
             }
         }

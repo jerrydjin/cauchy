@@ -82,8 +82,8 @@ private struct ListAskBox: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if !workspace.readingAssistantAvailability.isAvailable {
-                Text(AskAvailabilityMessage.text(for: workspace.readingAssistantAvailability))
+            if let message = AskAvailabilityMessage.text(for: workspace.readingAssistantAvailability) {
+                Text(message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -113,7 +113,7 @@ private struct ListAskBox: View {
             allowedContentTypes: [.pdf, .image],
             allowsMultipleSelection: false
         ) { result in
-            if case .success(let url) = result {
+            if case .success(let urls) = result, let url = urls.first {
                 workspace.attachProblemSheet(at: url)
             }
         }

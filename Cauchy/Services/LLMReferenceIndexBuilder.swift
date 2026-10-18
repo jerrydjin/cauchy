@@ -318,7 +318,7 @@ enum LLMReferenceIndexSupport {
             // right-margin equation number stay eligible, as does a number
             // that occupies the line by itself.
             if Int(match.reference.number) != nil, !suffix.isEmpty,
-               labelX == nil || labelX < 0.78 {
+               (labelX ?? 0) < 0.78 {
                 return false
             }
 

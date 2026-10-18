@@ -10,7 +10,7 @@
       "page_count": 12,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.218,
+      "extract_seconds": 0.324,
       "declarations": 29,
       "mentions": 46,
       "citation_style": "numeric+qualified",
@@ -72,7 +72,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.015,
+          "index_seconds": 0.023,
           "section_questions": {
             "probed": [
               {
@@ -115,7 +115,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -142,7 +142,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.017,
+          "index_seconds": 0.021,
           "section_questions": {
             "probed": [
               {
@@ -194,7 +194,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -223,7 +223,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.014,
+          "index_seconds": 0.022,
           "section_questions": {
             "probed": [
               {
@@ -266,7 +266,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -293,7 +293,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.017,
+          "index_seconds": 0.021,
           "section_questions": {
             "probed": [
               {
@@ -343,7 +343,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -366,7 +366,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.312,
+      "extract_seconds": 0.384,
       "declarations": 32,
       "mentions": 78,
       "citation_style": "numeric+qualified",
@@ -464,9 +464,9 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9104,
-          "correct": 61,
-          "missed": 1,
+          "resolution_rate": 0.9254,
+          "correct": 62,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 5,
           "denominator": 67,
@@ -475,7 +475,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.024,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -519,9 +519,7 @@
             "reason": null
           },
           "examples": {
-            "missed": [
-              "p.15 'Lemmas 4.6': detector missed it"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -529,7 +527,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -552,7 +550,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.03,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -604,7 +602,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -618,83 +616,6 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9104,
-          "correct": 61,
-          "missed": 1,
-          "wrong_links": 0,
-          "extraction_misses": 5,
-          "denominator": 67,
-          "citation_detections": 0,
-          "citation_links": 0,
-          "false_declarations": [],
-          "false_declaration_count": 0,
-          "index_size": 32,
-          "index_seconds": 0.024,
-          "section_questions": {
-            "probed": [
-              {
-                "question": "what is section 1 about",
-                "number": "1",
-                "title": "Introduction",
-                "truth_page": 0,
-                "predicted_page": 0,
-                "label": "\u00a71. Introduction",
-                "ok": true
-              },
-              {
-                "question": "what is section 3 about",
-                "number": "3",
-                "title": "Reduction to two cases",
-                "truth_page": 4,
-                "predicted_page": 4,
-                "label": "\u00a73. Reduction to two cases",
-                "ok": true
-              },
-              {
-                "question": "what is section 5 about",
-                "number": "5",
-                "title": "The branch n \u2264 4 n\\leq 4",
-                "truth_page": 19,
-                "predicted_page": 19,
-                "label": "\u00a75. The branch n4",
-                "ok": true
-              },
-              {
-                "question": "what is section 4.5 about",
-                "number": "4.5",
-                "title": "Realization when n \u2265 5 n\\geq 5",
-                "truth_page": 16,
-                "predicted_page": 16,
-                "label": "\u00a74.5. Realization when n5",
-                "ok": true
-              }
-            ],
-            "ok": true,
-            "reason": null
-          },
-          "examples": {
-            "missed": [
-              "p.15 'Lemmas 4.6': detector missed it"
-            ],
-            "wrong": [],
-            "citation": []
-          },
-          "number_search": {
-            "query": "Lemma 3.1",
-            "served": true,
-            "short_query": "Lemma 3",
-            "short_serves_full_number": false,
-            "literal_lemma_4_served": false,
-            "printed_name": null,
-            "name_query_served_from_index": false,
-            "name_query": null
-          },
-          "fail_reasons": []
-        },
-        "combined": {
-          "profile": "hover",
-          "structure": true,
-          "passes": true,
           "resolution_rate": 0.9254,
           "correct": 62,
           "missed": 0,
@@ -706,7 +627,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.03,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -758,7 +679,82 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
+            "literal_lemma_4_served": false,
+            "printed_name": null,
+            "name_query_served_from_index": false,
+            "name_query": null
+          },
+          "fail_reasons": []
+        },
+        "combined": {
+          "profile": "hover",
+          "structure": true,
+          "passes": true,
+          "resolution_rate": 0.9254,
+          "correct": 62,
+          "missed": 0,
+          "wrong_links": 0,
+          "extraction_misses": 5,
+          "denominator": 67,
+          "citation_detections": 0,
+          "citation_links": 0,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 32,
+          "index_seconds": 0.037,
+          "section_questions": {
+            "probed": [
+              {
+                "question": "what is section 1 about",
+                "number": "1",
+                "title": "Introduction",
+                "truth_page": 0,
+                "predicted_page": 0,
+                "label": "\u00a71. Introduction",
+                "ok": true
+              },
+              {
+                "question": "what is section 3 about",
+                "number": "3",
+                "title": "Reduction to two cases",
+                "truth_page": 4,
+                "predicted_page": 4,
+                "label": "\u00a73. Reduction to two cases",
+                "ok": true
+              },
+              {
+                "question": "what is section 5 about",
+                "number": "5",
+                "title": "The branch n \u2264 4 n\\leq 4",
+                "truth_page": 19,
+                "predicted_page": 19,
+                "label": "\u00a75. The branch n4",
+                "ok": true
+              },
+              {
+                "question": "what is section 4.5 about",
+                "number": "4.5",
+                "title": "Realization when n \u2265 5 n\\geq 5",
+                "truth_page": 16,
+                "predicted_page": 16,
+                "label": "\u00a74.5. Realization when n5",
+                "ok": true
+              }
+            ],
+            "ok": true,
+            "reason": null
+          },
+          "examples": {
+            "missed": [],
+            "wrong": [],
+            "citation": []
+          },
+          "number_search": {
+            "query": "Lemma 3.1",
+            "served": true,
+            "short_query": "Lemma 3",
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -778,7 +774,7 @@
       "page_count": 42,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.627,
+      "extract_seconds": 0.807,
       "declarations": 127,
       "mentions": 315,
       "citation_style": "numeric+qualified",
@@ -899,9 +895,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.881,
-          "correct": 348,
-          "missed": 18,
+          "resolution_rate": 0.8835,
+          "correct": 349,
+          "missed": 17,
           "wrong_links": 0,
           "extraction_misses": 29,
           "denominator": 395,
@@ -910,7 +906,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.048,
+          "index_seconds": 0.079,
           "section_questions": {
             "probed": [
               {
@@ -969,14 +965,14 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 88.1% is under 90%",
+            "resolution 88.4% is under 90%",
             "a section question missed its heading page"
           ]
         },
@@ -995,7 +991,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.058,
+          "index_seconds": 0.075,
           "section_questions": {
             "probed": [
               {
@@ -1054,7 +1050,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -1069,9 +1065,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.881,
-          "correct": 348,
-          "missed": 18,
+          "resolution_rate": 0.8835,
+          "correct": 349,
+          "missed": 17,
           "wrong_links": 0,
           "extraction_misses": 29,
           "denominator": 395,
@@ -1080,7 +1076,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.048,
+          "index_seconds": 0.075,
           "section_questions": {
             "probed": [
               {
@@ -1139,14 +1135,14 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 88.1% is under 90%",
+            "resolution 88.4% is under 90%",
             "a section question missed its heading page"
           ]
         },
@@ -1165,7 +1161,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.069,
+          "index_seconds": 0.074,
           "section_questions": {
             "probed": [
               {
@@ -1224,7 +1220,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -1247,7 +1243,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.52,
+      "extract_seconds": 0.664,
       "declarations": 49,
       "mentions": 136,
       "citation_style": "numeric+qualified",
@@ -1436,7 +1432,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.037,
+          "index_seconds": 0.058,
           "section_questions": {
             "probed": [
               {
@@ -1497,7 +1493,7 @@
             "query": "Lemma 2.2",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -1524,7 +1520,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.044,
+          "index_seconds": 0.056,
           "section_questions": {
             "probed": [
               {
@@ -1585,7 +1581,7 @@
             "query": "Lemma 2.2",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -1612,7 +1608,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.037,
+          "index_seconds": 0.058,
           "section_questions": {
             "probed": [
               {
@@ -1673,7 +1669,7 @@
             "query": "Lemma 2.2",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -1700,7 +1696,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.044,
+          "index_seconds": 0.056,
           "section_questions": {
             "probed": [
               {
@@ -1761,7 +1757,7 @@
             "query": "Lemma 2.2",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -1785,7 +1781,7 @@
       "page_count": 23,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.354,
+      "extract_seconds": 0.544,
       "declarations": 47,
       "mentions": 19,
       "citation_style": "numeric+qualified",
@@ -1931,7 +1927,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 48,
-          "index_seconds": 0.027,
+          "index_seconds": 0.043,
           "section_questions": {
             "probed": [
               {
@@ -1988,7 +1984,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2017,7 +2013,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 48,
-          "index_seconds": 0.033,
+          "index_seconds": 0.042,
           "section_questions": {
             "probed": [
               {
@@ -2082,7 +2078,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2113,7 +2109,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 48,
-          "index_seconds": 0.027,
+          "index_seconds": 0.043,
           "section_questions": {
             "probed": [
               {
@@ -2170,7 +2166,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2199,7 +2195,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 48,
-          "index_seconds": 0.033,
+          "index_seconds": 0.041,
           "section_questions": {
             "probed": [
               {
@@ -2263,7 +2259,7 @@
             "query": "Lemma 2.1",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2288,7 +2284,7 @@
       "page_count": 54,
       "two_column_pages": 0,
       "document_class": "scrartcl",
-      "extract_seconds": 0.509,
+      "extract_seconds": 0.66,
       "declarations": 117,
       "mentions": 108,
       "citation_style": "qualified",
@@ -2442,7 +2438,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.047,
+          "index_seconds": 0.073,
           "section_questions": {
             "probed": [
               {
@@ -2504,7 +2500,7 @@
             "query": "Lemma 2.8",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2530,7 +2526,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.057,
+          "index_seconds": 0.072,
           "section_questions": {
             "probed": [
               {
@@ -2599,7 +2595,7 @@
             "query": "Lemma 2.8",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2627,7 +2623,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.046,
+          "index_seconds": 0.072,
           "section_questions": {
             "probed": [
               {
@@ -2689,7 +2685,7 @@
             "query": "Lemma 2.8",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2715,7 +2711,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.058,
+          "index_seconds": 0.072,
           "section_questions": {
             "probed": [
               {
@@ -2784,7 +2780,7 @@
             "query": "Lemma 2.8",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -2808,7 +2804,7 @@
       "page_count": 20,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.243,
+      "extract_seconds": 0.301,
       "declarations": 43,
       "mentions": 62,
       "citation_style": "numeric+qualified",
@@ -2889,9 +2885,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.7222,
-          "correct": 65,
-          "missed": 25,
+          "resolution_rate": 0.7333,
+          "correct": 66,
+          "missed": 24,
           "wrong_links": 0,
           "extraction_misses": 0,
           "denominator": 90,
@@ -2900,7 +2896,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.02,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -2966,7 +2962,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 72.2% is under 90%"
+            "resolution 73.3% is under 90%"
           ]
         },
         "hover": {
@@ -2984,7 +2980,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.024,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -3058,9 +3054,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.7222,
-          "correct": 65,
-          "missed": 25,
+          "resolution_rate": 0.7333,
+          "correct": 66,
+          "missed": 24,
           "wrong_links": 0,
           "extraction_misses": 0,
           "denominator": 90,
@@ -3069,7 +3065,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.02,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -3135,7 +3131,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 72.2% is under 90%"
+            "resolution 73.3% is under 90%"
           ]
         },
         "combined": {
@@ -3153,7 +3149,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.024,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -3234,7 +3230,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.435,
+      "extract_seconds": 0.544,
       "declarations": 75,
       "mentions": 152,
       "citation_style": "numeric+qualified",
@@ -3306,7 +3302,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 72,
-          "index_seconds": 0.029,
+          "index_seconds": 0.044,
           "section_questions": {
             "probed": [
               {
@@ -3366,7 +3362,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -3392,7 +3388,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 71,
-          "index_seconds": 0.034,
+          "index_seconds": 0.043,
           "section_questions": {
             "probed": [
               {
@@ -3452,7 +3448,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -3480,7 +3476,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 72,
-          "index_seconds": 0.029,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -3540,7 +3536,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -3566,7 +3562,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 71,
-          "index_seconds": 0.034,
+          "index_seconds": 0.042,
           "section_questions": {
             "probed": [
               {
@@ -3626,7 +3622,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -3648,7 +3644,7 @@
       "page_count": 14,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.288,
+      "extract_seconds": 0.371,
       "declarations": 40,
       "mentions": 118,
       "citation_style": "numeric",
@@ -3796,7 +3792,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.02,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -3857,7 +3853,7 @@
             "query": "Lemma 3.4",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -3883,7 +3879,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.023,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -3948,7 +3944,7 @@
             "query": "Lemma 3.4",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -3975,7 +3971,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.02,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -4036,7 +4032,7 @@
             "query": "Lemma 3.4",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -4062,7 +4058,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.023,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -4123,7 +4119,7 @@
             "query": "Lemma 3.4",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -4146,7 +4142,7 @@
       "page_count": 36,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.522,
+      "extract_seconds": 0.661,
       "declarations": 43,
       "mentions": 86,
       "citation_style": "qualified",
@@ -4299,7 +4295,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.042,
+          "index_seconds": 0.065,
           "section_questions": {
             "probed": [
               {
@@ -4360,7 +4356,7 @@
             "query": "Lemma 3.6",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -4396,7 +4392,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.049,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [
               {
@@ -4466,7 +4462,7 @@
             "query": "Lemma 3.6",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -4503,7 +4499,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.042,
+          "index_seconds": 0.065,
           "section_questions": {
             "probed": [
               {
@@ -4564,7 +4560,7 @@
             "query": "Lemma 3.6",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -4600,7 +4596,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.049,
+          "index_seconds": 0.062,
           "section_questions": {
             "probed": [
               {
@@ -4668,7 +4664,7 @@
             "query": "Lemma 3.6",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -4694,7 +4690,7 @@
       "page_count": 19,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.47,
+      "extract_seconds": 0.598,
       "declarations": 39,
       "mentions": 58,
       "citation_style": "numeric+qualified",
@@ -4796,11 +4792,12 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
+            "p.12 example 6.7",
             "p.13 equation 2"
           ],
-          "false_declaration_count": 1,
-          "index_size": 39,
-          "index_seconds": 0.028,
+          "false_declaration_count": 2,
+          "index_size": 40,
+          "index_seconds": 0.045,
           "section_questions": {
             "probed": [
               {
@@ -4856,14 +4853,14 @@
             "query": "Lemma 3.2",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
           "fail_reasons": [
-            "1 indexed statement is not in the HTML declarations"
+            "2 indexed statements are not in the HTML declarations"
           ]
         },
         "hover": {
@@ -4883,7 +4880,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 39,
-          "index_seconds": 0.034,
+          "index_seconds": 0.043,
           "section_questions": {
             "probed": [
               {
@@ -4939,7 +4936,7 @@
             "query": "Lemma 3.2",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -4963,11 +4960,12 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
+            "p.12 example 6.7",
             "p.13 equation 2"
           ],
-          "false_declaration_count": 1,
-          "index_size": 39,
-          "index_seconds": 0.028,
+          "false_declaration_count": 2,
+          "index_size": 40,
+          "index_seconds": 0.045,
           "section_questions": {
             "probed": [
               {
@@ -5023,14 +5021,14 @@
             "query": "Lemma 3.2",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
           "fail_reasons": [
-            "1 indexed statement is not in the HTML declarations"
+            "2 indexed statements are not in the HTML declarations"
           ]
         },
         "combined": {
@@ -5050,7 +5048,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 39,
-          "index_seconds": 0.033,
+          "index_seconds": 0.041,
           "section_questions": {
             "probed": [
               {
@@ -5106,7 +5104,7 @@
             "query": "Lemma 3.2",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5128,7 +5126,7 @@
       "page_count": 16,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.21,
+      "extract_seconds": 0.265,
       "declarations": 29,
       "mentions": 114,
       "citation_style": "numeric",
@@ -5194,9 +5192,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9213,
-          "correct": 117,
-          "missed": 8,
+          "resolution_rate": 0.9528,
+          "correct": 121,
+          "missed": 4,
           "wrong_links": 1,
           "extraction_misses": 1,
           "denominator": 127,
@@ -5205,7 +5203,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 27,
-          "index_seconds": 0.017,
+          "index_seconds": 0.027,
           "section_questions": {
             "probed": [
               {
@@ -5251,10 +5249,7 @@
           "examples": {
             "missed": [
               "p.6 '(2.2)': not in the statement index",
-              "p.8 '(3.1)': not in the statement index",
-              "p.3 'Lemmas 1.2': detector missed it",
-              "p.7 'Lemmas 1.2': detector missed it",
-              "p.3 'Theorems 1.1': detector missed it"
+              "p.8 '(3.1)': not in the statement index"
             ],
             "wrong": [
               "p.12 'Theorem 1.1' sits inside a citation"
@@ -5265,7 +5260,7 @@
             "query": "Lemma 1.2",
             "served": true,
             "short_query": "Lemma 1",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5290,7 +5285,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 27,
-          "index_seconds": 0.02,
+          "index_seconds": 0.026,
           "section_questions": {
             "probed": [
               {
@@ -5350,7 +5345,7 @@
             "query": "Lemma 1.2",
             "served": true,
             "short_query": "Lemma 1",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5365,91 +5360,6 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9213,
-          "correct": 117,
-          "missed": 8,
-          "wrong_links": 1,
-          "extraction_misses": 1,
-          "denominator": 127,
-          "citation_detections": 0,
-          "citation_links": 0,
-          "false_declarations": [],
-          "false_declaration_count": 0,
-          "index_size": 27,
-          "index_seconds": 0.017,
-          "section_questions": {
-            "probed": [
-              {
-                "question": "what is section 1 about",
-                "number": "1",
-                "title": "Introduction",
-                "truth_page": 0,
-                "predicted_page": 0,
-                "label": "\u00a71. Introduction",
-                "ok": true
-              },
-              {
-                "question": "what is section 3 about",
-                "number": "3",
-                "title": "Extension to the polydisc",
-                "truth_page": 6,
-                "predicted_page": 6,
-                "label": "\u00a73. Extension to the polydisc",
-                "ok": true
-              },
-              {
-                "question": "what is section 4 about",
-                "number": "4",
-                "title": "Applications",
-                "truth_page": 10,
-                "predicted_page": 10,
-                "label": "\u00a74. Applications",
-                "ok": true
-              },
-              {
-                "question": "what is section 4.2 about",
-                "number": "4.2",
-                "title": "Khinchin\u2019s inequality for Steinhaus variables",
-                "truth_page": 11,
-                "predicted_page": 11,
-                "label": "\u00a74.2. Khinchin's inequality for Steinhaus variables",
-                "ok": true
-              }
-            ],
-            "ok": true,
-            "reason": null
-          },
-          "examples": {
-            "missed": [
-              "p.6 '(2.2)': not in the statement index",
-              "p.8 '(3.1)': not in the statement index",
-              "p.3 'Lemmas 1.2': detector missed it",
-              "p.7 'Lemmas 1.2': detector missed it",
-              "p.3 'Theorems 1.1': detector missed it"
-            ],
-            "wrong": [
-              "p.12 'Theorem 1.1' sits inside a citation"
-            ],
-            "citation": []
-          },
-          "number_search": {
-            "query": "Lemma 1.2",
-            "served": true,
-            "short_query": "Lemma 1",
-            "short_serves_full_number": false,
-            "literal_lemma_4_served": false,
-            "printed_name": null,
-            "name_query_served_from_index": false,
-            "name_query": null
-          },
-          "fail_reasons": [
-            "1 wrong link"
-          ]
-        },
-        "combined": {
-          "profile": "hover",
-          "structure": true,
-          "passes": false,
           "resolution_rate": 0.9528,
           "correct": 121,
           "missed": 4,
@@ -5461,7 +5371,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 27,
-          "index_seconds": 0.02,
+          "index_seconds": 0.028,
           "section_questions": {
             "probed": [
               {
@@ -5518,7 +5428,89 @@
             "query": "Lemma 1.2",
             "served": true,
             "short_query": "Lemma 1",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
+            "literal_lemma_4_served": false,
+            "printed_name": null,
+            "name_query_served_from_index": false,
+            "name_query": null
+          },
+          "fail_reasons": [
+            "1 wrong link"
+          ]
+        },
+        "combined": {
+          "profile": "hover",
+          "structure": true,
+          "passes": false,
+          "resolution_rate": 0.9528,
+          "correct": 121,
+          "missed": 4,
+          "wrong_links": 1,
+          "extraction_misses": 1,
+          "denominator": 127,
+          "citation_detections": 0,
+          "citation_links": 0,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 27,
+          "index_seconds": 0.026,
+          "section_questions": {
+            "probed": [
+              {
+                "question": "what is section 1 about",
+                "number": "1",
+                "title": "Introduction",
+                "truth_page": 0,
+                "predicted_page": 0,
+                "label": "\u00a71. Introduction",
+                "ok": true
+              },
+              {
+                "question": "what is section 3 about",
+                "number": "3",
+                "title": "Extension to the polydisc",
+                "truth_page": 6,
+                "predicted_page": 6,
+                "label": "\u00a73. Extension to the polydisc",
+                "ok": true
+              },
+              {
+                "question": "what is section 4 about",
+                "number": "4",
+                "title": "Applications",
+                "truth_page": 10,
+                "predicted_page": 10,
+                "label": "\u00a74. Applications",
+                "ok": true
+              },
+              {
+                "question": "what is section 4.2 about",
+                "number": "4.2",
+                "title": "Khinchin\u2019s inequality for Steinhaus variables",
+                "truth_page": 11,
+                "predicted_page": 11,
+                "label": "\u00a74.2. Khinchin's inequality for Steinhaus variables",
+                "ok": true
+              }
+            ],
+            "ok": true,
+            "reason": null
+          },
+          "examples": {
+            "missed": [
+              "p.6 '(2.2)': not in the statement index",
+              "p.8 '(3.1)': not in the statement index"
+            ],
+            "wrong": [
+              "p.12 'Theorem 1.1' sits inside a citation"
+            ],
+            "citation": []
+          },
+          "number_search": {
+            "query": "Lemma 1.2",
+            "served": true,
+            "short_query": "Lemma 1",
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5540,7 +5532,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.393,
+      "extract_seconds": 0.491,
       "declarations": 31,
       "mentions": 56,
       "citation_style": "numeric+qualified",
@@ -5659,7 +5651,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.031,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -5713,7 +5705,7 @@
             "query": "Lemma 2.7",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5738,7 +5730,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.037,
+          "index_seconds": 0.046,
           "section_questions": {
             "probed": [
               {
@@ -5806,7 +5798,7 @@
             "query": "Lemma 2.7",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5834,7 +5826,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.03,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -5888,7 +5880,7 @@
             "query": "Lemma 2.7",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5913,7 +5905,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.036,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -5974,7 +5966,7 @@
             "query": "Lemma 2.7",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -5997,7 +5989,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "siamart251216",
-      "extract_seconds": 0.85,
+      "extract_seconds": 1.05,
       "declarations": 51,
       "mentions": 90,
       "citation_style": "numeric+qualified",
@@ -6147,7 +6139,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.031,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -6242,7 +6234,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.037,
+          "index_seconds": 0.046,
           "section_questions": {
             "probed": [
               {
@@ -6337,7 +6329,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.032,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -6432,7 +6424,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.037,
+          "index_seconds": 0.046,
           "section_questions": {
             "probed": [
               {
@@ -6511,7 +6503,7 @@
       "page_count": 41,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.482,
+      "extract_seconds": 0.592,
       "declarations": 185,
       "mentions": 115,
       "citation_style": "numeric+qualified",
@@ -6629,9 +6621,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.7788,
-          "correct": 88,
-          "missed": 4,
+          "resolution_rate": 0.7965,
+          "correct": 90,
+          "missed": 2,
           "wrong_links": 2,
           "extraction_misses": 19,
           "denominator": 113,
@@ -6640,7 +6632,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.046,
+          "index_seconds": 0.068,
           "section_questions": {
             "probed": [
               {
@@ -6685,8 +6677,6 @@
           },
           "examples": {
             "missed": [
-              "p.2 'Definitions 2.5': detector missed it",
-              "p.4 'Definitions 2.5': detector missed it",
               "p.28 '(4.39)': not in the statement index"
             ],
             "wrong": [
@@ -6699,14 +6689,14 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 77.9% is under 90%",
+            "resolution 79.6% is under 90%",
             "2 wrong links"
           ]
         },
@@ -6725,7 +6715,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.053,
+          "index_seconds": 0.067,
           "section_questions": {
             "probed": [
               {
@@ -6786,7 +6776,7 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -6802,9 +6792,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.7788,
-          "correct": 88,
-          "missed": 4,
+          "resolution_rate": 0.7965,
+          "correct": 90,
+          "missed": 2,
           "wrong_links": 2,
           "extraction_misses": 19,
           "denominator": 113,
@@ -6813,7 +6803,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.044,
+          "index_seconds": 0.068,
           "section_questions": {
             "probed": [
               {
@@ -6858,8 +6848,6 @@
           },
           "examples": {
             "missed": [
-              "p.2 'Definitions 2.5': detector missed it",
-              "p.4 'Definitions 2.5': detector missed it",
               "p.28 '(4.39)': not in the statement index"
             ],
             "wrong": [
@@ -6872,14 +6860,14 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 77.9% is under 90%",
+            "resolution 79.6% is under 90%",
             "2 wrong links"
           ]
         },
@@ -6898,7 +6886,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.053,
+          "index_seconds": 0.075,
           "section_questions": {
             "probed": [
               {
@@ -6955,7 +6943,7 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -6978,7 +6966,7 @@
       "page_count": 22,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.238,
+      "extract_seconds": 0.361,
       "declarations": 22,
       "mentions": 94,
       "citation_style": "numeric",
@@ -7110,7 +7098,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.024,
+          "index_seconds": 0.042,
           "section_questions": {
             "probed": [
               {
@@ -7195,7 +7183,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.029,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -7280,7 +7268,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.025,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -7365,7 +7353,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.029,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -7447,7 +7435,7 @@
       "page_count": 40,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.758,
+      "extract_seconds": 1.044,
       "declarations": 93,
       "mentions": 152,
       "citation_style": "qualified",
@@ -7555,9 +7543,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9427,
-          "correct": 181,
-          "missed": 7,
+          "resolution_rate": 0.9583,
+          "correct": 184,
+          "missed": 4,
           "wrong_links": 0,
           "extraction_misses": 4,
           "denominator": 192,
@@ -7571,7 +7559,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.061,
+          "index_seconds": 0.09,
           "section_questions": {
             "probed": [
               {
@@ -7616,9 +7604,6 @@
           },
           "examples": {
             "missed": [
-              "p.22 'Lemmas 3.8': detector missed it",
-              "p.27 'Lemmas 3.8': detector missed it",
-              "p.35 'Lemmas 3.8': detector missed it",
               "p.3 'Section 2' did not locate section 2",
               "p.18 'Section 2' did not locate section 2",
               "p.33 'Section 2.1' did not locate section 2.1"
@@ -7630,7 +7615,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -7661,7 +7646,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.075,
+          "index_seconds": 0.103,
           "section_questions": {
             "probed": [
               {
@@ -7719,7 +7704,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -7735,9 +7720,9 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9427,
-          "correct": 181,
-          "missed": 7,
+          "resolution_rate": 0.9583,
+          "correct": 184,
+          "missed": 4,
           "wrong_links": 0,
           "extraction_misses": 4,
           "denominator": 192,
@@ -7751,7 +7736,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.06,
+          "index_seconds": 0.089,
           "section_questions": {
             "probed": [
               {
@@ -7796,9 +7781,6 @@
           },
           "examples": {
             "missed": [
-              "p.22 'Lemmas 3.8': detector missed it",
-              "p.27 'Lemmas 3.8': detector missed it",
-              "p.35 'Lemmas 3.8': detector missed it",
               "p.3 'Section 2' did not locate section 2",
               "p.18 'Section 2' did not locate section 2",
               "p.33 'Section 2.1' did not locate section 2.1"
@@ -7810,7 +7792,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -7841,7 +7823,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.076,
+          "index_seconds": 0.09,
           "section_questions": {
             "probed": [
               {
@@ -7899,7 +7881,7 @@
             "query": "Lemma 3.1",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -7923,7 +7905,7 @@
       "page_count": 17,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.344,
+      "extract_seconds": 0.465,
       "declarations": 20,
       "mentions": 46,
       "citation_style": "numeric",
@@ -8002,7 +7984,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.023,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -8057,7 +8039,7 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8082,7 +8064,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.027,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -8137,7 +8119,7 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8162,7 +8144,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.022,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -8217,7 +8199,7 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8242,7 +8224,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.028,
+          "index_seconds": 0.033,
           "section_questions": {
             "probed": [
               {
@@ -8297,7 +8279,7 @@
             "query": "Lemma 2.3",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8319,7 +8301,7 @@
       "page_count": 30,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.377,
+      "extract_seconds": 0.7,
       "declarations": 70,
       "mentions": 106,
       "citation_style": "numeric+qualified",
@@ -8500,7 +8482,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.035,
+          "index_seconds": 0.077,
           "section_questions": {
             "probed": [
               {
@@ -8564,7 +8546,7 @@
             "query": "Lemma 1.2",
             "served": true,
             "short_query": "Lemma 1",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8594,7 +8576,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.04,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -8660,7 +8642,7 @@
             "query": "Lemma 1.2",
             "served": true,
             "short_query": "Lemma 1",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8690,7 +8672,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.035,
+          "index_seconds": 0.048,
           "section_questions": {
             "probed": [
               {
@@ -8754,7 +8736,7 @@
             "query": "Lemma 1.2",
             "served": true,
             "short_query": "Lemma 1",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8784,7 +8766,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.042,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -8849,7 +8831,7 @@
             "query": "Lemma 1.2",
             "served": true,
             "short_query": "Lemma 1",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -8874,7 +8856,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.46,
+      "extract_seconds": 0.524,
       "declarations": 128,
       "mentions": 35,
       "citation_style": "numeric",
@@ -8968,7 +8950,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.031,
+          "index_seconds": 0.041,
           "section_questions": {
             "probed": [
               {
@@ -9020,7 +9002,7 @@
             "query": "Lemma 3.26",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -9043,7 +9025,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.033,
+          "index_seconds": 0.045,
           "section_questions": {
             "probed": [
               {
@@ -9095,7 +9077,7 @@
             "query": "Lemma 3.26",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -9120,7 +9102,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.029,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -9172,7 +9154,7 @@
             "query": "Lemma 3.26",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -9195,7 +9177,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.034,
+          "index_seconds": 0.048,
           "section_questions": {
             "probed": [
               {
@@ -9247,7 +9229,7 @@
             "query": "Lemma 3.26",
             "served": true,
             "short_query": "Lemma 3",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -9267,7 +9249,7 @@
       "page_count": 82,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 1.198,
+      "extract_seconds": 1.459,
       "declarations": 162,
       "mentions": 206,
       "citation_style": "qualified",
@@ -9686,7 +9668,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.102,
+          "index_seconds": 0.155,
           "section_questions": {
             "probed": [
               {
@@ -9751,7 +9733,7 @@
             "query": "Lemma 2.4",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -9778,7 +9760,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.193,
+          "index_seconds": 0.194,
           "section_questions": {
             "probed": [
               {
@@ -9851,7 +9833,7 @@
             "query": "Lemma 2.4",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -9879,7 +9861,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.104,
+          "index_seconds": 0.126,
           "section_questions": {
             "probed": [
               {
@@ -9944,7 +9926,7 @@
             "query": "Lemma 2.4",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -9971,7 +9953,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.147,
+          "index_seconds": 0.122,
           "section_questions": {
             "probed": [
               {
@@ -10040,7 +10022,7 @@
             "query": "Lemma 2.4",
             "served": true,
             "short_query": "Lemma 2",
-            "short_serves_full_number": false,
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
@@ -10064,7 +10046,7 @@
       "page_count": 24,
       "two_column_pages": 24,
       "document_class": "revtex4-2",
-      "extract_seconds": 0.605,
+      "extract_seconds": 0.558,
       "declarations": 164,
       "mentions": 189,
       "citation_style": "numeric+qualified",
@@ -10161,7 +10143,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.059,
+          "index_seconds": 0.063,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -10272,7 +10254,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.057,
+          "index_seconds": 0.065,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -10327,7 +10309,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.069,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [],
             "ok": false,

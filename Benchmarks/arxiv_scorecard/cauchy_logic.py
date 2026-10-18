@@ -79,6 +79,19 @@ KIND_FROM_KEYWORD = {
 }
 
 
+_MAIN_PLURAL = {
+    "theorems": "theorem",
+    "lemmas": "lemma",
+    "propositions": "proposition",
+    "corollaries": "corollary",
+    "definitions": "definition",
+    "exercises": "exercise",
+    "examples": "example",
+    "remarks": "remark",
+    "proofs": "proof",
+}
+
+
 def kind_for_keyword(keyword: str, profile: str) -> str | None:
     normalized = keyword.lower().strip(".")
     if profile == "main":
@@ -87,7 +100,7 @@ def kind_for_keyword(keyword: str, profile: str) -> str | None:
             "exercise", "example", "remark", "proof",
         }:
             return normalized
-        return None
+        return _MAIN_PLURAL.get(normalized)
     return KIND_FROM_KEYWORD.get(normalized)
 
 
@@ -118,11 +131,18 @@ def _compile(profile: str) -> dict[str, re.Pattern[str]]:
         "figure": re.compile(FIGURE),
         "paired": re.compile(PAIRED_FIGURES),
     }
-    if profile != "main":
-        patterns["list"] = re.compile(
-            rf"(?i)\b({PLURAL_HOVER})\s*({REFERENCE_NUMBER}(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER})+)"
-        )
-        patterns["number"] = re.compile(REFERENCE_NUMBER)
+    plural = (
+        r"theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
+        if profile == "main"
+        else PLURAL_HOVER
+    )
+    # Main accepts one number ("Lemmas 4.6") or a list. Hover's list still
+    # requires two or more, and hover also accepts abbreviations.
+    repeat = "*" if profile == "main" else "+"
+    patterns["list"] = re.compile(
+        rf"(?i)\b({plural})\s*({REFERENCE_NUMBER}(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER}){repeat})"
+    )
+    patterns["number"] = re.compile(REFERENCE_NUMBER)
     return patterns
 
 
@@ -291,6 +311,28 @@ _LABEL_MATH = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
 _CITATION_WORDS = ["by", "see", "using", "from", "equation", "eq."]
 
 
+def _number_extends(number: str, query: str) -> bool:
+    """`2` matches `2` and `2.1`, and does not match `20` or `12`."""
+    return number == query or number.startswith(query + ".")
+
+
+def _number_sort_key(number: str) -> list[int | str]:
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", number)]
+
+
+def _printed_statement_name(text: str, match: Match) -> str | None:
+    """Parenthetical printed on the declaration, as in "Lemma 2.4 (Zorn)"."""
+    found = re.match(r"\s*\(([^)\n]{2,80})\)", text[match.end : match.end + 120])
+    if found is None:
+        return None
+    name = found.group(1).strip()
+    if not name or name[0].isdigit() or not any(character.isalpha() for character in name):
+        return None
+    if name.lower() not in text.lower():
+        return None
+    return name
+
+
 def _offset(text: str, index: int, delta: int) -> int:
     return max(0, min(len(text), index + delta))
 
@@ -442,13 +484,19 @@ class StatementIndex:
         seen: set[tuple[str, str]] = set()
         results: list[IndexedStatement] = []
         for match in all_references(text, profile):
-            if match.key in seen:
-                continue
-            entry = self.entries.get(match.key)
-            if entry is None or not entry.body:
-                continue
-            seen.add(match.key)
-            results.append(entry)
+            matched = [
+                entry for entry in self.entries.values()
+                if entry.kind == match.kind
+                and _number_extends(entry.number, match.number)
+                and entry.body
+            ]
+            matched.sort(key=lambda entry: _number_sort_key(entry.number))
+            for entry in matched:
+                key = (entry.kind, entry.number)
+                if key in seen:
+                    continue
+                seen.add(key)
+                results.append(entry)
         return results
 
 
@@ -467,7 +515,10 @@ def build_statement_index(pages: list[dict], profile: str = "main") -> Statement
                 body = _fallback_body(text, match, declarations) or ""
             if not body:
                 continue
-            name = match.text if match.kind == "figure" else None
+            if match.kind == "figure":
+                name = match.text
+            else:
+                name = _printed_statement_name(text, match)
             index.add(IndexedStatement(match.kind, match.number, page["page_index"], body, name))
     return index
 

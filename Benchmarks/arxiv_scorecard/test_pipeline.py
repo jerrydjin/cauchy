@@ -14,11 +14,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from cauchy_logic import (  # noqa: E402
+    IndexedStatement,
     OutlineNode,
     PageSnapshot,
+    StatementIndex,
     Structure,
     all_references,
     best_reference,
+    build_statement_index,
     declaration_matches,
     first_reference,
     locate,
@@ -97,13 +100,44 @@ class DetectorTests(unittest.TestCase):
         matches = all_references(text, "hover")
         self.assertEqual([item.number for item in matches], ["2.1", "2.3"])
         self.assertEqual([item.text for item in matches], ["Theorems 2.1", "2.3"])
-        self.assertEqual(all_references(text, "main"), [])
+        self.assertEqual([item.number for item in all_references(text, "main")], ["2.1", "2.3"])
         for sample in ("Lemmas 3.1, 3.2 and 3.4", "Lemmas 3.1, 3.2, and 3.4"):
             numbers = [item.number for item in all_references(sample, "hover")]
             self.assertEqual(numbers, ["3.1", "3.2", "3.4"], sample)
         for sample in ("Theorems 2.1–2.3", "Theorems 2.1-2.3"):
             numbers = [item.number for item in all_references(sample, "hover")]
             self.assertEqual(numbers, ["2.1", "2.3"], sample)
+
+    def test_main_plurals_and_short_numbers(self) -> None:
+        single = all_references("Lemmas 4.6 and the rest.", "main")
+        self.assertEqual([(item.kind, item.number) for item in single], [("lemma", "4.6")])
+        definitions = all_references("Definitions 2.5 follow.", "main")
+        self.assertEqual([(item.kind, item.number) for item in definitions], [("definition", "2.5")])
+        listed = "Lemmas 3.1, 3.2 and 3.4"
+        matches = all_references(listed, "main")
+        self.assertEqual([item.number for item in matches], ["3.1", "3.2", "3.4"])
+        self.assertEqual([item.text for item in matches], ["Lemmas 3.1", "3.2", "3.4"])
+        self.assertEqual(all_references("Thm. 3.2 is abbreviated.", "main"), [])
+
+        index = StatementIndex()
+        index.add(IndexedStatement("lemma", "2.1", 0, "Let G be finite."))
+        index.add(IndexedStatement("lemma", "2.2", 0, "Let G be abelian."))
+        index.add(IndexedStatement("lemma", "20", 0, "A different lemma."))
+        index.add(IndexedStatement("lemma", "4", 0, "Exactly four."))
+        index.add(IndexedStatement("lemma", "4.1", 0, "A child of four."))
+        self.assertEqual(
+            [item.number for item in index.statements_cited_in("Lemma 2", "main")],
+            ["2.1", "2.2"],
+        )
+        literal = index.statements_cited_in("Lemma 4", "main")
+        self.assertIn("4", [item.number for item in literal])
+        self.assertIn("4.1", [item.number for item in literal])
+
+        page = "Example 2.3.8 (Hamming distance). Let X = {0, 1}.\n"
+        built = build_statement_index([{"page_index": 0, "text": page}], "main")
+        stored = built.lookup("example", "2.3.8")
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored.name, "Hamming distance")
 
     def test_main_drops_bracket_and_author_year_citations(self) -> None:
         text = "We refer the reader to [IK99, Lemma 1.15] for a proof. Lemma 2.1."

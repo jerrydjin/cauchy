@@ -315,9 +315,9 @@ def _search_blurb(rows: list[dict]) -> str:
     return (
         f"An exact printed query such as “Lemma 2.1” is served from the existing index on {exact}/{len(comparable)} "
         f"comparable papers (the key must already be indexed). A shortened query such as “Lemma 2” retrieves the full "
-        f"number on {short}/{len(have_short)} of those papers. Literal “Lemma 4” hits a lemma numbered 4 on {literal} papers: "
-        "these papers print dotted numbers, and lookup does not expand the first component. "
-        "Source-fallback entries store no printed name, so a name query is not served from this index."
+        f"number on {short}/{len(have_short)} of those papers. Literal “Lemma 4” hits a lemma numbered exactly 4 on {literal} papers: "
+        "these papers print dotted numbers, so 4.1 is not lemma 4. "
+        "A parenthetical name is stored when the PDF prints one; this corpus does not put that name in the HTML theorem tag."
     )
 
 
@@ -433,7 +433,7 @@ def _tickets(rows: list[dict]) -> list[dict]:
         },
         {
             "title": "Resolve a shortened number, and plurals on main",
-            "problem": "“Lemma 2” does not return Lemma 2.1, because lookup requires the full key. Main also misses plural surfaces such as “Lemmas 4.6” and “Definitions 2.5”; the hover branch detects some of those.",
+            "problem": "“Lemma 2” now returns Lemma 2.1, and “Lemmas 4.6” is detected. Literal “Lemma 4” still requires a lemma numbered exactly 4.",
             "size": "small.",
             "evidence": (
                 f"Exact printed queries are served on {exact_served}/{len(comparable)} comparable papers. "
@@ -444,7 +444,7 @@ def _tickets(rows: list[dict]) -> list[dict]:
         },
         {
             "title": "Store the printed statement name on the source-fallback index",
-            "problem": "matchingTermsIn can search a name, and source-fallback entries leave name empty, so “the definition of compactness” cannot be served without the model.",
+            "problem": "A parenthetical such as “(Zorn)” is now stored on the source-fallback entry. This corpus does not print that name inside the HTML theorem tag, so the measured route stays empty.",
             "size": "small. Parse a parenthetical title into the fallback entry; the term route already exists.",
             "evidence": (
                 f"{name_served}/{named} papers expose a parenthetical name in the HTML tag and serve it from the index. "
@@ -478,6 +478,8 @@ def _write_markdown(payload: dict) -> None:
         "Main also drops a local reference inside [12], [IK99, Lemma 1.15], (Smith 2019), or Smith et al. [2019]; "
         "an interval such as [0, 1] is not a citation. "
         "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. "
+        "“Lemmas 4.6” is lemma 4.6, and “Lemma 2” retrieves a lemma numbered 2.1. "
+        "A parenthetical printed on the declaration, such as “(Zorn)”, is stored as the statement name. "
         "Dropping only the section-question condition, "
         f"{sum(_reference_only(row['profiles']['main']) for row in random_rows)} of {len(random_rows)} pass on main and "
         f"{sum(_reference_only(row['profiles']['hover']) for row in random_rows)} of {len(random_rows)} pass on the hover branch. "

@@ -10,7 +10,7 @@
       "page_count": 12,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.276,
+      "extract_seconds": 0.218,
       "declarations": 29,
       "mentions": 46,
       "citation_style": "numeric+qualified",
@@ -72,7 +72,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.018,
+          "index_seconds": 0.015,
           "section_questions": {
             "probed": [
               {
@@ -142,7 +142,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.031,
+          "index_seconds": 0.017,
           "section_questions": {
             "probed": [
               {
@@ -223,7 +223,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.018,
+          "index_seconds": 0.014,
           "section_questions": {
             "probed": [
               {
@@ -293,7 +293,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 30,
-          "index_seconds": 0.021,
+          "index_seconds": 0.017,
           "section_questions": {
             "probed": [
               {
@@ -366,7 +366,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.386,
+      "extract_seconds": 0.312,
       "declarations": 32,
       "mentions": 78,
       "citation_style": "numeric+qualified",
@@ -475,7 +475,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.03,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -552,7 +552,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.036,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -629,7 +629,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.03,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -706,7 +706,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.037,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -778,7 +778,7 @@
       "page_count": 42,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.863,
+      "extract_seconds": 0.627,
       "declarations": 127,
       "mentions": 315,
       "citation_style": "numeric+qualified",
@@ -907,13 +907,10 @@
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.11 equation 3",
-            "p.8 equation 2"
-          ],
-          "false_declaration_count": 2,
-          "index_size": 129,
-          "index_seconds": 0.061,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 127,
+          "index_seconds": 0.048,
           "section_questions": {
             "probed": [
               {
@@ -980,7 +977,6 @@
           },
           "fail_reasons": [
             "resolution 88.1% is under 90%",
-            "2 indexed statements are not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -996,13 +992,10 @@
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.11 equation 3",
-            "p.8 equation 2"
-          ],
-          "false_declaration_count": 2,
-          "index_size": 129,
-          "index_seconds": 0.072,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 127,
+          "index_seconds": 0.058,
           "section_questions": {
             "probed": [
               {
@@ -1069,7 +1062,6 @@
           },
           "fail_reasons": [
             "resolution 88.4% is under 90%",
-            "2 indexed statements are not in the HTML declarations",
             "section questions are not implemented"
           ]
         },
@@ -1085,13 +1077,10 @@
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.11 equation 3",
-            "p.8 equation 2"
-          ],
-          "false_declaration_count": 2,
-          "index_size": 129,
-          "index_seconds": 0.059,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 127,
+          "index_seconds": 0.048,
           "section_questions": {
             "probed": [
               {
@@ -1158,7 +1147,6 @@
           },
           "fail_reasons": [
             "resolution 88.1% is under 90%",
-            "2 indexed statements are not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -1174,13 +1162,10 @@
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.11 equation 3",
-            "p.8 equation 2"
-          ],
-          "false_declaration_count": 2,
-          "index_size": 129,
-          "index_seconds": 0.072,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 127,
+          "index_seconds": 0.069,
           "section_questions": {
             "probed": [
               {
@@ -1247,7 +1232,6 @@
           },
           "fail_reasons": [
             "resolution 88.4% is under 90%",
-            "2 indexed statements are not in the HTML declarations",
             "a section question missed its heading page"
           ]
         }
@@ -1263,7 +1247,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.639,
+      "extract_seconds": 0.52,
       "declarations": 49,
       "mentions": 136,
       "citation_style": "numeric+qualified",
@@ -1452,7 +1436,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.047,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -1540,7 +1524,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.057,
+          "index_seconds": 0.044,
           "section_questions": {
             "probed": [
               {
@@ -1628,7 +1612,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.048,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -1716,7 +1700,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 49,
-          "index_seconds": 0.056,
+          "index_seconds": 0.044,
           "section_questions": {
             "probed": [
               {
@@ -1801,7 +1785,7 @@
       "page_count": 23,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.451,
+      "extract_seconds": 0.354,
       "declarations": 47,
       "mentions": 19,
       "citation_style": "numeric+qualified",
@@ -1924,9 +1908,9 @@
         }
       ],
       "model_input": {
-        "pages_that_would_call_the_model": 21,
-        "estimated_input_characters": 127577,
-        "estimated_input_tokens": 31894,
+        "pages_that_would_call_the_model": 20,
+        "estimated_input_characters": 121008,
+        "estimated_input_tokens": 30252,
         "billed": false
       },
       "profiles": {
@@ -1943,13 +1927,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.17 equation 1",
-            "p.22 equation 3",
-            "p.3 equation 2"
+            "p.20 equation 1"
           ],
-          "false_declaration_count": 3,
-          "index_size": 50,
-          "index_seconds": 0.037,
+          "false_declaration_count": 1,
+          "index_size": 48,
+          "index_seconds": 0.027,
           "section_questions": {
             "probed": [
               {
@@ -2015,7 +1997,7 @@
           "fail_reasons": [
             "resolution 73.9% is under 90%",
             "1 wrong link",
-            "3 indexed statements are not in the HTML declarations"
+            "1 indexed statement is not in the HTML declarations"
           ]
         },
         "hover": {
@@ -2031,13 +2013,11 @@
           "citation_detections": 27,
           "citation_links": 3,
           "false_declarations": [
-            "p.17 equation 1",
-            "p.22 equation 3",
-            "p.3 equation 2"
+            "p.20 equation 1"
           ],
-          "false_declaration_count": 3,
-          "index_size": 50,
-          "index_seconds": 0.043,
+          "false_declaration_count": 1,
+          "index_size": 48,
+          "index_seconds": 0.033,
           "section_questions": {
             "probed": [
               {
@@ -2112,7 +2092,7 @@
             "resolution 69.6% is under 90%",
             "1 wrong link",
             "27 citation spans emitted as local refs",
-            "3 indexed statements are not in the HTML declarations",
+            "1 indexed statement is not in the HTML declarations",
             "section questions are not implemented"
           ]
         },
@@ -2129,13 +2109,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.17 equation 1",
-            "p.22 equation 3",
-            "p.3 equation 2"
+            "p.20 equation 1"
           ],
-          "false_declaration_count": 3,
-          "index_size": 50,
-          "index_seconds": 0.037,
+          "false_declaration_count": 1,
+          "index_size": 48,
+          "index_seconds": 0.027,
           "section_questions": {
             "probed": [
               {
@@ -2201,7 +2179,7 @@
           "fail_reasons": [
             "resolution 73.9% is under 90%",
             "1 wrong link",
-            "3 indexed statements are not in the HTML declarations"
+            "1 indexed statement is not in the HTML declarations"
           ]
         },
         "combined": {
@@ -2217,13 +2195,11 @@
           "citation_detections": 27,
           "citation_links": 3,
           "false_declarations": [
-            "p.17 equation 1",
-            "p.22 equation 3",
-            "p.3 equation 2"
+            "p.20 equation 1"
           ],
-          "false_declaration_count": 3,
-          "index_size": 50,
-          "index_seconds": 0.042,
+          "false_declaration_count": 1,
+          "index_size": 48,
+          "index_seconds": 0.033,
           "section_questions": {
             "probed": [
               {
@@ -2297,7 +2273,7 @@
             "resolution 73.9% is under 90%",
             "1 wrong link",
             "27 citation spans emitted as local refs",
-            "3 indexed statements are not in the HTML declarations"
+            "1 indexed statement is not in the HTML declarations"
           ]
         }
       }
@@ -2312,7 +2288,7 @@
       "page_count": 54,
       "two_column_pages": 0,
       "document_class": "scrartcl",
-      "extract_seconds": 0.686,
+      "extract_seconds": 0.509,
       "declarations": 117,
       "mentions": 108,
       "citation_style": "qualified",
@@ -2466,7 +2442,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.059,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -2554,7 +2530,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.072,
+          "index_seconds": 0.057,
           "section_questions": {
             "probed": [
               {
@@ -2651,7 +2627,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.059,
+          "index_seconds": 0.046,
           "section_questions": {
             "probed": [
               {
@@ -2739,7 +2715,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.072,
+          "index_seconds": 0.058,
           "section_questions": {
             "probed": [
               {
@@ -2832,7 +2808,7 @@
       "page_count": 20,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.301,
+      "extract_seconds": 0.243,
       "declarations": 43,
       "mentions": 62,
       "citation_style": "numeric+qualified",
@@ -2924,7 +2900,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.024,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -3008,7 +2984,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.03,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -3093,7 +3069,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.024,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -3177,7 +3153,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 41,
-          "index_seconds": 0.03,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -3258,7 +3234,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.612,
+      "extract_seconds": 0.435,
       "declarations": 75,
       "mentions": 152,
       "citation_style": "numeric+qualified",
@@ -3330,7 +3306,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 72,
-          "index_seconds": 0.037,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -3416,7 +3392,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 71,
-          "index_seconds": 0.043,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -3504,7 +3480,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 72,
-          "index_seconds": 0.036,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -3590,7 +3566,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 71,
-          "index_seconds": 0.07,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -3672,7 +3648,7 @@
       "page_count": 14,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.588,
+      "extract_seconds": 0.288,
       "declarations": 40,
       "mentions": 118,
       "citation_style": "numeric",
@@ -3820,7 +3796,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.036,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -3907,7 +3883,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.04,
+          "index_seconds": 0.023,
           "section_questions": {
             "probed": [
               {
@@ -3999,7 +3975,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.027,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -4086,7 +4062,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.03,
+          "index_seconds": 0.023,
           "section_questions": {
             "probed": [
               {
@@ -4170,7 +4146,7 @@
       "page_count": 36,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.991,
+      "extract_seconds": 0.522,
       "declarations": 43,
       "mentions": 86,
       "citation_style": "qualified",
@@ -4294,9 +4270,9 @@
         }
       ],
       "model_input": {
-        "pages_that_would_call_the_model": 26,
-        "estimated_input_characters": 157745,
-        "estimated_input_tokens": 39436,
+        "pages_that_would_call_the_model": 23,
+        "estimated_input_characters": 140287,
+        "estimated_input_tokens": 35071,
         "billed": false
       },
       "profiles": {
@@ -4319,14 +4295,11 @@
             "p.13 equation 3.6",
             "p.14 equation 3.7",
             "p.16 equation 3.8",
-            "p.16 equation 3.9",
-            "p.32 equation 3",
-            "p.4 equation 1",
-            "p.4 equation 2"
+            "p.16 equation 3.9"
           ],
-          "false_declaration_count": 10,
-          "index_size": 46,
-          "index_seconds": 0.067,
+          "false_declaration_count": 7,
+          "index_size": 43,
+          "index_seconds": 0.042,
           "section_questions": {
             "probed": [
               {
@@ -4396,7 +4369,7 @@
           "fail_reasons": [
             "resolution 63.5% is under 90%",
             "4 wrong links",
-            "10 indexed statements are not in the HTML declarations",
+            "7 indexed statements are not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -4419,14 +4392,11 @@
             "p.13 equation 3.6",
             "p.14 equation 3.7",
             "p.16 equation 3.8",
-            "p.16 equation 3.9",
-            "p.32 equation 3",
-            "p.4 equation 1",
-            "p.4 equation 2"
+            "p.16 equation 3.9"
           ],
-          "false_declaration_count": 10,
-          "index_size": 46,
-          "index_seconds": 0.095,
+          "false_declaration_count": 7,
+          "index_size": 43,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -4506,7 +4476,7 @@
             "resolution 52.4% is under 90%",
             "4 wrong links",
             "33 citation spans emitted as local refs",
-            "10 indexed statements are not in the HTML declarations",
+            "7 indexed statements are not in the HTML declarations",
             "section questions are not implemented"
           ]
         },
@@ -4529,14 +4499,11 @@
             "p.13 equation 3.6",
             "p.14 equation 3.7",
             "p.16 equation 3.8",
-            "p.16 equation 3.9",
-            "p.32 equation 3",
-            "p.4 equation 1",
-            "p.4 equation 2"
+            "p.16 equation 3.9"
           ],
-          "false_declaration_count": 10,
-          "index_size": 46,
-          "index_seconds": 0.055,
+          "false_declaration_count": 7,
+          "index_size": 43,
+          "index_seconds": 0.042,
           "section_questions": {
             "probed": [
               {
@@ -4606,7 +4573,7 @@
           "fail_reasons": [
             "resolution 63.5% is under 90%",
             "4 wrong links",
-            "10 indexed statements are not in the HTML declarations",
+            "7 indexed statements are not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -4629,14 +4596,11 @@
             "p.13 equation 3.6",
             "p.14 equation 3.7",
             "p.16 equation 3.8",
-            "p.16 equation 3.9",
-            "p.32 equation 3",
-            "p.4 equation 1",
-            "p.4 equation 2"
+            "p.16 equation 3.9"
           ],
-          "false_declaration_count": 10,
-          "index_size": 46,
-          "index_seconds": 0.094,
+          "false_declaration_count": 7,
+          "index_size": 43,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -4714,7 +4678,7 @@
             "resolution 63.5% is under 90%",
             "4 wrong links",
             "33 citation spans emitted as local refs",
-            "10 indexed statements are not in the HTML declarations",
+            "7 indexed statements are not in the HTML declarations",
             "a section question missed its heading page"
           ]
         }
@@ -4730,7 +4694,7 @@
       "page_count": 19,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.595,
+      "extract_seconds": 0.47,
       "declarations": 39,
       "mentions": 58,
       "citation_style": "numeric+qualified",
@@ -4813,9 +4777,9 @@
         }
       ],
       "model_input": {
-        "pages_that_would_call_the_model": 17,
-        "estimated_input_characters": 110773,
-        "estimated_input_tokens": 27693,
+        "pages_that_would_call_the_model": 15,
+        "estimated_input_characters": 97031,
+        "estimated_input_tokens": 24257,
         "billed": false
       },
       "profiles": {
@@ -4832,14 +4796,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.10 equation 1",
-            "p.2 equation 3",
-            "p.2 equation 4",
-            "p.8 equation 2"
+            "p.13 equation 2"
           ],
-          "false_declaration_count": 4,
-          "index_size": 42,
-          "index_seconds": 0.036,
+          "false_declaration_count": 1,
+          "index_size": 39,
+          "index_seconds": 0.028,
           "section_questions": {
             "probed": [
               {
@@ -4902,7 +4863,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "4 indexed statements are not in the HTML declarations"
+            "1 indexed statement is not in the HTML declarations"
           ]
         },
         "hover": {
@@ -4918,14 +4879,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.10 equation 1",
-            "p.2 equation 3",
-            "p.2 equation 4",
-            "p.8 equation 2"
+            "p.13 equation 2"
           ],
-          "false_declaration_count": 4,
-          "index_size": 42,
-          "index_seconds": 0.042,
+          "false_declaration_count": 1,
+          "index_size": 39,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -4988,7 +4946,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "4 indexed statements are not in the HTML declarations",
+            "1 indexed statement is not in the HTML declarations",
             "section questions are not implemented"
           ]
         },
@@ -5005,14 +4963,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.10 equation 1",
-            "p.2 equation 3",
-            "p.2 equation 4",
-            "p.8 equation 2"
+            "p.13 equation 2"
           ],
-          "false_declaration_count": 4,
-          "index_size": 42,
-          "index_seconds": 0.035,
+          "false_declaration_count": 1,
+          "index_size": 39,
+          "index_seconds": 0.028,
           "section_questions": {
             "probed": [
               {
@@ -5075,7 +5030,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "4 indexed statements are not in the HTML declarations"
+            "1 indexed statement is not in the HTML declarations"
           ]
         },
         "combined": {
@@ -5091,14 +5046,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.10 equation 1",
-            "p.2 equation 3",
-            "p.2 equation 4",
-            "p.8 equation 2"
+            "p.13 equation 2"
           ],
-          "false_declaration_count": 4,
-          "index_size": 42,
-          "index_seconds": 0.042,
+          "false_declaration_count": 1,
+          "index_size": 39,
+          "index_seconds": 0.033,
           "section_questions": {
             "probed": [
               {
@@ -5161,7 +5113,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "4 indexed statements are not in the HTML declarations"
+            "1 indexed statement is not in the HTML declarations"
           ]
         }
       }
@@ -5176,7 +5128,7 @@
       "page_count": 16,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.26,
+      "extract_seconds": 0.21,
       "declarations": 29,
       "mentions": 114,
       "citation_style": "numeric",
@@ -5253,7 +5205,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 27,
-          "index_seconds": 0.021,
+          "index_seconds": 0.017,
           "section_questions": {
             "probed": [
               {
@@ -5338,7 +5290,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 27,
-          "index_seconds": 0.025,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -5424,7 +5376,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 27,
-          "index_seconds": 0.021,
+          "index_seconds": 0.017,
           "section_questions": {
             "probed": [
               {
@@ -5509,7 +5461,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 27,
-          "index_seconds": 0.026,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -5588,7 +5540,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.49,
+      "extract_seconds": 0.393,
       "declarations": 31,
       "mentions": 56,
       "citation_style": "numeric+qualified",
@@ -5707,7 +5659,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.038,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -5786,7 +5738,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.046,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -5882,7 +5834,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.039,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -5961,7 +5913,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.045,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -6045,7 +5997,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "siamart251216",
-      "extract_seconds": 1.103,
+      "extract_seconds": 0.85,
       "declarations": 51,
       "mentions": 90,
       "citation_style": "numeric+qualified",
@@ -6195,7 +6147,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.039,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -6290,7 +6242,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.055,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -6385,7 +6337,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.046,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -6480,7 +6432,7 @@
           ],
           "false_declaration_count": 51,
           "index_size": 56,
-          "index_seconds": 0.053,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -6559,7 +6511,7 @@
       "page_count": 41,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.555,
+      "extract_seconds": 0.482,
       "declarations": 185,
       "mentions": 115,
       "citation_style": "numeric+qualified",
@@ -6688,7 +6640,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.05,
+          "index_seconds": 0.046,
           "section_questions": {
             "probed": [
               {
@@ -6773,7 +6725,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.094,
+          "index_seconds": 0.053,
           "section_questions": {
             "probed": [
               {
@@ -6861,7 +6813,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.08,
+          "index_seconds": 0.044,
           "section_questions": {
             "probed": [
               {
@@ -6946,7 +6898,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 175,
-          "index_seconds": 0.066,
+          "index_seconds": 0.053,
           "section_questions": {
             "probed": [
               {
@@ -7026,7 +6978,7 @@
       "page_count": 22,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.305,
+      "extract_seconds": 0.238,
       "declarations": 22,
       "mentions": 94,
       "citation_style": "numeric",
@@ -7158,7 +7110,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.031,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -7243,7 +7195,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.039,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -7328,7 +7280,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.029,
+          "index_seconds": 0.025,
           "section_questions": {
             "probed": [
               {
@@ -7413,7 +7365,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.043,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -7495,7 +7447,7 @@
       "page_count": 40,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 1.013,
+      "extract_seconds": 0.758,
       "declarations": 93,
       "mentions": 152,
       "citation_style": "qualified",
@@ -7619,7 +7571,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.07,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [
               {
@@ -7709,7 +7661,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.08,
+          "index_seconds": 0.075,
           "section_questions": {
             "probed": [
               {
@@ -7799,7 +7751,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.07,
+          "index_seconds": 0.06,
           "section_questions": {
             "probed": [
               {
@@ -7889,7 +7841,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.082,
+          "index_seconds": 0.076,
           "section_questions": {
             "probed": [
               {
@@ -7971,7 +7923,7 @@
       "page_count": 17,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.354,
+      "extract_seconds": 0.344,
       "declarations": 20,
       "mentions": 46,
       "citation_style": "numeric",
@@ -8050,7 +8002,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.024,
+          "index_seconds": 0.023,
           "section_questions": {
             "probed": [
               {
@@ -8130,7 +8082,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.028,
+          "index_seconds": 0.027,
           "section_questions": {
             "probed": [
               {
@@ -8210,7 +8162,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.024,
+          "index_seconds": 0.022,
           "section_questions": {
             "probed": [
               {
@@ -8290,7 +8242,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.027,
+          "index_seconds": 0.028,
           "section_questions": {
             "probed": [
               {
@@ -8367,7 +8319,7 @@
       "page_count": 30,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.375,
+      "extract_seconds": 0.377,
       "declarations": 70,
       "mentions": 106,
       "citation_style": "numeric+qualified",
@@ -8544,14 +8496,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.2 equation 3",
-            "p.7 equation 1",
-            "p.8 equation 2",
             "p.8 equation 4"
           ],
-          "false_declaration_count": 4,
-          "index_size": 77,
-          "index_seconds": 0.032,
+          "false_declaration_count": 1,
+          "index_size": 74,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -8624,7 +8573,7 @@
           "fail_reasons": [
             "resolution 86.2% is under 90%",
             "9 wrong links",
-            "4 indexed statements are not in the HTML declarations",
+            "1 indexed statement is not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -8641,14 +8590,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.2 equation 3",
-            "p.7 equation 1",
-            "p.8 equation 2",
             "p.8 equation 4"
           ],
-          "false_declaration_count": 4,
-          "index_size": 77,
-          "index_seconds": 0.042,
+          "false_declaration_count": 1,
+          "index_size": 74,
+          "index_seconds": 0.04,
           "section_questions": {
             "probed": [
               {
@@ -8723,7 +8669,7 @@
           "fail_reasons": [
             "resolution 80.8% is under 90%",
             "9 wrong links",
-            "4 indexed statements are not in the HTML declarations",
+            "1 indexed statement is not in the HTML declarations",
             "section questions are not implemented"
           ]
         },
@@ -8740,13 +8686,10 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.2 equation 3",
-            "p.7 equation 1",
-            "p.8 equation 2",
             "p.8 equation 4"
           ],
-          "false_declaration_count": 4,
-          "index_size": 77,
+          "false_declaration_count": 1,
+          "index_size": 74,
           "index_seconds": 0.035,
           "section_questions": {
             "probed": [
@@ -8820,7 +8763,7 @@
           "fail_reasons": [
             "resolution 86.2% is under 90%",
             "9 wrong links",
-            "4 indexed statements are not in the HTML declarations",
+            "1 indexed statement is not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -8837,14 +8780,11 @@
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
-            "p.2 equation 3",
-            "p.7 equation 1",
-            "p.8 equation 2",
             "p.8 equation 4"
           ],
-          "false_declaration_count": 4,
-          "index_size": 77,
-          "index_seconds": 0.044,
+          "false_declaration_count": 1,
+          "index_size": 74,
+          "index_seconds": 0.042,
           "section_questions": {
             "probed": [
               {
@@ -8918,7 +8858,7 @@
           "fail_reasons": [
             "resolution 85.4% is under 90%",
             "9 wrong links",
-            "4 indexed statements are not in the HTML declarations",
+            "1 indexed statement is not in the HTML declarations",
             "a section question missed its heading page"
           ]
         }
@@ -8934,7 +8874,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.498,
+      "extract_seconds": 0.46,
       "declarations": 128,
       "mentions": 35,
       "citation_style": "numeric",
@@ -9028,7 +8968,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.033,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -9103,7 +9043,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.038,
+          "index_seconds": 0.033,
           "section_questions": {
             "probed": [
               {
@@ -9180,7 +9120,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.033,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -9255,7 +9195,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.038,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -9327,7 +9267,7 @@
       "page_count": 82,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 1.372,
+      "extract_seconds": 1.198,
       "declarations": 162,
       "mentions": 206,
       "citation_style": "qualified",
@@ -9743,12 +9683,10 @@
           "denominator": 241,
           "citation_detections": 2,
           "citation_links": 0,
-          "false_declarations": [
-            "p.49 equation 1"
-          ],
-          "false_declaration_count": 1,
-          "index_size": 164,
-          "index_seconds": 0.121,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 163,
+          "index_seconds": 0.102,
           "section_questions": {
             "probed": [
               {
@@ -9822,7 +9760,6 @@
           "fail_reasons": [
             "12 wrong links",
             "2 citation spans emitted as local refs",
-            "1 indexed statement is not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -9838,12 +9775,10 @@
           "denominator": 241,
           "citation_detections": 63,
           "citation_links": 5,
-          "false_declarations": [
-            "p.49 equation 1"
-          ],
-          "false_declaration_count": 1,
-          "index_size": 164,
-          "index_seconds": 0.23,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 163,
+          "index_seconds": 0.193,
           "section_questions": {
             "probed": [
               {
@@ -9926,7 +9861,6 @@
             "resolution 84.2% is under 90%",
             "12 wrong links",
             "63 citation spans emitted as local refs",
-            "1 indexed statement is not in the HTML declarations",
             "section questions are not implemented"
           ]
         },
@@ -9942,12 +9876,10 @@
           "denominator": 241,
           "citation_detections": 2,
           "citation_links": 0,
-          "false_declarations": [
-            "p.49 equation 1"
-          ],
-          "false_declaration_count": 1,
-          "index_size": 164,
-          "index_seconds": 0.117,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 163,
+          "index_seconds": 0.104,
           "section_questions": {
             "probed": [
               {
@@ -10021,7 +9953,6 @@
           "fail_reasons": [
             "12 wrong links",
             "2 citation spans emitted as local refs",
-            "1 indexed statement is not in the HTML declarations",
             "a section question missed its heading page"
           ]
         },
@@ -10037,12 +9968,10 @@
           "denominator": 241,
           "citation_detections": 63,
           "citation_links": 5,
-          "false_declarations": [
-            "p.49 equation 1"
-          ],
-          "false_declaration_count": 1,
-          "index_size": 164,
-          "index_seconds": 0.126,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 163,
+          "index_seconds": 0.147,
           "section_questions": {
             "probed": [
               {
@@ -10120,7 +10049,6 @@
           "fail_reasons": [
             "12 wrong links",
             "63 citation spans emitted as local refs",
-            "1 indexed statement is not in the HTML declarations",
             "a section question missed its heading page"
           ]
         }
@@ -10136,7 +10064,7 @@
       "page_count": 24,
       "two_column_pages": 24,
       "document_class": "revtex4-2",
-      "extract_seconds": 0.565,
+      "extract_seconds": 0.605,
       "declarations": 164,
       "mentions": 189,
       "citation_style": "numeric+qualified",
@@ -10288,7 +10216,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.07,
+          "index_seconds": 0.066,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -10344,7 +10272,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.055,
+          "index_seconds": 0.057,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -10399,7 +10327,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.065,
+          "index_seconds": 0.069,
           "section_questions": {
             "probed": [],
             "ok": false,

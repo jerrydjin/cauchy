@@ -19,6 +19,7 @@ from cauchy_logic import (  # noqa: E402
     Structure,
     all_references,
     best_reference,
+    declaration_matches,
     first_reference,
     locate,
     structural_query,
@@ -181,6 +182,33 @@ def _textbook() -> Structure:
         ],
         page_count=80,
     )
+
+
+class DeclarationTests(unittest.TestCase):
+    def test_left_margin_enumerated_steps_are_not_equations(self) -> None:
+        page = "\n".join([
+            "Proof.",
+            "(1) f ∈ W ⇒ f = 0",
+            "(2) f ∈ U ⇒ f = 0",
+            "(1.10) |x| ≤ r ⇒ |ψ(x)| ≤ r/2.",
+            "A = B + C (4) for the constant term.",
+            "We minimize the joint loss",
+            "L = λ ∑ x",
+            "(5)",
+            "where the two terms measure energy and force error.",
+        ])
+        positions = {
+            page.index("(1)"): 0.129,
+            page.index("(2)"): 0.148,
+            page.index("(1.10)"): 0.118,
+            page.index("(4)"): 0.82,
+        }
+        numbers = [item.number for item in declaration_matches(page, positions, "main")]
+        self.assertNotIn("1", numbers)
+        self.assertNotIn("2", numbers)
+        self.assertIn("1.10", numbers)
+        self.assertIn("4", numbers)
+        self.assertIn("5", numbers)
 
 
 class StructureTests(unittest.TestCase):

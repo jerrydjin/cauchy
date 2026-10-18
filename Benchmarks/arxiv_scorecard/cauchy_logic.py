@@ -340,7 +340,10 @@ def declaration_matches(
             continue
         if match.start > 0 and not source_text[match.start - 1].isspace():
             continue
-        if match.number.isdigit() and label_x is not None and 0.20 < label_x < 0.70 and suffix:
+        # A bare integer with text to its right is an enumerated proof item,
+        # including at the left of the text block. A dotted label such as
+        # (1.10), a right-margin label, and a number on its own line stay.
+        if match.number.isdigit() and suffix and (label_x is None or label_x < 0.78):
             continue
 
         if not prefix and not suffix:

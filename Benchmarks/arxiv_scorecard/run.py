@@ -477,6 +477,7 @@ def _write_markdown(payload: dict) -> None:
         "Main locates a section written as “N. Title” or “N.N. Title.” "
         "Main also drops a local reference inside [12], [IK99, Lemma 1.15], (Smith 2019), or Smith et al. [2019]; "
         "an interval such as [0, 1] is not a citation. "
+        "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. "
         "Dropping only the section-question condition, "
         f"{sum(_reference_only(row['profiles']['main']) for row in random_rows)} of {len(random_rows)} pass on main and "
         f"{sum(_reference_only(row['profiles']['hover']) for row in random_rows)} of {len(random_rows)} pass on the hover branch. "

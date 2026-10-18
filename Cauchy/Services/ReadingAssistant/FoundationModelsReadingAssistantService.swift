@@ -115,6 +115,9 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         var prompt = trimmed
         let budgets = ReadingPromptBuilder.evidenceBudgets(for: provider)
         var blocks: [String] = []
+        if let preface = retrieval.turnPreface?.trimmingCharacters(in: .whitespacesAndNewlines), !preface.isEmpty {
+            blocks.append(preface)
+        }
         if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: budgets.statements) {
             blocks.append(block)
         }

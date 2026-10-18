@@ -424,6 +424,13 @@ final class DocumentReferenceIndex {
 
     var count: Int { entries.count }
 
+    /// Keys of indexed results. A citation is only linked when its key is here.
+    var referenceKeys: Set<ReferenceKey> { Set(entries.keys) }
+
+    func block(for reference: DetectedReference) -> DocumentBlock? {
+        entries[reference.key]?.documentBlock
+    }
+
     var allBlocks: [DocumentBlock] {
         entries.values.sorted {
             if $0.pageIndex != $1.pageIndex { return $0.pageIndex < $1.pageIndex }

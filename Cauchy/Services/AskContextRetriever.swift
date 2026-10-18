@@ -17,6 +17,9 @@ struct AskRetrieval: Sendable, Equatable {
     var passageRecords: [DocumentPassage] = []
     /// Resolved IDs supplied with the turn; all must open a real PDF region.
     var citableSources: [AnswerSourceAnchor] = []
+    /// Hint/solution style, scope, and an attached sheet. Sent with this turn
+    /// only — never stored in the thread or shown in the chat.
+    var turnPreface: String? = nil
 
     static let empty = AskRetrieval(statements: [], statementRoutes: [], passages: [])
 
@@ -50,7 +53,8 @@ struct AskRetrieval: Sendable, Equatable {
             statementRoutes: Array(statementRoutes.prefix(clippedStatements.count)),
             statementReferences: Array(statementReferences.prefix(clippedStatements.count)),
             passages: clippedPassages,
-            passageRecords: clippedRecords
+            passageRecords: clippedRecords,
+            turnPreface: turnPreface
         )
     }
 

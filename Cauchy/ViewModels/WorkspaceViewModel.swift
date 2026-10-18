@@ -51,6 +51,15 @@ final class WorkspaceViewModel: Equatable {
     var highlightStore = HighlightStore()
     var contextEngine = ContextEngineViewModel()
     var selectionThread = SelectionThreadViewModel()
+    /// Removable tag above the ask box. Nil means the question is about the
+    /// whole open document.
+    var attachedHighlight: AskHighlightFocus?
+    /// Removable problem-sheet tag. Its extracted text is sent as the question.
+    var problemSheet: AskProblemSheet?
+    var showsAttachmentImporter = false
+    /// Fingerprint of a highlight the reader removed, so the same selection
+    /// does not immediately reattach the tag.
+    private var suppressedHighlightFingerprint: String?
     var referenceIndex = DocumentReferenceIndex()
     var find = PDFFindModel()
     var isIndexingReferences = false
@@ -241,6 +250,10 @@ final class WorkspaceViewModel: Equatable {
             workspace?.lastOpenedAt = Date()
             viewportCoordinator.viewport = persisted.workspace.primaryViewport
             highlightStore.load(from: persisted.workspace)
+            selectionThread.loadDocumentConversation(
+                id: persisted.workspace.documentConversationID,
+                messages: persisted.workspace.documentConversation
+            )
             // A relocated document needs the bookmark just minted for its new
             // path, never the stale one that pointed at where it used to be.
             if adopted == nil, let bookmark = persisted.bookmarkData {
@@ -250,10 +263,17 @@ final class WorkspaceViewModel: Equatable {
             isNewDocument = true
             workspace = DocumentWorkspace(documentURL: resolvedURL)
             highlightStore.highlights = []
+            if let created = workspace {
+                selectionThread.loadDocumentConversation(id: created.documentConversationID, messages: [])
+            }
         }
 
         contextEngine.reset()
         selectionThread.activeThread = nil
+        if workspace?.documentConversation.isEmpty == false {
+            contextEngine.showsDocumentConversation = true
+            selectionThread.activateDocumentConversation(documentTitle: documentTitle)
+        }
         workspace?.lastOpenedAt = Date()
         applyRestoredViewport(isNewDocument: isNewDocument)
         syncHighlightAnnotations()
@@ -322,6 +342,10 @@ final class WorkspaceViewModel: Equatable {
         selectionThread.documentIndex = nil
         find.attach(to: nil)
         selectionThread.activeThread = nil
+        selectionThread.loadDocumentConversation(id: UUID(), messages: [])
+        attachedHighlight = nil
+        problemSheet = nil
+        suppressedHighlightFingerprint = nil
         contextEngine.reset()
         viewportCoordinator = ViewportCoordinator()
         
@@ -340,6 +364,19 @@ final class WorkspaceViewModel: Equatable {
 
     func handleTextSelection(_ context: TextSelectionContext?) {
         if let context, !context.selectedText.isEmpty {
+            if context.fingerprint == suppressedHighlightFingerprint {
+                return
+            }
+            suppressedHighlightFingerprint = nil
+            attachedHighlight = AskHighlightFocus(
+                pageIndex: context.pageIndex,
+                excerpt: context.selectedText,
+                surroundingText: context.surroundingText,
+                fingerprint: context.fingerprint,
+                bounds: context.bounds,
+                lines: context.lines,
+                highlightID: highlightStore.findMatchingHighlight(for: context)?.id
+            )
             selectionThread.updateSelection(
                 context,
                 documentTitle: documentTitle,
@@ -349,14 +386,71 @@ final class WorkspaceViewModel: Equatable {
                 selectHighlight(match)
             } else {
                 highlightStore.selectedHighlightID = nil
+                contextEngine.showsDocumentConversation = false
                 contextEngine.showComposeDraft(context)
             }
-        } else if case .list = contextEngine.route {
+        } else if case .list = contextEngine.route, !contextEngine.showsDocumentConversation {
             selectionThread.updateSelection(
                 nil,
                 documentTitle: documentTitle,
                 existingHighlights: highlightStore.highlights
             )
+        }
+    }
+
+    func removeHighlightTag() {
+        suppressedHighlightFingerprint = attachedHighlight?.fingerprint
+        attachedHighlight = nil
+        selectionThread.activateDocumentConversation(documentTitle: documentTitle)
+        contextEngine.showsDocumentConversation = true
+        contextEngine.showList()
+        highlightStore.selectedHighlightID = nil
+    }
+
+    func removeProblemSheet() {
+        problemSheet = nil
+    }
+
+    func attachProblemSheet(at url: URL) {
+        Task { await attachProblemSheet(url) }
+    }
+
+    func attachProblemSheet(from providers: [NSItemProvider]) {
+        guard let provider = providers.first else { return }
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                Task { @MainActor in
+                    await self.attachProblemSheet(url)
+                }
+            }
+            return
+        }
+        guard provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else { return }
+        provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+            guard let data else { return }
+            Task { @MainActor in
+                guard let image = NSImage(data: data),
+                      let cgImage = AskAttachmentExtractor.cgImage(from: image) else {
+                    self.errorMessage = AskAttachmentExtractor.Failure.unreadable.errorDescription
+                    return
+                }
+                do {
+                    self.problemSheet = try await AskAttachmentExtractor.extractImage(cgImage, fileName: "Screenshot")
+                } catch {
+                    self.errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func attachProblemSheet(_ url: URL) async {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        do {
+            problemSheet = try await AskAttachmentExtractor.extract(from: url)
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -375,9 +469,21 @@ final class WorkspaceViewModel: Equatable {
     }
 
     func showHighlightList() {
+        contextEngine.showsDocumentConversation = false
         contextEngine.showList()
         highlightStore.selectedHighlightID = nil
         syncHighlightAnnotations()
+    }
+
+    func showDocumentConversation() {
+        if let fingerprint = attachedHighlight?.fingerprint {
+            suppressedHighlightFingerprint = fingerprint
+        }
+        attachedHighlight = nil
+        selectionThread.activateDocumentConversation(documentTitle: documentTitle)
+        contextEngine.showsDocumentConversation = true
+        contextEngine.showList()
+        contextPanelVisible = true
     }
 
     /// Deletes a highlight — and, with it, the whole conversation hanging off
@@ -523,6 +629,17 @@ final class WorkspaceViewModel: Equatable {
     func selectHighlight(_ highlight: Highlight) {
         contextPanelVisible = true
         highlightStore.selectedHighlightID = highlight.id
+        suppressedHighlightFingerprint = nil
+        attachedHighlight = AskHighlightFocus(
+            pageIndex: highlight.pageIndex,
+            excerpt: highlight.selectedText,
+            surroundingText: highlight.surroundingText,
+            fingerprint: PDFTextExtractor.fingerprint(pageIndex: highlight.pageIndex, selectedText: highlight.selectedText),
+            bounds: highlight.bounds,
+            lines: highlight.lines,
+            highlightID: highlight.id
+        )
+        contextEngine.showsDocumentConversation = false
         contextEngine.showDetail(highlight.id)
         selectionThread.restoreThread(from: highlight, documentTitle: documentTitle)
         navigateToHighlight(highlight)
@@ -568,16 +685,55 @@ final class WorkspaceViewModel: Equatable {
     /// Starts an Ask and retains the task so `stopThreadMessage()` can stop it.
     /// The user's message stays in the thread if the answer is stopped, so
     /// nothing they typed is lost.
-    func sendThreadMessage(_ question: String) {
+    func sendThreadMessage(_ question: String, depth: AskAnswerDepth = .hint) {
+        let scope: AskScope
+        if let attachedHighlight {
+            scope = .highlight(attachedHighlight)
+            ensureHighlightThread(for: attachedHighlight)
+            contextEngine.showsDocumentConversation = false
+            if let id = attachedHighlight.highlightID,
+               highlightStore.highlights.contains(where: { $0.id == id }) {
+                contextEngine.showDetail(id)
+            } else {
+                contextEngine.showComposeDraft(TextSelectionContext(
+                    pageIndex: attachedHighlight.pageIndex,
+                    selectedText: attachedHighlight.excerpt,
+                    surroundingText: attachedHighlight.surroundingText,
+                    fingerprint: attachedHighlight.fingerprint,
+                    bounds: attachedHighlight.bounds,
+                    lines: attachedHighlight.lines
+                ))
+            }
+        } else {
+            scope = .wholeDocument
+            selectionThread.activateDocumentConversation(documentTitle: documentTitle)
+            contextEngine.showsDocumentConversation = true
+            contextEngine.showList()
+        }
+
+        let sheet = problemSheet
         askTask?.cancel()
         askTask = Task { [weak self] in
             guard let self else { return }
             defer { self.askTask = nil }
             do {
-                try await self.selectionThread.sendMessage(question, documentTitle: self.documentTitle) { [weak self] thread in
+                try await self.selectionThread.sendMessage(
+                    question,
+                    documentTitle: self.documentTitle,
+                    scope: scope,
+                    sheet: sheet,
+                    depth: depth
+                ) { [weak self] thread in
                     guard let self else { return }
+                    if thread.anchorID == self.selectionThread.documentConversationID {
+                        self.workspace?.documentConversationID = thread.anchorID
+                        self.workspace?.documentConversation = thread.messages
+                        self.persistWorkspace()
+                        return
+                    }
                     let highlight = self.highlightStore.upsertFromThread(thread)
                     self.highlightStore.selectedHighlightID = highlight.id
+                    self.attachedHighlight?.highlightID = highlight.id
                     self.contextEngine.showDetail(highlight.id)
                     self.syncHighlightAnnotations()
                     self.persistWorkspace()
@@ -602,6 +758,81 @@ final class WorkspaceViewModel: Equatable {
         askTask?.cancel()
         askTask = nil
         return selectionThread.discardUnansweredQuestion()
+    }
+
+    /// Re-asks the latest question for the full worked solution, keeping the
+    /// same highlight tag and problem sheet.
+    func showFullSolution() {
+        let messages = selectionThread.activeThread?.messages ?? []
+        let previous = messages.last { $0.role == .user }?.content ?? "the previous question"
+        sendThreadMessage("Show the full worked solution for: \(previous)", depth: .fullSolution)
+    }
+
+    func startNewConversation() {
+        stopThreadMessage()
+        if attachedHighlight == nil {
+            selectionThread.activateDocumentConversation(documentTitle: documentTitle)
+        }
+        selectionThread.startNewConversation(documentTitle: documentTitle)
+        if selectionThread.isDocumentConversation {
+            workspace?.documentConversation = []
+            contextEngine.showsDocumentConversation = true
+            contextEngine.showList()
+        } else if let id = attachedHighlight?.highlightID,
+                  var highlight = highlightStore.highlights.first(where: { $0.id == id }) {
+            highlight.messages = []
+            highlight.updatedAt = Date()
+            highlightStore.update(highlight)
+        }
+        persistWorkspace()
+    }
+
+    /// Jump to a cited result and show the same hover preview the PDF uses.
+    func openCitedReference(_ reference: DetectedReference) {
+        guard let block = referenceIndex.block(for: reference) else { return }
+        previewCitedReference(reference)
+        if let evidence = block.evidence,
+           let page = pdfDocument?.page(at: block.pageIndex),
+           let region = ReferenceEvidenceRegionResolver.exactRegion(for: evidence, on: page) {
+            goToAnswerSource(AnswerSourceAnchor(
+                label: block.title,
+                pageIndex: block.pageIndex,
+                region: region
+            ))
+        } else {
+            navigateToReference(block)
+        }
+    }
+
+    func previewCitedReference(_ reference: DetectedReference) {
+        guard let block = referenceIndex.block(for: reference) else { return }
+        contextEngine.stageReferencePreview(block: block)
+    }
+
+    private func ensureHighlightThread(for focus: AskHighlightFocus) {
+        if let current = selectionThread.activeThread,
+           current.pageIndex == focus.pageIndex,
+           current.selectedText == focus.excerpt {
+            return
+        }
+        if let id = focus.highlightID,
+           let highlight = highlightStore.highlights.first(where: { $0.id == id }) {
+            selectionThread.restoreThread(from: highlight, documentTitle: documentTitle)
+            return
+        }
+        let context = TextSelectionContext(
+            pageIndex: focus.pageIndex,
+            selectedText: focus.excerpt,
+            surroundingText: focus.surroundingText,
+            fingerprint: focus.fingerprint,
+            bounds: focus.bounds,
+            lines: focus.lines
+        )
+        selectionThread.updateSelection(
+            context,
+            documentTitle: documentTitle,
+            existingHighlights: highlightStore.highlights
+        )
     }
 
     // MARK: - Thread names
@@ -914,6 +1145,8 @@ final class WorkspaceViewModel: Equatable {
         guard var ws = workspace else { return }
         ws.primaryViewport = viewportCoordinator.viewport
         highlightStore.exportToWorkspace(&ws)
+        ws.documentConversationID = selectionThread.documentConversationID
+        ws.documentConversation = selectionThread.documentThread.messages
         workspace = ws
         persistence.scheduleSave(ws, bookmarkData: bookmarkData) { [weak self] error in
             Task { @MainActor in

@@ -16,6 +16,9 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
     var sidebarWidth: CGFloat
     var contextPanelWidth: CGFloat
     var lastOpenedAt: Date
+    /// Whole-document Ask thread. Empty until the reader asks without a highlight.
+    var documentConversationID: UUID
+    var documentConversation: [ThreadMessage]
 
     init(
         id: UUID = UUID(),
@@ -26,7 +29,9 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         layoutMode: WorkspaceLayoutMode = .split,
         sidebarWidth: CGFloat = 280,
         contextPanelWidth: CGFloat = 380,
-        lastOpenedAt: Date = Date()
+        lastOpenedAt: Date = Date(),
+        documentConversationID: UUID = UUID(),
+        documentConversation: [ThreadMessage] = []
     ) {
         self.id = id
         self.documentURL = documentURL
@@ -37,6 +42,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         self.sidebarWidth = sidebarWidth
         self.contextPanelWidth = contextPanelWidth
         self.lastOpenedAt = lastOpenedAt
+        self.documentConversationID = documentConversationID
+        self.documentConversation = documentConversation
     }
 
     enum CodingKeys: String, CodingKey {
@@ -51,6 +58,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         case sidebarWidth
         case contextPanelWidth
         case lastOpenedAt
+        case documentConversationID
+        case documentConversation
     }
 
     init(from decoder: Decoder) throws {
@@ -63,6 +72,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         sidebarWidth = try container.decodeIfPresent(CGFloat.self, forKey: .sidebarWidth) ?? 280
         contextPanelWidth = try container.decodeIfPresent(CGFloat.self, forKey: .contextPanelWidth) ?? 380
         lastOpenedAt = try container.decodeIfPresent(Date.self, forKey: .lastOpenedAt) ?? Date()
+        documentConversationID = try container.decodeIfPresent(UUID.self, forKey: .documentConversationID) ?? UUID()
+        documentConversation = try container.decodeIfPresent([ThreadMessage].self, forKey: .documentConversation) ?? []
 
         if let decoded = try container.decodeIfPresent([Highlight].self, forKey: .highlights) {
             highlights = decoded
@@ -84,6 +95,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         try container.encode(sidebarWidth, forKey: .sidebarWidth)
         try container.encode(contextPanelWidth, forKey: .contextPanelWidth)
         try container.encode(lastOpenedAt, forKey: .lastOpenedAt)
+        try container.encode(documentConversationID, forKey: .documentConversationID)
+        try container.encode(documentConversation, forKey: .documentConversation)
     }
 }
 

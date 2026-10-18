@@ -114,6 +114,9 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         // come before passages: they are source text, though extraction can be lossy.
         var instructions = instructionsText()
         let budgets = ReadingPromptBuilder.evidenceBudgets(for: provider)
+        if let preface = retrieval.turnPreface?.trimmingCharacters(in: .whitespacesAndNewlines), !preface.isEmpty {
+            instructions += "\n\n" + preface
+        }
         if let block = ReadingPromptBuilder.referencedStatementsBlock(retrieval.statements, characterBudget: budgets.statements) {
             instructions += "\n\n" + block
         }
@@ -186,7 +189,7 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
     /// cost of resending history — which the user's plan quota absorbs).
     static func transcriptPrompt(history: [ThreadMessage], question: String) -> String {
         guard !history.isEmpty else { return question }
-        var lines = ["Earlier conversation about this passage:", ""]
+        var lines = ["Earlier conversation:", ""]
         for message in history {
             lines.append("\(message.role == .user ? "User" : "Assistant"): \(message.content)")
         }

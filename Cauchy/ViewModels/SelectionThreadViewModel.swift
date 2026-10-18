@@ -32,6 +32,23 @@ final class SelectionThreadViewModel {
     /// before they are saved with a reply.
     var pdfDocument: PDFDocument?
 
+    /// Conversation that is not tied to a highlight. Questions with no tag
+    /// land here, and it survives switching over to a highlight thread.
+    private(set) var documentThread = SelectionThread(
+        anchorID: UUID(),
+        pageIndex: 0,
+        selectedText: "",
+        surroundingText: "",
+        messages: [],
+        isPersisted: true
+    )
+
+    var documentConversationID: UUID { documentThread.anchorID }
+
+    var isDocumentConversation: Bool {
+        activeThread?.anchorID == documentThread.anchorID
+    }
+
     /// `assistant` is for tests and previews; production leaves it nil so the
     /// real one is made the first time it is actually needed.
     init(assistant: (any ReadingAssistantProtocol)? = nil) {
@@ -48,12 +65,48 @@ final class SelectionThreadViewModel {
     func reloadAssistant(documentTitle: String? = nil) {
         loadedAssistant = ReadingAssistantFactory.makeAssistant()
         guard let thread = activeThread, let documentTitle else { return }
-        let readingContext = ReadingContextBuilder.from(
-            anchor: thread.anchor,
-            documentTitle: documentTitle,
-            index: documentIndex
+        let scope = scope(for: thread)
+        let readingContext = AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: scope)
+        assistant.restoreSession(
+            context: readingContext,
+            messages: AskPromptBuilder.trimmedHistory(thread.messages, provider: assistant.provider)
         )
-        assistant.restoreSession(context: readingContext, messages: thread.messages)
+    }
+
+    func loadDocumentConversation(id: UUID, messages: [ThreadMessage]) {
+        documentThread = SelectionThread(
+            anchorID: id,
+            pageIndex: 0,
+            selectedText: "",
+            surroundingText: "",
+            messages: messages,
+            isPersisted: true
+        )
+    }
+
+    /// Whole-document chat. Does not clear a highlight thread the reader may
+    /// switch back to; that thread lives on the highlight.
+    func activateDocumentConversation(documentTitle: String) {
+        activeThread = documentThread
+        let context = AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: .wholeDocument)
+        assistant.restoreSession(
+            context: context,
+            messages: AskPromptBuilder.trimmedHistory(documentThread.messages, provider: assistant.provider)
+        )
+    }
+
+    /// Drops the visible conversation's messages and starts the assistant fresh.
+    /// The highlight passage, when there is one, stays.
+    func startNewConversation(documentTitle: String) {
+        guard var thread = activeThread else {
+            activateDocumentConversation(documentTitle: documentTitle)
+            return
+        }
+        thread.messages = []
+        thread.streamingAssistantText = nil
+        commit(thread)
+        let scope = scope(for: thread)
+        assistant.resetSession(context: AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: scope))
     }
 
     func updateSelection(
@@ -62,6 +115,10 @@ final class SelectionThreadViewModel {
         existingHighlights: [Highlight]
     ) {
         guard let context, !context.selectedText.isEmpty else {
+            // Clearing the PDF selection must not throw away the document chat.
+            if activeThread?.anchorID == documentThread.anchorID {
+                return
+            }
             activeThread = nil
             return
         }
@@ -128,15 +185,19 @@ final class SelectionThreadViewModel {
     func sendMessage(
         _ question: String,
         documentTitle: String,
+        scope explicitScope: AskScope? = nil,
+        sheet: AskProblemSheet? = nil,
+        depth: AskAnswerDepth = .hint,
         onPersist: (SelectionThread) -> Void
     ) async throws {
         guard var thread = activeThread else { return }
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        let scope = explicitScope ?? scope(for: thread)
 
         thread.messages.append(ThreadMessage(role: .user, content: trimmed))
         thread.streamingAssistantText = ""
-        activeThread = thread
+        commit(thread)
 
         // Freeze answer provenance before the async call. A model-picker
         // change while tokens are streaming must not relabel this reply as if
@@ -160,15 +221,30 @@ final class SelectionThreadViewModel {
             activeThread?.streamingAssistantText = nil
         }
 
+        let prior = Array(thread.messages.dropLast())
+        answeringAssistant.restoreSession(
+            context: AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: scope),
+            messages: AskPromptBuilder.trimmedHistory(prior, provider: answerProvider)
+        )
+
         // Retrieval happens now — at ask time — because the query needs the
-        // question; the session context predates it.
+        // question; the session context predates it. The sheet's text is part
+        // of the query so a theorem it names is retrieved from the notes.
+        let sheetText = sheet.map { AskPromptBuilder.clippedSheetText($0.extractedText, provider: answerProvider) } ?? ""
+        let retrievalQuestion = [trimmed, sheetText].filter { !$0.isEmpty }.joined(separator: "\n")
         var retrieval = retrieveContext(
-            question: trimmed,
-            thread: thread,
+            question: retrievalQuestion,
+            scope: scope,
             provider: answerProvider
         ).clippedForPrompt(provider: answerProvider)
-        let sourceAnchors = resolvedSourceAnchors(thread: thread, retrieval: retrieval)
+        let sourceAnchors = resolvedSourceAnchors(thread: thread, scope: scope, retrieval: retrieval)
         retrieval.citableSources = sourceAnchors
+        retrieval.turnPreface = AskPromptBuilder.turnPreface(
+            scope: scope,
+            sheet: sheet,
+            depth: depth,
+            provider: answerProvider
+        )
 
         // onPartial already runs on the main actor (ReadingAssistantProtocol is
         // @MainActor); the coalescer keeps re-renders at ~12/s instead of per token.
@@ -179,7 +255,8 @@ final class SelectionThreadViewModel {
         let citationAudit = AnswerCitationAudit.evaluate(parsed.content, sources: sourceAnchors)
         let acceptedBasis: AnswerBasis = parsed.basis == .pdf && citationAudit.status != .idsResolve
             ? .unverified : parsed.basis
-        let pages = Array(Set([thread.pageIndex + 1] + retrieval.sourcePageNumbers)).sorted()
+        let selectionPages = scope.highlight == nil ? [] : [thread.pageIndex + 1]
+        let pages = Array(Set(selectionPages + retrieval.sourcePageNumbers)).sorted()
         let evidence = AnswerEvidence(
             basis: acceptedBasis,
             sourcePages: pages,
@@ -195,10 +272,14 @@ final class SelectionThreadViewModel {
         thread.messages.append(ThreadMessage(
             role: .assistant,
             content: parsed.content,
-            answerEvidence: evidence
+            answerEvidence: evidence,
+            answerDepth: depth
         ))
-        thread.isPersisted = true
-        activeThread = thread
+        if thread.anchorID != documentThread.anchorID {
+            thread.isPersisted = true
+        }
+        thread.streamingAssistantText = nil
+        commit(thread)
         onPersist(thread)
     }
 
@@ -215,20 +296,42 @@ final class SelectionThreadViewModel {
               let last = thread.messages.last,
               last.role == .user else { return nil }
         thread.messages.removeLast()
-        activeThread = thread
+        commit(thread)
         return last.content
+    }
+
+    private func scope(for thread: SelectionThread) -> AskScope {
+        let excerpt = thread.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !excerpt.isEmpty else { return .wholeDocument }
+        return .highlight(AskHighlightFocus(
+            pageIndex: thread.pageIndex,
+            excerpt: thread.selectedText,
+            surroundingText: thread.surroundingText,
+            fingerprint: "",
+            bounds: thread.bounds,
+            lines: thread.lines,
+            highlightID: thread.isPersisted ? thread.anchorID : nil
+        ))
+    }
+
+    private func commit(_ thread: SelectionThread) {
+        activeThread = thread
+        if thread.anchorID == documentThread.anchorID {
+            documentThread = thread
+        }
     }
 
     private func retrieveContext(
         question: String,
-        thread: SelectionThread,
+        scope: AskScope,
         provider: AssistantConnectorID
     ) -> AskRetrieval {
-        AskContextRetriever.retrieve(
+        let focus = scope.highlight
+        return AskContextRetriever.retrieve(
             question: question,
-            selectedText: thread.selectedText,
-            surroundingText: thread.surroundingText,
-            pageIndex: thread.pageIndex,
+            selectedText: focus?.excerpt ?? "",
+            surroundingText: focus?.surroundingText ?? "",
+            pageIndex: scope.pageIndex,
             referenceIndex: referenceIndex,
             documentIndex: documentIndex,
             // The on-device window is small; cloud/CLI providers can take more.
@@ -238,11 +341,13 @@ final class SelectionThreadViewModel {
 
     private func resolvedSourceAnchors(
         thread: SelectionThread,
+        scope: AskScope,
         retrieval: AskRetrieval
     ) -> [AnswerSourceAnchor] {
         guard let document = pdfDocument else { return [] }
         var anchors: [AnswerSourceAnchor] = []
-        if let page = document.page(at: thread.pageIndex),
+        if scope.highlight != nil,
+           let page = document.page(at: thread.pageIndex),
            let pageText = page.string,
            let source = LexicalDocumentIndex.sourceLocation(
                for: thread.selectedText,

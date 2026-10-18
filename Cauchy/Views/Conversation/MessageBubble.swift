@@ -6,6 +6,12 @@ struct MessageBubble: View {
     var quotedText: String?
     var maxBubbleWidth: CGFloat = 300
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
+    var referenceKeys: Set<ReferenceKey> = []
+    var referenceBlock: (DetectedReference) -> DocumentBlock? = { _ in nil }
+    var onOpenReference: (DetectedReference) -> Void = { _ in }
+    var onHoverReference: (DetectedReference) -> Void = { _ in }
+    /// Present on hint answers. Re-asks for the full worked solution.
+    var onShowFullSolution: (() -> Void)? = nil
 
     private var isUser: Bool {
         message.role == .user
@@ -61,7 +67,11 @@ struct MessageBubble: View {
                     MessageContentView(
                         content: message.content,
                         font: .body,
-                        textColor: .primary
+                        textColor: .primary,
+                        referenceKeys: referenceKeys,
+                        referenceBlock: referenceBlock,
+                        onOpenReference: onOpenReference,
+                        onHoverReference: onHoverReference
                     )
                 }
             }
@@ -70,8 +80,19 @@ struct MessageBubble: View {
                 MessageContentView(
                     content: message.content,
                     font: .body,
-                    textColor: .primary
+                    textColor: .primary,
+                    referenceKeys: referenceKeys,
+                    referenceBlock: referenceBlock,
+                    onOpenReference: onOpenReference,
+                    onHoverReference: onHoverReference
                 )
+                if message.answerDepth == .hint, let onShowFullSolution {
+                    Button("Show full solution", action: onShowFullSolution)
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundStyle(Color.accentColor)
+                        .help("Ask again for the full worked solution")
+                }
                 if let evidence = message.answerEvidence {
                     Divider().opacity(0.25)
                     Label(

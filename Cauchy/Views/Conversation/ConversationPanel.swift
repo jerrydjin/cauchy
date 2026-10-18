@@ -25,6 +25,18 @@ struct ConversationPanel<Header: View>: View {
     var onStop: () -> Void = {}
     var onModelChange: () -> Void = {}
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
+    var highlightTag: String? = nil
+    var sheetTag: String? = nil
+    var onRemoveHighlight: () -> Void = {}
+    var onRemoveSheet: () -> Void = {}
+    var onAttach: () -> Void = {}
+    var onDropProviders: ([NSItemProvider]) -> Void = { _ in }
+    var referenceKeys: Set<ReferenceKey> = []
+    var referenceBlock: (DetectedReference) -> DocumentBlock? = { _ in nil }
+    var onOpenReference: (DetectedReference) -> Void = { _ in }
+    var onHoverReference: (DetectedReference) -> Void = { _ in }
+    var onShowFullSolution: () -> Void = {}
+    var emptyPrompt: String = "Ask a question about this passage"
     @ViewBuilder var header: Header
 
     @State private var followsLatest = true
@@ -44,7 +56,7 @@ struct ConversationPanel<Header: View>: View {
                     }
 
                     if messages.isEmpty, !isResponding {
-                        Text("Ask a question about this passage")
+                        Text(emptyPrompt)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity)
@@ -57,7 +69,12 @@ struct ConversationPanel<Header: View>: View {
                             message: message,
                             quotedText: nil,
                             maxBubbleWidth: bubbleWidth,
-                            onOpenSource: onOpenSource
+                            onOpenSource: onOpenSource,
+                            referenceKeys: referenceKeys,
+                            referenceBlock: referenceBlock,
+                            onOpenReference: onOpenReference,
+                            onHoverReference: onHoverReference,
+                            onShowFullSolution: message.answerDepth == .hint ? { onShowFullSolution() } : nil
                         )
                         .id(message.id)
                     }
@@ -136,10 +153,16 @@ struct ConversationPanel<Header: View>: View {
             ConversationComposer(
                 question: $question,
                 isResponding: isResponding,
-                isEnabled: isAskAvailable && selectedText != nil,
+                isEnabled: isAskAvailable,
+                highlightTag: highlightTag,
+                sheetTag: sheetTag,
                 onSend: onSend,
                 onStop: onStop,
-                onModelChange: onModelChange
+                onModelChange: onModelChange,
+                onRemoveHighlight: onRemoveHighlight,
+                onRemoveSheet: onRemoveSheet,
+                onAttach: onAttach,
+                onDropProviders: onDropProviders
             )
         }
         .padding(.horizontal, 16)

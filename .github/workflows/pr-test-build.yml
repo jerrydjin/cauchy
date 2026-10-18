@@ -1,0 +1,98 @@
+name: PR test build
+
+# A downloadable ad-hoc DMG for the pull request. Tag releases stay in
+# release.yml; this workflow never creates a tag or a GitHub Release.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: xcode-27
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Local Packages
+        run: |
+          # The local package SwiftMath is not included directly or in submodules
+          mkdir -p Packages
+          rm -rf Packages/SwiftMath # Remove empty submodule reference if any
+          git clone --depth 1 --branch 1.7.3 https://github.com/mgriebling/SwiftMath.git Packages/SwiftMath
+
+      # Same non-tag version release.yml uses. A pull request is never a tag.
+      - name: Derive version from tag
+        id: version
+        run: echo "marketing=0.0.0-dev" >> "$GITHUB_OUTPUT"
+
+      # Archive without signing, then sign the bundle explicitly below. Letting
+      # xcodebuild sign would drag in automatic signing and a provisioning
+      # profile the runner does not have; signing after the fact keeps the
+      # signed and ad-hoc paths identical up to the choice of identity.
+      - name: Build and Archive
+        run: |
+          xcodebuild archive \
+            -project Cauchy.xcodeproj \
+            -scheme Cauchy \
+            -configuration Release \
+            -archivePath $PWD/build/Cauchy.xcarchive \
+            MARKETING_VERSION="${{ steps.version.outputs.marketing }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Always the ad-hoc path from release.yml. A test DMG must not use the
+      # Developer ID certificate or notarization.
+      - name: Sign app
+        run: |
+          set -euo pipefail
+          APP="build/Cauchy.xcarchive/Products/Applications/Cauchy.app"
+
+          # An ad-hoc signature cannot carry a trusted timestamp.
+          codesign --force --timestamp=none --options runtime \
+            --entitlements Cauchy/Cauchy.entitlements \
+            --sign "-" \
+            "$APP"
+
+          codesign --verify --strict --verbose=2 "$APP"
+
+      - name: Create DMG
+        run: |
+          # Start from nothing. `cp -R` merges into an existing bundle rather
+          # than replacing it, so any file present in a leftover app but not
+          # in the new one would ride along into the DMG. Harmless now that
+          # dmg_source is untracked, but the runner is not guaranteed clean.
+          rm -rf dmg_source
+          mkdir -p dmg_source
+          cp -R build/Cauchy.xcarchive/Products/Applications/Cauchy.app dmg_source/
+
+          # Create the DMG (using the modern diskutil command for macOS 27+)
+          rm -f Cauchy.dmg
+          diskutil image create from dmg_source --volumeName "Cauchy" --format UDZO Cauchy.dmg
+
+      # Catch a bad signature here rather than in a user's Downloads folder.
+      - name: Verify DMG
+        run: |
+          set -euo pipefail
+          MOUNT="$RUNNER_TEMP/verify"
+          mkdir -p "$MOUNT"
+          diskutil image attach Cauchy.dmg --mountOptions nobrowse --readOnly --mountPoint "$MOUNT"
+          # `diskutil image` has no detach subcommand; eject is the counterpart.
+          trap 'diskutil eject "$MOUNT" || true' EXIT
+
+          codesign --verify --deep --strict --verbose=2 "$MOUNT/Cauchy.app"
+          echo "::warning::Ad-hoc signed — the bundle is well formed, but Gatekeeper will still ask for approval."
+
+      - name: Upload test DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: cauchy-test-dmg
+          path: Cauchy.dmg
+          retention-days: 14

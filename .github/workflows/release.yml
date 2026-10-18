@@ -12,7 +12,6 @@ jobs:
 
     permissions:
       contents: write # needed for creating a release
-      actions: write # needed to upload a test DMG artifact
 
     steps:
       - name: Checkout Repository
@@ -176,16 +175,6 @@ jobs:
           else
             echo "::warning::Ad-hoc signed — the bundle is well formed, but Gatekeeper will still ask for approval."
           fi
-
-      # Manual test builds only. A tag push still publishes Cauchy.dmg on the
-      # GitHub Release and does not leave a workflow artifact behind.
-      - name: Upload test DMG
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: cauchy-test-dmg
-          path: Cauchy.dmg
-          retention-days: 14
 
       - name: Release
         uses: softprops/action-gh-release@v2

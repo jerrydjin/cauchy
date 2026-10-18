@@ -12,6 +12,8 @@ struct LearningSessionView: View {
     @State private var showingFullLesson = false
     @State private var showingCriteria = false
     @State private var showingPracticeHelp = false
+    @State private var clarificationContext: LearningClarificationContext?
+    @FocusState private var clarificationActionFocused: Bool
     @State private var chapterScroll = ScrollPosition()
 
     private enum SourceMode: Hashable { case currentPage, selection, pages }
@@ -90,6 +92,7 @@ struct LearningSessionView: View {
             showingFullLesson = false
             showingCriteria = false
             showingPracticeHelp = false
+            clarificationContext = nil
             if document.notesVisible { learning.openedSource() }
             focusAnswerIfNeeded()
         }
@@ -111,6 +114,12 @@ struct LearningSessionView: View {
         }
         .sheet(isPresented: $showingFullLesson) {
             if let session = learning.session { fullLesson(session) }
+        }
+        .sheet(item: $clarificationContext, onDismiss: {
+            focusAnswerIfNeeded()
+            if learning.session?.phase == .lesson { clarificationActionFocused = true }
+        }) { context in
+            LearningClarificationView(document: document, context: context)
         }
     }
 
@@ -409,6 +418,7 @@ struct LearningSessionView: View {
             case .example:
                 MessageContentView(content: session.lesson.workedExample)
             }
+            clarificationAction(session)
             DisclosureGroup("From your notes") {
                 Text(session.lesson.sourceQuote)
                     .font(.body).textSelection(.enabled).padding(.top, 8)
@@ -566,6 +576,7 @@ struct LearningSessionView: View {
                 }
 
                 if session.phase == .practice { practiceHelp(session, question: question) }
+                else { clarificationAction(session) }
             }
         }
     }
@@ -590,6 +601,7 @@ struct LearningSessionView: View {
                     Button("Show worked solution") { learning.revealSolution() }
                         .disabled(learning.isBusy)
                 }
+                clarificationAction(session)
             }
             .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
         } label: {
@@ -597,6 +609,8 @@ struct LearningSessionView: View {
                 Text("Help with this question")
                 if session.solutionRevealed {
                     Text("Worked solution viewed").font(.caption).foregroundStyle(.secondary)
+                } else if session.clarificationHelpUsed == true {
+                    Text("Tutor reply viewed").font(.caption).foregroundStyle(.secondary)
                 } else if session.hintsRevealed > 0 {
                     Text("\(session.hintsRevealed) \(session.hintsRevealed == 1 ? "hint" : "hints") used")
                         .font(.caption).foregroundStyle(.secondary)
@@ -610,6 +624,14 @@ struct LearningSessionView: View {
             Label(session.progressLabel, systemImage: session.passedExitCheck ? "checkmark.circle" : "text.bubble")
                 .font(.headline)
             Text(resultExplanation(session)).font(.body).foregroundStyle(.secondary)
+            if let exchanges = session.clarifications, !exchanges.isEmpty {
+                DisclosureGroup("Lesson questions (\(exchanges.count))") {
+                    ForEach(exchanges) { exchange in
+                        Button(exchange.question) { openClarification(exchange.context) }
+                            .buttonStyle(.borderless).padding(.top, 8)
+                    }
+                }
+            }
             if let attempt = session.latestExitAttempt {
                 Text("Your latest check").font(.headline)
                 MessageContentView(content: attempt.question.prompt)
@@ -783,7 +805,32 @@ struct LearningSessionView: View {
 
     private func focusAnswerIfNeeded() {
         answerFocused = learning.session?.question != nil && learning.session?.feedback == nil && !learning.isBusy
-            && learning.session?.chapter?.rescueVisible != true
+            && learning.session?.chapter?.rescueVisible != true && clarificationContext == nil
+    }
+
+    @ViewBuilder private func clarificationAction(_ session: LearningSession) -> some View {
+        if let context = session.clarificationContext,
+           session.feedback == nil || (session.clarifications ?? []).contains(where: { $0.context.id == context.id }) {
+            Button(session.clarificationHelpUsed == true ? "Review tutor help"
+                   : context.phase == .lesson ? "Ask about this step" : "Ask about this question", systemImage: "bubble.left") {
+                openClarification(context)
+            }
+            .buttonStyle(.borderless).focusable().focused($clarificationActionFocused)
+            .onKeyPress(keys: [.space, .return], phases: .down) { key in
+                guard key.modifiers.isEmpty else { return .ignored }
+                openClarification(context)
+                return .handled
+            }
+            .disabled(learning.isBusy || (!assistantAvailable && !(session.clarifications ?? []).contains { $0.context.id == context.id }))
+        }
+    }
+
+    private func openClarification(_ context: LearningClarificationContext) {
+        guard !learning.isBusy else { return }
+        answerFocused = false
+        clarificationActionFocused = false
+        learning.openedClarifications(for: context)
+        clarificationContext = context
     }
 
     private func startLearning() {

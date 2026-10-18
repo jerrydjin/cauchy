@@ -13,6 +13,8 @@ When a source fault blocks the next unchecked lesson, its primary action is **Re
 
 Cauchy should help a learner demonstrate a useful ability from their own notes. The first unit is one complete idea, with a short explanation, a worked example, practice, and a different exit problem. The ambition of learning a subject in eight hours is a hypothesis to evaluate against a defined syllabus and starting knowledge, not a guarantee to put in the interface.
 
+**Ask about this step** opens a focused clarification panel attached to the current teaching. Question drafts and exchanges retain their exact context across restarts. During an unanswered assessment, viewing a tutor reply records help; graded answers expose saved explanations read-only. Model-declared source basis and exact quotation locations live in Source details, without treating quotations as proof of the explanation. The [clarification audit](evaluation/learning-clarification.md) distinguishes native offline checks, production-validator regressions and three live prompt observations.
+
 ## A separate learning workspace
 
 Learn is a dedicated native window, opened from the library, the reader toolbar, or Learn ▸ Open Learning Workspace (Shift-Command-L). It has a notes-and-sections sidebar and a wider study area. Source notes are optional in an inspector; they do not occupy the primary study space by default. The reader's glass control switches only between Highlights and Reference. A highlight can still send its passage and page into a new learning section.

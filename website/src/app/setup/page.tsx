@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { assistants } from "@/lib/assistants";
 
 export const metadata = {
   title: "Setup | Cauchy",
   description:
-    "Install Cauchy on macOS and connect an assistant: Apple Intelligence, Claude Code, Codex, Antigravity, or a Gemini API key.",
+    "Install Cauchy on macOS, connect an assistant or API key, export highlights, and move reading sessions between Macs.",
 };
 
 const REPO_URL = "https://github.com/jerrydjin/cauchy";
@@ -30,9 +31,8 @@ export default function SetupPage() {
       </h1>
 
       <p className="text-[18px] leading-relaxed text-secondary">
-        Cauchy is a native macOS app. Installing it takes one download; picking where
-        answers come from takes one more step, and one of the five options needs nothing
-        at all.
+        Install the native macOS reader, connect one of {assistants.length} assistant
+        options, and keep your reading work with you.
       </p>
 
       <div className="max-w-none text-[16px] leading-relaxed text-secondary">
@@ -66,8 +66,8 @@ export default function SetupPage() {
           for why.
         </p>
         <p className="mt-4">
-          Releases are signed ad-hoc rather than with a paid Developer ID, so the first
-          launch shows &ldquo;Apple could not verify Cauchy is free of malware&rdquo;. Open it once
+          Ad-hoc signed builds can show &ldquo;Apple could not verify Cauchy is free of
+          malware&rdquo; on first launch. If that happens, open it once
           from <strong className="text-primary">System Settings &gt; Privacy &amp; Security &gt; Open Anyway</strong>,
           and macOS stops asking.
         </p>
@@ -97,92 +97,68 @@ export default function SetupPage() {
           Choose an assistant
         </h2>
         <p>
-          The connector picker sits next to the ask field, and Settings remembers your
-          choice. Every option bills to you, not to Cauchy: an on-device model costs
-          nothing, a CLI rides the subscription you already pay for, and the Gemini API
-          uses your own key.
+          Choose an assistant beside the ask field or in Settings → Assistant → Ask
+          uses. Automatic picks a ready Claude Code, Codex or Antigravity CLI first,
+          then Apple Intelligence, then an available API key. Choose Apple Intelligence
+          explicitly when you want answers to stay on-device.
+        </p>
+        <p className="mt-4">
+          For CLI connectors, open Settings → Connect your assistant and choose
+          Install &amp; connect, or Connect if already installed. The guided flow
+          installs the official CLI, opens provider sign-in in an embedded terminal,
+          and checks the connection. Choose Use to select the connected assistant.
+          Some connection checks send a tiny test message using your plan, without
+          sharing a document.
+        </p>
+        <p className="mt-4">
+          API connectors use Settings → Your API keys. Usage is billed by the
+          provider separately from your consumer subscription. Keys are stored in
+          the macOS Keychain and sent only to their corresponding vendor.
         </p>
 
-        <h3 className="text-xl mt-8 mb-4 text-primary font-medium">
-          Apple Intelligence &mdash; nothing to set up
-        </h3>
+        {assistants.map((assistant) => (
+          <section key={assistant.id}>
+            <h3 className="text-xl mt-8 mb-4 text-primary font-medium">{assistant.name}</h3>
+            <p>{assistant.description}</p>
+            <p className="mt-2">
+              <a href={assistant.url} target="_blank" rel="noopener noreferrer" className={inline}>
+                {assistant.id === "onDevice" ? "Apple Intelligence requirements" :
+                  ["anthropicAPI", "openaiAPI", "gemini"].includes(assistant.id) ? "Get an API key" : "Official CLI documentation"}
+              </a>
+            </p>
+          </section>
+        ))}
+
+        <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">Reference indexing</h2>
         <p>
-          Turn on{" "}
-          <a href="https://www.apple.com/apple-intelligence/" target="_blank" rel="noopener noreferrer" className={inline}>
-            Apple Intelligence
-          </a>{" "}
-          in System Settings and Cauchy can use the system model through Apple&apos;s{" "}
-          <a href="https://developer.apple.com/documentation/foundationmodels" target="_blank" rel="noopener noreferrer" className={inline}>
-            Foundation Models
-          </a>{" "}
-          framework. There is one model, so no model picker appears. Reference indexing
-          prefers this connector even when you ask questions with another one.
+          Indexing prefers Apple Intelligence independently of the assistant selected
+          for Ask. If the local model is unavailable, it can use a saved Gemini,
+          Anthropic or OpenAI API key. In the Reference panel or Reading → Rebuild
+          Reference Index, choose any available assistant model to rebuild. The panel
+          records which model built the index. Cloud API indexing can send page text
+          and rendered page images; CLI indexing sends text. See the{" "}
+          <Link href="/legal/privacy" className={inline}>privacy policy</Link>.
         </p>
 
-        <h3 className="text-xl mt-8 mb-4 text-primary font-medium">
-          Claude Code &mdash; your Anthropic subscription
-        </h3>
-        <p>
-          Install{" "}
-          <a href="https://docs.claude.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer" className={inline}>
-            Claude Code
-          </a>
-          , then run <code className={code}>claude</code> in Terminal and log in. Cauchy
-          detects the <code className={code}>claude</code> binary, spawns it per ask, and
-          never sees your credentials. Models offered: Fable, Opus, Sonnet and Haiku.
-        </p>
-
-        <h3 className="text-xl mt-8 mb-4 text-primary font-medium">
-          Codex &mdash; your ChatGPT plan
-        </h3>
-        <p>
-          Install OpenAI&apos;s{" "}
-          <a href="https://github.com/openai/codex" target="_blank" rel="noopener noreferrer" className={inline}>
-            Codex CLI
-          </a>{" "}
-          and sign in once:
-        </p>
-        <Block>brew install codex &amp;&amp; codex login</Block>
-        <p>
-          The picker then offers GPT-6 Astra, Sol and Luna.
-        </p>
-
-        <h3 className="text-xl mt-8 mb-4 text-primary font-medium">
-          Antigravity &mdash; your Google sign-in
-        </h3>
-        <p>
-          Install{" "}
-          <a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer" className={inline}>
-            Antigravity
-          </a>
-          &apos;s CLI, then run <code className={code}>agy</code> and sign in with Google:
-        </p>
-        <Block>curl -fsSL https://antigravity.google/cli/install.sh | bash</Block>
-        <p>
-          <code className={code}>agy</code> takes no model argument, so Cauchy shows no
-          model picker for it &mdash; set the model with <code className={code}>/model</code>{" "}
-          inside agy and Cauchy follows it.
-        </p>
-
-        <h3 className="text-xl mt-8 mb-4 text-primary font-medium">
-          Gemini API &mdash; bring your own key
-        </h3>
-        <p>
-          Create a key in{" "}
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className={inline}>
-            Google AI Studio
-          </a>{" "}
-          and paste it into Cauchy&apos;s Settings. It is stored in the macOS Keychain, never
-          in a plist, and usage is billed to your Google account. Gemini is also the
-          fallback that builds reference indexes on Macs without Apple Intelligence. You can
-          also choose another available model when rebuilding an index.
+        <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">Keep your reading work</h2>
+        <ul className="list-disc pl-6 space-y-2">
+          <li>File → Export Highlights as Markdown includes conversations, answer evidence boundaries and supplied pages.</li>
+          <li>File → Save a Copy with Highlights creates PDF annotations readable in Preview.</li>
+          <li>File → Export Reading Session saves the PDF, page and zoom, highlights, conversations, and completed evidence index and citation graph in a .cauchyreading package.</li>
+          <li>Move that package to another Mac and use File → Open Reading Session or open it in Finder. Evidence stays bound to the packaged PDF with its model provenance; OCR navigation candidates are excluded.</li>
+        </ul>
+        <p className="mt-4">
+          The dashboard searches highlights and conversations across your library.
+          Hide from Recents keeps your work, and Show hidden restores papers. Use
+          ⌘N for another reading window, ⇧⌘I to hide the context panel, and
+          Settings → Reading to control reopening the last document at launch.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">
           Why the app is unsandboxed
         </h2>
         <p>
-          Three of the five connectors work by spawning a CLI that lives in your shell.
+          Claude Code, Codex and Antigravity work by spawning a locally installed CLI.
           The macOS{" "}
           <a href={`${REPO_URL}#sandbox`} target="_blank" rel="noopener noreferrer" className={inline}>
             App Sandbox
@@ -200,7 +176,7 @@ export default function SetupPage() {
           </li>
           <li>
             <code className={code}>~/Library/Application Support/Cauchy/reference-index/</code>{" "}
-            &mdash; cached theorem and definition indexes, rebuilt on demand.
+            &mdash; cached reference indexes and citation graphs, rebuilt on demand.
           </li>
           <li>
             Sidecar files written beside the PDF by older versions are migrated on open.

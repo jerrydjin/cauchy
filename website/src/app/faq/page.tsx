@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { assistants } from "@/lib/assistants";
 
 export const metadata = {
   title: "FAQ | Cauchy",
@@ -43,64 +44,96 @@ export default function FAQPage() {
       <div className="space-y-12 mt-12">
         <Q q="What is Cauchy?">
           <p>
-            A native macOS app for reading PDFs that argue with you. Open a paper,
+            A native macOS PDF reader for studying mathematics. Open a paper,
             highlight a line or drag a box around a figure, and ask about it; the answer
             appears in a thread pinned to that spot, with mathematics typeset properly. It
-            is built for dense technical textbooks, mathematics papers and problem sets,
-            not for contracts or slide decks.
+            is built for dense technical textbooks, mathematics papers and problem sets.
           </p>
         </Q>
 
         <Q q="What can it actually do?">
           <ul className="list-disc pl-6 space-y-2">
-            <li>
-              Highlights that carry a conversation, saved with the document and named by
-              the model after the first answer.
-            </li>
-            <li>
-              Hover previews for cited results &mdash; theorems, lemmas, propositions,
-              corollaries, definitions, examples and numbered equations get indexed, so
-              &ldquo;by Theorem 2.1&rdquo; shows its statement without a page jump.
-            </li>
-            <li>
-              Retrieval that reaches the rest of the document: BM25 keyword search plus
-              on-device sentence embeddings supply passages from other pages.
-            </li>
-            <li>
-              On-device OCR for equations the PDF stores as artwork, converted back to
-              LaTeX before the question is sent.
-            </li>
-            <li>
-              Reading essentials: continuous / single-page / two-up layouts, thumbnails,
-              table of contents, contact sheet, ⌘F find, and a dashboard of recent
-              documents.
-            </li>
+            <li>Highlights in five colours with saved AI conversations, undo for recolouring and deletion, and confirmation before deleting a conversation.</li>
+            <li>Evidence-bound answers with LaTeX, provider/model provenance, supplied pages and clickable original-PDF regions when the source can be located exactly.</li>
+            <li>Reference previews for numbered statements, equations and figure captions, leading with PDF text and the original page, with AI formatting shown separately.</li>
+            <li>Retrieval from other pages using keyword search and on-device sentence embeddings, plus library-wide search of highlights and conversations.</li>
+            <li>Local OCR with LaTeX formatting; unverified OCR reference candidates on scans are for navigation and are excluded from Ask evidence and portable indexes.</li>
+            <li>Markdown and annotated PDF export, plus portable .cauchyreading sessions to resume on another Mac.</li>
+            <li>Continuous, single-page and two-up layouts, thumbnails, contents, contact sheet, ⌘F find, and one document per window with ⌘N.</li>
+            <li>A recent-document dashboard with Hide from Recents and Show hidden; hiding preserves your reading work.</li>
           </ul>
+        </Q>
+
+        <Q q="Do the evidence labels guarantee that an answer is correct?">
+          <p>
+            No. An answer records the model&apos;s declared boundary: PDF-only claims,
+            outside knowledge, insufficient evidence or an unverified basis. Cauchy
+            records which PDF pages it supplied and checks cited source IDs against
+            supplied locations. Missing or invalid links remain visible. These checks
+            do not prove that every claim follows from the PDF; inspect the original
+            page and verify the mathematics.
+          </p>
+        </Q>
+
+        <Q q="How do reference previews and scanned pages work?">
+          <p>
+            Apple Intelligence builds the index by default. If unavailable, a saved
+            Gemini, Anthropic or OpenAI key can supply the fallback. You can also
+            rebuild with any available assistant model in the Reference panel or
+            Reading → Rebuild Reference Index. The panel keeps the builder&apos;s
+            provenance and leads with source evidence rather than AI formatting.
+          </p>
+          <p>
+            On image-only pages, or pages with only a watermark or page number,
+            conservative local OCR may find a numbered heading or equation label.
+            Orange candidates show the imperfect line and its page region, are
+            unverified, and never become Ask reference evidence or portable evidence.
+            If no reliable label is found, Cauchy reports the limitation.
+          </p>
+        </Q>
+
+        <Q q="Can I export highlights and conversations?">
+          <p>
+            File → Export Highlights as Markdown saves your highlights and threads,
+            including each answer&apos;s evidence boundary and supplied pages. File →
+            Save a Copy with Highlights writes real PDF annotations so the highlights
+            also appear in Preview. Copy All Highlights as Markdown is available too.
+          </p>
+        </Q>
+
+        <Q q="Can I continue reading on another Mac?">
+          <p>
+            File → Export Reading Session creates a .cauchyreading package containing
+            the PDF, page and zoom, highlights, conversations, and any completed
+            evidence index and citation graph. Transfer it yourself, then use File →
+            Open Reading Session or open the package in Finder on the other Mac.
+            Imported evidence is SHA-256-bound to the packaged PDF and retains its
+            model provenance; older sessions remain compatible. This is a manual
+            transfer, with no account or automatic sync.
+          </p>
+        </Q>
+
+        <Q q="How do I find an old conversation or restore a hidden paper?">
+          <p>
+            Use the dashboard search to find highlights and conversations across
+            documents, then jump to a result. Hide from Recents preserves your work;
+            Show hidden lets you restore a paper. Cauchy reopens the last document at
+            launch by default; turn that off in Settings → Reading. Use ⇧⌘I to
+            collapse the context panel while reading.
+          </p>
         </Q>
 
         <Q q="Which assistants can it use?">
           <p>
-            Five connectors:{" "}
-            <a href="https://www.apple.com/apple-intelligence/" target="_blank" rel="noopener noreferrer" className={inline}>
-              Apple Intelligence
-            </a>{" "}
-            on-device,{" "}
-            <a href="https://docs.claude.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer" className={inline}>
-              Claude Code
-            </a>
-            ,{" "}
-            <a href="https://github.com/openai/codex" target="_blank" rel="noopener noreferrer" className={inline}>
-              Codex
-            </a>{" "}
-            and{" "}
-            <a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer" className={inline}>
-              Antigravity
-            </a>{" "}
-            through their CLIs, and the{" "}
-            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className={inline}>
-              Gemini API
-            </a>{" "}
-            with your own key. The{" "}
+            {assistants.length} connectors: {assistants.map((assistant, index) => (
+              <span key={assistant.id}>
+                {index > 0 ? ", " : ""}
+                <a href={assistant.url} target="_blank" rel="noopener noreferrer" className={inline}>
+                  {assistant.name}
+                </a>
+              </span>
+            ))}. The CLI connectors use your provider sign-in; the three APIs use
+            your own keys. The{" "}
             <Link href="/setup" className={inline}>
               setup guide
             </Link>{" "}
@@ -112,29 +145,31 @@ export default function FAQPage() {
           <p>
             The app is free. Apple Intelligence costs nothing to run. The CLI connectors
             bill against the Anthropic, OpenAI or Google plan you already have, and the
-            Gemini API bills your own key. Cauchy has no server, no account and no
+            Anthropic, OpenAI and Gemini APIs bill your own keys separately. Cauchy has no server, no account and no
             subscription of its own.
           </p>
         </Q>
 
         <Q q="Where is my data stored?">
           <p>
-            Locally, and only locally. Workspaces &mdash; highlights, threads, viewport
+            Saved locally on your Mac. Workspaces &mdash; highlights, threads, viewport
             state and thumbnails &mdash; live in{" "}
             <code className={code}>~/Library/Application Support/Cauchy/workspaces/</code>,
             and cached reference indexes in{" "}
             <code className={code}>~/Library/Application Support/Cauchy/reference-index/</code>.
-            A Gemini API key, if you add one, is kept in the macOS Keychain.
+            API keys are kept in the macOS Keychain. Exported reading sessions go
+            wherever you save them; there is no automatic cloud sync.
           </p>
         </Q>
 
         <Q q="Does Cauchy send my PDFs to the cloud?">
           <p>
-            The file itself is never uploaded. With a cloud connector, what leaves your
-            Mac is the question, the highlighted passage and the text around it, plus the
-            statements and passages retrieval pulled from elsewhere in the document &mdash;
-            subject to that provider&apos;s own terms. With Apple Intelligence, nothing
-            leaves the machine.
+            Ask sends your question, selected text, surrounding context, conversation
+            history and retrieved PDF passages to the cloud connector you choose.
+            Reference indexing is a separate operation: using a cloud API can send
+            page text and rendered page images, while CLI indexing sends page text.
+            Apple Intelligence runs on-device. Provider requests are subject to their
+            own terms.
           </p>
           <p>
             Cauchy itself collects no telemetry and no analytics. See the{" "}
@@ -147,8 +182,10 @@ export default function FAQPage() {
 
         <Q q="Does it work offline?">
           <p>
-            With the Apple Intelligence connector, yes &mdash; reading, highlighting, OCR,
-            retrieval and reference indexing all run on-device. The CLI and Gemini
+            Reading, highlighting, local OCR, search and exports work offline.
+            Answers and reference indexing can run locally when Apple Intelligence
+            is enabled and available. Choose it explicitly for on-device answers:
+            Automatic prefers a ready CLI before the local model. All CLI and API
             connectors need a network.
           </p>
         </Q>
@@ -168,8 +205,8 @@ export default function FAQPage() {
 
         <Q q="macOS says the app is damaged, or cannot be verified. Now what?">
           <p>
-            &ldquo;Apple could not verify&hellip;&rdquo; is expected: releases are signed ad-hoc, not
-            with a paid Developer ID. Open the app once from{" "}
+            Ad-hoc signed releases can show &ldquo;Apple could not verify&hellip;&rdquo;.
+            If that happens, open the app once from{" "}
             <strong className="text-primary">System Settings &gt; Privacy &amp; Security &gt; Open Anyway</strong>.
           </p>
           <p>

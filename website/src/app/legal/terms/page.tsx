@@ -20,7 +20,7 @@ export default function TermsPage() {
 
       <div className="max-w-none text-[16px] leading-relaxed text-secondary [&>p]:mb-4">
         <p className="text-secondary text-lg mb-8">
-          Last updated: August 15, 2026
+          Last updated: October 10, 2026
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">1. The Software</h2>
@@ -52,7 +52,7 @@ export default function TermsPage() {
         <p>
           Cauchy answers questions through a provider you choose: the on-device Apple
           Intelligence model, the Claude Code, Codex or Antigravity CLIs you have signed
-          into, or the Gemini API with your own key. You are solely responsible for any
+          into, or the Anthropic, OpenAI or Gemini API with your own key. You are solely responsible for any
           costs, rate limits, quota exhaustion or account restrictions those services
           impose.
         </p>
@@ -60,6 +60,12 @@ export default function TermsPage() {
           Cauchy is not affiliated with Apple, Anthropic, OpenAI or Google. Your use of
           their services is governed by your agreements with them, and the accuracy of any
           answer is theirs, not ours &mdash; verify mathematics before you rely on it.
+        </p>
+        <p>
+          Evidence labels record the model&apos;s declared basis and the PDF inputs
+          supplied to it. Source-link checks do not prove that an answer follows from
+          those inputs. AI formatting and unverified OCR candidates can contain errors;
+          inspect the original PDF before relying on them.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">
@@ -77,12 +83,14 @@ export default function TermsPage() {
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">5. Your Content</h2>
         <p>
-          Your documents, highlights and threads are yours and stay on your machine. See
+          Your documents, highlights and threads are yours and are saved locally.
+          Exports, including reading sessions containing the PDF and conversations,
+          go wherever you save or share them. See
           the{" "}
           <Link href="/legal/privacy" className={inline}>
             privacy policy
           </Link>{" "}
-          for exactly what a question sends to a cloud provider.
+          for what Ask and reference indexing send to a cloud provider.
         </p>
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">6. Changes</h2>

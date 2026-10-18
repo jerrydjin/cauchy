@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import MathBackground from "@/components/MathBackground";
+import { assistants } from "@/lib/assistants";
 
 const DOWNLOAD_URL =
   "https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg";
@@ -48,8 +49,8 @@ export default function Home() {
           </div>
 
           <p className="text-[14px] text-secondary mb-20">
-            Free and MIT licensed. Requires macOS 27 (Golden Gate) or later; the first
-            launch needs Open Anyway ·{" "}
+            Free and MIT licensed. Requires macOS 27 (Golden Gate) or later; ad-hoc
+            signed builds need Open Anyway ·{" "}
             <Link href="/setup" className={inline}>
               installation notes
             </Link>{" "}
@@ -65,9 +66,11 @@ export default function Home() {
           </p>
 
           {/* Hero Image / App Mockup Area */}
-          <div className="w-full max-w-[1200px] bg-card rounded-3xl flex items-center justify-center overflow-hidden relative">
-            <Image src="/app-screenshot.png" width={2400} height={1600} className="w-full h-auto" alt="Cauchy Interface" priority quality={100} />
-          </div>
+          <figure className="w-full max-w-[1200px]">
+            <div className="bg-card rounded-3xl overflow-hidden relative">
+              <Image src="/app-screenshot.png" width={3300} height={2168} className="w-full h-auto" alt="Cauchy showing a highlighted Cayley–Hamilton theorem and a conversation with answer evidence and PDF source links" priority quality={100} />
+            </div>
+          </figure>
         </div>
       </section>
 
@@ -107,16 +110,16 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Large Card 1 */}
-            <div className="bg-card rounded-3xl p-12 min-h-[500px] flex flex-col relative overflow-hidden group">
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[500px] flex flex-col relative overflow-hidden group">
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary max-w-[80%] z-10 mb-4">
                 <span className="text-primary">Highlight & Chat</span><br/> Ask questions directly in context
               </h3>
               <p className="text-[16px] text-secondary z-10 mb-8 max-w-[80%] leading-relaxed">
                 Select a line of text or drag a box around a figure. Cauchy saves the
-                highlight and opens a thread pinned to that spot, and sends the assistant
-                the passage, the text around it, and the page it came from. Threads are
-                saved with the document and get a title of their own once the first answer
-                lands.
+                highlight and opens a thread pinned to that spot. Answers keep their
+                provider, model, supplied PDF pages and model-declared boundary: PDF basis,
+                outside knowledge, insufficient evidence or unverified. Click source
+                links to inspect the original PDF; page access does not prove a claim.
               </p>
 
               {/* Simple Chat UI Mockup */}
@@ -128,26 +131,25 @@ export default function Home() {
                 </div>
                 <div className="w-full flex justify-start">
                   <div className="bg-card border border-border/50 px-4 py-3 rounded-2xl rounded-tl-none text-sm inline-block max-w-[90%] text-secondary leading-relaxed">
-                    Certainly. The proof relies on induction. First, we establish the base case where <span className="font-mono text-xs bg-border/50 px-1 py-0.5 rounded text-primary">n = 1</span>, which trivially holds by definition. Then, assuming the property holds for <span className="font-mono text-xs bg-border/50 px-1 py-0.5 rounded text-primary">k</span>, we can show it holds for <span className="font-mono text-xs bg-border/50 px-1 py-0.5 rounded text-primary">k + 1</span>...
+                    <p className="text-xs font-medium text-primary mb-2">Illustrative answer · Insufficient evidence</p>
+                    The supplied passage states Lemma 4.1, but does not include its proof.
+                    I need the proof page to explain the author&apos;s argument.
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Large Card 2 */}
-            <div className="bg-card rounded-3xl p-12 min-h-[500px] flex flex-col relative overflow-hidden group">
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[500px] flex flex-col relative overflow-hidden group">
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary max-w-[80%] z-10 mb-4">
                 <span className="text-primary">Reference Previews</span><br/> Never lose your place again
               </h3>
               <p className="text-[16px] text-secondary z-10 mb-8 max-w-[80%] leading-relaxed">
                 When an author cites &ldquo;Theorem 2.1&rdquo; forty pages later, hover it.
-                Cauchy indexes the theorems, lemmas, propositions, corollaries, definitions,
-                examples and numbered equations in the document &mdash; on-device with{" "}
-                <a href="https://www.apple.com/apple-intelligence/" target="_blank" rel="noopener noreferrer" className={inline}>
-                  Apple Intelligence
-                </a>
-                , or with your Gemini key as a fallback &mdash; then caches the result so the
-                statement appears in place.
+                Previews lead with the original PDF text and page for numbered statements,
+                equations and figure captions, with AI formatting labelled separately.
+                Later printed mentions stay collapsed. Indexing prefers Apple Intelligence;
+                rebuild with any available assistant model from the Reference panel.
               </p>
 
               {/* Abstract Reference Hover Mockup */}
@@ -157,7 +159,8 @@ export default function Home() {
                  </div>
                  {/* Hover Popover */}
                  <div className="bg-card border border-border shadow-sm rounded-xl p-4 w-4/5">
-                   <div className="text-sm font-medium text-primary mb-2">Theorem 2.1</div>
+                   <div className="text-sm font-medium text-primary mb-2">Theorem 2.1 · p. 12</div>
+                   <div className="text-xs text-secondary mb-2">Source evidence · Original PDF</div>
                    <div className="w-full h-1.5 bg-border rounded-full mb-1.5"></div>
                    <div className="w-3/4 h-1.5 bg-border rounded-full"></div>
                  </div>
@@ -165,7 +168,7 @@ export default function Home() {
             </div>
 
             {/* Small Card 1 */}
-            <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
                 Native LaTeX rendering
               </h3>
@@ -180,7 +183,7 @@ export default function Home() {
             </div>
 
             {/* Small Card 2 */}
-            <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
                 On-device OCR for equations
               </h3>
@@ -189,13 +192,15 @@ export default function Home() {
                 <a href="https://developer.apple.com/documentation/vision" target="_blank" rel="noopener noreferrer" className={inline}>
                   Vision
                 </a>{" "}
-                framework recognizes the text on your Mac, and Cauchy turns the result back
-                into LaTeX before the question goes out.
+                framework recognizes text locally, with LaTeX formatting and copying.
+                On scanned pages, orange OCR reference candidates retain the imperfect
+                transcript and page region for inspection. These navigation candidates
+                are unverified and are excluded from Ask evidence and portable indexes.
               </p>
             </div>
 
             {/* Small Card 3 */}
-            <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
                 Retrieval across the whole document
               </h3>
@@ -205,13 +210,14 @@ export default function Home() {
                 <a href="https://en.wikipedia.org/wiki/Okapi_BM25" target="_blank" rel="noopener noreferrer" className={inline}>
                   BM25
                 </a>{" "}
-                keyword search with on-device sentence embeddings, so page 12 can answer a
-                question you asked on page 200.
+                keyword search with on-device sentence embeddings. Saved answers retain
+                clickable PDF regions when a supplied passage can be located exactly.
+                The links identify inputs to the answer; they do not verify its reasoning.
               </p>
             </div>
 
             {/* Small Card 4 */}
-            <div className="bg-card rounded-3xl p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[300px] flex flex-col justify-center relative overflow-hidden group">
               <h3 className="text-[28px] font-medium tracking-[-0.02em] leading-[1.2] text-primary mb-3">
                 A workspace, not a viewer
               </h3>
@@ -219,7 +225,42 @@ export default function Home() {
                 Continuous, single-page and two-up layouts, a sidebar that switches between
                 thumbnails, table of contents and contact sheet, in-document find (⌘F), and a
                 dashboard of recent documents. Scroll position, highlights and threads are
-                restored per document.
+                restored per document. Open another window with ⌘N, hide the context
+                panel with ⇧⌘I, and use Fit to Width as your reading area changes.
+              </p>
+            </div>
+
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[300px] flex flex-col justify-center">
+              <h3 className="text-[28px] font-medium tracking-[-0.02em] text-primary mb-3">
+                Highlights you can keep
+              </h3>
+              <p className="text-[16px] text-secondary leading-relaxed">
+                Organise highlights in five marker colours. Recolouring and deletion
+                support ⌘Z, and deleting a conversation asks first. Export highlights,
+                threads and answer evidence as Markdown, or save a PDF copy with real
+                annotations that stay visible in Preview.
+              </p>
+            </div>
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[300px] flex flex-col justify-center">
+              <h3 className="text-[28px] font-medium tracking-[-0.02em] text-primary mb-3">
+                Continue on another Mac
+              </h3>
+              <p className="text-[16px] text-secondary leading-relaxed">
+                File → Export Reading Session bundles your PDF, page and zoom,
+                highlights, conversations, and completed evidence index and citation
+                graph into a .cauchyreading file. Open it on another Mac to resume.
+                Imported evidence is bound to the PDF and keeps its model provenance.
+              </p>
+            </div>
+            <div className="bg-card rounded-3xl p-8 sm:p-12 min-h-[300px] flex flex-col justify-center md:col-span-2">
+              <h3 className="text-[28px] font-medium tracking-[-0.02em] text-primary mb-3">
+                Find a thought across your library
+              </h3>
+              <p className="text-[16px] text-secondary leading-relaxed max-w-3xl">
+                Search highlights and conversations across every document from the
+                dashboard, then jump to the result. Hide a paper from Recents without
+                losing its conversations, and restore it with Show hidden. The last
+                document reopens at launch; change that in Settings → Reading.
               </p>
             </div>
 
@@ -234,70 +275,25 @@ export default function Home() {
             Bring your own intelligence.
           </h2>
           <p className="text-[18px] text-secondary max-w-2xl mx-auto mb-16">
-            Five places an answer can come from. Cauchy sells no tokens and resells no
-            plan &mdash; it uses the model you already pay for, or none at all.{" "}
+            {assistants.length} assistant connectors: on-device intelligence, your existing
+            CLI sign-ins, or your own Anthropic, OpenAI or Gemini API key. Cauchy
+            charges no subscription; provider plans and API usage are yours.{" "}
             <Link href="/setup" className={inline}>
               See the setup guide
             </Link>
             .
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
-            <div className="bg-card p-12 rounded-3xl">
-              <h3 className="text-2xl font-medium text-primary mb-4">Apple Intelligence</h3>
-              <p className="text-[16px] text-secondary leading-relaxed">
-                The system model, running entirely on your Mac through the{" "}
-                <a href="https://developer.apple.com/documentation/foundationmodels" target="_blank" rel="noopener noreferrer" className={inline}>
-                  Foundation Models
-                </a>{" "}
-                framework. No key, no network, nothing to sign into. It is also what builds
-                the reference index by default.
-              </p>
-            </div>
-            <div className="bg-card p-12 rounded-3xl">
-              <h3 className="text-2xl font-medium text-primary mb-4">Claude Code</h3>
-              <p className="text-[16px] text-secondary leading-relaxed">
-                Your Anthropic subscription, through the{" "}
-                <a href="https://docs.claude.com/en/docs/claude-code/overview" target="_blank" rel="noopener noreferrer" className={inline}>
-                  claude
-                </a>{" "}
-                CLI you already signed into. Pick Fable, Opus, Sonnet or Haiku per thread.
-                Cauchy spawns the binary and never handles a credential.
-              </p>
-            </div>
-            <div className="bg-card p-12 rounded-3xl">
-              <h3 className="text-2xl font-medium text-primary mb-4">Codex</h3>
-              <p className="text-[16px] text-secondary leading-relaxed">
-                Your ChatGPT plan, through OpenAI&apos;s{" "}
-                <a href="https://github.com/openai/codex" target="_blank" rel="noopener noreferrer" className={inline}>
-                  Codex CLI
-                </a>
-                . Install it with <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">brew install codex</code>,
-                run <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">codex login</code> once, and choose
-                GPT-6 Astra, Sol or Luna in the picker.
-              </p>
-            </div>
-            <div className="bg-card p-12 rounded-3xl">
-              <h3 className="text-2xl font-medium text-primary mb-4">Antigravity</h3>
-              <p className="text-[16px] text-secondary leading-relaxed">
-                Your Google sign-in, through the{" "}
-                <a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer" className={inline}>
-                  agy
-                </a>{" "}
-                CLI. It takes no model flag, so the model stays whatever you set with{" "}
-                <code className="bg-border/60 px-1.5 py-0.5 rounded text-[14px] whitespace-nowrap">/model</code> inside agy.
-              </p>
-            </div>
-            <div className="bg-card p-12 rounded-3xl">
-              <h3 className="text-2xl font-medium text-primary mb-4">Gemini API</h3>
-              <p className="text-[16px] text-secondary leading-relaxed">
-                Direct API access with your own key from{" "}
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className={inline}>
-                  Google AI Studio
-                </a>
-                . The key is stored in your macOS Keychain and billed to your account; Pro,
-                Flash and Flash-Lite tiers are selectable.
-              </p>
-            </div>
+            {assistants.map((assistant) => (
+              <div key={assistant.id} className="bg-card p-8 sm:p-12 rounded-3xl">
+                <h3 className="text-2xl font-medium text-primary mb-4">
+                  <a href={assistant.url} target="_blank" rel="noopener noreferrer" className={inline}>
+                    {assistant.name}
+                  </a>
+                </h3>
+                <p className="text-[16px] text-secondary leading-relaxed">{assistant.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -320,7 +316,7 @@ export default function Home() {
             <div className="bg-card p-10 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">Where is my data stored?</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                On your machine only. Highlights, threads, viewport and thumbnails live in{" "}
+                Saved locally. Highlights, threads, viewport and thumbnails live in{" "}
                 <code className="bg-[#E5E5E5] px-1.5 py-0.5 rounded text-[14px]">~/Library/Application Support/Cauchy/workspaces/</code>,
                 and reference indexes in{" "}
                 <code className="bg-[#E5E5E5] px-1.5 py-0.5 rounded text-[14px]">…/Cauchy/reference-index/</code>.
@@ -329,9 +325,10 @@ export default function Home() {
             <div className="bg-card p-10 rounded-3xl">
               <h3 className="text-2xl font-medium text-primary mb-4">Does it upload my PDFs?</h3>
               <p className="text-[16px] text-secondary leading-relaxed">
-                No. The file itself never leaves your Mac. With a cloud provider, what goes
-                out is your question plus the passages retrieved for it; with Apple
-                Intelligence, nothing leaves at all.
+                Ask sends selected text, context and retrieved passages to your chosen
+                cloud provider. Cloud reference indexing can also send page text and
+                rendered page images. Choose Apple Intelligence for on-device processing.{" "}
+                <Link href="/legal/privacy" className={inline}>Read the privacy policy</Link>.
               </p>
             </div>
             <div className="bg-card p-10 rounded-3xl">

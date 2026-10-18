@@ -180,6 +180,19 @@ private final class LearningUIFixtureTutor: LearningTutorProtocol {
     let providerID = "authored-offline-fixture"
     let modelID: String? = "deterministic-v1"
     func makeLesson(source: LearningSource) async throws -> LearningLesson { LearningUIFixture.lesson(source: source, target: nil) }
+    func clarify(question: String, context: LearningClarificationContext, source: LearningSource,
+                 previous: [LearningClarification]) async throws -> LearningClarificationReply {
+        let token = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if token == "fixture failure" {
+            throw LearningStudyValidationError(reason: "Authored offline provider failure. Your question is saved.")
+        }
+        if token == "fixture slow" { try await Task.sleep(for: .seconds(10)) }
+        let sentence = "Authored offline clarification for navigation testing. This response does not validate mathematics. "
+        let answer = token == "fixture long" ? String(repeating: sentence, count: 50) : sentence + "Your current step and original answer stay in place."
+        guard let page = source.passages.first else { throw LearningError.noText }
+        return .init(answer: answer, basis: .suppliedNotes,
+                     citations: [.init(pageIndex: page.pageIndex, quote: String(page.text.prefix(160)))])
+    }
     func makeLesson(source: LearningSource, target: LearningStudyTarget) async throws -> LearningLesson { LearningUIFixture.lesson(source: source, target: target) }
     func makeChapterChallenge(request: LearningChapterRequest, source: LearningSource, previous: [String]) async throws -> LearningChapterChallenge {
         LearningUIFixture.challenge(request: request, fresh: !previous.isEmpty)

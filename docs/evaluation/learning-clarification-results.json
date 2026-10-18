@@ -1,0 +1,70 @@
+{
+  "model": "gpt-6.1-sol",
+  "evaluatedAt": "2026-10-18T19:27:39.654533+00:00",
+  "dataScope": "Authored synthetic source only; no learner data or real notes",
+  "results": [
+    {
+      "name": "closedness_keeps_limit",
+      "source": "A metric space X is sequentially compact if every sequence in X has a subsequence converging to a point of X. A closed subset K of X contains the limits in X of its convergent sequences. Proof of the closed-subset theorem: take a sequence in K, select a subsequence converging in X, then use closedness to place its limit in K.",
+      "teaching": "A closed subset of a sequentially compact metric space is sequentially compact. Choose a subsequence converging in X; closedness puts the limit in K.",
+      "question": "Why exactly is closedness needed in this step?",
+      "expectedBasis": [
+        "suppliedNotes"
+      ],
+      "reply": {
+        "answer": "Sequential compactness of $X$ gives a subsequence converging to a point of $X$. To prove sequential compactness of $K$, its limit must belong to $K$ itself.\n\nClosedness supplies exactly this step: because the subsequence consists of points in $K$ and converges in $X$, its limit lies in $K$. Without closedness, knowing that the limit belongs to $X$ does not establish that it belongs to $K$.",
+        "basis": "suppliedNotes",
+        "citations": [
+          {
+            "pageIndex": 0,
+            "quote": "A closed subset K of X contains the limits in X of its convergent sequences."
+          }
+        ]
+      },
+      "structuralCheck": true,
+      "declaredBasisMatched": true
+    },
+    {
+      "name": "omitted_proof",
+      "source": "Theorem: the continuous image of a compact topological space is compact. The proof is omitted from these notes. No definition of compactness or supporting lemmas is supplied on this page.",
+      "teaching": "The continuous image theorem is stated, but the source argument is unavailable.",
+      "question": "Can you walk me through the proof from these notes? Do not supply an outside proof.",
+      "expectedBasis": [
+        "insufficientSource"
+      ],
+      "reply": {
+        "answer": "These notes state the theorem but explicitly omit its proof. They also provide neither a definition of compactness nor supporting lemmas, so there is no argument here to walk through. To explain the proof using only these notes, I would need supplied material containing the proof or the relevant definitions and supporting results.",
+        "basis": "insufficientSource",
+        "citations": [
+          {
+            "pageIndex": 0,
+            "quote": "The proof is omitted from these notes. No definition of compactness or supporting lemmas is supplied on this page."
+          }
+        ]
+      },
+      "structuralCheck": true,
+      "declaredBasisMatched": true
+    },
+    {
+      "name": "challenge_faulty_teaching",
+      "source": "A map T between real vector spaces is linear when T(u+v)=T(u)+T(v) and T(cu)=cT(u) for all vectors u,v and real scalars c. In particular T(0)=0. The map f:R->R defined by f(x)=x*x is continuous but is not linear: f(2)=4 whereas 2*f(1)=2.",
+      "teaching": "Every continuous function is linear because preserving limits means preserving sums and scalar multiples.",
+      "question": "Is the claim in this generated teaching step actually correct?",
+      "expectedBasis": [
+        "suppliedNotes"
+      ],
+      "reply": {
+        "answer": "No. The generated teaching step is incorrect: continuity does not imply linearity. The supplied notes give the counterexample $f(x)=x^2$, which is continuous but fails the scalar-multiplication requirement for linearity: $f(2)=4$, while $2f(1)=2$. Preserving limits therefore does not guarantee preserving sums and scalar multiples.",
+        "basis": "suppliedNotes",
+        "citations": [
+          {
+            "pageIndex": 0,
+            "quote": "The map f:R->R defined by f(x)=x*x is continuous but is not linear: f(2)=4 whereas 2*f(1)=2."
+          }
+        ]
+      },
+      "structuralCheck": true,
+      "declaredBasisMatched": true
+    }
+  ]
+}

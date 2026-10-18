@@ -183,6 +183,10 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
     var chapter: LearningChapterState? = nil
     var delayedReview: LearningDelayedReview? = nil
     var reviewDueAt: Date? = nil
+    /// Optional fields preserve decoding of sessions from before clarification.
+    var clarifications: [LearningClarification]? = nil
+    var clarificationDrafts: [String: String]? = nil
+    var clarificationHelpUsed: Bool? = nil
 
     var currentLessonPartIndex: Int {
         min(max(lessonPartIndex ?? 0, 0), lesson.parts.count - 1)
@@ -209,6 +213,7 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
     var assistanceUsed: Bool {
         hintsRevealed > 0 || solutionRevealed || sourceOpened || outsideHelpUsed == true || chapter?.assistanceUsed == true
             || delayedReview?.helpUsed == true
+            || clarificationHelpUsed == true
     }
 
     var progressLabel: String {
@@ -234,6 +239,7 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
         solutionRevealed = false
         sourceOpened = false
         outsideHelpUsed = nil
+        clarificationHelpUsed = nil
         updatedAt = Date()
     }
 }

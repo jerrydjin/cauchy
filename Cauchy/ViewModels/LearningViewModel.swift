@@ -7,7 +7,7 @@ final class LearningViewModel {
     private(set) var sessions: [LearningSession] = []
     private(set) var selectedSessionID: UUID?
     enum Operation {
-        case lesson, assessment, exitQuestion, chapter
+        case lesson, assessment, exitQuestion, chapter, clarification
 
         var label: String {
             switch self {
@@ -15,12 +15,14 @@ final class LearningViewModel {
             case .chapter: "Connecting the chapter ideas…"
             case .assessment: "Checking your reasoning…"
             case .exitQuestion: "Preparing a fresh exit check…"
+            case .clarification: "Thinking about your question…"
             }
         }
     }
     private(set) var operation: Operation?
     var isBusy: Bool { operation != nil }
     var errorMessage: String?
+    private(set) var clarificationErrorMessage: String?
 
     @ObservationIgnored var onChange: (([LearningSession]) -> Void)?
     @ObservationIgnored var chapterRequestIsCurrent: ((LearningChapterRequest) -> Bool)?
@@ -41,6 +43,67 @@ final class LearningViewModel {
     }
 
     var session: LearningSession? { sessions.first { $0.id == selectedSessionID } }
+
+    func clarificationDraft(for context: LearningClarificationContext) -> String {
+        session?.clarificationDrafts?[context.id] ?? ""
+    }
+
+    func setClarificationDraft(_ text: String, for context: LearningClarificationContext) {
+        guard !isBusy, session?.feedback == nil, session?.clarificationContext?.id == context.id else { return }
+        update { current in
+            var drafts = current.clarificationDrafts ?? [:]
+            let draft = String(text.prefix(2_000))
+            if draft.isEmpty { drafts.removeValue(forKey: context.id) } else { drafts[context.id] = draft }
+            current.clarificationDrafts = drafts.isEmpty ? nil : drafts
+        }
+    }
+
+    func openedClarifications(for context: LearningClarificationContext) {
+        guard !isBusy else { return }
+        clarificationErrorMessage = nil
+        guard session?.question != nil, session?.feedback == nil,
+              session?.clarifications?.contains(where: { $0.context.id == context.id }) == true else { return }
+        update { $0.clarificationHelpUsed = true; $0.delayedReview?.helpUsed = true }
+    }
+
+    func askClarification(for context: LearningClarificationContext) {
+        guard !isBusy, let session, session.feedback == nil, session.clarificationContext?.id == context.id else { return }
+        guard checkClarificationSource(session.source) else { return }
+        let question = clarificationDraft(for: context).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !question.isEmpty else { return }
+        let previous = Array((session.clarifications ?? []).filter { $0.context.id == context.id }.suffix(2))
+        perform(.clarification) { tutor in
+            let reply = try await tutor.clarify(question: question, context: context, source: session.source, previous: previous)
+            return try LearningTutorService.checkedClarification(reply, source: session.source)
+        } apply: { [weak self] reply, tutor in
+            guard let self, self.selectedSessionID == session.id,
+                  self.session?.clarificationContext?.id == context.id, self.checkClarificationSource(session.source) else { return }
+            self.update { current in
+                let exchange = LearningClarification(context: context, question: question, reply: reply,
+                    suppliedPageIndices: Array(Set(session.source.passages.map(\.pageIndex))).sorted(),
+                    previousExchangeIDs: previous.map(\.id), providerID: tutor.providerID, modelID: tutor.modelID,
+                    createdAt: self.now())
+                current.clarifications = (current.clarifications ?? []) + [exchange]
+                current.clarificationDrafts?.removeValue(forKey: context.id)
+                if current.question != nil {
+                    current.clarificationHelpUsed = true
+                    current.delayedReview?.helpUsed = true
+                }
+            }
+        }
+    }
+
+    func cancelClarification() {
+        if operation == .clarification { cancel() }
+    }
+
+    private func checkClarificationSource(_ source: LearningSource) -> Bool {
+        guard sourceIsCurrent?(source) != false else {
+            clarificationErrorMessage = "The source has changed. Your question and saved replies are retained. Review the current source before asking for new teaching."
+            return false
+        }
+        return true
+    }
 
     var answerDraft: String {
         get { session?.answerDraft ?? "" }
@@ -74,12 +137,14 @@ final class LearningViewModel {
         self.sessions = sessions
         selectedSessionID = nil
         errorMessage = nil
+        clarificationErrorMessage = nil
     }
 
     func select(_ id: UUID) {
         guard !isBusy, let saved = sessions.first(where: { $0.id == id }) else { return }
         selectedSessionID = id
         errorMessage = nil
+        clarificationErrorMessage = nil
         if sourceIsCurrent?(saved.source) == false { errorMessage = LearningError.sourceChanged.localizedDescription }
     }
 
@@ -401,7 +466,7 @@ final class LearningViewModel {
         apply: @escaping @MainActor (Result, any LearningTutorProtocol) -> Void
     ) {
         guard !isBusy else { return }
-        errorMessage = nil
+        if kind == .clarification { clarificationErrorMessage = nil } else { errorMessage = nil }
         self.operation = kind
         let id = UUID()
         operationID = id
@@ -415,7 +480,10 @@ final class LearningViewModel {
                 apply(result, tutor)
             } catch {
                 guard self.operationID == id else { return }
-                if !(error is CancellationError) { self.errorMessage = error.localizedDescription }
+                if !(error is CancellationError) {
+                    if kind == .clarification { self.clarificationErrorMessage = error.localizedDescription }
+                    else { self.errorMessage = error.localizedDescription }
+                }
             }
             guard self.operationID == id else { return }
             self.operation = nil

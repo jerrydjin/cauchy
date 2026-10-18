@@ -1,0 +1,113 @@
+# Learning quality in Cauchy
+
+This document includes dated observations from the combined development working
+tree. The local Learn checkpoint and its isolated checks are recorded in
+[work tracking](work-tracking.md). Separately owned reader styling, model-catalog
+and mathematical-renderer accessibility edits were not included in that checkpoint.
+The later [native fixture report](evaluation/learning-ui-fixture.md) supersedes
+earlier automation limitations only for the specific flows it records.
+
+The [17 October source-reconciliation audit](evaluation/source-reconciliation.md) records this pass's evidence, validation, warning counts and runtime limitations. Candidate excerpt gaps can now be reviewed against whole-document text retrieval and followed references, with exact page citations and resumable topic checkpoints. Finding source material creates no learner credit. Explicit omissions, exercise obligations, prerequisites, extraction faults and unsuccessful searches remain distinct and visible; suspected mathematical extraction faults cannot silently unlock new lessons.
+
+When a source fault blocks the next unchecked lesson, its primary action is **Review source**, available without an assistant connection. **Choose another lesson** opens the existing chapters for an explicit choice, with the original obligation still open and no claim that prerequisites have been satisfied. Saved lessons remain accessible. The audit's source-recovery follow-up records 238 passing tests and the concrete limitation preventing final GUI verification.
+
+Cauchy should help a learner demonstrate a useful ability from their own notes. The first unit is one complete idea, with a short explanation, a worked example, practice, and a different exit problem. The ambition of learning a subject in eight hours is a hypothesis to evaluate against a defined syllabus and starting knowledge, not a guarantee to put in the interface.
+
+## A separate learning workspace
+
+Learn is a dedicated native window, opened from the library, the reader toolbar, or Learn ▸ Open Learning Workspace (Shift-Command-L). It has a notes-and-sections sidebar and a wider study area. Source notes are optional in an inspector; they do not occupy the primary study space by default. The reader's glass control switches only between Highlights and Reference. A highlight can still send its passage and page into a new learning section.
+
+Learning owns its PDF and tutor state independently of the reader. Closing or changing the reader does not discard a lesson or its draft. Switching between documents in Learn keeps each document's lesson state. Returning to a document with work in progress shows that work rather than cancelling it. Native window identity ensures reopening Learn focuses the same window. Opening the workspace resumes its own context; the reader toolbar and Learn This Section action explicitly bring in reader material. The last selected document and section are persisted separately from the window, so they survive app termination.
+
+The saved workspace remains a shared record. Reader saves merge the current learning sessions; learning saves use the latest reading snapshot, or update a live reader when one is registered. This prevents a lesson draft from replacing highlights, or a later viewport save from replacing learning progress. Export compatibility is preserved.
+
+## What earns progress
+
+- A diagnostic locates the starting point. A learner may choose to study first without creating a graded attempt.
+- Incorrect, partial, and uncertain practice answers lead to revision or review. Feedback alone does not unlock an independent exit check.
+- Revision preserves earlier answers and help already used. Showing a solution cannot turn the next answer to that same practice item into independent evidence.
+- An exit result records the question, answer, assessment, help, model, and date. A correct answer with help is labelled accordingly. Uncertainty belongs to the assessment, not to the learner's competence.
+- The learner can report notes or help used outside Cauchy. “No help reported” is an observation about the record; it is not surveillance or proof of independence. The PDF remains visible.
+- A later exit check uses a different problem. Passing one immediate problem does not establish durable mastery.
+- Errors and cancellation preserve submitted history and the current draft. Switching documents discards late model responses.
+
+## Content quality
+
+Objectives should describe observable abilities. Constructed examples must be distinguished from source material. A continuous source quote anchors the idea, but does not validate the mathematics in generated exercises.
+
+The tutor checks its answer key against the source, accepts equivalent reasoning, identifies a specific correct step or the first gap, and gives one actionable next step. Feedback should leave the learner room to reason before showing a complete solution. Exit problems should test application through a different structure, not only substitute different numbers. Diagnostic and exit questions cannot contain embedded hints.
+
+These are generation requirements and validation boundaries, not a claim that model output is infallible. Before widening this to a whole course, evaluate representative real notes with reviewed answer keys, mathematically equivalent solutions, incomplete reasoning, misconceptions, and questions whose source is insufficient. Track incorrect acceptances and false rejections separately.
+
+## Mac interface decisions
+
+Apple's current [macOS guidance](https://developer.apple.com/design/human-interface-guidelines/designing-for-macos), [materials guidance](https://developer.apple.com/design/human-interface-guidelines/materials), [buttons guidance](https://developer.apple.com/design/human-interface-guidelines/buttons), [text-field guidance](https://developer.apple.com/design/human-interface-guidelines/text-fields), and [accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) are the authority. The vendored community [macOS design skill](../.agents/skills/macos-design-guidelines/SKILL.md) is a review aid. Its blanket statements about shortcuts, context menus, and sizes must be interpreted against the applicable Apple guidance rather than treated as universal HIG requirements.
+
+The [current Liquid Glass supplement](../.agents/skills/macos-design-guidelines/CURRENT-LIQUID-GLASS.md) incorporates Apple's WWDC26 guidance and the user's explicit requirement to preserve the glass design. macOS 27 adds pointer-responsive interactive glass; the old macOS 26 workaround for press scaling is removed. Current system glass APIs also adapt to the system's glass appearance preference.
+
+- Preserve the full-width Liquid Glass context switcher, with its sliding capsule and direct drag interaction. Represent it to accessibility tools with a native segmented picker, support arrow-key selection, and respect Reduce Motion. Native semantics and the current glass design are both requirements.
+- Keep reading, questions, answers, and feedback in the content layer. Use semantic backgrounds and ordinary system buttons; reserve glass for appropriate navigation and control surfaces.
+- Show one primary learning action in a consistent bottom area. Longer content can scroll without hiding the next action. Put outside-help reporting beside exit submission.
+- Use a native window, sidebar, toolbar, and inspector for the separate workspace. The model selector uses a native toolbar menu. Keep reading commands scoped to the reader and Open Notes/New Section scoped to Learn; register shared menus once.
+- Use the system `glassProminent` style for that primary action. The switcher and primary action belong to the control layer; explanations, answer fields, and assessments remain content.
+- Use persistent labels for page fields, validate the actual text, and show why a range cannot be used. The default is the current page; a selection or range is an explicit choice.
+- Use a multiline editor with a visible label. Return inserts a newline; Command-Return activates the current primary action. Escape cancels generation or assessment.
+- Expose the original mathematical expression to accessibility tools. The renderer draws formulas without native text semantics; an explicit label prevents equations from disappearing from the accessible question. This preserves LaTeX source, not a complete spoken-math interpretation.
+- Present uncertainty and recoverable failures inline. Disclosure groups hold source details, tutor caveats, and historical attempts without competing with the current task.
+- Preserve system fonts, accent colors, focus rings, and control behavior. Test minimum panel width, long equations, Light and Dark appearances, and accessibility settings. Using native controls improves support; it does not constitute a complete accessibility audit.
+
+## Verification for this refinement
+
+Automated regressions cover practice gating for every non-correct grade, opting into teaching without fabricated evidence, reported help and persistence, uncertainty labels, assistance across revision, legacy session decoding, invalid range text, hint-free exit validation, and structured CLI failures.
+
+Runtime checks use a small authored linear-map PDF and GPT-6.1 Sol. They exercise native source selection, invalid input, opening existing sessions, keyboard advancement and submission, targeted feedback, revising an incorrect answer, and truthful exit evidence. The assisted exit result and attempt history are checked after saving and reopening. The accessibility tree is checked for mathematical expressions. Full VoiceOver navigation, Full Keyboard Access, Light appearance, Reduce Transparency, and narrow-panel testing remain to be exercised; they are not inferred from a successful build.
+
+The Liquid Glass follow-up builds with Xcode 27. The running app is checked for the full-width glass capsule, active and inactive appearance, native accessibility selection, visible focus, left/right keyboard switching, and stopping at the last segment. Coordinate clicks and drags are blocked by the computer-use tool's `noWindowsAvailable` error, including in an isolated app copy; direct dragging and the press effect are therefore not runtime-verified in this follow-up. Reduce Motion is respected in code but has not been toggled in system settings for this check.
+
+The separate-workspace regressions exercise continuing a draft after the reader closes, alternating reading and learning saves without losing annotations, reusing the current lesson when Learn opens again, and keeping the original learning source when the reader switches documents. These use a generated text PDF and isolated persistence directories.
+
+Runtime verification also opens Learn from the reader and from Shift-Command-L, resumes a saved section from the sidebar, shows and hides the notes inspector, advances with Command-Return, and preserves an unsent exit answer after closing the reader document. Quitting and relaunching the app restores the exact selected section and teaching step. A second restart confirms that Shift-Command-L from a different reader document resumes Learn's own section and unsent exit answer. A fresh GPT-6.1 Sol lesson is generated with the reader document closed, and opting into its teaching creates no fabricated diagnostic attempt. The workspace has one Learn menu and a model selector with its current model name visible in the native toolbar. Full VoiceOver and alternate-appearance checks remain unexercised.
+
+## Completeness and proofs
+
+The [research review](learning-research.md) connects primary evidence to the study map and proof workflow. Every PDF page has an explicit mapping status, including unreadable pages, oversized text and missing context. Successful batches persist and resume after interruption. Mapped units keep concept, proof and application requirements separate, with prerequisites and source gaps visible. Source accounting is not a claim of exhaustive syllabus coverage.
+
+Proof lessons preserve hypotheses, strategy and a continuous chain of justified steps. Proof questions carry explicit rubrics; missing or duplicated criterion assessments are rejected, a missing essential criterion prevents a correct grade, and uncertainty cannot be promoted to success. Application-only lessons cannot fulfill a proof target. A missing proof remains an open source gap even after other checks pass.
+
+Grading also audits the generated rubric against the actual question. Givens need not be repeated, valid standard identities may be implicit, and equivalent arguments can satisfy a criterion without reproducing the answer key's order. The [live evaluation](evaluation/proof-evaluation.md) records a false rejection found during this refinement, the correction, and four reproducible model checks. This does not remove the need for expert assessment of false acceptance and false rejection on unseen material.
+
+The full 196-test suite passed, followed by a new reader-restoration regression. Live GPT-6.1 Sol mapping accounted for the two-page authored fixture and retained the omitted rank-nullity proof as a gap. The generated proof's 12 steps and mathematical expressions are exposed individually in the accessibility tree after grouping the proof content. Saved teaching and the study map survive app restart. A separate runtime check confirms that a newer document opened only in Learn does not displace the reader's remembered document; both windows resume their own sources.
+
+The next product decision should be driven by observed errors: can learners justify an argument and solve a new problem after the lesson, and can they do it again after a delay? Syllabus reconciliation, prerequisite remediation and delayed review should build on that evidence.
+
+## Guided flow refinement — 2026-10-13
+
+The map presents one next action: resume an open requirement, or start the next unchecked requirement in source order. Topics expand individually; source-gap counts remain visible when collapsed. This is navigation guidance, not an adaptive prerequisite assessment. Successful mapped lessons lead back to the map for the next requirement, instead of dropping the learner into manual page selection.
+
+Lessons separate the idea or proof overview, individual justified proof steps, the conclusion and the worked example. Every original claim and justification is retained. Back, direct part selection, a complete continuous proof view and direct entry to practice let learners control the pace. The previous step and overall statement/approach are accessible during the walkthrough. The current part persists with the session; revisiting teaching starts at the overview. Part counts describe browsing, never mastery. Feedback presents the assessment and next action first, with complete criterion feedback under a disclosure. Repeated header text is reduced, and the answer character limit appears when it becomes relevant.
+
+The 39 relevant flow, study-map and workspace tests pass, including new regressions for legacy navigation state, saved proof position, all-step preservation, and recommendations that cannot skip an assisted proof. The final Debug build succeeds. Runtime verification with the authored two-page proof fixture exercises map-to-lesson continuation, Back, direct selection of step six, previous-step context, Command-Return continuation, the full-proof sheet and app restart at the saved part. The sheet exposes all twelve proof steps separately in the accessibility tree. GPT-6.1 Sol remains visible in the native model selector, and the existing Liquid Glass controls are retained. Full VoiceOver, alternative appearances and a learner usability study remain outstanding; these checks establish functioning navigation, not improved learning outcomes.
+
+## Whole-document entry and course organization
+
+The former entry screen put a manual six-page passage tool ahead of whole-subject learning. That was the wrong default. Opening or selecting a document now displays “Learn your notes” and one primary action to create a learning path across every PDF page. “Study a passage” is a separate secondary destination with its own saved restoration state. The sidebar, menu and toolbar distinguish the two flows; old workspaces open on the document overview unless a saved lesson or explicit passage destination is restored. Navigating to the overview clears stale passage errors without losing lesson drafts.
+
+Preparation first inventories every page, then organizes all identified topics together into modules and an order with explicit connections. Large inventories are organized regionally before a global pass that still includes every original topic. Every topic number must survive exactly once at each level. Unknown or duplicated topics, backwards dependencies and contradictory global reordering are rejected. Source obligations and gaps are never rewritten by organization. Each new mapped lesson receives the course overview, module goal and related connections as orientation; proof reasoning still needs source evidence. The outline is generated planning, not mathematical verification or certification of syllabus completeness.
+
+Global-plan failure preserves the complete detailed inventory. A retry does not repeat successful page mapping. Cancellation ignores a late course response. Empty or insufficient extracted pages remain explicitly unresolved while the rest of the document can be processed; readable short pages with enough text to quote can be classified by the planner. This replaces the passage tool's all-pages-must-have-text requirement in the main flow. OCR and interpreting essential diagrams are still separate work.
+
+The full 203-test suite passed, followed by 29 focused tests containing two new large-inventory composition regressions (205 distinct tests across those runs). Tests cover all-topic inclusion, regional-to-global composition under a small artificial input budget, retained source gaps, dependency conflicts, failure recovery, late cancellation, persistence and separate passage navigation. The final Debug build succeeds. A live GPT-6.1 Sol check on the authored two-page fixture created four modules, retained all six topics and eighteen learning requirements exactly once, and produced five connections. Runtime inspection expands a module and its connections; no missing proof is silently closed. The user's 77-page notes were used only to verify the new landing screen, not sent for model evaluation. A whole-document path improves organization; cumulative transfer assessment, expert coverage review and delayed retention evaluation remain necessary for claims of holistic learning outcomes.
+
+## Preparation recovery — 2026-10-14
+
+The preparation screen now focuses on one state: a small book illustration, a short heading, actual processed-page progress, the most recently identified topic, and Start/Continue/Pause. Source diagnostics and model details are disclosed on demand. Pending pages are no longer labelled as pages needing attention while the document is still being read. The course overview and coverage accounting are also disclosed instead of competing with the next lesson. Custom motion respects Reduce Motion; controls retain native Liquid Glass styles.
+
+A rejected three-page response previously stopped the entire document. Invalid JSON or unverifiable batch content now falls back to individual pages, with one additional attempt for a failed page. A page that remains unverifiable keeps an explicit needs-context status while later pages continue; it is never counted as validated coverage. Transport and sign-in failures stop with saved progress rather than generating a retry storm. The process adapter now drains nonblocking output when the request process exits instead of waiting for EOF from inherited pipes. Index/tutor requests have a three-minute deadline, with cancellation terminating the owned process. Process regressions exercise inherited pipes, final output without a newline, diagnostics, exit codes and deadlines.
+
+Signed-in/cloud preparation uses at most three concurrent section requests; the on-device model remains sequential. Successful responses can arrive out of order, but commits and validation are isolated to the main actor and units are kept in source order. Whole-course organization starts only after the section workers finish. Regressions exercise the concurrency ceiling, replenishing a worker after an out-of-order reply, and discarding every late response after cancellation. A slow multi-page request reduces to one-page requests; a one-page deadline or transport outage stops with a recovery action. Inventory objectives, quotes and page reasons are kept concise to reduce preparation latency, while the complete inventory and proof obligations are retained. This does not impose a word limit on teaching or proof content.
+
+Runtime diagnosis also found a running older installed Cauchy reader on the same document. Its workspace writes removed learning fields unknown to that version. Learning now has an atomic per-workspace learning.json record. Loading overlays it on the current reader workspace, and learning-only updates preserve reader fields instead of writing stale annotations back. Existing workspace learning fields remain readable and migrate on save. A regression simulates an old reader rewrite, a new annotation and a subsequent learning edit; all surviving learning and reading data are checked after a fresh persistence instance loads them. The separate record prevents this overwrite going forward; it cannot reconstruct a partial index already erased before this change.
+
+## Chapter transfer and prerequisite rescue
+
+The [chapter challenge audit](evaluation/chapter-challenge.md) records a source-grounded cumulative argument that connects two identified course ideas, with a short prerequisite refresher returning to the original question and draft. Assistance and prerequisite checks persist separately from independent challenge evidence; cumulative success cannot complete unrelated topic or proof targets. The audit includes 246 passing tests and four authored GPT-6.1 Sol checks, alongside the unresolved native GUI automation limitation.

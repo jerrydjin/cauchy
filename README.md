@@ -21,6 +21,7 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 
 ## Features
 
+- **Learning workspace** — Learn ▸ Open Learning Workspace (⇧⌘L) opens a separate native window with a notes-and-lessons sidebar, a focused study area, and optional source notes in an inspector. Open notes to prepare a learning path for the entire document, continue saved lessons, or send a selected passage from the reader with Study This Passage. Lessons provide one concrete objective, a diagnostic, teaching and a worked example, guided practice, and a different exit check. Drafts, attempts, help, assessments, and model provenance survive closing or changing the reader and remain part of exported reading sessions. Source quotes are validated against the PDF; tutor assessments do not certify mastery or retention.
 - **PDF reading workspace** — continuous, single-page, and two-up layouts, thumbnails/contents sidebar, dashboard of recent documents, in-document find (⌘F), one document per window (⌘N) so a paper can sit beside the one it cites
 - **Highlights with evidence-bound AI threads** — select text or drag regions, save highlights, and ask questions about them; answers render LaTeX via SwiftMath and retain a visible, portable boundary between PDF-only claims, outside knowledge, insufficient evidence, and an unverified model declaration. Each answer records the exact PDF pages supplied to its provider/model without pretending that page access proves every claim.
 - **Highlight colours** — file highlights under five marker colours
@@ -36,6 +37,12 @@ sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer
 - **On-device OCR** — Vision framework text recognition with LaTeX formatting assist
 
 The last document you were reading reopens at launch; turn that off in Settings ▸ Reading.
+
+The learning flow's evidence rules, content standards, and Apple HIG decisions are documented in [Learning quality](docs/learning-quality.md).
+
+Development priorities are tracked in [Linear](https://linear.app/jerryjin/project/cauchy-a3df35a6c1f5). The code, tests and repository evaluation reports remain the source of truth; [work tracking](docs/work-tracking.md) links issues to their implementation and verification entry points.
+
+Learn inventories every supplied PDF page, then connects all identified topics into a whole-document path with modules and relationships between ideas. Larger inventories receive regional organization followed by global composition, preserving every topic. Concept, proof, and application requirements remain separate. Missing proofs and source context remain visible gaps. Proof lessons include assumptions, strategy, and justified steps, with criterion-by-criterion assessment. The [research review](docs/learning-research.md) explains the evidence and its limits; the [proof evaluation fixture](docs/evaluation/proof-evaluation.md) makes the quality checks reproducible.
 
 Headless tooling: `Cauchy --benchmark-indexing <pdf> [--ground-truth labels.json] [--pages N]` measures the production extractor against labelled truth and two deterministic baselines, including abstention, evidence ambiguity, and a failure atlas. See [`Benchmarks/README.md`](Benchmarks/README.md). `Cauchy --probe-retrieval <pdf> <query>` prints what retrieval would feed the assistant and whether each passage resolves to an exact PDF text region; `Cauchy --probe-mentions <pdf> <kind> <number> <defining-page>` prints later citation anchors without invoking a model; `Cauchy --probe-ocr <pdf> <page> fast --json [--output <dir>]` reports local OCR candidates and can render their page-region overlays.
 

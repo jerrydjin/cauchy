@@ -1,0 +1,39 @@
+# Chapter challenge and prerequisite rescue — 17 October 2026
+
+Follow-up: the [isolated native fixture report](learning-ui-fixture.md) now records
+the chapter/refresher/return journey, restart, narrow layout and fixed answer focus.
+The capture failures below describe this earlier audit, not the final status of
+those specific flows. Nonzero visual scroll and accessibility preference variants
+remain untested. Local checkpoint references are in [work tracking](../work-tracking.md).
+
+This pass adds one cumulative argument to the existing native Learn path. A prepared chapter supplies two explicitly connected course ideas, not a hardcoded theorem. A source-safe pair can be chosen in the chapter disclosure; once its local requirements have independent checks, the main path offers **Try the chapter challenge**. An unfinished challenge becomes the path's next action. The interface names the selected ideas and explains their connection; full quotes and PDF references stay available on demand.
+
+A generated challenge preserves its full question, explicit givens, complete answer-key argument and three to eight essential proof criteria. Each criterion identifies the selected idea or ideas it tests. The validator requires the actual prepared unit identities, page-specific literal quotes, complete source pages, hypotheses present in the question and a complete, unique criterion mapping covering both ideas. Unresolved candidate gaps, damaged extraction or unlocated proofs in either selected idea block generation. Fresh challenges recheck the current inventory before generation. This structural and source validation does **not** certify mathematical correctness.
+
+**Refresh a prerequisite** opens a native sheet above the current argument. It offers one brief source-grounded explanation and a different check for one of those ideas. The underlying argument, question and unsent draft remain in place. Returning works before or after answering, and cancels an in-flight check so late feedback cannot replace the original argument. Reviewing the source closes the sheet and opens the notes inspector at the cited page. Source adequacy and a learner's knowledge gap remain distinct.
+
+The optional chapter state is persisted inside the existing session envelope. It retains the challenge, selected inventory, rescue navigation, both drafts, prerequisite attempts/feedback, logical reading position, vertical scroll offset and assistance. Existing session IDs, meanings and reader annotations are preserved. Saving the scroll offset happens when native scrolling ends, not on every frame. The source inspector and reader continue to use their existing independent state.
+
+Opening the refresher immediately records help for that challenge response, even if the learner skips its check. Closing it, changing the outside-help checkbox or revisiting the same question cannot remove that record. Prerequisite attempts are supported practice with their own saved history. A later, validated, different challenge resets current-response assistance while retaining earlier attempts. An independent result requires a correct grade, every essential proof criterion met and no help recorded. Assessment uncertainty stays uncertain; missing or duplicate criteria are rejected.
+
+Chapter attempts have no topic study-target ID. The topic-evidence query also explicitly excludes chapter sessions, even if one is incorrectly attached to a target. Consequently, success on a cumulative argument earns evidence for that argument only; it cannot complete all topic proofs or establish chapter mastery. Original source and proof obligations remain open until separately supported.
+
+## Local content audit
+
+The user's Metric Spaces PDF was inspected locally with `pdftotext`, without transmitting it. Section 9.2 contains the closed-subset argument and Section 9.3 the continuous-image argument. These motivate the authored synthetic evaluation below. No real note text or learner answer was sent during this pass, no real workspace was seeded with a challenge, and the implementation contains no hardcoded Metric Spaces theorem.
+
+The synthetic fixture asks the learner to show that the continuous image of a closed subset of a sequentially compact metric space is sequentially compact. The source contains both full supporting arguments and the needed sequence facts. It is deliberately authored evaluation content, distinct from the user's PDF and saved progress.
+
+## Verification
+
+The final full macOS unit run (`Test-Cauchy-2026.10.17_20-49-06-+0100.xcresult`) reports **246 passing cases**, including seven new chapter regression methods. The new coverage exercises the complete challenge → prerequisite explanation/check → original argument flow; both unsent drafts and rescue navigation across decoding/restart; exact question and session identity; persisted fractional scroll offset; assisted-success gating; a genuinely different independent check; unrelated topic-credit rejection; newly open source obligations; source-gap blocking before generation; false citations and missing hypotheses; missing/duplicate criteria and uncertainty; cancellation of late prerequisite assessments; legacy session migration; and preservation of other sessions and reader annotations in isolated persistence.
+
+The [authored fixture](chapter-challenge-fixture.json), [live results](chapter-challenge-results.json) and [opt-in evaluator](../../scripts/evaluate_chapter_challenge.py) reproduce four Codex/GPT-6.1 Sol checks using the app's current instruction strings. They send only authored source and synthetic answers. Generation produced a full challenge with four connected criteria and a targeted closedness refresher, then passed the same Swift source/criterion validator used by the app. The three assessment checks accepted a valid modular alternative proof, rejected a circular argument and graded a proof missing the closedness step as partial. These are a small semantic smoke test, not an expert-reviewed efficacy study or an estimate of false-acceptance rates.
+
+The Debug app builds with `/Applications/Xcode.app/Contents/Developer` and `/tmp/cauchy-learning-build`. The initial separate derived-data attempt could not fetch package dependencies inside the sandbox; the established derived-data directory reused the existing checkouts, and normal compiler/cache access was approved for the build and test commands. The model catalog, GPT-6.1 Sol default and GPT-5.5 compatibility were retained. The custom sliding glass control was untouched. Native glass buttons and ordinary readable content surfaces follow [Apple's Liquid Glass guidance](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass); scroll restoration uses Apple's public [scroll-phase API](https://developer.apple.com/documentation/swiftui/scrollphasechangecontext).
+
+## Runtime limits
+
+`cua_repl` bound directly to `/tmp/cauchy-learning-build/Build/Products/Debug/Cauchy.app` returned `timeoutReached` again. The same failed binding was not repeatedly polled. The exact debug verification process was identified as PID 10069 and stopped; the installed reader, PID 2581, was left alone. The installed app was not replaced. A complete rendered challenge/rescue/return interaction, focus and keyboard behavior, visual scroll restoration, Liquid Glass appearance and accessibility settings remain **unverified in the native GUI**. Logic tests and a successful build must not be presented as visual confirmation.
+
+The model can still invent an invalid application, choose a weak connection or misgrade an unseen proof despite literal citations and a structured rubric. Expert review and broader unseen-material evaluation remain necessary. One immediate challenge does not establish retention, whole-subject completeness, an eight-hour outcome or educational efficacy. This pass does not add a delayed-review scheduler.

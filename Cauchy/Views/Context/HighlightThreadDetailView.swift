@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct HighlightThreadDetailView: View {
     @Bindable var workspace: WorkspaceViewModel
@@ -13,7 +14,7 @@ struct HighlightThreadDetailView: View {
     var body: some View {
         GeometryReader { geometry in
             ConversationPanel(
-                selectedText: thread?.selectedText,
+                selectedText: nil,
                 messages: thread?.messages ?? [],
                 streamingText: thread?.streamingAssistantText,
                 isResponding: workspace.selectionThread.isResponding,
@@ -29,8 +30,30 @@ struct HighlightThreadDetailView: View {
                 },
                 onModelChange: { workspace.refreshReadingAssistant() },
                 onOpenSource: { workspace.goToAnswerSource($0) },
+                highlightTag: workspace.attachedHighlight?.tagTitle,
+                sheetTag: workspace.problemSheet?.tagTitle,
+                onRemoveHighlight: { workspace.removeHighlightTag() },
+                onRemoveSheet: { workspace.removeProblemSheet() },
+                onAttach: { workspace.showsAttachmentImporter = true },
+                onDropProviders: { workspace.attachProblemSheet(from: $0) },
+                referenceKeys: workspace.referenceIndex.referenceKeys,
+                referenceBlock: { workspace.referenceIndex.block(for: $0) },
+                onOpenReference: { workspace.openCitedReference($0) },
+                onHoverReference: { workspace.previewCitedReference($0) },
+                emptyPrompt: workspace.attachedHighlight == nil
+                    ? "Ask a question about this document"
+                    : "Ask a question about this passage",
                 header: { header }
             )
+            .fileImporter(
+                isPresented: $workspace.showsAttachmentImporter,
+                allowedContentTypes: [.pdf, .image],
+                allowsMultipleSelection: false
+            ) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    workspace.attachProblemSheet(at: url)
+                }
+            }
         }
     }
 
@@ -75,6 +98,14 @@ struct HighlightThreadDetailView: View {
             .allowsHitTesting(false)
 
             Spacer(minLength: 6)
+
+            if thread?.messages.isEmpty == false {
+                Button("New", action: { workspace.startNewConversation() })
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .help("Start a new conversation")
+                    .accessibilityLabel("New conversation")
+            }
 
             if let id = savedHighlightID, let highlight = savedHighlight {
                 Menu {
@@ -127,24 +158,96 @@ struct HighlightThreadDetailView: View {
     }
 
     private var unavailabilityMessage: String? {
-        guard !workspace.readingAssistantAvailability.isAvailable else { return nil }
-        switch workspace.readingAssistantAvailability {
-        case .deviceNotEligible:
-            return "Apple Intelligence is not supported on this Mac."
-        case .intelligenceNotEnabled:
-            return "Enable Apple Intelligence in System Settings to ask questions."
-        case .modelNotReady:
-            return "The on-device model is downloading. Try again soon."
-        case .apiKeyMissing(let provider):
-            return "Add your \(provider.vendor) API key in Settings to ask questions."
-        case .cliNotInstalled(let provider):
-            return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
-        default:
-            return "Ask is unavailable right now."
-        }
+        AskAvailabilityMessage.text(for: workspace.readingAssistantAvailability)
     }
 
     private func sendQuestion() {
+        let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        workspace.sendThreadMessage(trimmed)
+        question = ""
+    }
+}
+
+/// Whole-document chat in the same panel. The ask box stays at the bottom;
+/// a highlight or problem sheet, when present, is a tag on that box.
+struct DocumentConversationView: View {
+    @Bindable var workspace: WorkspaceViewModel
+    @State private var question = ""
+
+    private var thread: SelectionThread? {
+        workspace.selectionThread.activeThread
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ConversationPanel(
+                selectedText: nil,
+                messages: thread?.messages ?? [],
+                streamingText: thread?.streamingAssistantText,
+                isResponding: workspace.selectionThread.isResponding,
+                isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
+                unavailabilityMessage: AskAvailabilityMessage.text(for: workspace.readingAssistantAvailability),
+                panelWidth: geometry.size.width,
+                question: $question,
+                onSend: send,
+                onStop: {
+                    if let unanswered = workspace.stopThreadMessage() {
+                        question = unanswered
+                    }
+                },
+                onModelChange: { workspace.refreshReadingAssistant() },
+                onOpenSource: { workspace.goToAnswerSource($0) },
+                highlightTag: workspace.attachedHighlight?.tagTitle,
+                sheetTag: workspace.problemSheet?.tagTitle,
+                onRemoveHighlight: { workspace.removeHighlightTag() },
+                onRemoveSheet: { workspace.removeProblemSheet() },
+                onAttach: { workspace.showsAttachmentImporter = true },
+                onDropProviders: { workspace.attachProblemSheet(from: $0) },
+                referenceKeys: workspace.referenceIndex.referenceKeys,
+                referenceBlock: { workspace.referenceIndex.block(for: $0) },
+                onOpenReference: { workspace.openCitedReference($0) },
+                onHoverReference: { workspace.previewCitedReference($0) },
+                emptyPrompt: "Ask a question about this document",
+                header: { header }
+            )
+        }
+        .fileImporter(
+            isPresented: $workspace.showsAttachmentImporter,
+            allowedContentTypes: [.pdf, .image],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                workspace.attachProblemSheet(at: url)
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            GlassIconButton(
+                systemName: "chevron.left",
+                accessibilityLabel: "Back",
+                action: { workspace.showHighlightList() }
+            )
+            Text("Conversation")
+                .font(.headline)
+                .allowsHitTesting(false)
+            Spacer(minLength: 6)
+            if thread?.messages.isEmpty == false {
+                Button("New", action: { workspace.startNewConversation() })
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .help("Start a new conversation")
+                    .accessibilityLabel("New conversation")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+    }
+
+    private func send() {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         workspace.sendThreadMessage(trimmed)

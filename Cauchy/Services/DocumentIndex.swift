@@ -13,6 +13,8 @@ struct DocumentPassage: Sendable, Equatable {
     let text: String
     /// nil when an implementation cannot prove a unique source span.
     let location: PDFTextLocation?
+    /// Nearest heading or statement, when one is known. Shown in the sources list.
+    var label: String? = nil
 }
 
 /// Ask-time passage retrieval over the open document. Implemented by

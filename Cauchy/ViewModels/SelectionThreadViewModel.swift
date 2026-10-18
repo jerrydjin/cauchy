@@ -32,6 +32,23 @@ final class SelectionThreadViewModel {
     /// before they are saved with a reply.
     var pdfDocument: PDFDocument?
 
+    /// Conversation that is not tied to a highlight. Questions with no tag
+    /// land here, and it survives switching over to a highlight thread.
+    private(set) var documentThread = SelectionThread(
+        anchorID: UUID(),
+        pageIndex: 0,
+        selectedText: "",
+        surroundingText: "",
+        messages: [],
+        isPersisted: true
+    )
+
+    var documentConversationID: UUID { documentThread.anchorID }
+
+    var isDocumentConversation: Bool {
+        activeThread?.anchorID == documentThread.anchorID
+    }
+
     /// `assistant` is for tests and previews; production leaves it nil so the
     /// real one is made the first time it is actually needed.
     init(assistant: (any ReadingAssistantProtocol)? = nil) {
@@ -48,12 +65,48 @@ final class SelectionThreadViewModel {
     func reloadAssistant(documentTitle: String? = nil) {
         loadedAssistant = ReadingAssistantFactory.makeAssistant()
         guard let thread = activeThread, let documentTitle else { return }
-        let readingContext = ReadingContextBuilder.from(
-            anchor: thread.anchor,
-            documentTitle: documentTitle,
-            index: documentIndex
+        let scope = scope(for: thread)
+        let readingContext = AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: scope)
+        assistant.restoreSession(
+            context: readingContext,
+            messages: AskPromptBuilder.trimmedHistory(thread.messages, provider: assistant.provider)
         )
-        assistant.restoreSession(context: readingContext, messages: thread.messages)
+    }
+
+    func loadDocumentConversation(id: UUID, messages: [ThreadMessage]) {
+        documentThread = SelectionThread(
+            anchorID: id,
+            pageIndex: 0,
+            selectedText: "",
+            surroundingText: "",
+            messages: messages,
+            isPersisted: true
+        )
+    }
+
+    /// Whole-document chat. Does not clear a highlight thread the reader may
+    /// switch back to; that thread lives on the highlight.
+    func activateDocumentConversation(documentTitle: String) {
+        activeThread = documentThread
+        let context = AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: .wholeDocument)
+        assistant.restoreSession(
+            context: context,
+            messages: AskPromptBuilder.trimmedHistory(documentThread.messages, provider: assistant.provider)
+        )
+    }
+
+    /// Drops the visible conversation's messages and starts the assistant fresh.
+    /// The highlight passage, when there is one, stays.
+    func startNewConversation(documentTitle: String) {
+        guard var thread = activeThread else {
+            activateDocumentConversation(documentTitle: documentTitle)
+            return
+        }
+        thread.messages = []
+        thread.streamingAssistantText = nil
+        commit(thread)
+        let scope = scope(for: thread)
+        assistant.resetSession(context: AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: scope))
     }
 
     func updateSelection(
@@ -62,6 +115,10 @@ final class SelectionThreadViewModel {
         existingHighlights: [Highlight]
     ) {
         guard let context, !context.selectedText.isEmpty else {
+            // Clearing the PDF selection must not throw away the document chat.
+            if activeThread?.anchorID == documentThread.anchorID {
+                return
+            }
             activeThread = nil
             return
         }
@@ -128,15 +185,18 @@ final class SelectionThreadViewModel {
     func sendMessage(
         _ question: String,
         documentTitle: String,
+        scope explicitScope: AskScope? = nil,
+        sheet: AskProblemSheet? = nil,
         onPersist: (SelectionThread) -> Void
     ) async throws {
         guard var thread = activeThread else { return }
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        let scope = explicitScope ?? scope(for: thread)
 
         thread.messages.append(ThreadMessage(role: .user, content: trimmed))
         thread.streamingAssistantText = ""
-        activeThread = thread
+        commit(thread)
 
         // Freeze answer provenance before the async call. A model-picker
         // change while tokens are streaming must not relabel this reply as if
@@ -160,15 +220,60 @@ final class SelectionThreadViewModel {
             activeThread?.streamingAssistantText = nil
         }
 
+        let prior = Array(thread.messages.dropLast())
+        // Instructions only. The trimmed turns ride `priorConversation` so
+        // Foundation Models, the cloud API, and the CLI agent all see the same
+        // follow-up context, once, inside the provider's character budget.
+        answeringAssistant.restoreSession(
+            context: AskPromptBuilder.sessionContext(documentTitle: documentTitle, scope: scope),
+            messages: []
+        )
+
         // Retrieval happens now — at ask time — because the query needs the
-        // question; the session context predates it.
+        // question; the session context predates it. The sheet's text is part
+        // of the query so a theorem it names is retrieved from the notes.
+        let sheetText = sheet.map { AskPromptBuilder.clippedSheetText($0.extractedText, provider: answerProvider) } ?? ""
+        let retrievalQuestion = [trimmed, sheetText].filter { !$0.isEmpty }.joined(separator: "\n")
         var retrieval = retrieveContext(
-            question: trimmed,
-            thread: thread,
+            question: retrievalQuestion,
+            asked: trimmed,
+            scope: scope,
             provider: answerProvider
         ).clippedForPrompt(provider: answerProvider)
-        let sourceAnchors = resolvedSourceAnchors(thread: thread, retrieval: retrieval)
+        if let miss = retrieval.structureMissMessage, scope.highlight == nil {
+            thread.messages.append(ThreadMessage(
+                role: .assistant,
+                content: miss,
+                answerEvidence: AnswerEvidence(
+                    basis: .insufficient,
+                    sourcePages: [],
+                    referencedStatementCount: 0,
+                    retrievedPassageCount: 0,
+                    providerID: answerProvider.rawValue,
+                    modelID: answerModelID,
+                    sourceAnchors: [],
+                    citationStatus: nil,
+                    citedSourceIDs: [],
+                    declaredBasis: .insufficient
+                )
+            ))
+            thread.streamingAssistantText = nil
+            commit(thread)
+            onPersist(thread)
+            return
+        }
+        let sourceAnchors = resolvedSourceAnchors(thread: thread, scope: scope, retrieval: retrieval)
         retrieval.citableSources = sourceAnchors
+        var preface = AskPromptBuilder.turnPreface(
+            scope: scope,
+            sheet: sheet,
+            provider: answerProvider
+        )
+        if let note = retrieval.structureNote {
+            preface += "\n\n" + note
+        }
+        retrieval.turnPreface = preface
+        retrieval.priorConversation = AskPromptBuilder.priorConversation(prior, provider: answerProvider)
 
         // onPartial already runs on the main actor (ReadingAssistantProtocol is
         // @MainActor); the coalescer keeps re-renders at ~12/s instead of per token.
@@ -179,7 +284,8 @@ final class SelectionThreadViewModel {
         let citationAudit = AnswerCitationAudit.evaluate(parsed.content, sources: sourceAnchors)
         let acceptedBasis: AnswerBasis = parsed.basis == .pdf && citationAudit.status != .idsResolve
             ? .unverified : parsed.basis
-        let pages = Array(Set([thread.pageIndex + 1] + retrieval.sourcePageNumbers)).sorted()
+        let selectionPages = scope.highlight == nil ? [] : [thread.pageIndex + 1]
+        let pages = Array(Set(selectionPages + retrieval.sourcePageNumbers)).sorted()
         let evidence = AnswerEvidence(
             basis: acceptedBasis,
             sourcePages: pages,
@@ -197,8 +303,11 @@ final class SelectionThreadViewModel {
             content: parsed.content,
             answerEvidence: evidence
         ))
-        thread.isPersisted = true
-        activeThread = thread
+        if thread.anchorID != documentThread.anchorID {
+            thread.isPersisted = true
+        }
+        thread.streamingAssistantText = nil
+        commit(thread)
         onPersist(thread)
     }
 
@@ -215,34 +324,65 @@ final class SelectionThreadViewModel {
               let last = thread.messages.last,
               last.role == .user else { return nil }
         thread.messages.removeLast()
-        activeThread = thread
+        commit(thread)
         return last.content
+    }
+
+    private func scope(for thread: SelectionThread) -> AskScope {
+        let excerpt = thread.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !excerpt.isEmpty else { return .wholeDocument }
+        return .highlight(AskHighlightFocus(
+            pageIndex: thread.pageIndex,
+            excerpt: thread.selectedText,
+            surroundingText: thread.surroundingText,
+            fingerprint: "",
+            bounds: thread.bounds,
+            lines: thread.lines,
+            highlightID: thread.isPersisted ? thread.anchorID : nil
+        ))
+    }
+
+    private func commit(_ thread: SelectionThread) {
+        activeThread = thread
+        if thread.anchorID == documentThread.anchorID {
+            documentThread = thread
+        }
     }
 
     private func retrieveContext(
         question: String,
-        thread: SelectionThread,
+        asked: String,
+        scope: AskScope,
         provider: AssistantConnectorID
     ) -> AskRetrieval {
-        AskContextRetriever.retrieve(
+        let focus = scope.highlight
+        let budgets = ReadingPromptBuilder.evidenceBudgets(for: provider)
+        let structuralQuery = AskStructureLocator.query(in: asked)
+        let structure = structuralQuery.flatMap { _ in pdfDocument.map { AskStructureLocator.structure(from: $0) } }
+        return AskContextRetriever.retrieve(
             question: question,
-            selectedText: thread.selectedText,
-            surroundingText: thread.surroundingText,
-            pageIndex: thread.pageIndex,
+            selectedText: focus?.excerpt ?? "",
+            surroundingText: focus?.surroundingText ?? "",
+            pageIndex: scope.pageIndex,
             referenceIndex: referenceIndex,
             documentIndex: documentIndex,
             // The on-device window is small; cloud/CLI providers can take more.
-            passageLimit: provider == .onDevice ? 3 : 5
+            passageLimit: provider == .onDevice ? 3 : 5,
+            structuralQuery: structuralQuery,
+            structure: structure,
+            passageCharacterBudget: budgets.passages
         )
     }
 
     private func resolvedSourceAnchors(
         thread: SelectionThread,
+        scope: AskScope,
         retrieval: AskRetrieval
     ) -> [AnswerSourceAnchor] {
         guard let document = pdfDocument else { return [] }
         var anchors: [AnswerSourceAnchor] = []
-        if let page = document.page(at: thread.pageIndex),
+        if scope.highlight != nil,
+           let page = document.page(at: thread.pageIndex),
            let pageText = page.string,
            let source = LexicalDocumentIndex.sourceLocation(
                for: thread.selectedText,
@@ -270,12 +410,13 @@ final class SelectionThreadViewModel {
                   let region = ReferenceEvidenceRegionResolver.exactRegion(for: source, on: page)
             else { continue }
             anchors.append(AnswerSourceAnchor(
-                label: entry.reference.displayName,
+                label: AskStructureLocator.statementLabel(entry),
                 pageIndex: entry.pageIndex,
                 region: region,
                 sourceID: "R\(index + 1)"
             ))
         }
+        let outlineHeadings = AskStructureLocator.outlineHeadings(in: document)
         for (index, record) in retrieval.passageRecords.enumerated() {
             guard let source = record.location,
                   let page = document.page(at: source.pageIndex),
@@ -286,13 +427,41 @@ final class SelectionThreadViewModel {
                       on: page
                   ) else { continue }
             anchors.append(AnswerSourceAnchor(
-                label: "Retrieved passage",
+                label: passageLabel(
+                    record: record,
+                    pageIndex: source.pageIndex,
+                    statements: retrieval.statementReferences,
+                    headings: outlineHeadings
+                ),
                 pageIndex: source.pageIndex,
                 region: region,
                 sourceID: "P\(index + 1)"
             ))
         }
         return anchors
+    }
+
+    private func passageLabel(
+        record: DocumentPassage,
+        pageIndex: Int,
+        statements: [IndexedReference],
+        headings: [AskHeading]
+    ) -> String {
+        if let label = record.label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty {
+            return label
+        }
+        if let named = statements.first(where: {
+            $0.pageIndex == pageIndex && record.text.localizedCaseInsensitiveContains($0.reference.displayName)
+        }) {
+            return AskStructureLocator.statementLabel(named)
+        }
+        if let onPage = statements.first(where: { $0.pageIndex == pageIndex }) {
+            return AskStructureLocator.statementLabel(onPage)
+        }
+        if let heading = AskStructureLocator.nearestHeading(onOrBefore: pageIndex, in: headings) {
+            return heading
+        }
+        return "p. \(pageIndex + 1)"
     }
 
 }

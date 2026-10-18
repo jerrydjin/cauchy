@@ -17,6 +17,16 @@ struct AskRetrieval: Sendable, Equatable {
     var passageRecords: [DocumentPassage] = []
     /// Resolved IDs supplied with the turn; all must open a real PDF region.
     var citableSources: [AnswerSourceAnchor] = []
+    /// Scope, sheet, and the full-answer instruction. Sent with this turn
+    /// only — never stored in the thread or shown in the chat.
+    var turnPreface: String? = nil
+    /// Trimmed earlier turns. Sent just before the new question so a follow-up
+    /// keeps the conversation, and omitted from thread storage.
+    var priorConversation: String? = nil
+    /// Set when the question names a chapter, section, or part that was found.
+    var structureNote: String? = nil
+    /// One plain sentence when that unit is not in the outline, headings, or contents.
+    var structureMissMessage: String? = nil
 
     static let empty = AskRetrieval(statements: [], statementRoutes: [], passages: [])
 
@@ -42,7 +52,8 @@ struct AskRetrieval: Sendable, Equatable {
         let clippedRecords = zip(clippedPassages, passageRecords).map { clipped, record in
             DocumentPassage(
                 text: clipped,
-                location: clipped == record.text ? record.location : nil
+                location: clipped == record.text ? record.location : nil,
+                label: record.label
             )
         }
         return AskRetrieval(
@@ -50,7 +61,11 @@ struct AskRetrieval: Sendable, Equatable {
             statementRoutes: Array(statementRoutes.prefix(clippedStatements.count)),
             statementReferences: Array(statementReferences.prefix(clippedStatements.count)),
             passages: clippedPassages,
-            passageRecords: clippedRecords
+            passageRecords: clippedRecords,
+            turnPreface: turnPreface,
+            priorConversation: priorConversation,
+            structureNote: structureNote,
+            structureMissMessage: structureMissMessage
         )
     }
 
@@ -77,8 +92,23 @@ enum AskContextRetriever {
         pageIndex: Int?,
         referenceIndex: DocumentReferenceIndex?,
         documentIndex: (any DocumentIndexProtocol)?,
-        passageLimit: Int
+        passageLimit: Int,
+        structuralQuery: StructuralQuery? = nil,
+        structure: AskDocumentStructure? = nil,
+        passageCharacterBudget: Int = 800
     ) -> AskRetrieval {
+        if let structuralQuery {
+            return retrieveStructure(
+                query: structuralQuery,
+                question: question,
+                selectedText: selectedText,
+                referenceIndex: referenceIndex,
+                structure: structure,
+                passageLimit: passageLimit,
+                passageCharacterBudget: passageCharacterBudget
+            )
+        }
+
         let query = question + " " + selectedText.prefix(200)
         let queryVector = SentenceEmbedder.queryVector(for: query)
 
@@ -144,6 +174,77 @@ enum AskContextRetriever {
             passages: passageRecords.map(\.text),
             passageRecords: passageRecords
         )
+    }
+
+    /// A named chapter, section, or part replaces open-ended passage search.
+    /// Unrelated pages were what made "what is chapter 2 about" cite pp. 36–59.
+    private static func retrieveStructure(
+        query: StructuralQuery,
+        question: String,
+        selectedText: String,
+        referenceIndex: DocumentReferenceIndex?,
+        structure: AskDocumentStructure?,
+        passageLimit: Int,
+        passageCharacterBudget: Int
+    ) -> AskRetrieval {
+        guard let structure else {
+            return AskRetrieval(
+                statements: [],
+                statementRoutes: [],
+                passages: [],
+                structureMissMessage: AskStructureLocator.notFoundMessage(for: query)
+            )
+        }
+        switch AskStructureLocator.locate(query, in: structure) {
+        case .missing(let message):
+            return AskRetrieval(
+                statements: [],
+                statementRoutes: [],
+                passages: [],
+                structureMissMessage: message
+            )
+        case .found(let span):
+            let records = AskStructureLocator.passages(
+                for: span,
+                in: structure,
+                characterBudget: passageCharacterBudget,
+                limit: passageLimit
+            )
+            var collected: [(entry: IndexedReference, route: String)] = []
+            var seen = Set<ReferenceKey>()
+            func add(_ entries: [IndexedReference], route: String) {
+                for entry in entries {
+                    guard collected.count < maxStatements else { return }
+                    let key = entry.reference.key
+                    guard span.pageRange.contains(entry.pageIndex),
+                          !seen.contains(key),
+                          !entry.groundingBody.isEmpty else { continue }
+                    seen.insert(key)
+                    collected.append((entry, route))
+                }
+            }
+            if let referenceIndex {
+                let inRange = referenceIndex.statements(onPages: span.pageRange)
+                add(referenceIndex.statements(citedIn: [question, selectedText]).filter {
+                    span.pageRange.contains($0.pageIndex)
+                }, route: "cited")
+                add(referenceIndex.statements(matchingTermsIn: question), route: "term")
+                add(inRange, route: "section")
+            }
+            return AskRetrieval(
+                statements: collected.map {
+                    let scope = $0.entry.reference.kind == .figure
+                        ? "PDF caption heading only; image not interpreted"
+                        : "PDF source excerpt"
+                    return "\($0.entry.promptHeading) [\(scope)]:\n\($0.entry.groundingBody)"
+                },
+                statementRoutes: collected.map(\.route),
+                statementReferences: collected.map(\.entry),
+                passages: records.map(\.text),
+                passageRecords: records,
+                structureNote: span.promptNote
+            )
+        }
     }
 
     private static func collapseWhitespace(_ text: String) -> String {

@@ -6,6 +6,27 @@ enum ReadingPromptBuilder {
     }
 
     static func instructions(for context: ReadingContext, provider: AssistantConnectorID = .onDevice) -> String {
+        let selected = context.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if selected.isEmpty {
+            return wholeDocumentInstructions(documentTitle: context.documentTitle, provider: provider)
+        }
+        return selectionInstructions(for: context, provider: provider)
+    }
+
+    /// No highlight tag: the question is about the open document, grounded by
+    /// the excerpts `AskContextRetriever` attaches to the turn.
+    private static func wholeDocumentInstructions(documentTitle: String, provider: AssistantConnectorID) -> String {
+        var prompt = """
+        You are helping someone read "\(documentTitle)".
+
+        NO PASSAGE IS HIGHLIGHTED. The question is about the whole open document.
+        Numbered results and passages from the document are supplied with the question. Answer from those. Do not recite or summarize the entire PDF.
+        """
+        prompt += sharedAnswerRules(provider: provider)
+        return prompt
+    }
+
+    private static func selectionInstructions(for context: ReadingContext, provider: AssistantConnectorID) -> String {
         var prompt = """
         You are helping someone read "\(context.documentTitle)".
 
@@ -30,6 +51,12 @@ enum ReadingPromptBuilder {
             """
         }
 
+        prompt += sharedAnswerRules(provider: provider)
+        return prompt
+    }
+
+    private static func sharedAnswerRules(provider: AssistantConnectorID) -> String {
+        var prompt = ""
         // Cloud and CLI models need the reminder that replies render inside the
         // app's LaTeX engine; the on-device model already gets the contract below.
         if provider != .onDevice {
@@ -43,6 +70,8 @@ enum ReadingPromptBuilder {
 
         Content rules:
         - Ground your answer in the text above (and retrieved passages if present).
+        - When one of this document's numbered results applies, cite it in the prose by its printed name and number, for example "by Theorem 3.2" or "Lemma 2.1". Cite only a result that appears in the supplied PDF source excerpts. Do not invent a number.
+        - You already have the open PDF. Never ask the reader to share, paste, upload, or photograph a contents page or any page from this document. If the supplied excerpts are not enough, say so in one sentence and suggest highlighting a passage or rephrasing the question.
         - Use supplied PDF text rather than a model's restatement. Excerpts can be clipped or have lossy math extraction; do not silently complete missing notation. Say when a precise formula needs checking on the original page.
         - A CITABLE PDF LOCATIONS block accompanies each question when Cauchy has resolved exact original-page regions. S1 identifies the selected text, R1/R2/... identify PDF source excerpts in order, and P1/P2/... identify relevant passages in order. A source without an ID is context only, not a verified location.
         - Put a source ID such as [S1] or [R1] immediately after each material claim drawn directly from a cited PDF excerpt. Keep separate claims in separate sentences or paragraphs, and cite each substantive paragraph or list item. Keep IDs outside math delimiters. Use only listed IDs; do not invent one or substitute a page number. An ID identifies an inspectable input, not automatic proof of your reasoning.
@@ -61,7 +90,6 @@ enum ReadingPromptBuilder {
 
         \(latexOutputContract)
         """
-
         return prompt
     }
 

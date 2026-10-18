@@ -19,6 +19,9 @@ final class ContextEngineViewModel {
     var selectedTab: ContextPanelTab = .highlights
     var passiveBlock: DocumentBlock?
     var draftSelection: TextSelectionContext?
+    /// The highlight list yields to the whole-document conversation. Not a new
+    /// tab or mode — the same panel, with the ask box still at the bottom.
+    var showsDocumentConversation = false
 
     func showList() {
         route = .list
@@ -40,10 +43,16 @@ final class ContextEngineViewModel {
         selectedTab = .reference
     }
 
+    /// Same statement the Reference tab shows, without leaving the conversation.
+    func stageReferencePreview(block: DocumentBlock) {
+        passiveBlock = block
+    }
+
     func reset() {
         route = .list
         selectedTab = .highlights
         passiveBlock = nil
         draftSelection = nil
+        showsDocumentConversation = false
     }
 }

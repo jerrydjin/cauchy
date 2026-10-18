@@ -196,7 +196,9 @@ struct MessageContentView: View {
             ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
                 switch token {
                 case .segment(let segment):
-                    flowSegmentView(segment)
+                    // linkedOrPlain would call back into this flow and make the
+                    // view's return type refer to itself. Markers are already split out.
+                    markerSegment(segment)
                 case .chip(let chip):
                     if let anchor = sourceAnchors.first(where: { $0.sourceID?.uppercased() == chip.sourceID }) {
                         Button {
@@ -216,6 +218,42 @@ struct MessageContentView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func markerSegment(_ segment: MessageSegment) -> some View {
+        switch segment {
+        case .text(let value):
+            linkedOrPlainBody(value, wraps: false)
+        case .bold(let value):
+            Text(value)
+                .font(font)
+                .bold()
+                .foregroundStyle(textColor)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: true)
+        case .italic(let value):
+            Text(value)
+                .font(font)
+                .italic()
+                .foregroundStyle(textColor)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: true)
+        case .code(let value):
+            Text(value)
+                .font(.system(.body, design: .monospaced))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(Color.secondary.opacity(0.2))
+                .cornerRadius(4)
+                .foregroundStyle(textColor)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: true)
+        case .inlineMath(let latex):
+            MathSegmentView(latex: latex, mode: .inline, fontSize: 15, textColor: textColor)
+        case .displayMath(let latex):
+            MathSegmentView(latex: latex, mode: .display, fontSize: 17, textColor: textColor)
+        }
     }
 
     @ViewBuilder

@@ -1,0 +1,22 @@
+---
+description: Keep ChatGPT learning work separate from the existing PDF-reader workstream
+alwaysApply: true
+---
+
+# Product ownership
+
+- The user's learning vision is owned by ChatGPT agents. Build Learn as a
+  distinct, first-class workspace alongside the existing PDF reader, following
+  the user's analogy of Cursor IDE and Cursor Agents.
+- Another agent owns the existing PDF-reader/base-product work. ChatGPT agents
+  must not independently modify its rendering, reader interactions, reader
+  layout, launch-facing website or unrelated base-product behavior. Report
+  issues to that workstream instead of expanding Learn tasks to fix them.
+- Reading PDFs, inspecting original source pages and providing source review
+  within Learn remain part of the learning scope.
+- Shared app entry points, document persistence, model/provider configuration
+  and common design components are integration boundaries. Coordinate changes
+  with the other workstream and keep them limited to the agreed Learn need.
+  Preserve existing reader behavior and concurrent changes.
+- Carry this ownership boundary into delegated tasks. Keep code, tests and
+  repository evaluation reports authoritative; use Linear as the work register.

@@ -272,7 +272,7 @@ def _score_paper(record: dict) -> dict:
     structure = make_structure(extracted)
     attach_structure(structure)
     profiles = {
-        "main": score_profile(truth, extracted["pages"], "main", use_structure=False),
+        "main": score_profile(truth, extracted["pages"], "main", use_structure=True),
         "hover": score_profile(truth, extracted["pages"], "hover", use_structure=False),
         "chat": score_profile(truth, extracted["pages"], "main", use_structure=True),
         "combined": score_profile(truth, extracted["pages"], "hover", use_structure=True),
@@ -474,8 +474,8 @@ def _write_markdown(payload: dict) -> None:
         "- No bracket or author–year citation is emitted as a local reference.",
         "- Every probed “what is section N about” question lands on the heading page.",
         "",
-        "Main does not include the section locator, so the last condition fails on main for every paper that has numbered sections. "
-        "Dropping only that condition, "
+        "Main locates a section written as “N. Title” or “N.N. Title.” "
+        "Dropping only the section-question condition, "
         f"{sum(_reference_only(row['profiles']['main']) for row in random_rows)} of {len(random_rows)} pass on main and "
         f"{sum(_reference_only(row['profiles']['hover']) for row in random_rows)} of {len(random_rows)} pass on the hover branch. "
         "The headline above keeps the section question.",
@@ -625,12 +625,16 @@ def main() -> None:
             })
         JSON_OUT.write_text(json.dumps({"papers": rows}, indent=2) + "\n")
         _write_markdown({"papers": rows})
-        print(
-            f"  main {rows[-1]['profiles']['main']['resolution_rate']:.0%} "
-            f"pass={rows[-1]['profiles']['main']['passes']} "
-            f"combined pass={rows[-1]['profiles']['combined']['passes']}",
-            flush=True,
-        )
+        profile = rows[-1].get("profiles", {}).get("main")
+        if profile is None:
+            print(f"  no score ({rows[-1].get('error', 'unknown')})", flush=True)
+        else:
+            print(
+                f"  main {profile['resolution_rate']:.0%} "
+                f"pass={profile['passes']} "
+                f"combined pass={rows[-1]['profiles']['combined']['passes']}",
+                flush=True,
+            )
     random_rows = [row for row in rows if row["role"] == "random" and row.get("profiles")]
     print(
         f"HEADLINE main {sum(row['profiles']['main']['passes'] for row in random_rows)}/{len(random_rows)} "

@@ -551,7 +551,13 @@ def _matches_title(title: str, query: StructuralQuery) -> bool:
         return _leading_roman(title) == query.canonical
     if _number_in(title, _SECTION_TITLE) == query.canonical:
         return True
-    return _leading_number(title, dotted=True) == query.canonical
+    # "9.2 Groups" is section 9.2. "1. Introduction" is section 1.
+    # leading_number(dotted=False) rejects a following digit, so "2.1 Title"
+    # does not answer section 2.
+    return (
+        _leading_number(title, dotted=True) == query.canonical
+        or _leading_number(title, dotted=False) == query.canonical
+    )
 
 
 def _is_title_line(line: str) -> bool:
@@ -559,7 +565,13 @@ def _is_title_line(line: str) -> bool:
     if not 1 <= len(words) <= 8:
         return False
     stripped = line.strip()
-    return not stripped.endswith((".", "?", "!"))
+    if stripped.endswith(("?", "!")):
+        return False
+    # amsart prints "3.1. From somewhere." The period closes the heading.
+    # "2 Integrals appear here." has no period after the opening number.
+    if stripped.endswith("."):
+        return re.match(r"^\s*\d+(?:\.\d+)*\.\s+\S", line) is not None
+    return True
 
 
 def _matches_heading_line(line: str) -> bool:

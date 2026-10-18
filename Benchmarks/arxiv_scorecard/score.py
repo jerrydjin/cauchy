@@ -8,8 +8,8 @@
   when the detector covers the printed span with the right kind and number
   and the source-fallback statement index contains that key. A section
   reference resolves when "what is section N about" locates the body page
-  that prints the section heading. Main has no section locator, so those
-  references stay unresolved there.
+  that prints the section heading. Main locates a heading written as
+  “N. Title” or “N.N. Title.”
 - No wrong link. A wrong link is a hover that would open: a citation span
   whose detector hit is in the index, a printed reference resolved to a
   different indexed statement, or an index entry that is not a real

@@ -165,6 +165,10 @@ class DetectorTests(unittest.TestCase):
         ):
             self.assertEqual(all_references(sample, "main"), [], sample)
 
+        split = "the weak-holomorphy criterion [17,\nTheorem 3.31(c)] shows that G is analytic."
+        self.assertEqual(all_references(split, "main"), [], split)
+        self.assertEqual(declaration_matches(split, {}, "main"), [])
+
         parenthetical = "The estimate is due to (Smith 2019)."
         self.assertEqual(all_references(parenthetical, "main"), [])
         self.assertIsNone(best_reference(parenthetical, parenthetical.index("Smith"), "main"))

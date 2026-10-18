@@ -41,7 +41,8 @@ BIBLIOGRAPHY_QUALIFIER = re.compile(
     r"\s*(?:see\s+)?\d+(?:\s*[-–—]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–—]\s*\d+)?)*\s*,\s*"
 )
 BIBLIOGRAPHY_KEY = r"(?:\d+|[A-Z][A-Za-z]*(?:\+[A-Za-z]*)?\d{2,4}[a-z]?)"
-BRACKET_CITATION_BODY = re.compile(r"\[([^\[\]\n]{1,180})\]")
+# A citation bracket may be split by the text layer: "[17,\nTheorem 3.31(c)]".
+BRACKET_CITATION_BODY = re.compile(r"\[([^\[\]]{1,180})\]")
 AUTHOR_YEAR_PARENTHETICAL = re.compile(
     r"\(([A-Z][A-Za-z'’\-]+)(?:\s+et\s+al\.?)?\s+((?:19|20)\d{2})\)"
 )
@@ -172,7 +173,7 @@ def _external_citation_spans(text: str) -> list[tuple[int, int]]:
     for found in BRACKET_CITATION_BODY.finditer(text):
         if _overlaps(found.start(), found.end(), spans):
             continue
-        body = found.group(1).strip()
+        body = re.sub(r"\s+", " ", found.group(1)).strip()
         match = BRACKET_KEY.fullmatch(body)
         if match is None:
             continue

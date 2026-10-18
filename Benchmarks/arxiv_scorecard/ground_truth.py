@@ -34,10 +34,22 @@ STATEMENT_KINDS = {
 IN_SCOPE = {"theorem", "lemma", "definition", "equation", "section"}
 
 _TAG = re.compile(
-    r"(?i)^(theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof|"
+    r"(?i)^(theorems|lemmas|propositions|corollaries|definitions|remarks|examples|exercises|proofs|"
+    r"theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof|"
     r"conjecture|claim|hypothesis|assumption|notation|question)\s+"
     r"([A-Z]?(?:\d+(?:\.\d+)*|\d+)|[A-Z](?:\.\d+)+)\b\.?\s*(?:\(([^)]{1,80})\))?"
 )
+_TAG_PLURAL = {
+    "theorems": "theorem",
+    "lemmas": "lemma",
+    "propositions": "proposition",
+    "corollaries": "corollary",
+    "definitions": "definition",
+    "remarks": "remark",
+    "examples": "example",
+    "exercises": "exercise",
+    "proofs": "proof",
+}
 _CUE = re.compile(
     r"(?i)(theorems|lemmas|propositions|corollaries|definitions|remarks|examples|sections|appendices|"
     r"theorem|thm\.?|lemma|lem\.?|proposition|prop\.?|corollary|cor\.?|definition|def\.?|"
@@ -147,7 +159,8 @@ def _kind_number_from_tag(text: str) -> tuple[str, str, str | None] | None:
     found = _TAG.match(text.replace("\xa0", " ").strip())
     if not found:
         return None
-    kind = STATEMENT_KINDS.get(found.group(1).lower(), "other")
+    word = found.group(1).lower()
+    kind = _TAG_PLURAL.get(word, STATEMENT_KINDS.get(word, "other"))
     return kind, found.group(2), (found.group(3).strip() if found.group(3) else None)
 
 
@@ -191,6 +204,27 @@ def parse_html(html: str) -> PaperTruth:
                 named = re.search(r"\(([^)]{2,80})\)", parent.get_text(" ", strip=True))
                 if named:
                     name = named.group(1).strip()
+        seen_declarations.add((kind, number))
+        truth.declarations.append(Declaration(kind, number, name, order))
+        order += 1
+
+    # LaTeXML sometimes prints a remark as a bold run-in, not a theorem tag:
+    # <span class="ltx_font_bold">Remark 3.13.</span>
+    for span in soup.select("span.ltx_font_bold"):
+        if not isinstance(span, Tag) or _in_toc(span) or span.find_parent("cite"):
+            continue
+        text = re.sub(r"\s+", " ", span.get_text(" ", strip=True)).strip()
+        parsed = _kind_number_from_tag(text)
+        if parsed is None:
+            continue
+        kind, number, name = parsed
+        if kind == "other" or (kind, number) in seen_declarations:
+            continue
+        # The span is the label itself. A bold sentence that merely starts
+        # with "Theorem 1.1" is not a second declaration.
+        label = _TAG.match(text)
+        if label is None or label.end() != len(text):
+            continue
         seen_declarations.add((kind, number))
         truth.declarations.append(Declaration(kind, number, name, order))
         order += 1

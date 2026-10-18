@@ -617,7 +617,9 @@ def _write_markdown(payload: dict) -> None:
         "A bracket that the detector does not open is not a wrong link. "
         "The heading page for a section question is the PDF outline entry whose title matches the HTML heading, "
         "or else a title-shaped line. A numbered sentence is not that heading. "
-        "An outline bookmark that reads “Introduction” rather than “1. Introduction” is still section 1 when it is the first section bookmark.",
+        "An outline bookmark that reads “Introduction” rather than “1. Introduction” is still section 1 when it is the first section bookmark. "
+        "A citation bracket may be split by a line break, as in “[17, Theorem 3.31(c)]”. "
+        "The HTML declaration list includes a plural tag such as “Examples 6.7” and a bold run-in such as “Remark 3.13.”",
         "",
         (
             f"Shared counters, such as a theorem followed by a lemma with the next number, "

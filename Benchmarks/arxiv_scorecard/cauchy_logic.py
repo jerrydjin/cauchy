@@ -4,9 +4,11 @@ This is a line-by-line port of the non-UI rules on main, plus the two open
 branches the scorecard compares:
 
 - main: Cauchy/Services/ReferenceParsing.swift, ReferenceDetector.swift,
-  LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing
+  LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing.
+  Main drops a local hit that sits inside a bracket or author–year citation
+  ([12], [IK99, Lemma 1.15], (Smith 2019), Smith et al. [2019]).
 - cursor/reference-hover-detection-0cb7: abbreviated, plural, and
-  bibliography-qualified references
+  numeric bibliography-qualified references
 - cursor/jerry-60-ask-highlight-da7d: AskStructureLocator
 
 PDFKit is not available on Linux. Callers supply page text (PyMuPDF's
@@ -37,6 +39,17 @@ PAIRED_FIGURES = (
 )
 BIBLIOGRAPHY_QUALIFIER = re.compile(
     r"\s*(?:see\s+)?\d+(?:\s*[-–—]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–—]\s*\d+)?)*\s*,\s*"
+)
+BIBLIOGRAPHY_KEY = r"(?:\d+|[A-Z][A-Za-z]*(?:\+[A-Za-z]*)?\d{2,4}[a-z]?)"
+BRACKET_CITATION_BODY = re.compile(r"\[([^\[\]\n]{1,180})\]")
+AUTHOR_YEAR_PARENTHETICAL = re.compile(
+    r"\(([A-Z][A-Za-z'’\-]+)(?:\s+et\s+al\.?)?\s+((?:19|20)\d{2})\)"
+)
+AUTHOR_YEAR_BRACKET = re.compile(
+    r"([A-Z][A-Za-z'’\-]+)(?:\s+et\s+al\.?)?\s*\[((?:19|20)\d{2})\]"
+)
+BRACKET_KEY = re.compile(
+    rf"^(?:see\s+)?({BIBLIOGRAPHY_KEY})(?:\s*[-–—]\s*\d+)?(?:\s*,\s*(.+))?$"
 )
 
 KIND_FROM_KEYWORD = {
@@ -119,6 +132,45 @@ _PATTERNS = {
 }
 
 
+def _overlaps(start: int, end: int, spans: list[tuple[int, int]]) -> bool:
+    return any(not (end <= span_start or span_end <= start) for span_start, span_end in spans)
+
+
+def _external_citation_spans(text: str) -> list[tuple[int, int]]:
+    """Spans ReferenceDetector treats as another paper's citation.
+
+    An interval such as "[0, 1]" is not one: the text after the key has to
+    contain a letter before the bracket is a qualified citation.
+    """
+    spans: list[tuple[int, int]] = []
+    for found in AUTHOR_YEAR_PARENTHETICAL.finditer(text):
+        spans.append((found.start(), found.end()))
+    for found in AUTHOR_YEAR_BRACKET.finditer(text):
+        if _overlaps(found.start(), found.end(), spans):
+            continue
+        spans.append((found.start(), found.end()))
+    for found in BRACKET_CITATION_BODY.finditer(text):
+        if _overlaps(found.start(), found.end(), spans):
+            continue
+        body = found.group(1).strip()
+        match = BRACKET_KEY.fullmatch(body)
+        if match is None:
+            continue
+        qualifier = match.group(2)
+        if qualifier is not None:
+            # "[0, 1]" is an interval. "[3, (1.3)]" and "[12, Theorem 3.2]" are citations.
+            if not any(character.isalpha() for character in qualifier) and "(" not in qualifier:
+                continue
+        else:
+            key = match.group(1)
+            # "[2019]" is a year citation. It still owns the bracket, so a
+            # local statement is not read out of it.
+            if len(key) == 4 and (key.startswith("19") or key.startswith("20")):
+                pass
+        spans.append((found.start(), found.end()))
+    return spans
+
+
 def _bibliography_span(text: str, start: int, end: int) -> tuple[int, int] | None:
     open_idx = text.rfind("[", 0, start)
     if open_idx < 0:
@@ -168,8 +220,13 @@ def detection(text: str, profile: str = "main") -> Detection:
         raw.append(Match("figure", found.group(4), found.start(3), found.end(3), text[found.start(3) : found.end(3)]))
 
     if profile == "main":
-        raw.sort(key=lambda item: (item.start, item.end))
-        return Detection(local=raw)
+        spans = _external_citation_spans(text)
+        local = [
+            match for match in raw
+            if not any(start <= match.start and match.end <= end for start, end in spans)
+        ]
+        local.sort(key=lambda item: (item.start, item.end))
+        return Detection(local=local, bibliography_spans=spans)
 
     local: list[Match] = []
     spans: list[tuple[int, int]] = []

@@ -60,7 +60,7 @@ class DetectorTests(unittest.TestCase):
 
     def test_hover_branch_bibliography_and_abbreviations(self) -> None:
         cited = "[12, Theorem 3.2]"
-        self.assertEqual(first_reference(cited, "main").number, "3.2")
+        self.assertIsNone(first_reference(cited, "main"))
         self.assertIsNone(first_reference(cited, "hover"))
         self.assertEqual(all_references(cited, "hover"), [])
         self.assertIsNone(best_reference(cited, cited.index("Theorem"), "hover"))
@@ -103,6 +103,63 @@ class DetectorTests(unittest.TestCase):
         for sample in ("Theorems 2.1–2.3", "Theorems 2.1-2.3"):
             numbers = [item.number for item in all_references(sample, "hover")]
             self.assertEqual(numbers, ["2.1", "2.3"], sample)
+
+    def test_main_drops_bracket_and_author_year_citations(self) -> None:
+        text = "We refer the reader to [IK99, Lemma 1.15] for a proof. Lemma 2.1."
+        references = all_references(text, "main")
+        self.assertEqual([(item.kind, item.number) for item in references], [("lemma", "2.1")])
+        inside = text.index("Lemma 1.15")
+        self.assertIsNone(best_reference(text, inside, "main"))
+        local = text.index("Lemma 2.1")
+        self.assertEqual(best_reference(text, local, "main").number, "2.1")
+
+        numeric = "By [12, Theorem 3.2] the map is continuous."
+        self.assertEqual(all_references(numeric, "main"), [])
+        self.assertIsNone(best_reference(numeric, numeric.index("Theorem"), "main"))
+
+        following = "Theorem 3.2 improves the bound in [12, Theorem 3.2]."
+        self.assertEqual([item.text for item in all_references(following, "main")], ["Theorem 3.2"])
+        self.assertIsNone(best_reference(following, following.index("[12"), "main"))
+
+        for sample in (
+            "[CCC+18, Definition 3.5]",
+            "[see 12, Theorem 3.2]",
+            "[12-14, Theorem 3.2]",
+            "[7, proof of Theorem 4.1]",
+            "Smith et al. [2019, Lemma 4] proved the bound.",
+        ):
+            self.assertEqual(all_references(sample, "main"), [], sample)
+
+        parenthetical = "The estimate is due to (Smith 2019)."
+        self.assertEqual(all_references(parenthetical, "main"), [])
+        self.assertIsNone(best_reference(parenthetical, parenthetical.index("Smith"), "main"))
+
+        # The year bracket does not swallow a statement printed after it.
+        after_year = "Smith et al. [2019] proved Lemma 4."
+        self.assertEqual(
+            [(item.kind, item.number) for item in all_references(after_year, "main")],
+            [("lemma", "4")],
+        )
+        self.assertIsNone(best_reference(after_year, after_year.index("2019"), "main"))
+
+        interval = "The interval [0, 1] contains (1)."
+        self.assertEqual(
+            [(item.kind, item.number) for item in all_references(interval, "main")],
+            [("equation", "1")],
+        )
+        self.assertEqual(all_references("Consider the range [1, 2, 3] next.", "main"), [])
+
+        disambiguated = "By [BO09b, Lemma 3.3], the perturbation is small. Lemma 2.1."
+        self.assertEqual(
+            [(item.kind, item.number) for item in all_references(disambiguated, "main")],
+            [("lemma", "2.1")],
+        )
+        self.assertIsNone(best_reference(disambiguated, disambiguated.index("Lemma 3.3"), "main"))
+        equation_cite = "Thus wn(t) = M [3, (1.3)]. Since d is faithful, (1.4) follows."
+        self.assertEqual(
+            [(item.kind, item.number) for item in all_references(equation_cite, "main")],
+            [("equation", "1.4")],
+        )
 
 
 def _textbook() -> Structure:

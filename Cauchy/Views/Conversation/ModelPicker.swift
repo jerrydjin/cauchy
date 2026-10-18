@@ -74,11 +74,11 @@ struct ModelPicker: View {
                     )
                 }
             }
-            .disabled(!status.isReady)
+            .disabled(!status.allowsSelection)
         } else {
             // Nothing to choose inside, so the connector itself is the item.
             Toggle(menuTitle(connector, status), isOn: binding(for: .connector(connector.id)))
-                .disabled(!status.isReady)
+                .disabled(!status.allowsSelection)
         }
     }
 

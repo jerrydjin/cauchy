@@ -177,6 +177,8 @@ struct SelectionThread: Equatable, Sendable {
     var messages: [ThreadMessage]
     var isPersisted: Bool
     var streamingAssistantText: String?
+    /// Shown in the transcript when an ask fails. Not saved with the highlight.
+    var failureNotice: String?
 
     init(
         anchorID: UUID,
@@ -187,7 +189,8 @@ struct SelectionThread: Equatable, Sendable {
         lines: [HighlightLine]? = nil,
         messages: [ThreadMessage] = [],
         isPersisted: Bool = false,
-        streamingAssistantText: String? = nil
+        streamingAssistantText: String? = nil,
+        failureNotice: String? = nil
     ) {
         self.anchorID = anchorID
         self.pageIndex = pageIndex
@@ -198,6 +201,7 @@ struct SelectionThread: Equatable, Sendable {
         self.messages = messages
         self.isPersisted = isPersisted
         self.streamingAssistantText = streamingAssistantText
+        self.failureNotice = failureNotice
     }
 
     var anchor: TextAnchor {

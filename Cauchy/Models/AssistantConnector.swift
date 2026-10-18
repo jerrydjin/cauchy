@@ -73,6 +73,11 @@ enum ModelChoice: Hashable, Sendable {
         case .model(let id): id
         }
     }
+
+    var modelID: String? {
+        if case .model(let id) = self { return id }
+        return nil
+    }
 }
 
 enum AssistantConnectorID: String, CaseIterable, Identifiable, Hashable, Sendable {

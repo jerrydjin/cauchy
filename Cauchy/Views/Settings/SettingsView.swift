@@ -102,7 +102,7 @@ struct SettingsView: View {
     private func connectorRow(_ connector: AssistantConnector) -> some View {
         let _ = refreshID
         let status = connector.status
-        let connected = setup.authenticated.contains(connector.id) && connector.resolvedBinaryURL != nil
+        let connected = status.isReady
         HStack(spacing: 12) {
             Image(systemName: connector.symbol)
                 .font(.title3).frame(width: 34, height: 38)
@@ -110,13 +110,11 @@ struct SettingsView: View {
                 HStack {
                     Text(connector.name).fontWeight(.medium)
                     if connected {
-                        Label("Connected", systemImage: "checkmark.circle.fill")
+                        Label("Ready", systemImage: "checkmark.circle.fill")
                             .font(.caption).foregroundStyle(.green)
                     }
                 }
-                Text(connector.binaryName == nil ? (status.hint ?? connector.tagline) :
-                     connected ? "Ready to answer your questions" :
-                     connector.resolvedBinaryURL == nil ? "Install and connect your \(connector.vendor) account" : "Already installed · Connect your account")
+                Text(connected ? "Ready to answer your questions" : (status.hint ?? connector.tagline))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()

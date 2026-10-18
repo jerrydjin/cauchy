@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct HighlightThreadDetailView: View {
@@ -5,9 +6,14 @@ struct HighlightThreadDetailView: View {
     var onBack: () -> Void
 
     @State private var question = ""
+    @State private var setupConnector: AssistantConnectorID?
 
     private var thread: SelectionThread? {
         workspace.selectionThread.activeThread
+    }
+
+    private var ask: AskPresentation {
+        AskPresentation.current()
     }
 
     var body: some View {
@@ -17,8 +23,10 @@ struct HighlightThreadDetailView: View {
                 messages: thread?.messages ?? [],
                 streamingText: thread?.streamingAssistantText,
                 isResponding: workspace.selectionThread.isResponding,
-                isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
-                unavailabilityMessage: unavailabilityMessage,
+                canAsk: ask.canAsk,
+                unavailableMessage: ask.canAsk ? nil : ask.message,
+                recoveryTitle: ask.canAsk ? nil : ask.buttonTitle,
+                failureMessage: thread?.failureNotice,
                 panelWidth: geometry.size.width,
                 question: $question,
                 onSend: { sendQuestion() },
@@ -28,9 +36,34 @@ struct HighlightThreadDetailView: View {
                     }
                 },
                 onModelChange: { workspace.refreshReadingAssistant() },
+                onRecovery: { performRecovery(ask.recovery) },
                 onOpenSource: { workspace.goToAnswerSource($0) },
                 header: { header }
             )
+        }
+        .task(id: ask.probeToken) {
+            await ProviderReadinessStore.shared.probeIfNeededCurrentSelection()
+        }
+        .sheet(item: $setupConnector) { id in
+            ConnectorSetupView(connector: id.connector) {
+                workspace.refreshReadingAssistant()
+            }
+        }
+    }
+
+    private func performRecovery(_ recovery: AskRecovery?) {
+        switch recovery {
+        case .setup(let id):
+            setupConnector = id
+        case .settings:
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        case .retry(let id):
+            let modelID = AssistantPreferences.modelChoice(for: id).modelID
+            Task {
+                await ProviderReadinessStore.shared.probe(connectorID: id, modelID: modelID, force: true)
+            }
+        case nil:
+            break
         }
     }
 
@@ -124,24 +157,6 @@ struct HighlightThreadDetailView: View {
             return saved.displayName
         }
         return Highlight.title(from: thread.selectedText)
-    }
-
-    private var unavailabilityMessage: String? {
-        guard !workspace.readingAssistantAvailability.isAvailable else { return nil }
-        switch workspace.readingAssistantAvailability {
-        case .deviceNotEligible:
-            return "Apple Intelligence is not supported on this Mac."
-        case .intelligenceNotEnabled:
-            return "Enable Apple Intelligence in System Settings to ask questions."
-        case .modelNotReady:
-            return "The on-device model is downloading. Try again soon."
-        case .apiKeyMissing(let provider):
-            return "Add your \(provider.vendor) API key in Settings to ask questions."
-        case .cliNotInstalled(let provider):
-            return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
-        default:
-            return "Ask is unavailable right now."
-        }
     }
 
     private func sendQuestion() {

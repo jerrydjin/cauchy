@@ -102,6 +102,8 @@ struct AntigravityStreamParser: CLIAgentStreamParsing {
 ///      {"id":"...","msg":{"type":"error","message":"..."}}
 ///   B: {"type":"item.completed","item":{"type"|"item_type":"agent_message","text":"..."}}
 ///      {"type":"error","message":"..."}
+///      {"type":"error","error":{"message":"..."}}
+///      {"method":"item/agentMessage/delta","params":{"delta":"..."}}
 struct CodexStreamParser: CLIAgentStreamParsing {
     private var completedMessages: [String] = []
     private var pendingText = ""
@@ -138,7 +140,34 @@ struct CodexStreamParser: CLIAgentStreamParsing {
                     return currentText
                 }
             case "error":
-                errorMessage = readableError(msg["message"] as? String)
+                errorMessage = codexErrorText(msg)
+            default:
+                break
+            }
+            return nil
+        }
+
+        // App-server style events (`codex exec` has used both this and shape B).
+        if let method = object["method"] as? String {
+            let params = object["params"] as? [String: Any] ?? [:]
+            switch method {
+            case "item/agentMessage/delta":
+                if let delta = params["delta"] as? String, !delta.isEmpty {
+                    pendingText += delta
+                    return currentText
+                }
+            case "item/completed":
+                if let item = params["item"] as? [String: Any],
+                   let text = item["text"] as? String, !text.isEmpty {
+                    let itemType = ((item["type"] as? String) ?? "").replacingOccurrences(of: "_", with: "").lowercased()
+                    if itemType == "agentmessage" {
+                        completedMessages.append(text)
+                        pendingText = ""
+                        return currentText
+                    }
+                }
+            case "turn/failed", "error":
+                errorMessage = codexErrorText(params.isEmpty ? object : params)
             default:
                 break
             }
@@ -148,12 +177,15 @@ struct CodexStreamParser: CLIAgentStreamParsing {
         // Shape B: typed items.
         guard let type = object["type"] as? String else { return nil }
         if type == "error" {
-            errorMessage = readableError(object["message"] as? String)
+            errorMessage = codexErrorText(object)
             return nil
         }
         if type == "turn.failed" {
-            let error = object["error"] as? [String: Any]
-            errorMessage = readableError(error?["message"] as? String)
+            if let error = object["error"] as? [String: Any] {
+                errorMessage = codexErrorText(error)
+            } else {
+                errorMessage = codexErrorText(object)
+            }
             return nil
         }
         if type == "turn.completed" {
@@ -177,11 +209,29 @@ struct CodexStreamParser: CLIAgentStreamParsing {
         return currentText
     }
 
-    private func readableError(_ raw: String?) -> String {
-        guard let raw else { return "Codex returned an error." }
+    /// Codex has shipped the human-readable text as a string, as a nested JSON
+    /// string, and as `error: { message }` on the event itself. Missing pieces
+    /// stay a plain sentence — they must not trap.
+    private func codexErrorText(_ object: [String: Any]) -> String {
+        if let message = object["message"] as? String, !message.isEmpty {
+            return nestedMessage(message)
+        }
+        if let error = object["error"] as? [String: Any] {
+            if let message = error["message"] as? String, !message.isEmpty {
+                return nestedMessage(message)
+            }
+        }
+        if let error = object["error"] as? String, !error.isEmpty {
+            return nestedMessage(error)
+        }
+        return "Codex returned an error."
+    }
+
+    private func nestedMessage(_ raw: String) -> String {
         guard let object = jsonObject(from: raw),
               let error = object["error"] as? [String: Any],
-              let message = error["message"] as? String else { return raw }
+              let message = error["message"] as? String,
+              !message.isEmpty else { return raw }
         return message
     }
 }

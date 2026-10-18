@@ -34,7 +34,7 @@ struct HighlightNoteEditor: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .glassEffect(.regular, in: .rect(cornerRadius: 10))
+        .readerGlass(.regular, in: .rect(cornerRadius: 10))
         .task(id: highlightID) { draft = savedNote }
         .onChange(of: isFocused) { _, focused in
             if !focused { commit() }

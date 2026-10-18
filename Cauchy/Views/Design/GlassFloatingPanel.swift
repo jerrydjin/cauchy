@@ -8,7 +8,7 @@ struct GlassFloatingPanel<Content: View>: View {
     @Namespace private var namespace
 
     var body: some View {
-        GlassEffectContainer {
+        ReaderGlassContainer {
             VStack(spacing: 0) {
                 HStack {
                     Text(title)
@@ -27,8 +27,8 @@ struct GlassFloatingPanel<Content: View>: View {
 
                 content()
             }
-            .glassEffect(in: .rect(cornerRadius: 16))
-            .glassEffectID("secondaryPanel", in: namespace)
+            .readerGlass(in: .rect(cornerRadius: 16))
+            .readerGlassID("secondaryPanel", namespace: namespace)
         }
         .shadow(radius: 12, y: 4)
     }

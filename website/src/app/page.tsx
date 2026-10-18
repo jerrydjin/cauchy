@@ -36,7 +36,7 @@ export default function Home() {
               href={DOWNLOAD_URL}
               className="w-full sm:w-auto h-12 flex items-center justify-center bg-accent text-accent-text px-8 rounded-md text-[16px] font-medium whitespace-nowrap hover:bg-accent-hover transition-colors"
             >
-              Download for macOS
+              Download Cauchy for Mac
             </Link>
             <a
               href={REPO_URL}
@@ -48,9 +48,11 @@ export default function Home() {
             </a>
           </div>
 
+          <p className="text-[14px] text-secondary mb-4">
+            Needs macOS 15. The first time you open it, go to System Settings, then Privacy &amp; Security, and click Open Anyway.
+          </p>
           <p className="text-[14px] text-secondary mb-20">
-            Free and MIT licensed. Requires macOS 27 (Golden Gate) or later; ad-hoc
-            signed builds need Open Anyway ·{" "}
+            Free and MIT licensed ·{" "}
             <Link href="/setup" className={inline}>
               installation notes
             </Link>{" "}
@@ -368,8 +370,11 @@ export default function Home() {
           Understand proofs better.
         </h2>
         <Link href={DOWNLOAD_URL} className="bg-accent text-accent-text px-6 py-3 rounded-md text-[16px] font-medium hover:bg-accent-hover transition-colors mb-4">
-          Download Cauchy
+          Download Cauchy for Mac
         </Link>
+        <p className="text-[14px] text-secondary mb-4">
+          Needs macOS 15. The first time you open it, go to System Settings, then Privacy &amp; Security, and click Open Anyway.
+        </p>
         <p className="text-[14px] text-secondary mb-24">
           Latest release notes on{" "}
           <a

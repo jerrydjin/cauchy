@@ -23,8 +23,11 @@ enum ThreadTitleGenerator {
     static let maxCharacters = 58
 
     static var isAvailable: Bool {
-        FoundationModelsReadingAssistantService.localAvailability.isAvailable
-            || AssistantPreferences.cloudAssistEnabled
+        if #available(macOS 27, *),
+           FoundationModelsReadingAssistantService.localAvailability.isAvailable {
+            return true
+        }
+        return AssistantPreferences.cloudAssistEnabled
     }
 
     /// The shortest passage worth handing to a model on its own. Below this a
@@ -40,7 +43,7 @@ enum ThreadTitleGenerator {
         surroundingText: String,
         messages: [ThreadMessage]
     ) async -> String? {
-        guard let model = model() else { return nil }
+        guard isAvailable else { return nil }
 
         let question = messages.first { $0.role == .user }?.content ?? ""
         let answer = messages.first { $0.role == .assistant }?.content ?? ""
@@ -66,17 +69,51 @@ enum ThreadTitleGenerator {
             brief = instructions
         }
 
+        let raw: String?
+        if #available(macOS 27, *) {
+            guard let model = model() else { return nil }
+            raw = await completeOnDeviceOrSession(model: model, instructions: brief, prompt: prompt)
+        } else {
+            raw = await completeWithCloud(instructions: brief, prompt: prompt)
+        }
+        guard let raw, let title = sanitize(raw) else { return nil }
+        // The brief can ask for a grounded title; it cannot guarantee one.
+        // A small model handed a passage it can't parse reaches for a
+        // subject it knows — often one from the examples — so the text has
+        // the last word on whether a title is about it.
+        let source = [selectedText, surroundingText, question, answer].joined(separator: " ")
+        guard isGrounded(title, in: source) else { return nil }
+        return title
+    }
+
+    @available(macOS 27, *)
+    private static func completeOnDeviceOrSession(
+        model: any LanguageModel,
+        instructions: String,
+        prompt: String
+    ) async -> String? {
         do {
-            let session = LanguageModelSession(model: model, instructions: brief)
+            let session = LanguageModelSession(model: model, instructions: instructions)
             let response = try await session.respond(to: prompt)
-            guard let title = sanitize(response.content) else { return nil }
-            // The brief can ask for a grounded title; it cannot guarantee one.
-            // A small model handed a passage it can't parse reaches for a
-            // subject it knows — often one from the examples — so the text has
-            // the last word on whether a title is about it.
-            let source = [selectedText, surroundingText, question, answer].joined(separator: " ")
-            guard isGrounded(title, in: source) else { return nil }
-            return title
+            return response.content
+        } catch {
+            return nil
+        }
+    }
+
+    /// Titles below macOS 27 use a saved API key directly. There is no CLI
+    /// spawn: naming a thread must not spend a subscription turn.
+    private static func completeWithCloud(instructions: String, prompt: String) async -> String? {
+        guard let selection = AssistantPreferences.activeCloudSelection(named: AssistantPreferences.activeCloudProvider?.economyModelID) else {
+            return nil
+        }
+        do {
+            return try await CloudStreamingClient.text(
+                provider: selection.provider,
+                apiKey: selection.apiKey,
+                modelName: selection.modelName,
+                prompt: CloudPrompt(instructions: instructions, prompt: prompt)
+            )
         } catch {
             return nil
         }
@@ -131,7 +168,9 @@ enum ThreadTitleGenerator {
         "introduction", "reason", "purpose", "role", "idea", "notion",
     ]
 
+    @available(macOS 27, *)
     private static func model() -> (any LanguageModel)? {
+        guard #available(macOS 27, *) else { return nil }
         if FoundationModelsReadingAssistantService.localAvailability.isAvailable {
             return SystemLanguageModel.default
         }

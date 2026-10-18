@@ -91,7 +91,7 @@ private struct ThreadSearchField: View {
         .frame(height: 32)
         // Glass goes on last, after everything that affects appearance — the
         // modifier captures the content it sits above.
-        .glassEffect(.regular, in: .capsule)
+        .readerGlass(.regular, in: .capsule)
         .overlay {
             if isFocused {
                 Capsule().strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 1)

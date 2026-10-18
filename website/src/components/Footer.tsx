@@ -23,7 +23,7 @@ export default function Footer() {
           <div className="flex flex-col gap-4">
             <span className="text-[13px] font-semibold text-white mb-2">Product</span>
             <External href={`${REPO_URL}/releases/latest/download/Cauchy.dmg`}>
-              Download for macOS
+              Download Cauchy for Mac
             </External>
             <External href={`${REPO_URL}/releases`}>Releases</External>
             <Link href="/setup" className={linkClass}>Setup guide</Link>

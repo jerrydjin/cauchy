@@ -15,8 +15,8 @@ struct ContentView: View {
         Group {
             if workspace.pdfDocument == nil {
                 DashboardView(workspace: workspace)
-                    .toolbar(removing: .sidebarToggle)
-                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                    .readerRemoveSidebarToggle()
+                    .sidebarToolbarChrome()
                     .transition(.opacity)
             } else {
                 NavigationSplitView(columnVisibility: columnVisibility) {
@@ -26,13 +26,13 @@ struct ContentView: View {
                     WorkspaceLayoutView(workspace: workspace)
                         .navigationTitle(workspace.windowTitle)
                         .toolbarTitleDisplayMode(.inline)
-                        .toolbar(removing: .sidebarToggle)
+                        .readerRemoveSidebarToggle()
                         .toolbar {
                             if !workspace.sidebarVisible {
                                 ToolbarItem(placement: .navigation) {
                                     SidebarOptionsMenu(workspace: workspace)
                                 }
-                                .sharedBackgroundVisibility(.hidden)
+                                .readerHideSharedBackground()
                             }
                             GlassToolbarContent(workspace: workspace)
                         }

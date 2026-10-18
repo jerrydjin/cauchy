@@ -40,7 +40,7 @@ export default function Header() {
             href="https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg"
             className="bg-accent text-accent-text px-5 py-2.5 rounded-md text-[15px] font-medium hover:bg-accent-hover transition-colors"
           >
-            Get Cauchy
+            Download Cauchy for Mac
           </Link>
         </div>
       </div>

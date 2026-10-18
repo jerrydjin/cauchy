@@ -102,7 +102,7 @@ struct HighlightThreadDetailView: View {
                 Button("Save as Highlight") {
                     workspace.saveTextSelectionAsHighlight()
                 }
-                .buttonStyle(.glassProminent)
+                .readerGlassButtonStyle(prominent: true)
                 .controlSize(.small)
             }
         }
@@ -139,6 +139,8 @@ struct HighlightThreadDetailView: View {
             return "Add your \(provider.vendor) API key in Settings to ask questions."
         case .cliNotInstalled(let provider):
             return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
+        case .chooseProvider:
+            return AppleIntelligenceAvailability.chooseProviderMessage
         default:
             return "Ask is unavailable right now."
         }

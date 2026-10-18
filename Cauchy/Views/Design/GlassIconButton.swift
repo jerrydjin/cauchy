@@ -10,10 +10,10 @@ struct GlassIconButton: View {
         Group {
             if prominent {
                 styledButton
-                    .buttonStyle(.glassProminent)
+                    .readerGlassButtonStyle(prominent: true)
             } else {
                 styledButton
-                    .buttonStyle(.glass)
+                    .readerGlassButtonStyle()
             }
         }
         .buttonBorderShape(.circle)

@@ -42,6 +42,6 @@ struct ConversationComposer: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .glassEffect(in: .rect(cornerRadius: ConversationChrome.composerCornerRadius))
+        .readerGlass(in: .rect(cornerRadius: ConversationChrome.composerCornerRadius))
     }
 }

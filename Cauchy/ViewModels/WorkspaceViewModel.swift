@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import FoundationModels
 import Observation
 import PDFKit
 import UniformTypeIdentifiers
@@ -734,7 +733,7 @@ final class WorkspaceViewModel: Equatable {
     func rebuildReferenceIndex(connectorID: AssistantConnectorID? = nil, modelID: String? = nil) {
         guard let url = workspace?.documentURL else { return }
 
-        var forcedModel: (any LanguageModel)?
+        var forcedModel: (any ReferenceIndexModel)?
         var modelDescription: String?
         if let connectorID {
             let connector = connectorID.connector
@@ -748,16 +747,39 @@ final class WorkspaceViewModel: Equatable {
             modelDescription = connector.label(for: choice)
             switch connector.access {
             case .onDevice:
-                forcedModel = SystemLanguageModel.default
+                guard #available(macOS 27, *) else {
+                    referenceIndexError = "Apple Intelligence needs macOS 27."
+                    return
+                }
+                forcedModel = ReferenceIndexModelFactory.onDevice()
             case .apiKey(let provider):
                 guard let key = KeychainService.loadKey(for: provider) else {
                     referenceIndexError = "Add your \(provider.vendor) API key in Settings."
                     return
                 }
-                forcedModel = CloudLanguageModel(provider: provider, apiKey: key, modelName: chosenModelID)
+                let selection = CloudModelSelection(
+                    provider: provider,
+                    apiKey: key,
+                    modelName: chosenModelID ?? provider.defaultModelID
+                )
+                if #available(macOS 27, *) {
+                    forcedModel = ReferenceIndexModelFactory.sessionCloud(selection)
+                } else {
+                    forcedModel = DirectCloudReferenceIndexModel(client: selection.client)
+                }
                 modelDescription = "\(connector.vendor) \(connector.label(for: choice))"
             case .cliSignIn:
-                forcedModel = CLIIndexLanguageModel(connectorID: connectorID, modelID: chosenModelID)
+                if #available(macOS 27, *) {
+                    forcedModel = SessionReferenceIndexModel(
+                        languageModel: CLIIndexLanguageModel(connectorID: connectorID, modelID: chosenModelID),
+                        vision: nil
+                    )
+                } else {
+                    forcedModel = DirectCLIReferenceIndexModel(
+                        connectorID: connectorID,
+                        modelID: chosenModelID
+                    )
+                }
                 modelDescription = "\(connector.name) · \(connector.label(for: choice))"
             }
         }
@@ -779,7 +801,7 @@ final class WorkspaceViewModel: Equatable {
     func resetAllReferenceIndexes() {
         let alert = NSAlert()
         alert.messageText = "Reset All Reference Indexes?"
-        alert.informativeText = "Cached theorem/definition indexes for all documents will be deleted and rebuilt the next time each document is opened. Re-indexing runs in the background and uses the on-device model (or a saved API key)."
+        alert.informativeText = "Cached theorem/definition indexes for all documents will be deleted and rebuilt the next time each document is opened. Re-indexing runs in the background. On macOS 27 it uses Apple Intelligence, or a saved API key when that model is unavailable. On earlier systems it uses a saved API key, or the PDF text when no key is saved."
         alert.addButton(withTitle: "Reset All")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -965,7 +987,7 @@ final class WorkspaceViewModel: Equatable {
     /// caller has already resolved a ready connector.
     private func buildReferenceIndex(
         for url: URL,
-        forcedModel: (any LanguageModel)? = nil,
+        forcedModel: (any ReferenceIndexModel)? = nil,
         modelDescription: String? = nil
     ) {
         referenceIndexTask?.cancel()
@@ -978,10 +1000,12 @@ final class WorkspaceViewModel: Equatable {
 
         // Indexing prefers the free on-device model; a cloud key is only a fallback
         // when Apple Intelligence is unavailable. Independent of which
-        // provider answers chat questions.
+        // provider answers chat questions. Below macOS 27 there is no on-device
+        // model, so a missing key still indexes the PDF text and hover works.
         if forcedModel == nil {
             let availability = referenceIndexingAvailability
-            guard availability.isAvailable else {
+            let allowSourceText = !AppleIntelligenceAvailability.isSupported && !availability.isAvailable
+            if !availability.isAvailable && !allowSourceText {
                 isIndexingReferences = false
                 referenceIndexError = referenceIndexUnavailableMessage(for: availability)
                 return
@@ -1049,24 +1073,36 @@ final class WorkspaceViewModel: Equatable {
     }
 
     private var referenceIndexingAvailability: ReadingAssistantAvailability {
-        let local = FoundationModelsReadingAssistantService.localAvailability
-        if local.isAvailable {
+        if #available(macOS 27, *) {
+            let local = FoundationModelsReadingAssistantService.localAvailability
+            if local.isAvailable {
+                return local
+            }
+            if let provider = AssistantPreferences.activeCloudProvider {
+                return .available(provider.connectorID)
+            }
             return local
         }
         if let provider = AssistantPreferences.activeCloudProvider {
             return .available(provider.connectorID)
         }
-        return local
+        return .chooseProvider
     }
 
-    private func referenceIndexModel() -> any LanguageModel {
-        if FoundationModelsReadingAssistantService.localAvailability.isAvailable {
-            return SystemLanguageModel.default
+    private func referenceIndexModel() -> any ReferenceIndexModel {
+        if #available(macOS 27, *) {
+            if FoundationModelsReadingAssistantService.localAvailability.isAvailable {
+                return ReferenceIndexModelFactory.onDevice()
+            }
+            if let selection = AssistantPreferences.activeCloudSelection() {
+                return ReferenceIndexModelFactory.sessionCloud(selection)
+            }
+            return ReferenceIndexModelFactory.onDevice()
         }
-        if let model = AssistantPreferences.activeCloudModel() {
-            return model
+        if let selection = AssistantPreferences.activeCloudSelection() {
+            return DirectCloudReferenceIndexModel(client: selection.client)
         }
-        return SystemLanguageModel.default
+        return SourceOnlyReferenceIndexModel()
     }
 
     private func referenceIndexUnavailableMessage(for availability: ReadingAssistantAvailability) -> String {
@@ -1083,6 +1119,8 @@ final class WorkspaceViewModel: Equatable {
             "Reference indexing unavailable — add your \(provider.vendor) API key in Settings."
         case .cliNotInstalled:
             "Reference indexing unavailable — add an API key or enable Apple Intelligence."
+        case .chooseProvider:
+            "Reference previews are built from the PDF text until an assistant is configured."
         case .unavailable:
             "Reference indexing unavailable — add an API key or enable Apple Intelligence."
         }

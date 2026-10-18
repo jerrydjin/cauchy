@@ -33,6 +33,24 @@ struct CloudPrompt: Sendable {
         self.turns = [Turn(role: .user, text: prompt, imagePNG: imagePNG)]
     }
 
+    /// The turn list every vendor will accept: never empty, and never ending on
+    /// an assistant turn (the newest APIs reject a trailing assistant message,
+    /// which they read as a prefill).
+    var sendableTurns: [Turn] {
+        var sendable = turns
+        while sendable.last?.role == .assistant {
+            sendable.removeLast()
+        }
+        if sendable.isEmpty {
+            sendable = [Turn(role: .user, text: turns.first?.text ?? "Continue.")]
+        }
+        return sendable
+    }
+}
+
+@available(macOS 27, *)
+extension CloudPrompt {
+    /// Flattens a FoundationModels transcript into the vendor-neutral prompt.
     init(transcript: Transcript) {
         var instructions: String?
         var turns: [Turn] = []
@@ -56,22 +74,7 @@ struct CloudPrompt: Sendable {
             }
         }
 
-        self.instructions = instructions
-        self.turns = turns
-    }
-
-    /// The turn list every vendor will accept: never empty, and never ending on
-    /// an assistant turn (the newest APIs reject a trailing assistant message,
-    /// which they read as a prefill).
-    var sendableTurns: [Turn] {
-        var sendable = turns
-        while sendable.last?.role == .assistant {
-            sendable.removeLast()
-        }
-        if sendable.isEmpty {
-            sendable = [Turn(role: .user, text: turns.first?.text ?? "Continue.")]
-        }
-        return sendable
+        self.init(instructions: instructions, turns: turns)
     }
 
     private static func text(from segments: [Transcript.Segment]) -> String? {

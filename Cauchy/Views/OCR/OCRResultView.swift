@@ -15,7 +15,7 @@ struct OCRResultView: View {
                 Button("Copy LaTeX") {
                     onCopy()
                 }
-                .buttonStyle(.glassProminent)
+                .readerGlassButtonStyle(prominent: true)
             }
 
             Text("Assistive conversion — not full math OCR.")
@@ -55,7 +55,7 @@ struct OCRResultView: View {
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }
-                    .buttonStyle(.glass)
+                    .readerGlassButtonStyle()
             }
         }
         .padding(24)

@@ -4,6 +4,8 @@ import FoundationModels
 /// A BYOK provider dressed as a `LanguageModel`, so everything built on
 /// `LanguageModelSession` — chat, reference indexing, thread titles — works the
 /// same whether the answer comes from this Mac or from a vendor's API.
+/// Below macOS 27 those jobs call the HTTP client directly instead.
+@available(macOS 27, *)
 struct CloudLanguageModel: LanguageModel {
     typealias Executor = CloudLanguageModelExecutor
 
@@ -30,6 +32,7 @@ struct CloudLanguageModel: LanguageModel {
     }
 }
 
+@available(macOS 27, *)
 struct CloudLanguageModelExecutor: LanguageModelExecutor {
     typealias Model = CloudLanguageModel
 

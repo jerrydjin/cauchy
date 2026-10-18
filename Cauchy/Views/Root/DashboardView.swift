@@ -42,7 +42,7 @@ struct DashboardView: View {
                     }
                 
                     // Primary action (Drop zone & Open button)
-                    GlassEffectContainer {
+                    ReaderGlassContainer {
                         VStack(spacing: 16) {
                             Image(systemName: "arrow.down.doc.fill")
                                 .font(.system(size: 32))
@@ -61,14 +61,14 @@ struct DashboardView: View {
                                     .padding(.horizontal, 24)
                                     .padding(.vertical, 8)
                             }
-                            .buttonStyle(.glassProminent)
+                            .readerGlassButtonStyle(prominent: true)
                             .keyboardShortcut("o", modifiers: .command)
                         }
                         .padding(48)
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle())
                     }
-                    .glassEffect(in: .rect(cornerRadius: 24))
+                    .readerGlass(in: .rect(cornerRadius: 24))
                     .overlay {
                         RoundedRectangle(cornerRadius: 24)
                             .strokeBorder(
@@ -89,7 +89,7 @@ struct DashboardView: View {
                         }
                         Spacer()
                         Button("Open PDF…") { workspace.openDocument() }
-                            .buttonStyle(.glassProminent)
+                            .readerGlassButtonStyle(prominent: true)
                     }
                     .padding(.top, 32)
                 }
@@ -242,7 +242,7 @@ struct RecentDocumentCard: View {
     
     var body: some View {
         Button(action: action) {
-            GlassEffectContainer {
+            ReaderGlassContainer {
                 VStack(alignment: .leading, spacing: 0) {
                     // Preview Area
                     ZStack {
@@ -288,7 +288,7 @@ struct RecentDocumentCard: View {
                     .padding(16)
                 }
             }
-            .glassEffect(in: .rect(cornerRadius: 16))
+            .readerGlass(in: .rect(cornerRadius: 16))
             .shadow(radius: isHovering ? 12 : 4, y: isHovering ? 6 : 2)
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(.easeOut(duration: 0.15), value: isHovering)

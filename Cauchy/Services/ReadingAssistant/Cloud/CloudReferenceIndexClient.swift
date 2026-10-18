@@ -15,6 +15,7 @@ struct CloudReferenceIndexClient: Sendable {
         self.modelName = modelName
     }
 
+    @available(macOS 27, *)
     init(model: CloudLanguageModel) {
         self.init(provider: model.provider, apiKey: model.apiKey, modelName: model.modelName)
     }

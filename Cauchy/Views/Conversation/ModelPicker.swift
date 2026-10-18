@@ -66,7 +66,7 @@ struct ModelPicker: View {
         let status = connector.status
 
         if connector.hasModelChoice {
-            Menu(menuTitle(connector, status)) {
+            Menu(menuTitle(connector)) {
                 ForEach(connector.models) { model in
                     Toggle(
                         model.name,
@@ -77,15 +77,15 @@ struct ModelPicker: View {
             .disabled(!status.isReady)
         } else {
             // Nothing to choose inside, so the connector itself is the item.
-            Toggle(menuTitle(connector, status), isOn: binding(for: .connector(connector.id)))
+            Toggle(menuTitle(connector), isOn: binding(for: .connector(connector.id)))
                 .disabled(!status.isReady)
         }
     }
 
     /// A disabled row has to say why it is disabled — Settings carries the full
     /// instructions, so this is only the reason in three words.
-    private func menuTitle(_ connector: AssistantConnector, _ status: ConnectorStatus) -> String {
-        guard let note = status.shortNote else { return connector.name }
+    private func menuTitle(_ connector: AssistantConnector) -> String {
+        guard let note = connector.menuNote else { return connector.name }
         return "\(connector.name) — \(note)"
     }
 
@@ -114,17 +114,20 @@ struct ModelPicker: View {
     /// `AssistantPreferences.resolved`, so SwiftUI records the dependency and
     /// the button relabels the instant an item is picked.
     private var resolved: ResolvedAssistant {
-        switch selection {
-        case .automatic:
-            return AssistantPreferences.automaticTarget
-        case .connector(let id):
-            let connector = id.connector
-            return ResolvedAssistant(
-                connector: connector,
-                choice: storedChoice(for: connector),
-                viaAutomatic: false
-            )
-        }
+        // Read the stored tokens so the label tracks a menu change immediately.
+        _ = selectionToken
+        _ = claudeToken
+        _ = codexToken
+        _ = geminiToken
+        _ = anthropicToken
+        _ = openaiToken
+        return AssistantPreferences.resolved
+    }
+
+    /// The checkmark follows the provider that will actually answer. A stored
+    /// Apple Intelligence choice on an older Mac points at the substitute.
+    private var displayedSelection: AssistantSelection {
+        AssistantPreferences.effectiveSelection(for: selection)
     }
 
     /// Read through the `@AppStorage` values rather than UserDefaults so the
@@ -144,7 +147,7 @@ struct ModelPicker: View {
     /// Switching one off is meaningless here, so it is ignored.
     private func binding(for target: AssistantSelection, choice: ModelChoice? = nil) -> Binding<Bool> {
         Binding {
-            guard selection == target else { return false }
+            guard displayedSelection == target else { return false }
             guard case .connector(let id) = target, let choice else { return true }
             return storedChoice(for: id.connector) == choice
         } set: { isOn in

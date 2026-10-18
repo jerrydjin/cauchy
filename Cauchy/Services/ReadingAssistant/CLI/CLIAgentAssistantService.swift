@@ -205,9 +205,63 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
     }
 }
 
+/// Runs one read-only CLI indexing prompt on systems where the
+/// `LanguageModel` adapter is unavailable. The argument switches match
+/// `CLIIndexLanguageModelExecutor`.
+enum CLIIndexRunner {
+    static func complete(
+        connectorID: AssistantConnectorID,
+        modelID: String?,
+        instructions: String,
+        prompt: String
+    ) async throws -> String {
+        let connector = connectorID.connector
+        guard let binary = connector.binaryName,
+              let binaryURL = await CLIAgentRunner.locateBinary(named: binary) else {
+            throw ReadingAssistantError.notAvailable(.cliNotInstalled(connectorID))
+        }
+        let fullPrompt = instructions + "\n\n" + prompt
+        let modelArguments = modelID.map { ["--model", $0] } ?? []
+        let arguments: [String]
+        var parser: any CLIAgentStreamParsing
+        switch connectorID {
+        case .codex:
+            arguments = ["exec", fullPrompt, "--json", "--skip-git-repo-check",
+                         "--sandbox", "read-only", "-c", "model_reasoning_effort=\"medium\""]
+                + modelArguments
+            parser = CodexStreamParser()
+        case .antigravity:
+            arguments = ["-p", fullPrompt, "--sandbox"]
+            parser = AntigravityStreamParser()
+        default:
+            arguments = ["-p", prompt, "--output-format", "stream-json",
+                         "--verbose", "--tools", "", "--no-session-persistence",
+                         "--append-system-prompt", instructions] + modelArguments
+            parser = ClaudeCodeStreamParser()
+        }
+
+        let lines = CLIAgentRunner.streamLines(
+            binary: binaryURL,
+            arguments: arguments,
+            workingDirectory: FileManager.default.temporaryDirectory
+        )
+        for try await line in lines {
+            _ = parser.consume(line: line)
+        }
+        if let error = parser.errorMessage {
+            throw ReadingAssistantError.api(error)
+        }
+        guard let answer = parser.finalText, !answer.isEmpty else {
+            throw ReadingAssistantError.api("\(connector.name) produced no index response.")
+        }
+        return answer
+    }
+}
+
 /// Adapts the signed-in CLI connectors to the same text-generation interface
 /// used by reference indexing. Each request is isolated, read-only, and has no
 /// tools; the indexer still checks every result against the PDF text.
+@available(macOS 27, *)
 struct CLIIndexLanguageModel: LanguageModel {
     typealias Executor = CLIIndexLanguageModelExecutor
 
@@ -221,6 +275,7 @@ struct CLIIndexLanguageModel: LanguageModel {
     }
 }
 
+@available(macOS 27, *)
 struct CLIIndexLanguageModelExecutor: LanguageModelExecutor {
     typealias Model = CLIIndexLanguageModel
 

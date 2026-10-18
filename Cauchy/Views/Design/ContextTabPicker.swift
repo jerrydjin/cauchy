@@ -63,7 +63,7 @@ struct ContextTabPicker<T: Hashable>: View {
         .background(alignment: .leading) {
             Capsule()
                 .fill(.clear)
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .readerGlass(.interactive, in: .capsule)
                 .frame(width: segmentWidth)
                 // Scale rather than a wider frame, so the pill swells over its
                 // neighbours instead of shoving them sideways mid-drag.

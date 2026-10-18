@@ -5,6 +5,8 @@
 	<!-- Merged with the Xcode-generated Info.plist (GENERATE_INFOPLIST_FILE=YES);
 	     keys here take precedence. Registers Cauchy as a PDF viewer so Finder
 	     double-click / "Open With" and dock drops work. -->
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

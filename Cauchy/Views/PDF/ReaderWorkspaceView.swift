@@ -90,7 +90,7 @@ struct ReaderWorkspaceView: View {
                     Button("Open Document") {
                         workspace.openDocument()
                     }
-                    .buttonStyle(.glassProminent)
+                    .readerGlassButtonStyle(prominent: true)
                 }
             }
         }
@@ -112,7 +112,7 @@ struct ReaderWorkspaceView: View {
             if workspace.isProcessingOCR {
                 ProgressView("Running OCR…")
                     .padding(20)
-                    .glassEffect(in: .rect(cornerRadius: 12))
+                    .readerGlass(in: .rect(cornerRadius: 12))
             }
         }
         .overlay {
@@ -132,21 +132,21 @@ struct ReaderWorkspaceView: View {
                             Task { await workspace.runOCR(on: capture) }
                         }
                     }
-                    .buttonStyle(.glass)
+                    .readerGlassButtonStyle()
 
                     Button("Save as Highlight") {
                         Task { await workspace.saveRegionAsHighlight() }
                     }
-                    .buttonStyle(.glassProminent)
+                    .readerGlassButtonStyle(prominent: true)
 
                     Button("Cancel") {
                         workspace.highlightStore.pendingRegionCapture = nil
                     }
-                    .buttonStyle(.glass)
+                    .readerGlassButtonStyle()
                 }
             }
             .padding(16)
-            .glassEffect(in: .rect(cornerRadius: 12))
+            .readerGlass(in: .rect(cornerRadius: 12))
             .padding(.bottom, 24)
             .frame(maxHeight: .infinity, alignment: .bottom)
         }

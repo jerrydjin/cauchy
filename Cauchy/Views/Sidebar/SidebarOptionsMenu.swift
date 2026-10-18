@@ -45,7 +45,7 @@ struct SidebarOptionsMenu: View {
             Image(systemName: "sidebar.leading")
                 .font(.system(size: 14, weight: .medium))
                 .frame(width: 32, height: 32)
-                .glassEffect(.regular.interactive(), in: .circle)
+                .readerGlass(.interactive, in: .circle)
         }
         .menuStyle(.button)
         // Without this the toolbar draws its own rounded-rect hover highlight

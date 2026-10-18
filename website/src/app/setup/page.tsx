@@ -38,7 +38,12 @@ export default function SetupPage() {
       <div className="max-w-none text-[16px] leading-relaxed text-secondary">
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">Requirements</h2>
         <ul className="list-disc pl-6 space-y-2">
-          <li>macOS 27.0 (Golden Gate) or later.</li>
+          <li>macOS 15 or later.</li>
+          <li>
+            macOS 27 for the on-device Apple Intelligence connector. On earlier systems
+            it stays in the provider menu, disabled, with the note “Needs macOS 27.”
+            Claude, ChatGPT, and Gemini work on macOS 15 and later.
+          </li>
           <li>
             An Apple Silicon Mac if you want the on-device Apple Intelligence connector.
           </li>
@@ -49,16 +54,13 @@ export default function SetupPage() {
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">Install</h2>
         <p>
-          Download{" "}
           <a href={DOWNLOAD_URL} className={inline}>
-            Cauchy.dmg
-          </a>{" "}
-          from the{" "}
-          <a href={`${REPO_URL}/releases/latest`} target="_blank" rel="noopener noreferrer" className={inline}>
-            latest release
+            Download Cauchy for Mac
           </a>
-          , open it, and drag <strong className="text-primary">Cauchy.app</strong>{" "}
-          into Applications. There is no Homebrew cask yet, and Cauchy is not on the Mac App
+          . Needs macOS 15. The first time you open it, go to System Settings, then
+          Privacy &amp; Security, and click Open Anyway. Open the disk image and drag{" "}
+          <strong className="text-primary">Cauchy.app</strong> into Applications.
+          There is no Homebrew cask yet, and Cauchy is not on the Mac App
           Store &mdash; see{" "}
           <Link href="/faq" className={inline}>
             the FAQ
@@ -99,8 +101,10 @@ export default function SetupPage() {
         <p>
           Choose an assistant beside the ask field or in Settings → Assistant → Ask
           uses. Automatic picks a ready Claude Code, Codex or Antigravity CLI first,
-          then Apple Intelligence, then an available API key. Choose Apple Intelligence
-          explicitly when you want answers to stay on-device.
+          then Apple Intelligence on macOS 27, then an available API key. On earlier
+          systems Automatic skips Apple Intelligence and uses the first configured
+          Claude, ChatGPT, or Gemini provider, or asks you to pick one. Choose Apple
+          Intelligence explicitly on macOS 27 when you want answers to stay on-device.
         </p>
         <p className="mt-4">
           For CLI connectors, open Settings → Connect your assistant and choose
@@ -131,9 +135,11 @@ export default function SetupPage() {
 
         <h2 className="text-2xl mt-12 mb-4 text-primary font-medium">Reference indexing</h2>
         <p>
-          Indexing prefers Apple Intelligence independently of the assistant selected
-          for Ask. If the local model is unavailable, it can use a saved Gemini,
-          Anthropic or OpenAI API key. In the Reference panel or Reading → Rebuild
+          On macOS 27, indexing prefers Apple Intelligence independently of the assistant
+          selected for Ask. If the local model is unavailable, it can use a saved Gemini,
+          Anthropic or OpenAI API key. On earlier systems the same key is used when one
+          is saved; otherwise the index is built from the PDF text so hover previews
+          still work. In the Reference panel or Reading → Rebuild
           Reference Index, choose any available assistant model to rebuild. The panel
           records which model built the index. Cloud API indexing can send page text
           and rendered page images; CLI indexing sends text. See the{" "}

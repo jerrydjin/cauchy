@@ -33,7 +33,7 @@ struct LibrarySearchField: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 40)
-        .glassEffect(.regular, in: .capsule)
+        .readerGlass(.regular, in: .capsule)
         .overlay {
             if isFocused {
                 Capsule().strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 1)

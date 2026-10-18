@@ -42,7 +42,7 @@ struct FindBarView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .glassEffect(in: .capsule)
+        .readerGlass(in: .capsule)
         .onExitCommand { find.dismiss() }
         .onAppear { isFieldFocused = true }
         .onChange(of: find.focusRequest) {

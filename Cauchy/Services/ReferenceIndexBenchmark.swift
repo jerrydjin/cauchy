@@ -214,6 +214,10 @@ enum ReferenceIndexBenchmark {
         print("PDF: \(config.pdfURL.path)")
 
         if !config.sourceOnly {
+            guard #available(macOS 27, *) else {
+                print("ERROR: the on-device benchmark needs macOS 27. Re-run with the source-only flag to measure the PDF-text index.")
+                return 1
+            }
             switch SystemLanguageModel.default.availability {
             case .available:
                 break
@@ -279,7 +283,6 @@ enum ReferenceIndexBenchmark {
         )
 
         var reports: [PageReport] = []
-        let model = SystemLanguageModel.default
 
         for pageIndex in sampled {
             let started = Date()
@@ -294,12 +297,18 @@ enum ReferenceIndexBenchmark {
                         from: document,
                         pageIndex: pageIndex
                     )
-                } else {
+                } else if #available(macOS 27, *) {
                     result = try await LLMReferenceIndexBuilder.indexSinglePage(
                         from: document,
                         pageIndex: pageIndex,
-                        model: model
+                        model: SessionReferenceIndexModel(
+                            languageModel: SystemLanguageModel.default,
+                            vision: nil
+                        )
                     )
+                } else {
+                    print("ERROR: the on-device benchmark needs macOS 27.")
+                    return 1
                 }
                 let seconds = Date().timeIntervalSince(started)
                 let found = result.entries.keys.map(display).sorted()
@@ -644,6 +653,10 @@ enum ReferenceIndexBenchmark {
     /// resolvable page-region evidence before it can be used in production.
     @MainActor
     static func runVisionProbe(pdfPath: String, pageNumber: Int) async -> Int32 {
+        guard #available(macOS 27, *) else {
+            print("ERROR: the on-device vision probe needs macOS 27.")
+            return 2
+        }
         let url = URL(fileURLWithPath: (pdfPath as NSString).expandingTildeInPath)
         guard let document = PDFDocument(url: url),
               pageNumber > 0, pageNumber <= document.pageCount,

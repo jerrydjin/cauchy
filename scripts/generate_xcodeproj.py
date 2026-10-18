@@ -5,6 +5,9 @@ import subprocess
 from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Reader, PDFKit, Vision OCR, and the cloud/CLI assistants run here.
+# On-device Apple Intelligence stays gated to macOS 27.
+DEPLOYMENT_TARGET = "15.0"
 PROJECT_DIR = os.path.join(ROOT, "Cauchy")
 TESTS_DIR = os.path.join(ROOT, "CauchyTests")
 
@@ -100,7 +103,7 @@ emit("/* Begin PBXBuildFile section */")
 for sf in swift_files:
     bn = os.path.basename(sf)
     emit(f'\t\t{build_file_ids[sf]} /* {bn} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_ref_ids[sf]} /* {bn} */; }};')
-emit(f'\t\t{IDS["fm_build"]} /* FoundationModels.framework in Frameworks */ = {{isa = PBXBuildFile; fileRef = {IDS["fm_ref"]} /* FoundationModels.framework */; }};')
+emit(f'\t\t{IDS["fm_build"]} /* FoundationModels.framework in Frameworks */ = {{isa = PBXBuildFile; fileRef = {IDS["fm_ref"]} /* FoundationModels.framework */; settings = {{ATTRIBUTES = (Weak, ); }}; }};')
 emit(f'\t\t{IDS["swiftmath_build"]} /* SwiftMath in Frameworks */ = {{isa = PBXBuildFile; productRef = {IDS["swiftmath_product"]} /* SwiftMath */; }};')
 emit(f'\t\t{IDS["assets_build"]} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {IDS["assets"]} /* Assets.xcassets */; }};')
 for tf in test_files:
@@ -201,7 +204,7 @@ def target_settings(cid, name):
     emit('\t\t\tINFOPLIST_KEY_CFBundleDisplayName = "cauchy";')
     emit('\t\t\tINFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";')
     emit('\t\t\tLD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");')
-    emit('\t\t\tMACOSX_DEPLOYMENT_TARGET = 27.0;')
+    emit(f'\t\t\tMACOSX_DEPLOYMENT_TARGET = {DEPLOYMENT_TARGET};')
     emit('\t\t\tMARKETING_VERSION = 1.0;')
     emit('\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.cauchy.app;')
     emit('\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";')
@@ -212,8 +215,8 @@ def target_settings(cid, name):
 emit("/* Begin XCBuildConfiguration section */")
 # ENABLE_TESTABILITY is what makes `@testable import Cauchy` resolve; without
 # it the test bundle cannot see the app module at all.
-emit(f'\t\t{IDS["debug_p"]} /* Debug */ = {{ isa = XCBuildConfiguration; buildSettings = {{ ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; ENABLE_STRICT_OBJC_MSGSEND = YES; GCC_DYNAMIC_NO_PIC = NO; MACOSX_DEPLOYMENT_TARGET = 27.0; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }}; name = Debug; }};')
-emit(f'\t\t{IDS["release_p"]} /* Release */ = {{ isa = XCBuildConfiguration; buildSettings = {{ ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_STRICT_OBJC_MSGSEND = YES; MACOSX_DEPLOYMENT_TARGET = 27.0; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; }}; name = Release; }};')
+emit(f'\t\t{IDS["debug_p"]} /* Debug */ = {{ isa = XCBuildConfiguration; buildSettings = {{ ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; ENABLE_STRICT_OBJC_MSGSEND = YES; GCC_DYNAMIC_NO_PIC = NO; MACOSX_DEPLOYMENT_TARGET = {DEPLOYMENT_TARGET}; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }}; name = Debug; }};')
+emit(f'\t\t{IDS["release_p"]} /* Release */ = {{ isa = XCBuildConfiguration; buildSettings = {{ ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_STRICT_OBJC_MSGSEND = YES; MACOSX_DEPLOYMENT_TARGET = {DEPLOYMENT_TARGET}; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; }}; name = Release; }};')
 target_settings(IDS["debug_t"], "Debug")
 target_settings(IDS["release_t"], "Release")
 
@@ -226,7 +229,7 @@ def tests_settings(cid, name):
     emit('\t\t\tTEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cauchy.app/Contents/MacOS/Cauchy";')
     emit('\t\t\tCODE_SIGN_STYLE = Automatic;')
     emit('\t\t\tGENERATE_INFOPLIST_FILE = YES;')
-    emit('\t\t\tMACOSX_DEPLOYMENT_TARGET = 27.0;')
+    emit(f'\t\t\tMACOSX_DEPLOYMENT_TARGET = {DEPLOYMENT_TARGET};')
     emit('\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.cauchy.app.tests;')
     emit('\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";')
     emit('\t\t\tSWIFT_VERSION = 6.0;')

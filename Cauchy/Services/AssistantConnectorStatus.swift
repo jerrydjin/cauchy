@@ -1,5 +1,4 @@
 import Foundation
-import FoundationModels
 
 /// Whether a connector can actually answer a question on this Mac right now.
 enum ConnectorStatus: Equatable {
@@ -49,18 +48,22 @@ extension AssistantConnector {
     var availability: ReadingAssistantAvailability {
         switch access {
         case .onDevice:
+            guard #available(macOS 27, *) else { return .unavailable }
             return FoundationModelsReadingAssistantService.localAvailability
         case .cliSignIn(let binary, _, _):
             return CLIAgentRunner.locateBinary(named: binary) == nil
                 ? .cliNotInstalled(id)
                 : .available(id)
         case .apiKey(let provider):
-            return FoundationModelsReadingAssistantService.availability(for: provider)
+            return CloudKeyAvailability.availability(for: provider)
         }
     }
 
     @MainActor
     var status: ConnectorStatus {
+        if id == .onDevice, !AppleIntelligenceAvailability.isSupported {
+            return .unavailable(AppleIntelligenceAvailability.unavailableNote)
+        }
         switch availability {
         case .available:
             switch access {
@@ -76,6 +79,8 @@ extension AssistantConnector {
             return .unavailable("This Mac isn't eligible for Apple Intelligence.")
         case .modelNotReady:
             return .unavailable("The on-device model is still downloading.")
+        case .chooseProvider:
+            return .unavailable(AppleIntelligenceAvailability.chooseProviderMessage)
         case .unavailable:
             return .unavailable("Not available right now.")
         }
@@ -83,6 +88,16 @@ extension AssistantConnector {
 
     @MainActor
     var isReady: Bool { status.isReady }
+
+    /// Two or three words for a disabled menu row. Apple Intelligence on an
+    /// older system keeps its own note instead of the generic "unavailable".
+    @MainActor
+    var menuNote: String? {
+        if id == .onDevice, !AppleIntelligenceAvailability.isSupported {
+            return AppleIntelligenceAvailability.unavailableNote
+        }
+        return status.shortNote
+    }
 
     /// Where the binary was found, for the Settings diagnostics line.
     @MainActor

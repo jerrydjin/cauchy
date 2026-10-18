@@ -11,9 +11,15 @@ enum ReadingAssistantFactory {
         CLIAgentRunner.invalidateBinaryCache()
 
         let resolved = AssistantPreferences.resolved
+        if resolved.needsProviderChoice {
+            return UnconfiguredReadingAssistant()
+        }
         switch resolved.connector.access {
         case .onDevice:
-            return localAssistant()
+            if #available(macOS 27, *) {
+                return localAssistant()
+            }
+            return UnconfiguredReadingAssistant()
 
         case .cliSignIn:
             return CLIAgentAssistantService(
@@ -24,15 +30,26 @@ enum ReadingAssistantFactory {
         case .apiKey(let apiProvider):
             guard let apiKey = KeychainService.loadKey(for: apiProvider) else {
                 // `availability` reports the missing key; the composer stays disabled.
-                return localAssistant()
+                if #available(macOS 27, *) {
+                    return localAssistant()
+                }
+                return UnconfiguredReadingAssistant()
             }
-            return FoundationModelsReadingAssistantService(
-                model: CloudLanguageModel(
-                    provider: apiProvider,
-                    apiKey: apiKey,
-                    modelName: resolved.modelID
-                ),
-                provider: resolved.connector.id
+            if #available(macOS 27, *) {
+                return FoundationModelsReadingAssistantService(
+                    model: CloudLanguageModel(
+                        provider: apiProvider,
+                        apiKey: apiKey,
+                        modelName: resolved.modelID
+                    ),
+                    provider: resolved.connector.id
+                )
+            }
+            return DirectCloudReadingAssistantService(
+                provider: resolved.connector.id,
+                apiProvider: apiProvider,
+                apiKey: apiKey,
+                modelName: resolved.modelID
             )
         }
     }
@@ -44,9 +61,14 @@ enum ReadingAssistantFactory {
     }
 
     static var availability: ReadingAssistantAvailability {
-        activeConnector.availability
+        let resolved = AssistantPreferences.resolved
+        if resolved.needsProviderChoice {
+            return .chooseProvider
+        }
+        return resolved.connector.availability
     }
 
+    @available(macOS 27, *)
     private static func localAssistant() -> any ReadingAssistantProtocol {
         FoundationModelsReadingAssistantService(
             model: SystemLanguageModel.default,

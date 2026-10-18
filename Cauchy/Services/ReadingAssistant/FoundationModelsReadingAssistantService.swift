@@ -1,6 +1,7 @@
 import Foundation
 import FoundationModels
 
+@available(macOS 27, *)
 @MainActor
 final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
     let provider: AssistantConnectorID
@@ -143,8 +144,15 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
         } catch let error as CloudAPIError {
             throw Self.mapCloudError(error)
         } catch let error as LanguageModelError {
-            throw ReadingAssistantError.languageModel(error)
+            throw ReadingAssistantError.languageModel(Self.languageModelMessage(error))
         }
+    }
+
+    private static func languageModelMessage(_ error: LanguageModelError) -> String {
+        if case .contextSizeExceeded = error {
+            return "The selected passage is too long for the model context window. Try selecting a shorter excerpt."
+        }
+        return error.localizedDescription
     }
 
     private func ensureDisplayReady(

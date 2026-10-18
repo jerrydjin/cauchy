@@ -21,9 +21,11 @@ struct GlassToolbarContent: ToolbarContent {
             ToolbarItem {
                 indexStatusPill
             }
-            .sharedBackgroundVisibility(.hidden)
+            .readerHideSharedBackground()
 
-            ToolbarSpacer(.fixed)
+            if #available(macOS 26, *) {
+                ToolbarSpacer(.fixed)
+            }
         }
 
         ToolbarItemGroup {
@@ -116,7 +118,7 @@ struct GlassToolbarContent: ToolbarContent {
     private var indexStatusPill: some View {
         indexStatusSymbol
             .frame(width: 32, height: 32)
-            .glassEffect(.regular, in: .circle)
+            .readerGlass(.regular, in: .circle)
             .help(indexStatusHelp)
             // A readout, and the only place a failed index shows up outside
             // the Reference tab — so it has to say what it means out loud.

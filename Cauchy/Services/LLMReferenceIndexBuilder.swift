@@ -811,8 +811,8 @@ enum LLMReferenceIndexBuilder {
     static let maxConcurrentPagesOnDevice = 1
 
     private struct ModelHandle: Sendable {
-        let model: any LanguageModel
-        let cloudVision: CloudReferenceIndexClient?
+        let model: any ReferenceIndexModel
+        var cloudVision: CloudReferenceIndexClient? { model.cloudVision }
     }
 
     struct BuildOutcome: Sendable {
@@ -828,7 +828,7 @@ enum LLMReferenceIndexBuilder {
 
     nonisolated static func build(
         documentURL: URL,
-        model: any LanguageModel,
+        model: any ReferenceIndexModel,
         modelDescription: String? = nil,
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> BuildOutcome {
@@ -864,23 +864,22 @@ enum LLMReferenceIndexBuilder {
         // Vision (and its per-page PNG rendering) only when the chosen model is
         // actually a cloud one — a saved API key alone must not spend API calls
         // when indexing runs on-device.
-        let cloudModel = model as? CloudLanguageModel
-        let cloudVision = cloudModel.map(CloudReferenceIndexClient.init(model:))
+        let cloudVision = model.cloudVision
 
-        let modelHandle = ModelHandle(model: model, cloudVision: cloudVision)
+        let modelHandle = ModelHandle(model: model)
 
         // A cache with failed pages seeds the result and narrows the work to
         // just those pages; provenance stays with the original bulk build.
         var merged: [ReferenceKey: IndexedReference] = [:]
         var pagesToProcess = Array(0..<pageCount)
-        var builtWith = modelDescription ?? cloudModel?.provider.rawValue ?? "on-device"
+        var builtWith = modelDescription ?? model.provenanceName
         if let cached {
             merged = cached.asSnapshot(pageCount: pageCount).entries
             pagesToProcess = cached.failedPageIndices.filter { $0 < pageCount }
             builtWith = cached.builtWith
         }
 
-        let concurrency = (model is SystemLanguageModel || model is CLIIndexLanguageModel)
+        let concurrency = model.limitsConcurrency
             ? maxConcurrentPagesOnDevice
             : maxConcurrentPages
 
@@ -1065,7 +1064,7 @@ enum LLMReferenceIndexBuilder {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                guard attempt < 3, !isContextOverflow(error) else { throw error }
+                guard attempt < 3, !contextWindowOverflow(error) else { throw error }
                 let rateLimited = if let cloud = error as? CloudAPIError,
                                      case .rateLimited = cloud { true } else { false }
                 let base: Double = rateLimited ? (attempt == 1 ? 5 : 15) : (attempt == 1 ? 1 : 4)
@@ -1122,9 +1121,10 @@ enum LLMReferenceIndexBuilder {
             return [:]
         }
 
-        if LLMReferenceIndexSupport.declarationMatches(
-            in: payload.sourceText, equationLabelX: payload.equationLabelX
-        ).allSatisfy({ $0.reference.kind == .figure }) {
+        if !modelHandle.model.usesLanguageModel ||
+            LLMReferenceIndexSupport.declarationMatches(
+                in: payload.sourceText, equationLabelX: payload.equationLabelX
+            ).allSatisfy({ $0.reference.kind == .figure }) {
             return LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
@@ -1139,7 +1139,9 @@ enum LLMReferenceIndexBuilder {
                 pageIndex: pageIndex,
                 modelHandle: modelHandle
             )
-        } catch where isContextOverflow(error) {
+        } catch {
+            let overflow = contextWindowOverflow(error)
+            guard overflow else { throw error }
             return LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
@@ -1310,9 +1312,9 @@ enum LLMReferenceIndexBuilder {
     nonisolated static func indexSinglePage(
         from document: PDFDocument,
         pageIndex: Int,
-        model: any LanguageModel
+        model: any ReferenceIndexModel
     ) async throws -> SinglePageResult {
-        let handle = ModelHandle(model: model, cloudVision: nil)
+        let handle = ModelHandle(model: model)
         let payload = pagePayload(from: document, pageIndex: pageIndex, cloudVision: nil)
         let trimmed = payload.pageText.trimmingCharacters(in: .whitespacesAndNewlines)
         if LLMReferenceIndexSupport.shouldUseOCRFallback(
@@ -1388,7 +1390,7 @@ enum LLMReferenceIndexBuilder {
                 pageIndex: pageIndex,
                 modelHandle: handle
             )
-        } catch where isContextOverflow(error) {
+        } catch where contextWindowOverflow(error) {
             let entries = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
@@ -1429,8 +1431,10 @@ enum LLMReferenceIndexBuilder {
         pageIndex: Int,
         modelHandle: ModelHandle
     ) async throws -> LLMPageReferenceResponse {
-        if modelHandle.cloudVision == nil,
-           let systemModel = modelHandle.model as? SystemLanguageModel {
+        if #available(macOS 27, *),
+           modelHandle.cloudVision == nil,
+           let session = modelHandle.model as? SessionReferenceIndexModel,
+           let systemModel = session.systemModel {
             let chunks = LLMReferenceIndexSupport.declarationContextChunks(
                 pageText: payload.pageText,
                 sourceText: payload.sourceText,
@@ -1459,6 +1463,7 @@ enum LLMReferenceIndexBuilder {
         return parsed
     }
 
+    @available(macOS 27, *)
     @MainActor
     private static func requestGuidedPageExtraction(
         pageText: String,
@@ -1497,7 +1502,13 @@ enum LLMReferenceIndexBuilder {
 
     /// The session throws the legacy GenerationError on macOS 27 (observed);
     /// the replacement LanguageModelError case is checked too for when the
-    /// framework migrates.
+    /// framework migrates. Older systems have no on-device session.
+    nonisolated private static func contextWindowOverflow(_ error: Error) -> Bool {
+        guard #available(macOS 27, *) else { return false }
+        return isContextOverflow(error)
+    }
+
+    @available(macOS 27, *)
     nonisolated private static func isContextOverflow(_ error: Error) -> Bool {
         if let error = error as? LanguageModelError, case .contextSizeExceeded = error {
             return true
@@ -1617,12 +1628,11 @@ enum LLMReferenceIndexBuilder {
         pageIndex: Int,
         modelHandle: ModelHandle
     ) async throws -> String {
-        let session = LanguageModelSession(
-            model: modelHandle.model,
-            instructions: ReferenceIndexPromptBuilder.instructions
-        )
         let prompt = ReferenceIndexPromptBuilder.userPrompt(pageText: pageText, pageIndex: pageIndex)
-        return try await streamResponse(session: session, prompt: prompt)
+        return try await modelHandle.model.complete(
+            instructions: ReferenceIndexPromptBuilder.instructions,
+            prompt: prompt
+        )
     }
 
     nonisolated private static func requestJSONRepair(
@@ -1644,12 +1654,11 @@ enum LLMReferenceIndexBuilder {
         previousOutput: String,
         modelHandle: ModelHandle
     ) async throws -> String {
-        let session = LanguageModelSession(
-            model: modelHandle.model,
-            instructions: ReferenceIndexPromptBuilder.instructions
-        )
         let prompt = ReferenceIndexPromptBuilder.jsonRepairPrompt(previousOutput: previousOutput)
-        return try await streamResponse(session: session, prompt: prompt)
+        return try await modelHandle.model.complete(
+            instructions: ReferenceIndexPromptBuilder.instructions,
+            prompt: prompt
+        )
     }
 
     nonisolated private static func requestLaTeXRepair(
@@ -1671,22 +1680,11 @@ enum LLMReferenceIndexBuilder {
         previousOutput: String,
         modelHandle: ModelHandle
     ) async throws -> String {
-        let session = LanguageModelSession(
-            model: modelHandle.model,
-            instructions: ReadingPromptBuilder.latexRepairInstructions()
-        )
         let prompt = ReadingPromptBuilder.latexRepairPrompt(previousOutput: previousOutput)
-        return try await streamResponse(session: session, prompt: prompt)
-    }
-
-    @MainActor
-    private static func streamResponse(session: LanguageModelSession, prompt: String) async throws -> String {
-        let stream = session.streamResponse(to: prompt)
-        var accumulated = ""
-        for try await snapshot in stream {
-            accumulated = snapshot.content
-        }
-        return accumulated.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await modelHandle.model.complete(
+            instructions: ReadingPromptBuilder.latexRepairInstructions(),
+            prompt: prompt
+        )
     }
 
     nonisolated private static func fullPageText(from page: PDFPage) -> String {

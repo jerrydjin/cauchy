@@ -100,18 +100,15 @@ struct ConversationPanel<Header: View>: View {
                         followsLatest = true
                         scrollToBottom(proxy: proxy)
                     }
-                    .buttonStyle(.glass)
+                    .readerGlassButtonStyle()
                     .padding(12)
                 }
             }
-            .safeAreaBar(edge: .top) { header }
-            .safeAreaBar(edge: .bottom) { composerBar }
-            // `.soft` at both edges: a progressive blur that fades the messages
-            // out under the chrome. `.hard` draws a defined block instead,
-            // which puts the header back to being the solid band this layout
-            // exists to get rid of.
-            .scrollEdgeEffectStyle(.soft, for: .top)
-            .scrollEdgeEffectStyle(.soft, for: .bottom)
+            .readerConversationBars {
+                header
+            } footer: {
+                composerBar
+            }
             .onAppear {
                 scrollToBottom(proxy: proxy)
             }

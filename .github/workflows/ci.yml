@@ -53,14 +53,13 @@ jobs:
             -scheme Cauchy \
             -configuration Debug \
             -destination 'platform=macOS' \
+            MACOSX_DEPLOYMENT_TARGET=15.0 \
             CODE_SIGN_IDENTITY=- \
             CODE_SIGNING_REQUIRED=NO
 
-      # The tests are app-hosted, so running them means launching an app whose
-      # deployment target is macOS 27. The xcode-27 image ships Xcode 27 on
-      # macOS 26, which can build against the 27 SDK but cannot run it — so the
-      # run is gated on the runner's own OS rather than skipped outright, and
-      # starts happening by itself once the image moves to macOS 27.
+      # The tests are app-hosted. They run when the runner is at least the
+      # deployment target (macOS 15). The xcode-27 image can compile against
+      # the macOS 27 SDK and launch a macOS 15 binary.
       - name: Run tests
         run: |
           set -o pipefail

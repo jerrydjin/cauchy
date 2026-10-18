@@ -6,7 +6,7 @@ export const assistants = [
     name: "Apple Intelligence",
     url: "https://www.apple.com/apple-intelligence/",
     description:
-      "The system model runs entirely on your Mac. Enable Apple Intelligence in System Settings; no key or network is needed. Reference indexing uses it by default when available.",
+      "The system model runs entirely on your Mac and needs macOS 27. Enable Apple Intelligence in System Settings; no key or network is needed. On earlier systems it stays in the provider menu, disabled. Reference indexing uses it by default on macOS 27; otherwise Cauchy indexes the PDF text, or a saved API key when you have one.",
   },
   {
     id: "claudeCode",

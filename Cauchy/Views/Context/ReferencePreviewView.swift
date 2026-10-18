@@ -396,7 +396,7 @@ struct ReferencePreviewView: View {
                 .frame(width: 52, height: 32)
                 // Same interactive glass as SidebarOptionsMenu — this is a
                 // menu button and should feel like the app's other ones.
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .readerGlass(.interactive, in: .capsule)
             }
             .menuStyle(.button)
             .buttonStyle(.plain)

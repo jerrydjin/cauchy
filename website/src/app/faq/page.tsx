@@ -222,9 +222,10 @@ export default function FAQPage() {
 
         <Q q="Which macOS versions are supported?">
           <p>
-            macOS 27.0 (Golden Gate) and later. Earlier versions are not supported: the app
-            is built against the macOS 27 SDK and uses frameworks that do not exist before
-            it.
+            macOS 15 or later. Reading, theorem and reference hover previews, and Claude,
+            ChatGPT, and Gemini (a CLI or an API key) work on every supported version.
+            On-device Apple Intelligence needs macOS 27: on earlier systems it stays in
+            the provider menu, disabled, with the note “Needs macOS 27.”
           </p>
         </Q>
 

@@ -1,5 +1,4 @@
 import Foundation
-import FoundationModels
 
 enum ReadingAssistantAvailability: Equatable {
     case available(AssistantConnectorID)
@@ -8,6 +7,8 @@ enum ReadingAssistantAvailability: Equatable {
     case modelNotReady
     case apiKeyMissing(CloudAPIProvider)
     case cliNotInstalled(AssistantConnectorID)
+    /// Apple Intelligence cannot run on this Mac and no other provider is ready.
+    case chooseProvider
     case unavailable
 }
 
@@ -45,7 +46,7 @@ enum ReadingAssistantError: LocalizedError {
     case notAvailable(ReadingAssistantAvailability)
     case sessionUnavailable
     case sessionBusy
-    case languageModel(LanguageModelError)
+    case languageModel(String)
     case invalidAPIKey(CloudAPIProvider)
     case rateLimited(CloudAPIProvider)
     case network(String)
@@ -67,6 +68,8 @@ enum ReadingAssistantError: LocalizedError {
                 return "Add your \(provider.vendor) API key in Settings to use Ask."
             case .cliNotInstalled(let provider):
                 return "\(provider.connector.name) is not set up. \(provider.connector.setupHint)"
+            case .chooseProvider:
+                return AppleIntelligenceAvailability.chooseProviderMessage
             case .unavailable:
                 return "Ask is not available right now."
             }
@@ -74,11 +77,8 @@ enum ReadingAssistantError: LocalizedError {
             return "Could not start a reading assistant session."
         case .sessionBusy:
             return "The assistant is still responding. Wait for the current answer to finish."
-        case .languageModel(let error):
-            if case .contextSizeExceeded = error {
-                return "The selected passage is too long for the model context window. Try selecting a shorter excerpt."
-            }
-            return error.localizedDescription
+        case .languageModel(let message):
+            return message
         case .invalidAPIKey(let provider):
             return "The \(provider.vendor) API key is invalid. Check your key in Settings."
         case .rateLimited(let provider):

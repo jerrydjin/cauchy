@@ -38,14 +38,16 @@ struct DocumentSidebarView: View {
         }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
-        .toolbar(removing: .sidebarToggle)
+        .readerRemoveSidebarToggle()
         .toolbar {
             if workspace.sidebarVisible {
-                ToolbarSpacer(.flexible, placement: .primaryAction)
+                if #available(macOS 26, *) {
+                    ToolbarSpacer(.flexible, placement: .primaryAction)
+                }
                 ToolbarItem(placement: .primaryAction) {
                     SidebarOptionsMenu(workspace: workspace)
                 }
-                .sharedBackgroundVisibility(.hidden)
+                .readerHideSharedBackground()
             }
         }
         .sidebarToolbarChrome()

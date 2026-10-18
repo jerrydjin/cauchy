@@ -53,6 +53,74 @@ final class AskStructureLocatorTests: XCTestCase {
         XCTAssertEqual(span.startPage, 12)
     }
 
+    func testMathFragmentIsNotASectionHeading() {
+        let structure = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(pageIndex: 3, text: "1 + z7 holds in characteristic 7. Hence the relation is strict."),
+                AskPageSnapshot(pageIndex: 4, text: "Section 4 constructs the approximate metric and solves the nonlinear equation."),
+                AskPageSnapshot(pageIndex: 4, text: "4 be the"),
+                AskPageSnapshot(pageIndex: 8, text: "1. Introduction\nThe algebra is introduced here and used below."),
+                AskPageSnapshot(pageIndex: 10, text: "4. Clique-sum\nThe sum is defined here."),
+            ],
+            pageCount: 20
+        )
+        let section1 = AskStructureLocator.query(in: "what is section 1 about")!
+        guard case .found(let first) = AskStructureLocator.locate(section1, in: structure) else {
+            return XCTFail("Expected section 1")
+        }
+        XCTAssertEqual(first.startPage, 8)
+        let section4 = AskStructureLocator.query(in: "what is section 4 about")!
+        guard case .found(let later) = AskStructureLocator.locate(section4, in: structure) else {
+            return XCTFail("Expected section 4")
+        }
+        XCTAssertEqual(later.startPage, 10)
+    }
+
+    func testUnnumberedOutlineBookmarksAreSectionsInOrder() {
+        let structure = AskDocumentStructure(
+            outline: [
+                AskOutlineNode(title: "Introduction", pageIndex: 0, children: []),
+                AskOutlineNode(title: "Preliminaries", pageIndex: 2, children: [
+                    AskOutlineNode(title: "Virasoro notation", pageIndex: 2, children: []),
+                ]),
+                AskOutlineNode(title: "Proof of the main result", pageIndex: 5, children: [
+                    AskOutlineNode(title: "Low homogeneous subspaces", pageIndex: 5, children: []),
+                ]),
+                AskOutlineNode(title: "References", pageIndex: 12, children: []),
+            ],
+            pages: [],
+            pageCount: 16
+        )
+        let section1 = AskStructureLocator.query(in: "what is section 1 about")!
+        guard case .found(let first) = AskStructureLocator.locate(section1, in: structure) else {
+            return XCTFail("Expected section 1")
+        }
+        XCTAssertEqual(first.startPage, 0)
+        let section3 = AskStructureLocator.query(in: "what is section 3.1 about")!
+        guard case .found(let nested) = AskStructureLocator.locate(section3, in: structure) else {
+            return XCTFail("Expected section 3.1")
+        }
+        XCTAssertEqual(nested.startPage, 5)
+    }
+
+    func testNumberedSiblingKeepsItsNumberBesideIntroduction() {
+        let structure = AskDocumentStructure(
+            outline: [
+                AskOutlineNode(title: "Introduction", pageIndex: 0, children: []),
+                AskOutlineNode(title: "1. Preliminaries", pageIndex: 4, children: []),
+                AskOutlineNode(title: "2. Affine realizations", pageIndex: 8, children: []),
+            ],
+            pages: [],
+            pageCount: 20
+        )
+        let section1 = AskStructureLocator.query(in: "what is section 1 about")!
+        guard case .found(let first) = AskStructureLocator.locate(section1, in: structure) else {
+            return XCTFail("Expected the numbered preliminaries")
+        }
+        XCTAssertEqual(first.startPage, 4)
+    }
+
     func testOutlineNumberedTitleMatchesTheSameSection() {
         let structure = AskDocumentStructure(
             outline: [

@@ -231,7 +231,23 @@ enum AskStructureLocator {
         pageCount: Int
     ) -> AskDocumentSpan? {
         let flat = flatten(outline)
-        guard let match = best(in: flat, query: query) else { return nil }
+        let match: FlatOutline?
+        if query.kind == .section {
+            let numbered = numberedOutline(outline)
+            match = numbered
+                .filter { $0.number == query.canonical || matches($0.title, query: query) }
+                .min { lhs, rhs in
+                    let leftKind = lhs.title.lowercased().contains(query.kind.rawValue)
+                    let rightKind = rhs.title.lowercased().contains(query.kind.rawValue)
+                    if leftKind != rightKind { return leftKind }
+                    if lhs.depth != rhs.depth { return lhs.depth < rhs.depth }
+                    return lhs.pageIndex < rhs.pageIndex
+                }
+                .map { FlatOutline(title: $0.title, pageIndex: $0.pageIndex, depth: $0.depth) }
+        } else {
+            match = best(in: flat, query: query)
+        }
+        guard let match else { return nil }
         let end = flat.first {
             $0.depth <= match.depth && $0.pageIndex > match.pageIndex
         }?.pageIndex ?? pageCount
@@ -326,6 +342,77 @@ enum AskStructureLocator {
         var depth: Int
     }
 
+    private struct NumberedOutline {
+        var title: String
+        var number: String
+        var pageIndex: Int
+        var depth: Int
+    }
+
+    private static let nonSectionTitle = #"(?i)^\s*(?:abstract|references|bibliography|acknowledgements?|acknowledgments?|contents|table of contents|index|notation)\s*\.?\s*$"#
+    private static let structuralLabel = #"(?i)^\s*(?:chapter|chap\.?|ch\.?|part)\b"#
+
+    private static func explicitSectionNumber(_ title: String) -> String? {
+        if let section = number(in: title, pattern: sectionKeyword) { return section }
+        if let dotted = leadingNumber(in: title, dotted: true) { return dotted }
+        return leadingNumber(in: title, dotted: false)
+    }
+
+    private static func matchesWhole(_ title: String, pattern: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+        let ns = title as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        return regex.firstMatch(in: title, range: range)?.range.length == ns.length
+    }
+
+    /// Bookmarks often read "Introduction" rather than "1. Introduction".
+    /// Number those in sibling order. A sibling that already prints "1. Preliminaries"
+    /// keeps that number, and the bare "Introduction" beside it is front matter.
+    private static func numberedOutline(
+        _ nodes: [AskOutlineNode],
+        prefix: String? = nil,
+        depth: Int = 0
+    ) -> [NumberedOutline] {
+        let prepared = nodes.map { node -> (AskOutlineNode, String, String?) in
+            let title = node.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (node, title, title.isEmpty ? nil : explicitSectionNumber(title))
+        }
+        let anyExplicit = prepared.contains { $0.2 != nil }
+        var entries: [NumberedOutline] = []
+        var counter = 0
+        for (node, title, explicit) in prepared {
+            if node.pageIndex < 0 || title.isEmpty {
+                entries.append(contentsOf: numberedOutline(node.children, prefix: prefix, depth: depth + 1))
+                continue
+            }
+            let skipped = explicit == nil && (
+                anyExplicit
+                    || matchesWhole(title, pattern: nonSectionTitle)
+                    || (try? NSRegularExpression(pattern: structuralLabel))?.firstMatch(
+                        in: title,
+                        range: NSRange(location: 0, length: (title as NSString).length)
+                    ) != nil
+            )
+            if skipped {
+                entries.append(contentsOf: numberedOutline(node.children, prefix: prefix, depth: depth + 1))
+                continue
+            }
+            let number: String
+            if let explicit {
+                number = explicit
+                if let tail = explicit.split(separator: ".").last, let value = Int(tail) {
+                    counter = max(counter, value)
+                }
+            } else {
+                counter += 1
+                number = prefix.map { "\($0).\(counter)" } ?? String(counter)
+            }
+            entries.append(NumberedOutline(title: title, number: number, pageIndex: node.pageIndex, depth: depth))
+            entries.append(contentsOf: numberedOutline(node.children, prefix: number, depth: depth + 1))
+        }
+        return entries
+    }
+
     private static func flatten(_ nodes: [AskOutlineNode], depth: Int = 0) -> [FlatOutline] {
         var result: [FlatOutline] = []
         for node in nodes {
@@ -399,19 +486,40 @@ enum AskStructureLocator {
     }
 
     /// A body line is a heading only when it opens with a unit label or a short
-    /// title. A numbered sentence ("2 Integrals appear here.") is not one.
+    /// title. A numbered sentence ("2 Integrals appear here.") is not one, nor
+    /// is a math fragment ("4 be the", "1 + z") or a prose sentence
+    /// ("Section 4 constructs the metric.").
     private static func matchesHeadingLine(_ line: String) -> Bool {
+        guard isTitleLine(line), !line.lowercased().hasPrefix("part") else { return false }
         if number(in: line, pattern: chapterKeyword) != nil { return true }
         if number(in: line, pattern: partKeyword) != nil { return true }
         if number(in: line, pattern: sectionKeyword) != nil { return true }
-        guard isTitleLine(line), !line.lowercased().hasPrefix("part") else { return false }
-        if leadingNumber(in: line, dotted: true) != nil { return true }
+        if let dotted = leadingNumber(in: line, dotted: true) {
+            return titleTextFollows(line, number: dotted)
+        }
         if let arabic = leadingNumber(in: line, dotted: false),
            let value = Int(arabic),
            (1...40).contains(value) {
-            return true
+            return titleTextFollows(line, number: arabic)
         }
         return leadingRoman(in: line) != nil
+    }
+
+    /// The text after the number has to open with a capital. "4. Clique-sum"
+    /// does. "4 be the" and "1 + z" do not.
+    private static func titleTextFollows(_ line: String, number: String) -> Bool {
+        var rest = line.trimmingCharacters(in: .whitespaces)
+        if rest.hasPrefix("§") {
+            rest = String(rest.dropFirst()).trimmingCharacters(in: .whitespaces)
+        }
+        guard rest.hasPrefix(number) else { return false }
+        rest = String(rest.dropFirst(number.count))
+        if rest.hasPrefix(".") {
+            rest = String(rest.dropFirst())
+        }
+        rest = rest.trimmingCharacters(in: .whitespaces)
+        guard let first = rest.first else { return false }
+        return first.isLetter && first.isUppercase
     }
 
     private static func isTitleLine(_ line: String) -> Bool {

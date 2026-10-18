@@ -1,0 +1,28 @@
+---
+description: Commit coherent, verified changes frequently while preserving concurrent work
+alwaysApply: true
+---
+
+# Commit workflow
+
+- Make a local commit after each coherent, verified milestone, and before handing
+  back completed implementation work. Prefer small changes with their relevant
+  tests and documentation; do not wait for an entire project or roadmap to finish.
+- Choose boundaries by behavior, not elapsed time or individual file edits. Keep
+  required dependencies together or commit them first so checkpoints build.
+- Run checks appropriate to the change before committing. For documentation-only
+  changes, inspect the content and run `git diff --check`; do not add empty tests.
+- Inspect `git status`, the diff and the index first. Stage explicit paths or
+  hunks and review the staged diff. Do not use `git add .`, `git add -A` or
+  `git commit -a` in a shared or dirty checkout.
+- Preserve other agents' and the user's changes. Coordinate before changing shared
+  files or using a shared index. Never switch branches, stash, reset, discard or
+  amend someone else's work to obtain a clean checkout.
+- Use a clear commit subject describing the resulting behavior. Record relevant
+  validation and material limits in the body; never claim a check that was not run
+  on the code being checkpointed.
+- Keep secrets, private runtime state, caches and build artifacts out of commits.
+- Verify the resulting commit and remaining working-tree changes. Report the
+  checkpoint hash and relevant checks when handing work back.
+- Local commits are part of the normal workflow. Push, merge and history rewriting
+  require the user's authorization; a commit request alone does not authorize them.

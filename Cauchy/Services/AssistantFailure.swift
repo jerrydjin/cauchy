@@ -99,7 +99,7 @@ enum AssistantFailure: LocalizedError, Equatable, Sendable {
         case .notInstalled(let id):
             return "Install \(id.connector.name) to start asking"
         case .notSignedIn(let id):
-            return signInTitle(for: id)
+            return Self.signInTitle(for: id)
         case .missingAPIKey(let provider):
             return "Add your \(provider.vendor) API key to start asking"
         case .invalidAPIKey(let provider):

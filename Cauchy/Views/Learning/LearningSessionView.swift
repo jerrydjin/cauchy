@@ -11,6 +11,7 @@ struct LearningSessionView: View {
     private var assistantAvailable: Bool { document.isVerificationFixture || availability.isAvailable }
     @State private var showingFullLesson = false
     @State private var showingCriteria = false
+    @State private var showingPracticeHelp = false
     @State private var chapterScroll = ScrollPosition()
 
     private enum SourceMode: Hashable { case currentPage, selection, pages }
@@ -63,6 +64,7 @@ struct LearningSessionView: View {
                 }
             }
             .onChange(of: learning.session?.phase) {
+                showingPracticeHelp = false
                 proxy.scrollTo("learningTop", anchor: .top)
                 if document.notesVisible { learning.openedSource() }
                 focusAnswerIfNeeded()
@@ -87,6 +89,7 @@ struct LearningSessionView: View {
         .onChange(of: learning.selectedSessionID) {
             showingFullLesson = false
             showingCriteria = false
+            showingPracticeHelp = false
             if document.notesVisible { learning.openedSource() }
             focusAnswerIfNeeded()
         }
@@ -208,28 +211,33 @@ struct LearningSessionView: View {
         if let review = session.delayedReview {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Delayed check · \(session.studyTarget?.kind.label ?? "Earlier requirement")").font(.headline)
-                Text("Started \(review.startedAt.formatted(date: .abbreviated, time: .shortened)), after a check due \(review.scheduledFor.formatted(date: .abbreviated, time: .shortened)). This is separate evidence on a fresh problem, not a guarantee of retention.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        HStack(spacing: 20) {
-            ForEach(Array([LearningPhase.diagnostic, .lesson, .practice, .exitCheck].enumerated()), id: \.offset) { index, phase in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(index + 1)").font(.caption.monospacedDigit())
-                    Text(["Start", "Study", "Practise", "Check"][index]).font(.callout.weight(session.phase == phase ? .semibold : .regular))
+                DisclosureGroup("Check details") {
+                    Text("Started \(review.startedAt.formatted(date: .abbreviated, time: .shortened)), after a check due \(review.scheduledFor.formatted(date: .abbreviated, time: .shortened)). This is separate evidence on a fresh problem, not a guarantee of retention.")
+                        .font(.caption).foregroundStyle(.secondary).padding(.top, 8)
                 }
-                .foregroundStyle(session.phase == phase ? .primary : .secondary)
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Current step: \(session.phase.label)")
-        .accessibilityAddTraits(.isStaticText)
+        if session.delayedReview == nil && session.phase != .complete {
+            HStack(spacing: 20) {
+                ForEach(Array([LearningPhase.diagnostic, .lesson, .practice, .exitCheck].enumerated()), id: \.offset) { index, phase in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(index + 1)").font(.caption.monospacedDigit())
+                        Text(["Start", "Study", "Practise", "Check"][index]).font(.callout.weight(session.phase == phase ? .semibold : .regular))
+                    }
+                    .foregroundStyle(session.phase == phase ? .primary : .secondary)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Current step: \(session.phase.label)")
+            .accessibilityAddTraits(.isStaticText)
+        }
 
         VStack(alignment: .leading, spacing: 10) {
             Text(session.lesson.title).font(.title.weight(.semibold))
-            if session.phase == .lesson && session.currentLessonPartIndex > 0 {
+            if session.phase != .diagnostic && (session.phase != .lesson || session.currentLessonPartIndex > 0) {
                 DisclosureGroup("Learning goal") {
-                    Text(session.lesson.objective).font(.body).padding(.top, 8)
+                    Text(session.lesson.objective).font(.body)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                 }
             } else {
                 Text(session.lesson.objective).font(.body)
@@ -395,15 +403,11 @@ struct LearningSessionView: View {
             case .proofConclusion:
                 if let proof = session.lesson.proof {
                     MessageContentView(content: proof.conclusion)
-                    Text("Can you explain how the steps establish the statement, and where the assumptions were used?")
-                        .font(.callout).foregroundStyle(.secondary)
                     Button("Read the argument together") { showingFullLesson = true }
                         .buttonStyle(.borderless)
                 }
             case .example:
                 MessageContentView(content: session.lesson.workedExample)
-                Text("Connect each move in this example to the idea you just studied. Then try a problem yourself.")
-                    .font(.callout).foregroundStyle(.secondary)
             }
             DisclosureGroup("From your notes") {
                 Text(session.lesson.sourceQuote)
@@ -442,8 +446,6 @@ struct LearningSessionView: View {
             MessageContentView(content: proof.steps[index].claim)
             Text("Why this follows").font(.headline)
             MessageContentView(content: proof.steps[index].justification)
-            Text("Before continuing, explain to yourself why this step follows from what came before.")
-                .font(.callout).foregroundStyle(.secondary)
             DisclosureGroup("Statement and approach") { proofOverview(proof).padding(.top, 8) }
         }.accessibilityElement(children: .contain)
     }
@@ -503,10 +505,10 @@ struct LearningSessionView: View {
     private func questionContent(_ session: LearningSession) -> some View {
         if let question = session.question {
             VStack(alignment: .leading, spacing: 16) {
-                Text(session.phase == .exitCheck
-                     ? "Try without your notes or hints. If you need help, that’s useful information too."
-                     : "Explain your reasoning. It’s fine to be unsure.")
-                    .font(.callout).foregroundStyle(.secondary)
+                if session.phase == .exitCheck {
+                    Text("Try without notes or hints. Record any help beside your submission.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
                 MessageContentView(content: question.prompt)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -537,7 +539,7 @@ struct LearningSessionView: View {
                 if let feedback = session.feedback {
                     Divider()
                     VStack(alignment: .leading, spacing: 10) {
-                        Label(feedback.grade.label, systemImage: feedback.grade == .correct ? "checkmark.circle" : "text.bubble")
+                        Label("Tutor feedback · \(feedback.grade.label)", systemImage: feedback.grade == .correct ? "checkmark.circle" : "text.bubble")
                             .font(.headline)
                         MessageContentView(content: feedback.feedback)
                         Text("Next step").font(.subheadline)
@@ -560,7 +562,6 @@ struct LearningSessionView: View {
                                 }
                             }
                         }
-                        Text("Tutor assessment").font(.caption).foregroundStyle(.secondary)
                     }
                 }
 
@@ -570,21 +571,36 @@ struct LearningSessionView: View {
     }
 
     private func practiceHelp(_ session: LearningSession, question: LearningQuestion) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(question.hints.prefix(session.hintsRevealed).enumerated()), id: \.offset) { index, hint in
-                Text("Hint \(index + 1)").font(.subheadline).foregroundStyle(.secondary)
-                MessageContentView(content: hint)
+        DisclosureGroup(isExpanded: $showingPracticeHelp) {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(question.hints.prefix(session.hintsRevealed).enumerated()), id: \.offset) { index, hint in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Hint \(index + 1)").font(.subheadline).foregroundStyle(.secondary)
+                        MessageContentView(content: hint)
+                    }
+                }
+                if session.hintsRevealed < question.hints.count && session.feedback == nil {
+                    Button("Give me a hint", systemImage: "lightbulb") { learning.revealHint() }
+                        .disabled(learning.isBusy)
+                }
+                if session.solutionRevealed {
+                    Text("Tutor’s worked solution").font(.headline)
+                    MessageContentView(content: question.expectedAnswer)
+                } else if session.feedback != nil {
+                    Button("Show worked solution") { learning.revealSolution() }
+                        .disabled(learning.isBusy)
+                }
             }
-            if session.hintsRevealed < question.hints.count && session.feedback == nil {
-                Button("Give me a hint", systemImage: "lightbulb") { learning.revealHint() }
-                    .disabled(learning.isBusy)
-            }
-            if session.solutionRevealed {
-                Text("Tutor’s worked solution").font(.headline)
-                MessageContentView(content: question.expectedAnswer)
-            } else if session.feedback != nil {
-                Button("Show worked solution") { learning.revealSolution() }
-                    .disabled(learning.isBusy)
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Help with this question")
+                if session.solutionRevealed {
+                    Text("Worked solution viewed").font(.caption).foregroundStyle(.secondary)
+                } else if session.hintsRevealed > 0 {
+                    Text("\(session.hintsRevealed) \(session.hintsRevealed == 1 ? "hint" : "hints") used")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
     }

@@ -1,0 +1,729 @@
+"""Deterministic Cauchy pipeline used by the arXiv scorecard.
+
+This is a line-by-line port of the non-UI rules on main, plus the two open
+branches the scorecard compares:
+
+- main: Cauchy/Services/ReferenceParsing.swift, ReferenceDetector.swift,
+  LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing
+- cursor/reference-hover-detection-0cb7: abbreviated, plural, and
+  bibliography-qualified references
+- cursor/jerry-60-ask-highlight-da7d: AskStructureLocator
+
+PDFKit is not available on Linux. Callers supply page text (PyMuPDF's
+content stream is the stand-in for PDFPage.string) and optional equation
+label x-fractions (stand-in for PDFKit selection bounds).
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+
+REFERENCE_NUMBER = r"(?:\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"
+SINGULAR_MAIN = r"theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
+SINGULAR_HOVER = (
+    r"theorem|thm\.?|lemma|lem\.?|proposition|prop\.?|corollary|cor\.?|"
+    r"definition|def\.?|exercise|example|remark|proof"
+)
+PLURAL_HOVER = (
+    r"theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
+)
+EQUATION = r"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)\s*\)"
+FIGURE = r"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b"
+PAIRED_FIGURES = (
+    r"(?i)\b(?:figures|figs\.)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\s*(?:and|&|,)\s*"
+    r"((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\b"
+)
+BIBLIOGRAPHY_QUALIFIER = re.compile(
+    r"\s*(?:see\s+)?\d+(?:\s*[-–—]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–—]\s*\d+)?)*\s*,\s*"
+)
+
+KIND_FROM_KEYWORD = {
+    "theorem": "theorem",
+    "theorems": "theorem",
+    "thm": "theorem",
+    "lemma": "lemma",
+    "lemmas": "lemma",
+    "lem": "lemma",
+    "proposition": "proposition",
+    "propositions": "proposition",
+    "prop": "proposition",
+    "corollary": "corollary",
+    "corollaries": "corollary",
+    "cor": "corollary",
+    "definition": "definition",
+    "definitions": "definition",
+    "def": "definition",
+    "exercise": "exercise",
+    "exercises": "exercise",
+    "example": "example",
+    "examples": "example",
+    "remark": "remark",
+    "remarks": "remark",
+    "proof": "proof",
+    "proofs": "proof",
+}
+
+
+def kind_for_keyword(keyword: str, profile: str) -> str | None:
+    normalized = keyword.lower().strip(".")
+    if profile == "main":
+        if normalized in {
+            "theorem", "lemma", "proposition", "corollary", "definition",
+            "exercise", "example", "remark", "proof",
+        }:
+            return normalized
+        return None
+    return KIND_FROM_KEYWORD.get(normalized)
+
+
+@dataclass(frozen=True)
+class Match:
+    kind: str
+    number: str
+    start: int
+    end: int
+    text: str
+
+    @property
+    def key(self) -> tuple[str, str]:
+        return (self.kind, self.number)
+
+
+@dataclass
+class Detection:
+    local: list[Match] = field(default_factory=list)
+    bibliography_spans: list[tuple[int, int]] = field(default_factory=list)
+
+
+def _compile(profile: str) -> dict[str, re.Pattern[str]]:
+    singular = SINGULAR_MAIN if profile == "main" else SINGULAR_HOVER
+    patterns = {
+        "named": re.compile(rf"(?i)\b({singular})\s*({REFERENCE_NUMBER})"),
+        "equation": re.compile(EQUATION),
+        "figure": re.compile(FIGURE),
+        "paired": re.compile(PAIRED_FIGURES),
+    }
+    if profile != "main":
+        patterns["list"] = re.compile(
+            rf"(?i)\b({PLURAL_HOVER})\s*({REFERENCE_NUMBER}(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER})+)"
+        )
+        patterns["number"] = re.compile(REFERENCE_NUMBER)
+    return patterns
+
+
+_PATTERNS = {
+    "main": _compile("main"),
+    "hover": _compile("hover"),
+}
+
+
+def _bibliography_span(text: str, start: int, end: int) -> tuple[int, int] | None:
+    open_idx = text.rfind("[", 0, start)
+    if open_idx < 0:
+        return None
+    qualifier = text[open_idx + 1 : start]
+    if "]" in qualifier:
+        return None
+    if BIBLIOGRAPHY_QUALIFIER.match(qualifier) is None:
+        return None
+    close_idx = text.find("]", end)
+    if close_idx < 0 or "[" in text[end:close_idx]:
+        return None
+    return (open_idx, close_idx + 1)
+
+
+def detection(text: str, profile: str = "main") -> Detection:
+    patterns = _PATTERNS[profile]
+    raw: list[Match] = []
+
+    for found in patterns["named"].finditer(text):
+        kind = kind_for_keyword(found.group(1), profile)
+        if kind is None:
+            continue
+        raw.append(Match(kind, found.group(2), found.start(), found.end(), found.group(0)))
+
+    if "list" in patterns:
+        for found in patterns["list"].finditer(text):
+            kind = kind_for_keyword(found.group(1), profile)
+            if kind is None:
+                continue
+            list_text = found.group(2)
+            list_start = found.start(2)
+            for number in patterns["number"].finditer(list_text):
+                abs_start = list_start + number.start()
+                abs_end = list_start + number.end()
+                span_start = found.start() if number.start() == 0 else abs_start
+                raw.append(Match(kind, number.group(0), span_start, abs_end, text[span_start:abs_end]))
+
+    for found in patterns["equation"].finditer(text):
+        raw.append(Match("equation", found.group(1), found.start(), found.end(), found.group(0)))
+
+    for found in patterns["figure"].finditer(text):
+        raw.append(Match("figure", found.group(1), found.start(), found.end(), found.group(0)))
+
+    for found in patterns["paired"].finditer(text):
+        raw.append(Match("figure", found.group(2), found.start(), found.end(1), text[found.start() : found.end(1)]))
+        raw.append(Match("figure", found.group(4), found.start(3), found.end(3), text[found.start(3) : found.end(3)]))
+
+    if profile == "main":
+        raw.sort(key=lambda item: (item.start, item.end))
+        return Detection(local=raw)
+
+    local: list[Match] = []
+    spans: list[tuple[int, int]] = []
+    for match in raw:
+        span = _bibliography_span(text, match.start, match.end)
+        if span is None:
+            local.append(match)
+        else:
+            spans.append(span)
+    local.sort(key=lambda item: (item.start, item.end))
+    return Detection(local=local, bibliography_spans=spans)
+
+
+def all_references(text: str, profile: str = "main") -> list[Match]:
+    return detection(text, profile).local
+
+
+def first_reference(text: str, profile: str = "main") -> Match | None:
+    found = all_references(text, profile)
+    return found[0] if found else None
+
+
+def _distance(cursor: int, match: Match) -> int:
+    if cursor < match.start:
+        return match.start - cursor
+    if cursor >= match.end:
+        return cursor - match.end
+    return 0
+
+
+def best_reference(text: str, cursor_offset: int, profile: str = "main") -> Match | None:
+    found = detection(text, profile)
+    if not found.local and not found.bibliography_spans:
+        return None
+    cursor = max(0, min(cursor_offset, len(text)))
+    if any(start <= cursor < end for start, end in found.bibliography_spans):
+        return None
+    containing = [match for match in found.local if match.start <= cursor < match.end]
+    if containing:
+        return containing[0]
+    if not found.local:
+        return None
+    return min(found.local, key=lambda match: _distance(cursor, match))
+
+
+def is_likely_table_of_contents(page_text: str) -> bool:
+    lines = [line.strip() for line in page_text.split("\n") if line.strip()]
+    if len(lines) < 5:
+        return False
+    header_words = {"contents", "table of contents", "index"}
+    if any(line.lower() in header_words for line in lines[:3]):
+        return True
+    dot_leaders = re.compile(r"(\.\s*){3,}\d+$")
+    numbered = re.compile(r"^\d+(\.\d+)*\.?\s+\D.*\s\d{1,3}$")
+    toc_like = sum(1 for line in lines if dot_leaders.search(line) or numbered.search(line))
+    return toc_like >= 8 or toc_like / len(lines) >= 0.4
+
+
+_MATH_SIGNALS = ["=", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
+_DISPLAY_OPERATORS = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+_LABEL_MATH = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+_CITATION_WORDS = ["by", "see", "using", "from", "equation", "eq."]
+
+
+def _offset(text: str, index: int, delta: int) -> int:
+    return max(0, min(len(text), index + delta))
+
+
+def declaration_matches(
+    source_text: str,
+    equation_label_x: dict[int, float] | None = None,
+    profile: str = "main",
+) -> list[Match]:
+    positions = equation_label_x or {}
+    accepted: list[Match] = []
+    for match in all_references(source_text, profile):
+        after_end = _offset(source_text, match.end, 180)
+        before_start = _offset(source_text, match.start, -180)
+        after = source_text[match.end : after_end]
+        before = source_text[before_start : match.start]
+        next_character = next((char for char in after if not char.isspace()), None)
+        newline = before.rfind("\n")
+        line_start = newline + 1 if newline >= 0 else 0
+        prefix = before[line_start:].strip()
+
+        if match.kind == "figure":
+            if prefix or not match.text or not match.text[-1].isnumeric():
+                continue
+            line_end = after.find("\n")
+            remainder = after if line_end < 0 else after[:line_end]
+            remainder = remainder.strip()
+            if not remainder or remainder[0] not in "|:.–—":
+                continue
+            title = remainder[1:].strip()
+            if len(title) >= 8 and any(char.isalpha() for char in title):
+                accepted.append(match)
+            continue
+
+        if match.kind != "equation":
+            if prefix:
+                continue
+            if next_character in {".", ":", "("}:
+                accepted.append(match)
+            continue
+
+        line_end = after.find("\n")
+        suffix = (after if line_end < 0 else after[:line_end]).strip()
+        label_x = positions.get(match.start)
+        lower_prefix = prefix.lower()
+        if any(lower_prefix.endswith(word) for word in _CITATION_WORDS):
+            continue
+        if match.start > 0 and not source_text[match.start - 1].isspace():
+            continue
+        if match.number.isdigit() and label_x is not None and 0.20 < label_x < 0.70 and suffix:
+            continue
+
+        if not prefix and not suffix:
+            nearby = before[-180:] + after[:180]
+        else:
+            nearby = prefix + suffix
+        if label_x is not None and label_x >= 0.78 and any(op in nearby for op in _DISPLAY_OPERATORS):
+            accepted.append(match)
+            continue
+        if not prefix and suffix and any(op in suffix for op in _MATH_SIGNALS):
+            accepted.append(match)
+            continue
+        if not suffix:
+            recent = prefix[-80:]
+            if len(prefix.split()) <= 10 and any(op in recent for op in _LABEL_MATH):
+                accepted.append(match)
+                continue
+
+        matched_text = match.text.strip()
+        full_line_start = source_text.rfind("\n", 0, match.start)
+        full_line_start = 0 if full_line_start < 0 else full_line_start + 1
+        full_line_end = source_text.find("\n", match.end)
+        if full_line_end < 0:
+            full_line_end = len(source_text)
+        full_line = source_text[full_line_start:full_line_end].strip()
+        if full_line != matched_text:
+            continue
+        display_start = _offset(source_text, match.start, -600)
+        preceding = source_text[display_start : match.start]
+        if any(op in preceding for op in _MATH_SIGNALS):
+            accepted.append(match)
+    return accepted
+
+
+def _fallback_body(source_text: str, match: Match, declarations: list[Match]) -> str | None:
+    hard_end = _offset(source_text, match.end, 1600)
+    end = hard_end
+    for later in declarations:
+        if later.kind == "equation":
+            continue
+        if match.end <= later.start < end:
+            end = later.start
+            break
+    section = re.search(r"(?m)^[ \t]*\d+(?:\.\d+)+\.?[ \t]+[A-Z][^\n]*$", source_text[match.end : end])
+    if section:
+        end = match.end + section.start()
+    window = source_text[match.end : end]
+    for marker in ("Proof.", "\nRemark."):
+        found = window.lower().find(marker.lower())
+        if found >= 0:
+            end = match.end + found
+            window = source_text[match.end : end]
+    body = window.strip()
+    if body.startswith(".") or body.startswith(":"):
+        body = body[1:].strip()
+    return body or None
+
+
+@dataclass
+class IndexedStatement:
+    kind: str
+    number: str
+    page_index: int
+    body: str
+    name: str | None = None
+
+
+class StatementIndex:
+    """Source-fallback index. The model path is not called.
+
+    Hover only opens a preview when lookup succeeds and the body is non-empty,
+    which is the same gate as PDFCanvasView.detectReference.
+    """
+
+    def __init__(self) -> None:
+        self.entries: dict[tuple[str, str], IndexedStatement] = {}
+
+    def __len__(self) -> int:
+        return len(self.entries)
+
+    def lookup(self, kind: str, number: str) -> IndexedStatement | None:
+        return self.entries.get((kind, number))
+
+    def add(self, statement: IndexedStatement) -> None:
+        key = (statement.kind, statement.number)
+        existing = self.entries.get(key)
+        if existing is None:
+            self.entries[key] = statement
+            return
+        if statement.page_index < existing.page_index or (
+            statement.page_index == existing.page_index and len(statement.body) > len(existing.body)
+        ):
+            self.entries[key] = statement
+
+    def statements_cited_in(self, text: str, profile: str) -> list[IndexedStatement]:
+        seen: set[tuple[str, str]] = set()
+        results: list[IndexedStatement] = []
+        for match in all_references(text, profile):
+            if match.key in seen:
+                continue
+            entry = self.entries.get(match.key)
+            if entry is None or not entry.body:
+                continue
+            seen.add(match.key)
+            results.append(entry)
+        return results
+
+
+def build_statement_index(pages: list[dict], profile: str = "main") -> StatementIndex:
+    index = StatementIndex()
+    for page in pages:
+        text = page.get("text") or ""
+        if not text.strip() or is_likely_table_of_contents(text):
+            continue
+        positions = page.get("equation_label_x") or {}
+        declarations = declaration_matches(text, positions, profile)
+        for match in declarations:
+            if match.kind in {"equation", "figure"}:
+                body = match.text.strip() or text[max(0, match.start - 80) : match.end + 80].strip()
+            else:
+                body = _fallback_body(text, match, declarations) or ""
+            if not body:
+                continue
+            name = match.text if match.kind == "figure" else None
+            index.add(IndexedStatement(match.kind, match.number, page["page_index"], body, name))
+    return index
+
+
+# --- AskStructureLocator (chat branch) ---------------------------------------
+
+@dataclass
+class OutlineNode:
+    title: str
+    page_index: int
+    children: list["OutlineNode"] = field(default_factory=list)
+
+
+@dataclass
+class PageSnapshot:
+    page_index: int
+    text: str
+
+
+@dataclass
+class Structure:
+    outline: list[OutlineNode]
+    pages: list[PageSnapshot]
+    page_count: int
+
+
+@dataclass
+class StructuralQuery:
+    kind: str
+    number: str
+    canonical: str
+
+    @property
+    def display_name(self) -> str:
+        label = {"chapter": "Chapter", "section": "Section", "part": "Part"}[self.kind]
+        return f"{label} {self.number}"
+
+
+@dataclass
+class Heading:
+    title: str
+    page_index: int
+    label: str
+
+
+@dataclass
+class DocumentSpan:
+    label: str
+    start_page: int
+    end_page: int
+    headings: list[Heading]
+
+
+_CHAPTER_QUERY = re.compile(r"(?i)\b(?:chapter|chap\.?|ch\.?)\s+([0-9]+|[IVXLCDM]+)(?!\.\d)\b")
+_PART_QUERY = re.compile(r"(?i)\bpart\s+([0-9]+|[IVXLCDM]+)\b")
+_SECTION_QUERY = re.compile(r"(?i)(?:§\s*|(?:section|sec\.?)\s+)(\d+(?:\.\d+)*)(?!\.\d)")
+_SECTION_QUERY_BARE = re.compile(r"(?i)\bsection\s+(\d+)(?!\.\d)\b")
+_CHAPTER_TITLE = re.compile(r"(?i)^\s*(?:chapter|chap\.?|ch\.?)\s+([0-9]+|[IVXLCDM]+)(?!\.\d)\b")
+_PART_TITLE = re.compile(r"(?i)^\s*part\s+([0-9]+|[IVXLCDM]+)\b")
+_SECTION_TITLE = re.compile(r"(?i)^\s*(?:§\s*|(?:section|sec\.?)\s+)(\d+(?:\.\d+)*)(?!\.\d)")
+_CONTENTS_ENTRY = re.compile(r"^(.{3,90}?)(?:\s*\.{2,}|\s{2,})\s*(\d{1,4})\s*$")
+_ROMAN = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+
+def canonical_number(raw: str) -> str | None:
+    token = raw.strip().strip(".")
+    if re.fullmatch(r"\d+(?:\.\d+)*", token):
+        return token
+    value = _roman_value(token)
+    if value is None:
+        return None
+    return str(value)
+
+
+def _roman_value(token: str) -> int | None:
+    letters = token.upper()
+    if not letters or any(char not in _ROMAN for char in letters):
+        return None
+    total = 0
+    previous = 0
+    for char in reversed(letters):
+        value = _ROMAN[char]
+        if value < previous:
+            total -= value
+        else:
+            total += value
+            previous = value
+    return total if 1 <= total <= 40 else None
+
+
+def structural_query(text: str) -> StructuralQuery | None:
+    patterns = [
+        ("section", _SECTION_QUERY),
+        ("chapter", _CHAPTER_QUERY),
+        ("part", _PART_QUERY),
+        ("section", _SECTION_QUERY_BARE),
+    ]
+    best: tuple[int, StructuralQuery] | None = None
+    for kind, pattern in patterns:
+        found = pattern.search(text)
+        if not found:
+            continue
+        canonical = canonical_number(found.group(1))
+        if canonical is None:
+            continue
+        if best is None or found.start() < best[0]:
+            best = (found.start(), StructuralQuery(kind, found.group(1), canonical))
+    return None if best is None else best[1]
+
+
+def _number_in(title: str, pattern: re.Pattern[str]) -> str | None:
+    found = pattern.search(title)
+    if not found:
+        return None
+    return canonical_number(found.group(1))
+
+
+def _leading_number(title: str, dotted: bool) -> str | None:
+    pattern = (
+        re.compile(r"^\s*§?\s*(\d+(?:\.\d+)+)(?!\.\d)\b")
+        if dotted
+        else re.compile(r"^\s*(\d+)(?!\.\d)(?:\s|\.(?!\d)|$)")
+    )
+    return _number_in(title, pattern)
+
+
+def _leading_roman(title: str) -> str | None:
+    return _number_in(title, re.compile(r"^\s*([IVXLCDM]+)(?=\s|\.|$)"))
+
+
+def _matches_title(title: str, query: StructuralQuery) -> bool:
+    if query.kind == "chapter":
+        if _number_in(title, _CHAPTER_TITLE) == query.canonical:
+            return True
+        if title.lower().startswith("part"):
+            return False
+        return _leading_number(title, dotted=False) == query.canonical or _leading_roman(title) == query.canonical
+    if query.kind == "part":
+        if _number_in(title, _PART_TITLE) == query.canonical:
+            return True
+        return _leading_roman(title) == query.canonical
+    if _number_in(title, _SECTION_TITLE) == query.canonical:
+        return True
+    return _leading_number(title, dotted=True) == query.canonical
+
+
+def _is_title_line(line: str) -> bool:
+    words = line.split()
+    if not 1 <= len(words) <= 8:
+        return False
+    stripped = line.strip()
+    return not stripped.endswith((".", "?", "!"))
+
+
+def _matches_heading_line(line: str) -> bool:
+    if _number_in(line, _CHAPTER_TITLE) or _number_in(line, _PART_TITLE) or _number_in(line, _SECTION_TITLE):
+        return True
+    if not _is_title_line(line) or line.lower().startswith("part"):
+        return False
+    if _leading_number(line, dotted=True) is not None:
+        return True
+    arabic = _leading_number(line, dotted=False)
+    if arabic is not None and arabic.isdigit() and 1 <= int(arabic) <= 40:
+        return True
+    return _leading_roman(line) is not None
+
+
+def _heading_rank(title: str) -> int:
+    if re.search(r"(?i)\bpart\b", title):
+        return 0
+    if re.search(r"(?i)\b(?:chapter|chap\.?|ch\.?)\b", title):
+        return 1
+    number = _leading_number(title, dotted=True) or _leading_number(title, dotted=False)
+    if number:
+        return len(number.split(".")) + 1
+    return 6
+
+
+def _display_label(title: str, kind: str | None = None) -> str | None:
+    cleaned = re.sub(r"\s*\.{2,}\s*\d*$", "", title).strip()
+    if not cleaned:
+        return None
+    if cleaned.startswith("§"):
+        return cleaned
+    treat_as_section = kind == "section" or _leading_number(cleaned, dotted=True) is not None
+    if treat_as_section and cleaned[:1].isdigit():
+        return "§" + cleaned
+    return cleaned
+
+
+def _flatten(nodes: list[OutlineNode], depth: int = 0) -> list[tuple[str, int, int]]:
+    result: list[tuple[str, int, int]] = []
+    for node in nodes:
+        if node.page_index >= 0 and node.title.strip():
+            result.append((node.title, node.page_index, depth))
+        result.extend(_flatten(node.children, depth + 1))
+    return result
+
+
+def _make_span(
+    title: str,
+    kind: str,
+    start: int,
+    end: int,
+    page_count: int,
+    headings: list[Heading],
+) -> DocumentSpan | None:
+    if page_count <= 0 or start < 0 or start >= page_count:
+        return None
+    return DocumentSpan(
+        label=_display_label(title, kind) or title,
+        start_page=start,
+        end_page=min(max(end, start + 1), page_count),
+        headings=headings,
+    )
+
+
+def _detected_headings(structure: Structure) -> list[Heading]:
+    found: list[Heading] = []
+    for page in structure.pages:
+        if is_likely_table_of_contents(page.text):
+            continue
+        for raw in page.text.split("\n"):
+            line = raw.strip()
+            if not 3 <= len(line) <= 120 or len(line.split()) > 14:
+                continue
+            if not _matches_heading_line(line):
+                continue
+            found.append(Heading(line, page.page_index, _display_label(line) or line))
+    return found
+
+
+def _span_from_outline(structure: Structure, query: StructuralQuery) -> DocumentSpan | None:
+    flat = _flatten(structure.outline)
+    matches = [item for item in flat if _matches_title(item[0], query)]
+    if not matches:
+        return None
+
+    def sort_key(item: tuple[str, int, int]) -> tuple[int, int, int]:
+        title, page, depth = item
+        kind_hit = 0 if query.kind in title.lower() else 1
+        return (kind_hit, depth, page)
+
+    title, page, depth = min(matches, key=sort_key)
+    end = structure.page_count
+    for other_title, other_page, other_depth in flat:
+        if other_depth <= depth and other_page > page:
+            end = other_page
+            break
+    headings = [
+        Heading(other_title, other_page, _display_label(other_title) or other_title)
+        for other_title, other_page, other_depth in flat
+        if other_depth > depth and page <= other_page < max(end, page + 1)
+    ]
+    return _make_span(title, query.kind, page, end, structure.page_count, headings)
+
+
+def _span_from_headings(structure: Structure, query: StructuralQuery) -> DocumentSpan | None:
+    headings = _detected_headings(structure)
+    match_index = next((i for i, heading in enumerate(headings) if _matches_title(heading.title, query)), None)
+    if match_index is None:
+        return None
+    match = headings[match_index]
+    rank = _heading_rank(match.title)
+    later = headings[match_index + 1 :]
+    end_heading = next((heading for heading in later if _heading_rank(heading.title) <= rank), None)
+    end = structure.page_count if end_heading is None else end_heading.page_index
+    nested = [
+        heading
+        for heading in later
+        if heading.page_index < max(end, match.page_index + 1) and _heading_rank(heading.title) > rank
+    ]
+    return _make_span(match.title, query.kind, match.page_index, end, structure.page_count, nested)
+
+
+def _contents_entries(structure: Structure) -> list[tuple[str, int]]:
+    entries: list[tuple[str, int]] = []
+    for page in structure.pages:
+        if not is_likely_table_of_contents(page.text):
+            continue
+        for raw in page.text.split("\n"):
+            found = _CONTENTS_ENTRY.match(raw.strip())
+            if not found:
+                continue
+            title = found.group(1).strip()
+            if title:
+                entries.append((title, int(found.group(2))))
+    return entries
+
+
+def _span_from_contents(structure: Structure, query: StructuralQuery) -> DocumentSpan | None:
+    entries = _contents_entries(structure)
+    match_index = next((i for i, entry in enumerate(entries) if _matches_title(entry[0], query)), None)
+    if match_index is None:
+        return None
+    title, printed = entries[match_index]
+    start = min(max(printed - 1, 0), max(structure.page_count - 1, 0))
+    rank = _heading_rank(title)
+    later = next((entry for entry in entries[match_index + 1 :] if _heading_rank(entry[0]) <= rank), None)
+    if later is None:
+        end = min(structure.page_count, start + 8)
+    else:
+        end = max(start + 1, later[1] - 1)
+    return _make_span(title, query.kind, start, end, structure.page_count, [])
+
+
+def locate(query: StructuralQuery, structure: Structure) -> DocumentSpan | None:
+    return (
+        _span_from_outline(structure, query)
+        or _span_from_headings(structure, query)
+        or _span_from_contents(structure, query)
+    )
+
+
+def not_found_message(query: StructuralQuery) -> str:
+    return (
+        f"{query.display_name} was not found in the outline, headings, or contents. "
+        "Highlight a passage or rephrase the question."
+    )

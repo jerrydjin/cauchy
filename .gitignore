@@ -28,3 +28,4 @@ xcuserdata/
 # Python benchmark caches
 __pycache__/
 *.pyc
+Benchmarks/arxiv_scorecard/cache/

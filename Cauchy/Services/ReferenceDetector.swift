@@ -133,7 +133,10 @@ enum ReferenceDetector {
     /// A bracket is a citation when it is a bare key, or a key plus a named
     /// result. An interval such as "[0, 1]" is not one.
     private static func bracketCitation(body: String, range: Range<String.Index>) -> ExternalCitation? {
-        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = body
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
         let nsRange = NSRange(trimmed.startIndex..., in: trimmed)
         guard let match = bracketKeyRegex.firstMatch(in: trimmed, range: nsRange),
               match.range.location == 0,

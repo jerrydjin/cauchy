@@ -90,6 +90,16 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertNil(ReferenceDetector.externalCitation(in: text, cursorOffset: local))
     }
 
+    func testCitationBracketSplitAcrossALineIsNotALocalTheorem() {
+        let text = "the weak-holomorphy criterion [17,\nTheorem 3.31(c)] shows that G is analytic."
+        XCTAssertTrue(ReferenceDetector.allReferences(in: text).isEmpty)
+        let offset = text.distance(from: text.startIndex, to: text.range(of: "Theorem")!.lowerBound)
+        let citation = ReferenceDetector.externalCitation(in: text, cursorOffset: offset)
+        XCTAssertEqual(citation?.key, "17")
+        XCTAssertEqual(citation?.qualifier, "Theorem 3.31(c)")
+        XCTAssertNil(ReferenceDetector.bestReference(in: text, cursorOffset: offset))
+    }
+
     func testNumericBracketCitationIsNotALocalTheorem() {
         let text = "By [12, Theorem 3.2] the map is continuous."
         XCTAssertTrue(ReferenceDetector.allReferences(in: text).isEmpty)

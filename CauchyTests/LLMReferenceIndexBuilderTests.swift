@@ -601,27 +601,6 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "4")))
     }
 
-    func testWrappedEnumeratedItemIsNotAnEquation() {
-        let page = """
-        g(a) = 0 for every a, i.e. g is contained in the ideal.
-        Proposition 7.4. Let I be an ideal.
-        (1) If I is an R-ideal, then the radical is contained in I.
-        (2)
-        The radical of I is an R-ideal.
-        """
-        let nsPage = page as NSString
-        let positions = [
-            nsPage.range(of: "(1)").location: 0.15,
-            nsPage.range(of: "(2)").location: 0.15,
-        ]
-        let declarations = LLMReferenceIndexSupport.declarationMatches(
-            in: page, equationLabelX: positions
-        ).map(\.reference)
-
-        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "1")))
-        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
-    }
-
     func testTheoremEvidenceKeepsEquationWithinItsStatement() {
         let page = """
         Theorem 6.13. Detailed balance holds iff

@@ -364,16 +364,6 @@ enum LLMReferenceIndexSupport {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard fullLine == matchedText else { return false }
 
-            // A bare number alone on the line is an equation when the line
-            // above is the display. An enumerated item whose text wrapped
-            // onto the next line has prose above it. A right-margin label
-            // still uses the wider check below.
-            if Int(match.reference.number) != nil, labelX == nil || (labelX ?? 0) < 0.78 {
-                let previous = previousNonEmptyLine(before: match.range.lowerBound, in: sourceText)
-                let labelMath = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
-                return labelMath.contains(where: previous.contains)
-            }
-
             let displayStart = sourceText.index(
                 match.range.lowerBound,
                 offsetBy: -600,
@@ -382,12 +372,6 @@ enum LLMReferenceIndexSupport {
             let precedingDisplay = sourceText[displayStart..<match.range.lowerBound]
             return mathSignals.contains(where: precedingDisplay.contains)
         }
-    }
-
-    private static func previousNonEmptyLine(before index: String.Index, in text: String) -> String {
-        let previous = text[..<index].trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let lineStart = previous.lastIndex(of: "\n") else { return String(previous) }
-        return String(previous[previous.index(after: lineStart)...])
     }
 
     static func isLikelyDeclaration(

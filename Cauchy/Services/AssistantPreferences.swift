@@ -165,13 +165,13 @@ enum AssistantPreferences {
                 needsProviderChoice: true
             )
         case .connector(let id):
-            ResolvedAssistant(
+            return ResolvedAssistant(
                 connector: id.connector,
                 choice: modelChoice(for: id),
                 viaAutomatic: false
             )
         case .automatic:
-            automaticTarget
+            return automaticTarget
         }
     }
 

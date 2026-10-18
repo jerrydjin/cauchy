@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import XCTest
 @testable import Cauchy
 
@@ -250,8 +251,14 @@ final class ProviderReadinessStoreTests: XCTestCase {
         installed: Flag,
         hasKey: Flag
     ) throws -> ProviderReadinessStore {
-        ProviderReadinessStore(
-            defaults: defaults ?? (try makeDefaults()),
+        let resolvedDefaults: UserDefaults
+        if let defaults {
+            resolvedDefaults = defaults
+        } else {
+            resolvedDefaults = try makeDefaults()
+        }
+        return ProviderReadinessStore(
+            defaults: resolvedDefaults,
             prober: probe,
             binaryIsInstalled: { @MainActor _ in installed.value },
             apiKeyIsStored: { @MainActor _ in hasKey.value }
@@ -497,22 +504,25 @@ private final class Flag: @unchecked Sendable {
 }
 
 private final class ScriptedProbe: ProviderProbing, @unchecked Sendable {
-    private let lock = NSLock()
-    var result: AssistantFailure?
-    private var calls = 0
-
-    var callCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return calls
+    private struct State: Sendable {
+        var result: AssistantFailure?
+        var calls = 0
     }
 
+    private let state = Mutex(State())
+
+    var result: AssistantFailure? {
+        get { state.withLock { $0.result } }
+        set { state.withLock { $0.result = newValue } }
+    }
+
+    var callCount: Int { state.withLock { $0.calls } }
+
     func probe(connectorID: AssistantConnectorID, modelID: String?) async -> AssistantFailure? {
-        lock.lock()
-        calls += 1
-        let result = result
-        lock.unlock()
-        return result
+        state.withLock { value in
+            value.calls += 1
+            return value.result
+        }
     }
 }
 
@@ -541,11 +551,11 @@ private final class CloudHTTPStub: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        box.lock.lock()
-        let status = box.status
-        let body = box.body
-        let fail = box.failWhileReadingBody
-        box.lock.unlock()
+        Self.box.lock.lock()
+        let status = Self.box.status
+        let body = Self.box.body
+        let fail = Self.box.failWhileReadingBody
+        Self.box.lock.unlock()
 
         guard let url = request.url,
               let response = HTTPURLResponse(

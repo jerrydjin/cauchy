@@ -1,12 +1,16 @@
 import Foundation
 import Synchronization
+import Darwin
 
 enum CLIAgentError: LocalizedError {
     case launchFailed(String)
+    case timedOut
     case processFailed(exitCode: Int32, stderr: String)
 
     var errorDescription: String? {
         switch self {
+        case .timedOut:
+            return "The assistant did not finish this request in time. Try again; completed work is saved."
         case .launchFailed(let message):
             return "Could not launch the CLI: \(message)"
         case .processFailed(let exitCode, let stderr):
@@ -88,21 +92,86 @@ enum CLIAgentRunner {
         let process = Process()
         let stdout = Pipe()
         let stderr = Pipe()
+        let queue = DispatchQueue(label: "cauchy.cli.output")
+        let output = Mutex(Data())
+        let diagnostics = Mutex(Data())
+        let finished = Mutex(false)
 
         func terminateIfRunning() {
-            if process.isRunning {
-                process.terminate()
+            guard process.isRunning else { return }
+            process.terminate()
+            queue.asyncAfter(deadline: .now() + 2) { [process] in
+                if process.isRunning { _ = Darwin.kill(process.processIdentifier, SIGKILL) }
             }
+        }
+
+        func makeNonblocking(_ handle: FileHandle) {
+            let fd = handle.fileDescriptor
+            _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+        }
+
+        // Never wait for EOF: a vendor helper can inherit the pipe and keep
+        // it open after the request process exits. Drain bytes already written.
+        func readAvailable(_ handle: FileHandle, receive: (Data) -> Void) -> Bool {
+            var bytes = [UInt8](repeating: 0, count: 16_384)
+            while true {
+                let count = bytes.withUnsafeMutableBytes { Darwin.read(handle.fileDescriptor, $0.baseAddress, $0.count) }
+                if count > 0 { receive(Data(bytes.prefix(count))) }
+                else if count < 0 && errno == EINTR { continue }
+                else { return count == 0 }
+            }
+        }
+
+        func drain(_ continuation: AsyncThrowingStream<String, Error>.Continuation, flush: Bool = false) {
+            guard !finished.withLock({ $0 }) else { return }
+            let outputClosed = readAvailable(stdout.fileHandleForReading) { data in output.withLock { $0.append(data) } }
+            let diagnosticsClosed = readAvailable(stderr.fileHandleForReading) { data in
+                diagnostics.withLock { buffer in
+                    buffer.append(data)
+                    if buffer.count > 4_000 { buffer = Data(buffer.suffix(4_000)) }
+                }
+            }
+            if outputClosed { stdout.fileHandleForReading.readabilityHandler = nil }
+            if diagnosticsClosed { stderr.fileHandleForReading.readabilityHandler = nil }
+            let lines = output.withLock { buffer -> [String] in
+                var lines: [String] = []
+                while let newline = buffer.firstIndex(of: 10) {
+                    lines.append(String(decoding: buffer[..<newline], as: UTF8.self))
+                    buffer.removeSubrange(...newline)
+                }
+                if flush && !buffer.isEmpty {
+                    lines.append(String(decoding: buffer, as: UTF8.self))
+                    buffer.removeAll()
+                }
+                return lines
+            }
+            for line in lines { continuation.yield(line) }
+        }
+
+        func finish(_ continuation: AsyncThrowingStream<String, Error>.Continuation, error: Error? = nil) {
+            guard !finished.withLock({ $0 }) else { return }
+            drain(continuation, flush: true)
+            finished.withLock { $0 = true }
+            stdout.fileHandleForReading.readabilityHandler = nil
+            stderr.fileHandleForReading.readabilityHandler = nil
+            process.terminationHandler = nil
+            try? stdout.fileHandleForReading.close()
+            try? stderr.fileHandleForReading.close()
+            if let error { continuation.finish(throwing: error) }
+            else if process.terminationStatus != 0 {
+                let message = diagnostics.withLock { String(decoding: $0, as: UTF8.self) }
+                continuation.finish(throwing: CLIAgentError.processFailed(exitCode: process.terminationStatus, stderr: message))
+            } else { continuation.finish() }
         }
     }
 
-    /// Launches the binary and yields stdout line by line. Throws
-    /// CLIAgentError.processFailed (with captured stderr) on non-zero exit.
-    /// Cancelling the consuming task terminates the child process.
+    /// Completion follows the request process, not an inherited output pipe.
+    /// Indexing may specify a deadline; ordinary chat keeps its existing policy.
     nonisolated static func streamLines(
         binary: URL,
         arguments: [String],
-        workingDirectory: URL
+        workingDirectory: URL,
+        timeout: TimeInterval? = nil
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let child = ChildProcess()
@@ -113,50 +182,40 @@ enum CLIAgentRunner {
             process.standardOutput = child.stdout
             process.standardError = child.stderr
             process.standardInput = FileHandle.nullDevice
-
             process.environment = Self.environment
 
-            // Drain stderr as it arrives so a chatty child can't deadlock.
-            let stderrBuffer = Mutex(Data())
-            child.stderr.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                if !data.isEmpty {
-                    stderrBuffer.withLock { $0.append(data) }
-                }
+            child.makeNonblocking(child.stdout.fileHandleForReading)
+            child.makeNonblocking(child.stderr.fileHandleForReading)
+            child.stdout.fileHandleForReading.readabilityHandler = { _ in
+                child.queue.async { child.drain(continuation) }
             }
-
+            child.stderr.fileHandleForReading.readabilityHandler = { _ in
+                child.queue.async { child.drain(continuation) }
+            }
+            process.terminationHandler = { _ in
+                child.queue.async { child.finish(continuation) }
+            }
+            continuation.onTermination = { termination in
+                if case .cancelled = termination { child.terminateIfRunning() }
+            }
             do {
                 try process.run()
+                // The child has its own duplicated descriptors.
+                try? child.stdout.fileHandleForWriting.close()
+                try? child.stderr.fileHandleForWriting.close()
             } catch {
+                child.stdout.fileHandleForReading.readabilityHandler = nil
                 child.stderr.fileHandleForReading.readabilityHandler = nil
+                process.terminationHandler = nil
                 continuation.finish(throwing: CLIAgentError.launchFailed(error.localizedDescription))
                 return
             }
-
-            continuation.onTermination = { termination in
-                if case .cancelled = termination {
+            if let timeout {
+                child.queue.asyncAfter(deadline: .now() + max(0, timeout)) { [weak child] in
+                    guard let child else { return }
+                    guard !child.finished.withLock({ $0 }) else { return }
                     child.terminateIfRunning()
-                }
-            }
-
-            Task.detached {
-                do {
-                    for try await line in child.stdout.fileHandleForReading.bytes.lines {
-                        continuation.yield(line)
-                    }
-                } catch {
-                    // Fall through to exit-status handling.
-                }
-                child.process.waitUntilExit()
-                child.stderr.fileHandleForReading.readabilityHandler = nil
-
-                let status = child.process.terminationStatus
-                if status == 0 {
-                    continuation.finish()
-                } else {
-                    let data = stderrBuffer.withLock { $0 }
-                    let stderrText = String(data: data.suffix(4000), encoding: .utf8) ?? ""
-                    continuation.finish(throwing: CLIAgentError.processFailed(exitCode: status, stderr: stderrText))
+                    child.finish(continuation, error: CLIAgentError.timedOut)
                 }
             }
         }

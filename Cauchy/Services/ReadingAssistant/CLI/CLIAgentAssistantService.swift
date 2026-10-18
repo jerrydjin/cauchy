@@ -273,10 +273,18 @@ struct CLIIndexLanguageModelExecutor: LanguageModelExecutor {
         let lines = CLIAgentRunner.streamLines(
             binary: binaryURL,
             arguments: arguments,
-            workingDirectory: FileManager.default.temporaryDirectory
+            workingDirectory: FileManager.default.temporaryDirectory,
+            timeout: 180
         )
-        for try await line in lines {
-            _ = parser.consume(line: line)
+        do {
+            for try await line in lines {
+                _ = parser.consume(line: line)
+            }
+        } catch let error as CLIAgentError {
+            if case .timedOut = error { throw error }
+            // Structured failures carry the useful API message; stderr may
+            // contain a much larger diagnostic dump, including the request.
+            throw ReadingAssistantError.api(parser.errorMessage ?? error.localizedDescription)
         }
         if let error = parser.errorMessage {
             throw ReadingAssistantError.api(error)

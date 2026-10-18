@@ -76,3 +76,69 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertEqual(connector.defaultChoice, .model("gemini-3.8-flash"))
     }
 }
+
+final class CodexFailureTests: XCTestCase {
+    private func run(_ script: String, timeout: TimeInterval? = 2) async throws -> [String] {
+        var lines: [String] = []
+        for try await line in CLIAgentRunner.streamLines(binary: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", script], workingDirectory: FileManager.default.temporaryDirectory, timeout: timeout) {
+            lines.append(line)
+        }
+        return lines
+    }
+
+    func testExitedProcessDoesNotWaitForInheritedPipeToClose() async throws {
+        let began = ContinuousClock.now
+        let lines = try await run("(sleep 2) & printf 'done\\n'; exit 0", timeout: 1)
+        XCTAssertEqual(lines, ["done"])
+        XCTAssertLessThan(began.duration(to: .now), .seconds(1))
+    }
+
+    func testProcessOutputIsDrainedIncludingLastUnterminatedLine() async throws {
+        let lines = try await run("printf 'first\\nsecond\\nlast'")
+        XCTAssertEqual(lines, ["first", "second", "last"])
+    }
+
+    func testProcessFailurePreservesExitStatusAndDiagnostics() async {
+        do {
+            _ = try await run("printf 'partial\\n'; printf 'fixture failure' >&2; exit 7")
+            XCTFail("Expected an exit failure")
+        } catch CLIAgentError.processFailed(let code, let diagnostics) {
+            XCTAssertEqual(code, 7)
+            XCTAssertEqual(diagnostics, "fixture failure")
+        } catch { XCTFail("Unexpected error: \(error)") }
+    }
+
+    func testRequestDeadlineEndsAStalledProcess() async {
+        do {
+            _ = try await run("sleep 2", timeout: 0.05)
+            XCTFail("Expected a deadline error")
+        } catch CLIAgentError.timedOut {
+        } catch { XCTFail("Unexpected error: \(error)") }
+    }
+
+    func testNestedModelAvailabilityErrorIsReadable() throws {
+        let detail = "The selected model is not supported with this account."
+        let nested = String(decoding: try JSONSerialization.data(withJSONObject: ["error": ["message": detail]]), as: UTF8.self)
+        let event = String(decoding: try JSONSerialization.data(withJSONObject: ["type": "error", "message": nested]), as: UTF8.self)
+        var parser = CodexStreamParser()
+        XCTAssertNil(parser.consume(line: event))
+        XCTAssertEqual(parser.errorMessage, detail)
+        XCTAssertNil(parser.finalText)
+    }
+
+    func testFailedTurnIsRecognizedWithoutAnEarlierErrorEvent() {
+        var parser = CodexStreamParser()
+        _ = parser.consume(line: #"{"type":"turn.failed","error":{"message":"Quota exceeded"}}"#)
+        XCTAssertEqual(parser.errorMessage, "Quota exceeded")
+    }
+
+    func testSuccessfulRetrySupersedesTransientError() {
+        var parser = CodexStreamParser()
+        _ = parser.consume(line: #"{"type":"error","message":"Reconnecting"}"#)
+        _ = parser.consume(line: #"{"type":"item.completed","item":{"type":"agent_message","text":"An answer"}}"#)
+        _ = parser.consume(line: #"{"type":"turn.completed"}"#)
+        XCTAssertNil(parser.errorMessage)
+        XCTAssertEqual(parser.finalText, "An answer")
+    }
+}

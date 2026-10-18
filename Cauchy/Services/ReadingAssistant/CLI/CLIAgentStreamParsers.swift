@@ -138,7 +138,7 @@ struct CodexStreamParser: CLIAgentStreamParsing {
                     return currentText
                 }
             case "error":
-                errorMessage = (msg["message"] as? String) ?? "Codex returned an error."
+                errorMessage = readableError(msg["message"] as? String)
             default:
                 break
             }
@@ -148,7 +148,17 @@ struct CodexStreamParser: CLIAgentStreamParsing {
         // Shape B: typed items.
         guard let type = object["type"] as? String else { return nil }
         if type == "error" {
-            errorMessage = (object["message"] as? String) ?? "Codex returned an error."
+            errorMessage = readableError(object["message"] as? String)
+            return nil
+        }
+        if type == "turn.failed" {
+            let error = object["error"] as? [String: Any]
+            errorMessage = readableError(error?["message"] as? String)
+            return nil
+        }
+        if type == "turn.completed" {
+            // A successful retry supersedes a transient transport error.
+            errorMessage = nil
             return nil
         }
         guard type.hasPrefix("item."),
@@ -165,5 +175,13 @@ struct CodexStreamParser: CLIAgentStreamParsing {
             pendingText = text
         }
         return currentText
+    }
+
+    private func readableError(_ raw: String?) -> String {
+        guard let raw else { return "Codex returned an error." }
+        guard let object = jsonObject(from: raw),
+              let error = object["error"] as? [String: Any],
+              let message = error["message"] as? String else { return raw }
+        return message
     }
 }

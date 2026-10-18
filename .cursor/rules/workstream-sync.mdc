@@ -1,0 +1,25 @@
+---
+description: Synchronize reader and Learn work at verified checkpoints without disturbing active edits
+alwaysApply: true
+---
+
+# Workstream synchronization
+
+- The user delegates routine reader/Learn coordination and sync timing to the
+  ChatGPT learning workstream. Inspect the code and live GitHub state first.
+- Choose a coherent, committed and verified milestone as the sync boundary.
+  Do not pull, rebase, switch, stash or reset over another agent's active edits.
+- Rehearse integration in an isolated checkout when work is concurrent. Pin
+  exact input commits. Pending PR heads are preview inputs, not released code.
+- Preserve both workstreams at shared boundaries: reader conversations and
+  annotations, Learn drafts and evidence, document schema compatibility, app
+  entry points and model selection. Add a joint regression for a real conflict.
+- Run the combined relevant checks; separate green branches do not establish
+  compatibility. Retain the recorded limits of native UI verification.
+- Resolve routine integration conflicts while preserving agreed behavior.
+  Escalate conflicting product decisions to the relevant owners and user.
+- Coordinate Git-index use before adopting the verified result. Never publish
+  unreleased Learn code as an incidental reader update, or infer authorization
+  for a release, force-push or history rewrite from routine synchronization.
+- Keep exact inputs, resolutions and checks in repository evidence, and update
+  the corresponding Linear item. Notify other agents of the new baseline.

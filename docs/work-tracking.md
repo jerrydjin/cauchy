@@ -20,6 +20,7 @@ These are entry points for investigating each issue, not claims that the planned
 
 | Issue | Relevant code and evidence |
 | --- | --- |
+| [JERRY-69: Reader/Learn synchronization](https://linear.app/jerryjin/issue/JERRY-69) | [Sync policy](../.cursor/rules/workstream-sync.mdc), [exact inputs and integration evidence](evaluation/workstream-sync.md) |
 | [JERRY-50: Native Learn verification](https://linear.app/jerryjin/issue/JERRY-50) | [LearningSessionView](../Cauchy/Views/Learning/LearningSessionView.swift), [LearningStudyMapView](../Cauchy/Views/Learning/LearningStudyMapView.swift), [chapter challenge audit](evaluation/chapter-challenge.md), [source review audit](evaluation/source-reconciliation.md) |
 | [JERRY-55: Unavailable chapter recovery](https://linear.app/jerryjin/issue/JERRY-55) | [LearningStudyMap.chapterRequest](../Cauchy/Models/LearningStudyMap.swift), [LearningStudyMapView](../Cauchy/Views/Learning/LearningStudyMapView.swift), [LearningStudyMapTests](../CauchyTests/LearningStudyMapTests.swift) |
 | [JERRY-51: Mathematical source correction](https://linear.app/jerryjin/issue/JERRY-51) | [LearningSourceBuilder](../Cauchy/Services/LearningSourceBuilder.swift), [LearningSourceReconciler](../Cauchy/Services/LearningSourceReconciler.swift), [LearningReconciliationTests](../CauchyTests/LearningReconciliationTests.swift), [transcription verification](evaluation/source-transcription.md) |

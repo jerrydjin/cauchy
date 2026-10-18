@@ -9,6 +9,16 @@ struct MessageContentView: View {
     var referenceBlock: (DetectedReference) -> DocumentBlock? = { _ in nil }
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     var onHoverReference: (DetectedReference) -> Void = { _ in }
+    /// Assistant replies only. `[P1]` becomes a page chip, or disappears when
+    /// there is no PDF location for that id.
+    var interpretsSourceMarkers: Bool = false
+    var sourceAnchors: [AnswerSourceAnchor] = []
+    var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
+
+    private enum MarkerToken {
+        case segment(MessageSegment)
+        case chip(AnswerSourceMarkers.Chip)
+    }
 
     var body: some View {
         let parsed = MessageRenderCache.parsed(for: content)
@@ -151,6 +161,65 @@ struct MessageContentView: View {
 
     @ViewBuilder
     private func linkedOrPlain(_ value: String, wraps: Bool = true) -> some View {
+        // Word tokens inside a chip row must not be trimmed again. Only a
+        // string that still contains a marker bracket is rewritten here.
+        if interpretsSourceMarkers, value.contains("[") {
+            let runs = AnswerSourceMarkers.runs(in: value, anchors: sourceAnchors)
+            let hasChip = runs.contains { if case .chip = $0 { true } else { false } }
+            if hasChip {
+                markerFlow(runs)
+            } else {
+                linkedOrPlainBody(AnswerSourceMarkers.strippingMarkers(from: value), wraps: wraps)
+            }
+        } else {
+            linkedOrPlainBody(value, wraps: wraps)
+        }
+    }
+
+    private func markerTokens(_ runs: [AnswerSourceMarkers.Run]) -> [MarkerToken] {
+        runs.flatMap { run -> [MarkerToken] in
+            switch run {
+            case .text(let value):
+                return flowTokensKeepingCitations([.text(value)]).map { .segment($0) }
+            case .chip(let chip):
+                return [.chip(chip)]
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func markerFlow(_ runs: [AnswerSourceMarkers.Run]) -> some View {
+        let tokens = markerTokens(runs)
+        // Word tokens already carry their trailing space. A non-zero gap would
+        // double it; the chip's own padding separates it from the words.
+        InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
+            ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
+                switch token {
+                case .segment(let segment):
+                    flowSegmentView(segment)
+                case .chip(let chip):
+                    if let anchor = sourceAnchors.first(where: { $0.sourceID?.uppercased() == chip.sourceID }) {
+                        Button {
+                            onOpenSource(anchor)
+                        } label: {
+                            Text(chip.pageLabel)
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.accentColor.opacity(0.15), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .fixedSize()
+                        .help("Open PDF page \(anchor.pageIndex + 1)")
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func linkedOrPlainBody(_ value: String, wraps: Bool = true) -> some View {
         if referenceKeys.isEmpty || AssistantResponseValidator.linkableReferences(in: value, known: referenceKeys).isEmpty {
             if wraps {
                 plainText(value)

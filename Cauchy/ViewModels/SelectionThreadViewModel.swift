@@ -236,16 +236,43 @@ final class SelectionThreadViewModel {
         let retrievalQuestion = [trimmed, sheetText].filter { !$0.isEmpty }.joined(separator: "\n")
         var retrieval = retrieveContext(
             question: retrievalQuestion,
+            asked: trimmed,
             scope: scope,
             provider: answerProvider
         ).clippedForPrompt(provider: answerProvider)
+        if let miss = retrieval.structureMissMessage, scope.highlight == nil {
+            thread.messages.append(ThreadMessage(
+                role: .assistant,
+                content: miss,
+                answerEvidence: AnswerEvidence(
+                    basis: .insufficient,
+                    sourcePages: [],
+                    referencedStatementCount: 0,
+                    retrievedPassageCount: 0,
+                    providerID: answerProvider.rawValue,
+                    modelID: answerModelID,
+                    sourceAnchors: [],
+                    citationStatus: nil,
+                    citedSourceIDs: [],
+                    declaredBasis: .insufficient
+                )
+            ))
+            thread.streamingAssistantText = nil
+            commit(thread)
+            onPersist(thread)
+            return
+        }
         let sourceAnchors = resolvedSourceAnchors(thread: thread, scope: scope, retrieval: retrieval)
         retrieval.citableSources = sourceAnchors
-        retrieval.turnPreface = AskPromptBuilder.turnPreface(
+        var preface = AskPromptBuilder.turnPreface(
             scope: scope,
             sheet: sheet,
             provider: answerProvider
         )
+        if let note = retrieval.structureNote {
+            preface += "\n\n" + note
+        }
+        retrieval.turnPreface = preface
         retrieval.priorConversation = AskPromptBuilder.priorConversation(prior, provider: answerProvider)
 
         // onPartial already runs on the main actor (ReadingAssistantProtocol is
@@ -324,10 +351,14 @@ final class SelectionThreadViewModel {
 
     private func retrieveContext(
         question: String,
+        asked: String,
         scope: AskScope,
         provider: AssistantConnectorID
     ) -> AskRetrieval {
         let focus = scope.highlight
+        let budgets = ReadingPromptBuilder.evidenceBudgets(for: provider)
+        let structuralQuery = AskStructureLocator.query(in: asked)
+        let structure = structuralQuery.flatMap { _ in pdfDocument.map { AskStructureLocator.structure(from: $0) } }
         return AskContextRetriever.retrieve(
             question: question,
             selectedText: focus?.excerpt ?? "",
@@ -336,7 +367,10 @@ final class SelectionThreadViewModel {
             referenceIndex: referenceIndex,
             documentIndex: documentIndex,
             // The on-device window is small; cloud/CLI providers can take more.
-            passageLimit: provider == .onDevice ? 3 : 5
+            passageLimit: provider == .onDevice ? 3 : 5,
+            structuralQuery: structuralQuery,
+            structure: structure,
+            passageCharacterBudget: budgets.passages
         )
     }
 
@@ -376,12 +410,13 @@ final class SelectionThreadViewModel {
                   let region = ReferenceEvidenceRegionResolver.exactRegion(for: source, on: page)
             else { continue }
             anchors.append(AnswerSourceAnchor(
-                label: entry.reference.displayName,
+                label: AskStructureLocator.statementLabel(entry),
                 pageIndex: entry.pageIndex,
                 region: region,
                 sourceID: "R\(index + 1)"
             ))
         }
+        let outlineHeadings = AskStructureLocator.outlineHeadings(in: document)
         for (index, record) in retrieval.passageRecords.enumerated() {
             guard let source = record.location,
                   let page = document.page(at: source.pageIndex),
@@ -392,13 +427,41 @@ final class SelectionThreadViewModel {
                       on: page
                   ) else { continue }
             anchors.append(AnswerSourceAnchor(
-                label: "Retrieved passage",
+                label: passageLabel(
+                    record: record,
+                    pageIndex: source.pageIndex,
+                    statements: retrieval.statementReferences,
+                    headings: outlineHeadings
+                ),
                 pageIndex: source.pageIndex,
                 region: region,
                 sourceID: "P\(index + 1)"
             ))
         }
         return anchors
+    }
+
+    private func passageLabel(
+        record: DocumentPassage,
+        pageIndex: Int,
+        statements: [IndexedReference],
+        headings: [AskHeading]
+    ) -> String {
+        if let label = record.label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty {
+            return label
+        }
+        if let named = statements.first(where: {
+            $0.pageIndex == pageIndex && record.text.localizedCaseInsensitiveContains($0.reference.displayName)
+        }) {
+            return AskStructureLocator.statementLabel(named)
+        }
+        if let onPage = statements.first(where: { $0.pageIndex == pageIndex }) {
+            return AskStructureLocator.statementLabel(onPage)
+        }
+        if let heading = AskStructureLocator.nearestHeading(onOrBefore: pageIndex, in: headings) {
+            return heading
+        }
+        return "p. \(pageIndex + 1)"
     }
 
 }

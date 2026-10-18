@@ -162,7 +162,7 @@ enum AskPromptBuilder {
         sheet: AskProblemSheet?,
         provider: AssistantConnectorID
     ) -> String {
-        var parts: [String] = [fullAnswerInstruction, citationInstruction]
+        var parts: [String] = [fullAnswerInstruction, citationInstruction, documentAccessInstruction]
 
         switch scope {
         case .wholeDocument:
@@ -233,5 +233,9 @@ enum AskPromptBuilder {
 
     private static let citationInstruction = """
     CITATIONS: Ground the answer in this document's own numbered results. Cite them in the form "by Theorem 3.2" or "Lemma 2.1", and only when that result appears in the supplied PDF source excerpts. Do not invent a number.
+    """
+
+    private static let documentAccessInstruction = """
+    DOCUMENT ACCESS: You already have the open PDF. Never ask the reader to share, paste, upload, or photograph a contents page or any page from this document. If these excerpts are not enough, say so in one sentence and suggest highlighting a passage or rephrasing the question.
     """
 }

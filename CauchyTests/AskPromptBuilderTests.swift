@@ -31,6 +31,7 @@ final class AskPromptBuilderTests: XCTestCase {
         XCTAssertTrue(prompt.contains("by Theorem 3.2"))
         XCTAssertTrue(prompt.contains("Lemma 2.1"))
         XCTAssertTrue(prompt.contains("Give the full answer"))
+        XCTAssertTrue(prompt.contains("Never ask the reader to share"))
         XCTAssertFalse(prompt.contains("EARLIER CONVERSATION:"))
         XCTAssertFalse(prompt.contains("Give a hint"))
     }

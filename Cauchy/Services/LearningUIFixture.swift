@@ -286,18 +286,20 @@ struct LearningUIFixtureView: View {
     @Bindable var controller: LearningUIFixtureController
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Label("Authored development fixture · offline tutor · isolated temporary library", systemImage: "testtube.2")
-                    .font(.headline)
-                Text("Assessment controls: enter ‘fixture correct’ or ‘fixture uncertain’; other answers produce partial feedback. These responses do not grade mathematics.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-            Divider()
             if let library = controller.library {
                 LearningWorkspaceView(library: library).defaultAppStorage(controller.preferences)
             } else if let error = controller.error {
                 ContentUnavailableView("Fixture could not open", systemImage: "exclamationmark.triangle", description: Text(error))
             } else { ProgressView("Preparing authored fixture…").frame(maxWidth: .infinity, maxHeight: .infinity) }
+            Divider()
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Authored development fixture · offline tutor · isolated temporary library", systemImage: "testtube.2")
+                    .font(.headline)
+                Text("Assessment controls: enter ‘fixture correct’ or ‘fixture uncertain’; other answers produce partial feedback. These responses do not grade mathematics.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 1000, minHeight: 760)
         .task { await controller.load() }

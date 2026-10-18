@@ -171,25 +171,22 @@ struct LearningStudyMapView: View {
             VStack(alignment: .leading, spacing: 28) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(course.title).font(.largeTitle.weight(.semibold))
-                    Text("Your learning path · \(document.pageCount) PDF pages")
+                    Text("Learning path · \(course.modules.count) chapters · \(document.pageCount) PDF pages")
                         .font(.subheadline).foregroundStyle(.secondary)
-                    DisclosureGroup("The big picture") {
-                        MessageContentView(content: course.overview).padding(.top, 8)
-                    }
                 }
                 errors
-                sourceReview(map)
-                syllabusReview(map)
+                Divider()
                 if let review = map.nextDelayedReview(sessions: document.learning.sessions, now: reviewClock) {
-                    Divider()
                     VStack(alignment: .leading, spacing: 12) {
                         Text(review.activeSessionID == nil ? "Revisit an earlier idea" : "Continue your delayed check")
                             .font(.title2.weight(.semibold))
                         Text(review.unit.title).font(.headline)
                         Text("\(review.target.kind.label) · due \(review.dueAt.formatted(date: .abbreviated, time: .omitted))")
                             .font(.caption).foregroundStyle(.secondary)
-                        Text("Try a different question for this same requirement after a delay. Immediate and delayed evidence are recorded separately.")
-                            .font(.callout).foregroundStyle(.secondary)
+                        DisclosureGroup("About this check") {
+                            Text("A different question for the same requirement. Immediate and delayed evidence are recorded separately.")
+                                .font(.callout).foregroundStyle(.secondary).padding(.top, 8)
+                        }
                         Button(review.activeSessionID == nil ? "Try a delayed check" : "Continue delayed check", systemImage: "clock.arrow.circlepath") {
                             document.learning.startDelayedReview(review)
                         }
@@ -198,7 +195,6 @@ struct LearningStudyMapView: View {
                         .disabled(document.isBusy || (review.activeSessionID == nil && !assistantAvailable))
                     }
                 } else if let openChapter = document.learning.sessions.first(where: { $0.chapter != nil && $0.phase != .complete }) {
-                    Divider()
                     Text("Continue your chapter argument").font(.title2.weight(.semibold))
                     Text(openChapter.chapter?.challenge.title ?? openChapter.lesson.title)
                     Button("Continue challenge", systemImage: "arrow.right") { document.learning.select(openChapter.id) }
@@ -209,7 +205,6 @@ struct LearningStudyMapView: View {
                           !document.learning.sessions.contains(where: { $0.chapter?.request.moduleID == module.id }) else { return false }
                     return request.units.allSatisfy { $0.hasEvidenceForEveryTarget(sessions: document.learning.sessions) }
                 }), let request = map.chapterRequest(for: ready) {
-                    Divider()
                     Text("Bring the chapter together").font(.title2.weight(.semibold))
                     Text(request.units.map(\.title).joined(separator: " + ")).font(.headline)
                     Text("Use both ideas in one argument. A short refresher is available if you get stuck.")
@@ -219,7 +214,6 @@ struct LearningStudyMapView: View {
                         .keyboardShortcut(.return, modifiers: .command)
                         .disabled(document.isBusy || !assistantAvailable)
                 } else if let nextStudy {
-                    Divider()
                     recommendation(nextStudy, course: course) {
                         chaptersExpanded = true
                         chapterNavigationRequest += 1
@@ -228,14 +222,7 @@ struct LearningStudyMapView: View {
                     Text("Available checks passed. Review source gaps, and return later to check retention.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
-                if !map.unresolvedPages.isEmpty {
-                    HStack(spacing: 16) {
-                        Label("\(map.unresolvedPages.count) source pages still need review", systemImage: "exclamationmark.circle")
-                            .font(.callout).foregroundStyle(.secondary)
-                        Button("Retry these pages") { planner.build(document: document.pdfDocument) }
-                            .buttonStyle(.borderless).disabled(document.isBusy || !assistantAvailable)
-                    }
-                }
+                Divider()
                 DisclosureGroup("Explore \(course.modules.count) chapters", isExpanded: $chaptersExpanded) {
                     ForEach(Array(course.modules.enumerated()), id: \.element.id) { index, module in
                         let units = module.unitIDs.compactMap { id in map.units.first { $0.id == id } }
@@ -286,7 +273,8 @@ struct LearningStudyMapView: View {
                     }
                 }
                 .id("learning-chapters")
-                DisclosureGroup("Coverage details") { coverage(map).padding(.top, 12) }
+                Divider()
+                courseDetails(course, map: map)
             }
             .accessibilityElement(children: .contain)
             .padding(32).frame(maxWidth: 824, alignment: .leading).frame(maxWidth: .infinity)
@@ -303,6 +291,38 @@ struct LearningStudyMapView: View {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { scroll.scrollTo(id, anchor: .top) }
             }
         }
+        }
+    }
+
+    private func courseDetails(_ course: LearningCourse, map: LearningStudyMap) -> some View {
+        let gaps = map.units.reduce(0) { $0 + $1.openGapCount }
+        return DisclosureGroup {
+            VStack(alignment: .leading, spacing: 20) {
+                DisclosureGroup("Overview") {
+                    MessageContentView(content: course.overview).padding(.top, 8)
+                }
+                sourceReview(map)
+                syllabusReview(map)
+                DisclosureGroup("Coverage details") {
+                    coverage(map).padding(.top, 12)
+                    if !map.unresolvedPages.isEmpty {
+                        Button("Retry unresolved pages") { planner.build(document: document.pdfDocument) }
+                            .buttonStyle(.borderless).disabled(document.isBusy || !assistantAvailable)
+                    }
+                }
+            }.padding(.top, 16)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Course details")
+                if gaps > 0 || !map.unresolvedPages.isEmpty {
+                    let issues = gaps == 1 ? "1 source issue open" : "\(gaps) source issues open"
+                    let pages = map.unresolvedPages.count == 1 ? "1 page to review" : "\(map.unresolvedPages.count) pages to review"
+                    Text([gaps > 0 ? issues : nil, map.unresolvedPages.isEmpty ? nil : pages].compactMap { $0 }.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Sources, syllabus and coverage").font(.caption).foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -671,7 +691,7 @@ struct LearningStudyMapView: View {
         let candidates = map.units.filter { !$0.gaps.isEmpty || $0.pendingSourceCorrection == true }
         let reviewed = candidates.filter { $0.reconciliation != nil && $0.pendingSourceCorrection != true }.count
         let open = map.units.reduce(0) { $0 + $1.openGapCount }
-        return DisclosureGroup("Source review · \(open) candidate issues open") {
+        return DisclosureGroup("Source review · \(open) \(open == 1 ? "issue" : "issues") open") {
             VStack(alignment: .leading, spacing: 12) {
                 Text("\(reviewed) of \(candidates.count) topics checked against document references. Located sources do not count as learning checks.")
                     .font(.callout).foregroundStyle(.secondary)

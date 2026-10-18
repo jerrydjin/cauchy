@@ -644,6 +644,7 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
 
         let entry = results[ReferenceKey(kind: .example, number: "2.3.8")]
         XCTAssertNotNil(entry)
+        XCTAssertEqual(entry?.name, "Hamming distance")
         XCTAssertTrue(entry?.formattedBody.contains("Hamming distance") == true)
         XCTAssertTrue(entry?.formattedBody.contains("differing coordinates") == true)
         XCTAssertEqual(entry?.evidence?.sourceExcerpt, page)

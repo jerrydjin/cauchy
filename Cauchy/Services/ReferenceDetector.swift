@@ -142,7 +142,8 @@ enum ReferenceDetector {
         let qualifier: String?
         if match.range(at: 2).location != NSNotFound, let qualifierRange = Range(match.range(at: 2), in: trimmed) {
             let text = String(trimmed[qualifierRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard text.contains(where: \.isLetter) else { return nil }
+            // "[0, 1]" is an interval. "[3, (1.3)]" and "[12, Theorem 3.2]" are citations.
+            guard text.contains(where: \.isLetter) || text.contains("(") else { return nil }
             qualifier = text
         } else if key.count == 4, key.hasPrefix("19") || key.hasPrefix("20") {
             // "[2019]" is a year, not bibliography entry 2019.

@@ -122,6 +122,24 @@ final class ReferenceDetectorTests: XCTestCase {
     func testIntervalIsNotACitation() {
         let text = "The interval [0, 1] contains the origin."
         XCTAssertNil(ReferenceDetector.externalCitation(in: text, cursorOffset: text.count / 2))
+        XCTAssertTrue(ReferenceDetector.allReferences(in: "Consider the range [1, 2, 3] next.").isEmpty)
+    }
+
+    func testDisambiguatedKeyAndEquationQualifierAreCitations() {
+        let named = "By [BO09b, Lemma 3.3], the perturbation is small. Lemma 2.1."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: named).map(\.reference),
+            [DetectedReference(kind: .lemma, number: "2.1")]
+        )
+        let namedOffset = named.distance(from: named.startIndex, to: named.range(of: "Lemma 3.3")!.lowerBound)
+        XCTAssertEqual(ReferenceDetector.externalCitation(in: named, cursorOffset: namedOffset)?.key, "BO09b")
+        XCTAssertNil(ReferenceDetector.bestReference(in: named, cursorOffset: namedOffset))
+
+        let equation = "Thus wn(t) ∈ Rbσ = M [3, (1.3)]. Since d is faithful."
+        XCTAssertTrue(ReferenceDetector.allReferences(in: equation).isEmpty)
+        let equationOffset = equation.distance(from: equation.startIndex, to: equation.range(of: "(1.3)")!.lowerBound)
+        XCTAssertEqual(ReferenceDetector.externalCitation(in: equation, cursorOffset: equationOffset)?.key, "3")
+        XCTAssertEqual(ReferenceDetector.externalCitation(in: equation, cursorOffset: equationOffset)?.qualifier, "(1.3)")
     }
 
     func testHoverShowsTheBibliographyEntryOrNothing() {

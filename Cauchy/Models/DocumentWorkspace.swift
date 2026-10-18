@@ -10,6 +10,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
     var id: UUID
     var documentURL: URL
     var highlights: [Highlight]
+    var learningSessions: [LearningSession]
+    var learningStudyMap: LearningStudyMap?
     var primaryViewport: ViewportState
     var secondaryViewport: ViewportState
     var layoutMode: WorkspaceLayoutMode
@@ -21,6 +23,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         id: UUID = UUID(),
         documentURL: URL,
         highlights: [Highlight] = [],
+        learningSessions: [LearningSession] = [],
+        learningStudyMap: LearningStudyMap? = nil,
         primaryViewport: ViewportState = .default,
         secondaryViewport: ViewportState = .default,
         layoutMode: WorkspaceLayoutMode = .split,
@@ -31,6 +35,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         self.id = id
         self.documentURL = documentURL
         self.highlights = highlights
+        self.learningSessions = learningSessions
+        self.learningStudyMap = learningStudyMap
         self.primaryViewport = primaryViewport
         self.secondaryViewport = secondaryViewport
         self.layoutMode = layoutMode
@@ -43,6 +49,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         case id
         case documentURL
         case highlights
+        case learningSessions
+        case learningStudyMap
         case pins
         case links
         case primaryViewport
@@ -57,6 +65,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         documentURL = try container.decode(URL.self, forKey: .documentURL)
+        learningSessions = try container.decodeIfPresent([LearningSession].self, forKey: .learningSessions) ?? []
+        learningStudyMap = try container.decodeIfPresent(LearningStudyMap.self, forKey: .learningStudyMap)
         primaryViewport = try container.decodeIfPresent(ViewportState.self, forKey: .primaryViewport) ?? .default
         secondaryViewport = try container.decodeIfPresent(ViewportState.self, forKey: .secondaryViewport) ?? .default
         layoutMode = try container.decodeIfPresent(WorkspaceLayoutMode.self, forKey: .layoutMode) ?? .split
@@ -78,6 +88,8 @@ struct DocumentWorkspace: Identifiable, Codable, Sendable {
         try container.encode(id, forKey: .id)
         try container.encode(documentURL, forKey: .documentURL)
         try container.encode(highlights, forKey: .highlights)
+        try container.encode(learningSessions, forKey: .learningSessions)
+        try container.encodeIfPresent(learningStudyMap, forKey: .learningStudyMap)
         try container.encode(primaryViewport, forKey: .primaryViewport)
         try container.encode(secondaryViewport, forKey: .secondaryViewport)
         try container.encode(layoutMode, forKey: .layoutMode)

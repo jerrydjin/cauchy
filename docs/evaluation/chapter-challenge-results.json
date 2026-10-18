@@ -1,0 +1,178 @@
+{
+  "model": "gpt-6.1-sol",
+  "dataScope": "Authored synthetic fixture only; no learner data or real notes",
+  "generation": {
+    "moduleID": "33333333-3333-4333-8333-333333333333",
+    "title": "Sequential compactness of images of closed subsets",
+    "connection": "Closedness keeps the subsequence limit in the chosen subset, so continuity sends it to a limit in that subset\u2019s image.",
+    "ideas": [
+      {
+        "unitID": "11111111-1111-4111-8111-111111111111",
+        "title": "Closed subsets",
+        "pageIndex": 0,
+        "sourceQuote": "A closed subset of a sequentially compact metric space is sequentially compact."
+      },
+      {
+        "unitID": "22222222-2222-4222-8222-222222222222",
+        "title": "Continuous images",
+        "pageIndex": 0,
+        "sourceQuote": "The image of a sequentially compact metric space under a continuous map is sequentially compact."
+      }
+    ],
+    "assumptions": [
+      "$X$ and $Y$ are metric spaces.",
+      "$X$ is sequentially compact.",
+      "$K$ is a closed subset of $X$, equipped with the induced metric.",
+      "$f:X\\to Y$ is continuous."
+    ],
+    "question": {
+      "prompt": "Constructed application of the two supplied source results: $X$ and $Y$ are metric spaces. $X$ is sequentially compact. $K$ is a closed subset of $X$, equipped with the induced metric. $f:X\\to Y$ is continuous. Prove that $f(K)$, equipped with the metric induced from $Y$, is sequentially compact. Give a complete argument justifying the use of both closedness and continuity.",
+      "expectedAnswer": "If $K=\\varnothing$, then $f(K)=\\varnothing$ and there are no sequences in $f(K)$, so sequential compactness holds vacuously. Otherwise, let $(y_n)_{n\\geq 1}$ be any sequence in $f(K)$. For each $n$, choose $x_n\\in K$ with $f(x_n)=y_n$. Since $(x_n)$ is a sequence in the sequentially compact space $X$, there are strictly increasing indices $n_j$ and a point $x\\in X$ such that $x_{n_j}\\to x$ in $X$. Closedness of $K$ in $X$ implies $x\\in K$. Continuity of $f$ at $x$ gives $y_{n_j}=f(x_{n_j})\\to f(x)$ in $Y$. Since $x\\in K$, the limit $f(x)$ belongs to $f(K)$; convergence also holds in its induced metric. Thus every sequence in $f(K)$ has a subsequence converging to a point of $f(K)$, which proves the claim. This follows the two supplied source proofs in succession. A valid alternative is to justify that every sequence in $K$ has a subsequence converging in $X$ whose limit lies in $K$, thereby establishing sequential compactness of $K$, and then apply the supplied continuous-image theorem to the continuous restriction $f|_K:K\\to Y$. The restriction is continuous because the metric on $K$ is induced from $X$.",
+      "hints": [],
+      "kind": "proof",
+      "gradingCriteria": [
+        "Treat the empty case explicitly or through a valid vacuous universal argument, and start with an arbitrary sequence in $f(K)$ with preimages in $K$, or use the supplied continuous-image theorem on a justified domain.",
+        "Use sequential compactness of $X$ to obtain a subsequence of the chosen domain sequence converging to a point of $X$, either directly or when establishing sequential compactness of $K$.",
+        "Use closedness of $K$ in $X$ to place the domain subsequence limit in $K$, thereby justifying the required domain property.",
+        "Use continuity to obtain convergence of the corresponding image subsequence to a point of $f(K)$ and conclude sequential compactness; alternatively, justify continuity of the restriction and apply the supplied continuous-image theorem to the established sequentially compact domain."
+      ]
+    },
+    "criteria": [
+      {
+        "index": 0,
+        "unitIDs": [
+          "22222222-2222-4222-8222-222222222222"
+        ]
+      },
+      {
+        "index": 1,
+        "unitIDs": [
+          "11111111-1111-4111-8111-111111111111"
+        ]
+      },
+      {
+        "index": 2,
+        "unitIDs": [
+          "11111111-1111-4111-8111-111111111111"
+        ]
+      },
+      {
+        "index": 3,
+        "unitIDs": [
+          "22222222-2222-4222-8222-222222222222"
+        ]
+      }
+    ],
+    "refresher": {
+      "unitID": "11111111-1111-4111-8111-111111111111",
+      "pageIndex": 0,
+      "sourceQuote": "Closedness puts its limit in K.",
+      "explanation": "The source\u2019s closed-subset proof uses closedness to retain an existing limit: a sequence in a closed subset that converges in the ambient metric space has its limit in the subset. Closedness alone does not produce a convergent subsequence. This distinction is needed when returning to the original argument.",
+      "check": {
+        "prompt": "Let $C$ be a closed subset of a metric space $M$. Suppose $c_n\\in C$ for every $n$ and $c_n\\to c$ in $M$. Prove that $c\\in C$.",
+        "expectedAnswer": "Suppose $c\\notin C$. Since $C$ is closed, $M\\setminus C$ is open, so some ball $B_M(c,r)$ with $r>0$ lies in $M\\setminus C$. Convergence implies that $c_n\\in B_M(c,r)$ for all sufficiently large $n$, contradicting $c_n\\in C$. Hence $c\\in C$. No sequential compactness assumption is needed because convergence is already given.",
+        "hints": [],
+        "kind": "concept"
+      }
+    }
+  },
+  "assessments": [
+    {
+      "name": "valid_modular_alternative",
+      "answer": "K is a closed subset of the sequentially compact space X, so it is sequentially compact. The restriction of f to K is continuous. The continuous-image theorem therefore shows f(K) is sequentially compact. This includes the empty case, where the sequence condition is vacuous.",
+      "expectedGrades": [
+        "correct"
+      ],
+      "effectiveGrade": "correct",
+      "matchedExpectation": true,
+      "assessment": {
+        "grade": "correct",
+        "feedback": "You correctly justify sequential compactness of $K$ using closedness, then apply the continuous-image theorem to the continuous restriction $f|_K$. These results are supplied in the source. Your observation about the empty case is also valid.",
+        "nextStep": "No correction is needed; this theorem-based proof is complete.",
+        "criteria": [
+          {
+            "index": 0,
+            "outcome": "met",
+            "feedback": "You apply the continuous-image theorem to the justified sequentially compact domain $K$."
+          },
+          {
+            "index": 1,
+            "outcome": "met",
+            "feedback": "You explicitly use that $K$ is closed in the sequentially compact space $X$ to establish that $K$ is sequentially compact."
+          },
+          {
+            "index": 2,
+            "outcome": "met",
+            "feedback": "You state that $f|_K$ is continuous and correctly conclude that its image $f(K)$ is sequentially compact."
+          }
+        ]
+      }
+    },
+    {
+      "name": "circular_argument",
+      "answer": "Since f(K) is sequentially compact, any sequence in f(K) has a convergent subsequence in f(K). Thus f(K) is sequentially compact.",
+      "expectedGrades": [
+        "partial",
+        "incorrect"
+      ],
+      "effectiveGrade": "incorrect",
+      "matchedExpectation": true,
+      "assessment": {
+        "grade": "incorrect",
+        "feedback": "Your opening statement assumes that $f(K)$ is sequentially compact, which is exactly what you must prove. The remaining sentences restate its definition, so the argument is circular.",
+        "nextStep": "Use the supplied closed-subset theorem to establish sequential compactness of $K$.",
+        "criteria": [
+          {
+            "index": 0,
+            "outcome": "notMet",
+            "feedback": "No preimages in $K$ are chosen, and the continuous-image theorem is not applied to a justified domain."
+          },
+          {
+            "index": 1,
+            "outcome": "notMet",
+            "feedback": "The answer does not use closedness of $K$ to establish its sequential compactness or locate a subsequence limit in $K$."
+          },
+          {
+            "index": 2,
+            "outcome": "notMet",
+            "feedback": "Continuity is not used. The conclusion repeats the opening assumption rather than following from a justified argument."
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing_closedness_step",
+      "answer": "Take y_n in f(K) and preimages x_n in K. Since X is sequentially compact, a subsequence x_nk converges to a in X. Continuity gives y_nk converging to f(a), so f(K) is sequentially compact.",
+      "expectedGrades": [
+        "partial",
+        "incorrect"
+      ],
+      "effectiveGrade": "partial",
+      "matchedExpectation": true,
+      "assessment": {
+        "grade": "partial",
+        "feedback": "Your choice of preimages and use of sequential compactness of $X$ are valid. The first gap is that you have only established $a\\in X$. You have not justified that the image subsequence converges to a point of $f(K)$, as sequential compactness requires.",
+        "nextStep": "Use the closedness of $K$ to justify where the limit $a$ lies before concluding.",
+        "criteria": [
+          {
+            "index": 0,
+            "outcome": "met",
+            "feedback": "You choose preimages $x_n\\in K$ for the sequence $y_n\\in f(K)$."
+          },
+          {
+            "index": 1,
+            "outcome": "notMet",
+            "feedback": "You obtain a subsequence limit $a\\in X$ but do not use closedness to establish $a\\in K$."
+          },
+          {
+            "index": 2,
+            "outcome": "notMet",
+            "feedback": "Continuity correctly gives $y_{n_k}\\to f(a)$, but the conclusion requires justification that this limit belongs to $f(K)$."
+          }
+        ]
+      }
+    }
+  ],
+  "provider": "codex",
+  "evaluatedAt": "2026-10-17T19:47:44.408664+00:00"
+}

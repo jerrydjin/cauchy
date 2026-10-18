@@ -7,7 +7,15 @@ struct ReaderWorkspaceFocusKey: FocusedValueKey {
     typealias Value = WorkspaceViewModel
 }
 
+struct LearningLibraryFocusKey: FocusedValueKey {
+    typealias Value = LearningLibraryStore
+}
+
 extension FocusedValues {
+    var learningLibrary: LearningLibraryStore? {
+        get { self[LearningLibraryFocusKey.self] }
+        set { self[LearningLibraryFocusKey.self] = newValue }
+    }
     var readerWorkspace: WorkspaceViewModel? {
         get { self[ReaderWorkspaceFocusKey.self] }
         set { self[ReaderWorkspaceFocusKey.self] = newValue }
@@ -16,6 +24,8 @@ extension FocusedValues {
 
 struct ReaderCommands: Commands {
     @FocusedValue(\.readerWorkspace) private var workspace
+    @FocusedValue(\.learningLibrary) private var learningLibrary
+    @Environment(\.openWindow) private var openWindow
 
     private var hasDocument: Bool { workspace?.pdfDocument != nil }
 
@@ -24,11 +34,11 @@ struct ReaderCommands: Commands {
         // item lives in this group, and it is the only way to read two papers
         // at once (a paper beside the one it cites, most of the time).
         CommandGroup(after: .newItem) {
-            Button("Open PDF…") {
-                workspace?.openDocument()
+            Button(learningLibrary == nil ? "Open PDF…" : "Open Notes…") {
+                if let learningLibrary { learningLibrary.openNotes() } else { workspace?.openDocument() }
             }
             .keyboardShortcut("o")
-            .disabled(workspace == nil)
+            .disabled(workspace == nil && learningLibrary == nil)
 
             Button("Open Reading Session…") {
                 workspace?.openReadingSession()
@@ -96,6 +106,23 @@ struct ReaderCommands: Commands {
             }
             .keyboardShortcut("g", modifiers: [.command, .shift])
             .disabled(workspace?.find.hasMatches != true)
+        }
+
+        CommandMenu("Learn") {
+            Button("Open Learning Workspace") { showLearning() }
+            .keyboardShortcut("l", modifiers: [.command, .shift])
+
+            Button("Study This Passage…") { showLearning(newSection: true) }
+            .disabled(!hasDocument)
+
+            Button("Study a Passage") {
+                guard let document = learningLibrary?.selectedDocument else { return }
+                document.requestsNewSection = true
+                document.learning.showSections()
+                learningLibrary?.destination = .passage(document.id)
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(learningLibrary?.selectedDocument == nil || learningLibrary?.selectedDocument?.isBusy == true)
         }
 
         CommandMenu("Reading") {
@@ -193,5 +220,19 @@ struct ReaderCommands: Commands {
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(workspace?.ocrResult == nil)
         }
+    }
+
+    private func showLearning(newSection: Bool = false) {
+        if CauchyApp.learningUIFixtureRequested {
+            openWindow(id: "learning")
+            return
+        }
+        // Opening the workspace resumes its own context. Only the explicit
+        // section action adopts the reader's current document and selection.
+        if newSection, let workspace, hasDocument {
+            LearningLibraryStore.shared.activate(from: workspace, newSection: true)
+        }
+        openWindow(id: "learning")
+        Task { await LearningLibraryStore.shared.refreshLibrary() }
     }
 }

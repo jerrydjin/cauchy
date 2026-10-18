@@ -1,0 +1,273 @@
+[
+  {
+    "name": "incomplete_kernel_proof",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Constructed proof-repair task: let $T:V\\to W$ be linear between real vector spaces and let $K=\\ker(T)$. A proposed proof says: 'Since $0_V\\in K$, $T(0_V)=0_W$. Choose one $v\\in K$. We have $T(v+v)=0_W$ and $T(2v)=0_W$, so $K$ is a subspace.' Explain why the opening is circular and why the remaining checks do not establish the required closure conditions. Replace the proposed proof with a complete ordered argument using Definition 2. Justify every equality and each membership conclusion.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Identifies the circular assumption of zero membership and explains why the selected addition and scalar checks do not establish universal closure.",
+        "States the real vector-space and linearity hypotheses and recognizes $K\\subseteq V$.",
+        "Derives $T(0_V)=0_W$ from scalar preservation without assuming kernel membership, justifying each equality and then concluding $0_V\\in K$.",
+        "Uses arbitrary $u,v\\in K$, establishes $u+v\\in V$, and justifies the complete additivity calculation and kernel membership conclusion.",
+        "Uses arbitrary $a\\in\\mathbb{R}$ and $v\\in K$, establishes $av\\in V$, and justifies the complete scalar-preservation calculation and kernel membership conclusion.",
+        "Concludes that Definition 2 applies because all three required conditions have been established."
+      ],
+      "expectedAnswer": "The opening assumes $0_V\\in K$, which is exactly the first subspace condition still needing proof. Although kernel membership would imply $T(0_V)=0_W$, it cannot be used to establish that membership without an independent derivation. The remaining checks cover only adding a particular vector to itself and multiplying it by the particular scalar $2$. Addition closure requires every pair of kernel vectors, and scalar closure requires every kernel vector and every real scalar. The proposed argument also has not yet independently established that a kernel vector exists.\n\nA valid replacement is:\n\n1. By the kernel definition, $K\\subseteq V$. Choose $z=0_V\\in V$, which exists because $V$ is a vector space. Since $0z=0_V$, scalar preservation gives $T(0_V)=T(0z)=0T(z)=0_W$. The first equality uses $0z=0_V$; the second applies scalar preservation to $z\\in V$ and $0\\in\\mathbb{R}$; the third uses $T(z)\\in W$ and the vector-space rule for multiplication by zero. Consequently, $0_V\\in V$ has image $0_W$, so the kernel definition gives $0_V\\in K$.\n\n2. Let $u,v\\in K$ be arbitrary. The kernel definition gives $u,v\\in V$ and $T(u)=T(v)=0_W$. Since $V$ is a vector space, $u+v\\in V$. Now $T(u+v)=T(u)+T(v)=0_W+0_W=0_W$. The first equality applies additivity to $u,v\\in V$; the second substitutes their kernel images; the third uses the additive identity in $W$. The kernel definition therefore gives $u+v\\in K$. Because $u,v$ were arbitrary, $K$ is closed under addition.\n\n3. Let $a\\in\\mathbb{R}$ and $v\\in K$ be arbitrary. The kernel definition gives $v\\in V$ and $T(v)=0_W$. Since $V$ is a real vector space, $av\\in V$. Now $T(av)=aT(v)=a0_W=0_W$. The first equality applies scalar preservation to $a\\in\\mathbb{R}$ and $v\\in V$; the second substitutes the kernel image; the third uses the rule that any scalar times the zero vector is the zero vector. The kernel definition therefore gives $av\\in K$. Since both choices were arbitrary, $K$ is closed under real scalar multiplication.\n\nThus $K\\subseteq V$ contains $0_V$ and satisfies both universal closure conditions. Definition 2 establishes that $K$ is a subspace of $V$.\n\nFull credit requires both identifying the defects and supplying the complete replacement argument; describing the defects alone does not establish the theorem.",
+      "studentAnswer": "The kernel contains zero, so it is a subspace."
+    },
+    "category": "missing_steps",
+    "expectedReasoning": "Zero membership alone proves neither universal closure condition."
+  },
+  {
+    "name": "valid_linear_combination_proof",
+    "expectedGrades": [
+      "correct"
+    ],
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Constructed proof-repair task: let $T:V\\to W$ be linear between real vector spaces and let $K=\\ker(T)$. A proposed proof says: 'Since $0_V\\in K$, $T(0_V)=0_W$. Choose one $v\\in K$. We have $T(v+v)=0_W$ and $T(2v)=0_W$, so $K$ is a subspace.' Explain why the opening is circular and why the remaining checks do not establish the required closure conditions. Replace the proposed proof with a complete ordered argument using Definition 2. Justify every equality and each membership conclusion.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Identifies the circular assumption of zero membership and explains why the selected addition and scalar checks do not establish universal closure.",
+        "States the real vector-space and linearity hypotheses and recognizes $K\\subseteq V$.",
+        "Derives $T(0_V)=0_W$ from scalar preservation without assuming kernel membership, justifying each equality and then concluding $0_V\\in K$.",
+        "Uses arbitrary $u,v\\in K$, establishes $u+v\\in V$, and justifies the complete additivity calculation and kernel membership conclusion.",
+        "Uses arbitrary $a\\in\\mathbb{R}$ and $v\\in K$, establishes $av\\in V$, and justifies the complete scalar-preservation calculation and kernel membership conclusion.",
+        "Concludes that Definition 2 applies because all three required conditions have been established."
+      ],
+      "expectedAnswer": "The opening assumes $0_V\\in K$, which is exactly the first subspace condition still needing proof. Although kernel membership would imply $T(0_V)=0_W$, it cannot be used to establish that membership without an independent derivation. The remaining checks cover only adding a particular vector to itself and multiplying it by the particular scalar $2$. Addition closure requires every pair of kernel vectors, and scalar closure requires every kernel vector and every real scalar. The proposed argument also has not yet independently established that a kernel vector exists.\n\nA valid replacement is:\n\n1. By the kernel definition, $K\\subseteq V$. Choose $z=0_V\\in V$, which exists because $V$ is a vector space. Since $0z=0_V$, scalar preservation gives $T(0_V)=T(0z)=0T(z)=0_W$. The first equality uses $0z=0_V$; the second applies scalar preservation to $z\\in V$ and $0\\in\\mathbb{R}$; the third uses $T(z)\\in W$ and the vector-space rule for multiplication by zero. Consequently, $0_V\\in V$ has image $0_W$, so the kernel definition gives $0_V\\in K$.\n\n2. Let $u,v\\in K$ be arbitrary. The kernel definition gives $u,v\\in V$ and $T(u)=T(v)=0_W$. Since $V$ is a vector space, $u+v\\in V$. Now $T(u+v)=T(u)+T(v)=0_W+0_W=0_W$. The first equality applies additivity to $u,v\\in V$; the second substitutes their kernel images; the third uses the additive identity in $W$. The kernel definition therefore gives $u+v\\in K$. Because $u,v$ were arbitrary, $K$ is closed under addition.\n\n3. Let $a\\in\\mathbb{R}$ and $v\\in K$ be arbitrary. The kernel definition gives $v\\in V$ and $T(v)=0_W$. Since $V$ is a real vector space, $av\\in V$. Now $T(av)=aT(v)=a0_W=0_W$. The first equality applies scalar preservation to $a\\in\\mathbb{R}$ and $v\\in V$; the second substitutes the kernel image; the third uses the rule that any scalar times the zero vector is the zero vector. The kernel definition therefore gives $av\\in K$. Since both choices were arbitrary, $K$ is closed under real scalar multiplication.\n\nThus $K\\subseteq V$ contains $0_V$ and satisfies both universal closure conditions. Definition 2 establishes that $K$ is a subspace of $V$.\n\nFull credit requires both identifying the defects and supplying the complete replacement argument; describing the defects alone does not establish the theorem.",
+      "studentAnswer": "The opening is circular: it assumes 0_V is in K before proving that T(0_V)=0_W. Checking v+v and 2v for one chosen vector cannot establish closure for arbitrary pairs or arbitrary real scalars.\n\nK is a subset of V by its definition. Choose any z in V, which exists because V contains zero. Scalar preservation gives T(0_V)=T(0z)=0T(z)=0_W, so zero belongs to K. For arbitrary u,v in K and real a,b, the vector au+bv belongs to V and linearity gives T(au+bv)=aT(u)+bT(v)=a0_W+b0_W=0_W. Hence au+bv belongs to K. Taking a=b=1 proves addition closure; taking b=0 and arbitrary a proves scalar closure. Together with zero membership, these are exactly the three subspace conditions, so K is a subspace."
+    },
+    "category": "valid_alternative",
+    "expectedReasoning": "The arbitrary linear-combination calculation establishes both universal closure conditions and separately proves zero membership."
+  },
+  {
+    "name": "valid_fibre_equivalence_proof",
+    "expectedGrades": [
+      "correct"
+    ],
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Constructed transfer task: let $T:V\\to W$ be linear between real vector spaces. For a fixed but arbitrary $b\\in W$, define $U_b=\\{v\\in V:T(v)=b\\}$. Prove that $U_b$ is a subspace of $V$ if and only if $b=0_W$. Derive preservation of zero from scalar preservation, prove both directions, and justify every equality and membership conclusion. Do not assume that $U_b$ contains a vector.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "States the real vector-space and linearity hypotheses, treats $b\\in W$ as arbitrary, and notes $U_b\\subseteq V$.",
+        "Independently derives $T(0_V)=0_W$ from scalar preservation and justifies every equality without assuming $U_b$ is nonempty.",
+        "Proves the forward direction using zero membership from the subspace definition and $T(0_V)=b$ from the definition of $U_b$.",
+        "Explains why $b\\ne0_W$ rules out a subspace through failure of zero membership, including the possibility that $U_b$ is empty.",
+        "Under $b=0_W$, establishes zero membership and proves addition closure for arbitrary $u,v\\in U_b$, justifying domain membership and every image equality.",
+        "Under $b=0_W$, proves scalar closure for arbitrary $a\\in\\mathbb{R}$ and $v\\in U_b$, justifying domain membership and every image equality.",
+        "Invokes all three subspace conditions to conclude the reverse direction and explicitly concludes the equivalence."
+      ],
+      "expectedAnswer": "Let $V,W$ be real vector spaces, let $T:V\\to W$ be linear, and fix an arbitrary $b\\in W$. By definition, $U_b\\subseteq V$.\n\nFirst derive preservation of zero independently of $U_b$. Choose $z=0_V\\in V$. Then $T(0_V)=T(0z)=0T(z)=0_W$. The first equality uses the vector-space identity $0z=0_V$; the second uses scalar preservation with $0\\in\\mathbb{R}$ and $z\\in V$; the third uses $T(z)\\in W$ and multiplication by zero in $W$.\n\nFor the forward direction, suppose $U_b$ is a subspace of $V$. Definition 2 gives $0_V\\in U_b$. The definition of $U_b$ then gives $T(0_V)=b$. Combining this equation with the independently established equation $T(0_V)=0_W$ yields $b=0_W$. This argument does not assume that an arbitrary preimage of $b$ exists: zero membership follows from the subspace hypothesis itself. In particular, if $b\\ne0_W$, then $T(0_V)=0_W\\ne b$, so $0_V\\notin U_b$ and $U_b$ cannot be a subspace, whether it is empty or nonempty.\n\nFor the reverse direction, suppose $b=0_W$. Because $0_V\\in V$ and $T(0_V)=0_W=b$, the definition of $U_b$ gives $0_V\\in U_b$.\n\nLet $u,v\\in U_b$ be arbitrary. Their membership gives $u,v\\in V$ and $T(u)=b=0_W$, $T(v)=b=0_W$. Since $V$ is a vector space, $u+v\\in V$. Additivity, substitution of these images, and the additive identity in $W$ give $T(u+v)=T(u)+T(v)=0_W+0_W=0_W=b$. Thus $u+v\\in U_b$ by its definition. Because the pair was arbitrary, addition closure holds.\n\nLet $a\\in\\mathbb{R}$ and $v\\in U_b$ be arbitrary. Membership gives $v\\in V$ and $T(v)=b=0_W$. Since $V$ is a real vector space, $av\\in V$. Scalar preservation, substitution of the image, and scalar multiplication of the zero vector give $T(av)=aT(v)=a0_W=0_W=b$. Thus $av\\in U_b$ by its definition. Because the scalar and vector were arbitrary, real scalar closure holds.\n\nTherefore, when $b=0_W$, the subset $U_b$ contains zero and satisfies both closure conditions, so Definition 2 makes it a subspace of $V$. Both directions have been proved, establishing the equivalence for every $b\\in W$.\n\nFull credit requires a valid argument in both directions, including the zero derivation and the universal closure arguments. Merely recognizing $U_0$ as the kernel does not supply the requested reconstruction.",
+      "studentAnswer": "Choose z in V, which exists since a vector space contains its zero vector. Scalar preservation gives T(0_V)=T(0z)=0T(z)=0_W.\n\nIf U_b is a subspace, it contains 0_V. Its defining equation then gives T(0_V)=b. Comparing with T(0_V)=0_W yields b=0_W. This argument does not assume a fibre is nonempty; it derives zero membership from the subspace hypothesis.\n\nConversely, suppose b=0_W. Then U_b=ker(T). Zero belongs to it by the first calculation. For arbitrary u,v in U_b, u+v belongs to V and T(u+v)=T(u)+T(v)=0_W+0_W=0_W=b, so u+v belongs to U_b. For arbitrary real a and v in U_b, av belongs to V and T(av)=aT(v)=a0_W=0_W=b, so av belongs to U_b. Thus all three subspace conditions hold. Both implications establish the equivalence."
+    },
+    "category": "valid_alternative",
+    "expectedReasoning": "Both directions follow from independently proved zero preservation, zero membership, and universal closure."
+  },
+  {
+    "name": "missing_reverse_implication",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Constructed transfer task: let $T:V\\to W$ be linear between real vector spaces. For a fixed but arbitrary $b\\in W$, define $U_b=\\{v\\in V:T(v)=b\\}$. Prove that $U_b$ is a subspace of $V$ if and only if $b=0_W$. Derive preservation of zero from scalar preservation, prove both directions, and justify every equality and membership conclusion. Do not assume that $U_b$ contains a vector.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "States the real vector-space and linearity hypotheses, treats $b\\in W$ as arbitrary, and notes $U_b\\subseteq V$.",
+        "Independently derives $T(0_V)=0_W$ from scalar preservation and justifies every equality without assuming $U_b$ is nonempty.",
+        "Proves the forward direction using zero membership from the subspace definition and $T(0_V)=b$ from the definition of $U_b$.",
+        "Explains why $b\\ne0_W$ rules out a subspace through failure of zero membership, including the possibility that $U_b$ is empty.",
+        "Under $b=0_W$, establishes zero membership and proves addition closure for arbitrary $u,v\\in U_b$, justifying domain membership and every image equality.",
+        "Under $b=0_W$, proves scalar closure for arbitrary $a\\in\\mathbb{R}$ and $v\\in U_b$, justifying domain membership and every image equality.",
+        "Invokes all three subspace conditions to conclude the reverse direction and explicitly concludes the equivalence."
+      ],
+      "expectedAnswer": "Let $V,W$ be real vector spaces, let $T:V\\to W$ be linear, and fix an arbitrary $b\\in W$. By definition, $U_b\\subseteq V$.\n\nFirst derive preservation of zero independently of $U_b$. Choose $z=0_V\\in V$. Then $T(0_V)=T(0z)=0T(z)=0_W$. The first equality uses the vector-space identity $0z=0_V$; the second uses scalar preservation with $0\\in\\mathbb{R}$ and $z\\in V$; the third uses $T(z)\\in W$ and multiplication by zero in $W$.\n\nFor the forward direction, suppose $U_b$ is a subspace of $V$. Definition 2 gives $0_V\\in U_b$. The definition of $U_b$ then gives $T(0_V)=b$. Combining this equation with the independently established equation $T(0_V)=0_W$ yields $b=0_W$. This argument does not assume that an arbitrary preimage of $b$ exists: zero membership follows from the subspace hypothesis itself. In particular, if $b\\ne0_W$, then $T(0_V)=0_W\\ne b$, so $0_V\\notin U_b$ and $U_b$ cannot be a subspace, whether it is empty or nonempty.\n\nFor the reverse direction, suppose $b=0_W$. Because $0_V\\in V$ and $T(0_V)=0_W=b$, the definition of $U_b$ gives $0_V\\in U_b$.\n\nLet $u,v\\in U_b$ be arbitrary. Their membership gives $u,v\\in V$ and $T(u)=b=0_W$, $T(v)=b=0_W$. Since $V$ is a vector space, $u+v\\in V$. Additivity, substitution of these images, and the additive identity in $W$ give $T(u+v)=T(u)+T(v)=0_W+0_W=0_W=b$. Thus $u+v\\in U_b$ by its definition. Because the pair was arbitrary, addition closure holds.\n\nLet $a\\in\\mathbb{R}$ and $v\\in U_b$ be arbitrary. Membership gives $v\\in V$ and $T(v)=b=0_W$. Since $V$ is a real vector space, $av\\in V$. Scalar preservation, substitution of the image, and scalar multiplication of the zero vector give $T(av)=aT(v)=a0_W=0_W=b$. Thus $av\\in U_b$ by its definition. Because the scalar and vector were arbitrary, real scalar closure holds.\n\nTherefore, when $b=0_W$, the subset $U_b$ contains zero and satisfies both closure conditions, so Definition 2 makes it a subspace of $V$. Both directions have been proved, establishing the equivalence for every $b\\in W$.\n\nFull credit requires a valid argument in both directions, including the zero derivation and the universal closure arguments. Merely recognizing $U_0$ as the kernel does not supply the requested reconstruction.",
+      "studentAnswer": "Scalar preservation gives T(0_V)=T(0z)=0T(z)=0_W. If U_b is a subspace, zero belongs to U_b, so T(0_V)=b and hence b=0_W. This proves the equivalence."
+    },
+    "category": "missing_cases",
+    "expectedReasoning": "Only the forward implication is proved; a biconditional also requires the reverse implication."
+  },
+  {
+    "name": "valid_additive_cancellation",
+    "category": "valid_alternative",
+    "expectedGrades": [
+      "correct"
+    ],
+    "expectedReasoning": "Cancellation independently proves zero preservation; using additivity rather than scalar preservation is valid for this question.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Let T:V -> W be a linear map between real vector spaces. Prove that K=ker(T) is a subspace of V. Establish zero membership and both closure conditions for arbitrary choices.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Establishes zero membership without assuming the conclusion.",
+        "Proves addition closure for arbitrary u,v in K using additivity.",
+        "Proves scalar closure for arbitrary real a and v in K using scalar preservation.",
+        "Invokes the three subspace conditions after establishing them."
+      ],
+      "expectedAnswer": "T(0)=T(0v)=0T(v)=0. For arbitrary u,v in K, T(u+v)=T(u)+T(v)=0. For any real a and v in K, T(av)=aT(v)=0. All vectors lie in V by its vector-space operations. Thus K contains zero and satisfies both closure conditions.",
+      "studentAnswer": "Write z=T(0). Additivity gives z=T(0+0)=z+z, so cancellation gives z=0. Thus zero lies in K. If u,v are arbitrary in K, T(u+v)=T(u)+T(v)=0+0=0, so u+v is in K. If a is any real scalar and v is in K, T(av)=aT(v)=a0=0, so av is in K. These operations are in V and satisfy all three subspace conditions."
+    }
+  },
+  {
+    "name": "circular_subspace_argument",
+    "category": "circular_reasoning",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "expectedReasoning": "The answer assumes the theorem under assessment; none of the three required properties is established independently.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Let T:V -> W be a linear map between real vector spaces. Prove that K=ker(T) is a subspace of V. Establish zero membership and both closure conditions for arbitrary choices.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Establishes zero membership without assuming the conclusion.",
+        "Proves addition closure for arbitrary u,v in K using additivity.",
+        "Proves scalar closure for arbitrary real a and v in K using scalar preservation.",
+        "Invokes the three subspace conditions after establishing them."
+      ],
+      "expectedAnswer": "T(0)=T(0v)=0T(v)=0. For arbitrary u,v in K, T(u+v)=T(u)+T(v)=0. For any real a and v in K, T(av)=aT(v)=0. All vectors lie in V by its vector-space operations. Thus K contains zero and satisfies both closure conditions.",
+      "studentAnswer": "K is a subspace because it is the kernel of T. Since it is a subspace, it contains zero and is closed under addition and scalar multiplication."
+    }
+  },
+  {
+    "name": "finite_examples_as_universal_proof",
+    "category": "examples_as_proof",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "expectedReasoning": "One chosen map and finitely many vectors do not establish arbitrary maps, arbitrary pairs, or arbitrary real scalars.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Let T:V -> W be a linear map between real vector spaces. Prove that K=ker(T) is a subspace of V. Establish zero membership and both closure conditions for arbitrary choices.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Establishes zero membership without assuming the conclusion.",
+        "Proves addition closure for arbitrary u,v in K using additivity.",
+        "Proves scalar closure for arbitrary real a and v in K using scalar preservation.",
+        "Invokes the three subspace conditions after establishing them."
+      ],
+      "expectedAnswer": "T(0)=T(0v)=0T(v)=0. For arbitrary u,v in K, T(u+v)=T(u)+T(v)=0. For any real a and v in K, T(av)=aT(v)=0. All vectors lie in V by its vector-space operations. Thus K contains zero and satisfies both closure conditions.",
+      "studentAnswer": "Take T(x,y)=x. I checked (0,0), (0,1), (0,2) and their doubles. They all map to zero, so the kernel of every linear map is a subspace."
+    }
+  },
+  {
+    "name": "fixed_scalar_quantifier",
+    "category": "quantifier_error",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "expectedReasoning": "Closure under one scalar (2) does not establish closure under every real scalar, despite correct zero and addition arguments.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Let T:V -> W be a linear map between real vector spaces. Prove that K=ker(T) is a subspace of V. Establish zero membership and both closure conditions for arbitrary choices.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Establishes zero membership without assuming the conclusion.",
+        "Proves addition closure for arbitrary u,v in K using additivity.",
+        "Proves scalar closure for arbitrary real a and v in K using scalar preservation.",
+        "Invokes the three subspace conditions after establishing them."
+      ],
+      "expectedAnswer": "T(0)=T(0v)=0T(v)=0. For arbitrary u,v in K, T(u+v)=T(u)+T(v)=0. For any real a and v in K, T(av)=aT(v)=0. All vectors lie in V by its vector-space operations. Thus K contains zero and satisfies both closure conditions.",
+      "studentAnswer": "Scalar preservation gives T(0)=T(0v)=0T(v)=0. For arbitrary u,v in K, T(u+v)=0+0=0. Also T(2v)=2T(v)=0 for arbitrary v in K. Thus K is closed under scalar multiplication and is a subspace."
+    }
+  },
+  {
+    "name": "one_vector_addition_quantifier",
+    "category": "quantifier_error",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "expectedReasoning": "Checking v+v only does not prove closure for two arbitrary possibly distinct kernel vectors.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Let T:V -> W be a linear map between real vector spaces. Prove that K=ker(T) is a subspace of V. Establish zero membership and both closure conditions for arbitrary choices.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Establishes zero membership without assuming the conclusion.",
+        "Proves addition closure for arbitrary u,v in K using additivity.",
+        "Proves scalar closure for arbitrary real a and v in K using scalar preservation.",
+        "Invokes the three subspace conditions after establishing them."
+      ],
+      "expectedAnswer": "T(0)=T(0v)=0T(v)=0. For arbitrary u,v in K, T(u+v)=T(u)+T(v)=0. For any real a and v in K, T(av)=aT(v)=0. All vectors lie in V by its vector-space operations. Thus K contains zero and satisfies both closure conditions.",
+      "studentAnswer": "T(0)=0T(0)=0. For each v in K, T(v+v)=T(v)+T(v)=0. For every real a and v in K, T(av)=aT(v)=0. All three conditions are met."
+    }
+  },
+  {
+    "name": "linearity_silently_removed",
+    "category": "missing_hypothesis",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "expectedReasoning": "The claimed generalization is false without linearity. The source counterexample x^2-1 has zero set {-1,1}, which excludes zero.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Is the zero set of every map between real vector spaces a subspace? Give a justified answer; identify any essential missing hypothesis.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Recognizes that an arbitrary map need not preserve addition or scalar multiplication.",
+        "Uses a valid counterexample or a valid general argument to decide the universal claim.",
+        "Explains which subspace condition fails, or supplies all conditions if asserting the claim."
+      ],
+      "expectedAnswer": "No. For f:R -> R with f(x)=x^2-1, the zero set is {-1,1}, which excludes 0 and is not a subspace. Linearity would be sufficient but is not assumed here.",
+      "studentAnswer": "Let T:V -> W be any map between real vector spaces. Scalar preservation gives T(0)=0. Additivity gives T(u+v)=T(u)+T(v)=0 for kernel vectors and T(av)=aT(v)=0, so every map has a subspace kernel."
+    }
+  },
+  {
+    "name": "valid_missing_hypothesis_counterexample",
+    "category": "valid_alternative",
+    "expectedGrades": [
+      "correct"
+    ],
+    "expectedReasoning": "The counterexample identifies the absent hypothesis and the failed zero-membership condition.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Is the zero set of every map between real vector spaces a subspace? Give a justified answer; identify any essential missing hypothesis.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "Recognizes that an arbitrary map need not preserve addition or scalar multiplication.",
+        "Uses a valid counterexample or a valid general argument to decide the universal claim.",
+        "Explains which subspace condition fails, or supplies all conditions if asserting the claim."
+      ],
+      "expectedAnswer": "No. For f:R -> R with f(x)=x^2-1, the zero set is {-1,1}, which excludes 0 and is not a subspace. Linearity would be sufficient but is not assumed here.",
+      "studentAnswer": "No. Choose f:R -> R defined by f(x)=x^2-1. Its zero set is {-1,1}, so 0 is not in it and it cannot be a subspace. The attempted linear proof cannot apply to an arbitrary map because additivity and scalar preservation are not assumed."
+    }
+  },
+  {
+    "name": "empty_fibre_not_subspace",
+    "category": "missing_cases",
+    "expectedGrades": [
+      "partial",
+      "incorrect"
+    ],
+    "expectedReasoning": "Empty-set closure is vacuous, but zero membership is mandatory. An empty fibre cannot be a subspace.",
+    "input": {
+      "source": "PDF page 1:\nLinear maps and their kernels\nDefinition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for\nevery u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in\nV:T(v)=0_W}.\nDefinition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under\nreal scalar multiplication.\nTheorem 1. The kernel of a linear map is a subspace of its domain.\nProof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T),\nthen T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then\nT(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.\nExample. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors\ncannot prove the general closure conditions.\nCounterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not\ncontain zero and is not a subspace of R.",
+      "question": "Constructed transfer task: let $T:V\\to W$ be linear between real vector spaces. For a fixed but arbitrary $b\\in W$, define $U_b=\\{v\\in V:T(v)=b\\}$. Prove that $U_b$ is a subspace of $V$ if and only if $b=0_W$. Derive preservation of zero from scalar preservation, prove both directions, and justify every equality and membership conclusion. Do not assume that $U_b$ contains a vector.",
+      "kind": "proof",
+      "gradingCriteria": [
+        "States the real vector-space and linearity hypotheses, treats $b\\in W$ as arbitrary, and notes $U_b\\subseteq V$.",
+        "Independently derives $T(0_V)=0_W$ from scalar preservation and justifies every equality without assuming $U_b$ is nonempty.",
+        "Proves the forward direction using zero membership from the subspace definition and $T(0_V)=b$ from the definition of $U_b$.",
+        "Explains why $b\\ne0_W$ rules out a subspace through failure of zero membership, including the possibility that $U_b$ is empty.",
+        "Under $b=0_W$, establishes zero membership and proves addition closure for arbitrary $u,v\\in U_b$, justifying domain membership and every image equality.",
+        "Under $b=0_W$, proves scalar closure for arbitrary $a\\in\\mathbb{R}$ and $v\\in U_b$, justifying domain membership and every image equality.",
+        "Invokes all three subspace conditions to conclude the reverse direction and explicitly concludes the equivalence."
+      ],
+      "expectedAnswer": "Let $V,W$ be real vector spaces, let $T:V\\to W$ be linear, and fix an arbitrary $b\\in W$. By definition, $U_b\\subseteq V$.\n\nFirst derive preservation of zero independently of $U_b$. Choose $z=0_V\\in V$. Then $T(0_V)=T(0z)=0T(z)=0_W$. The first equality uses the vector-space identity $0z=0_V$; the second uses scalar preservation with $0\\in\\mathbb{R}$ and $z\\in V$; the third uses $T(z)\\in W$ and multiplication by zero in $W$.\n\nFor the forward direction, suppose $U_b$ is a subspace of $V$. Definition 2 gives $0_V\\in U_b$. The definition of $U_b$ then gives $T(0_V)=b$. Combining this equation with the independently established equation $T(0_V)=0_W$ yields $b=0_W$. This argument does not assume that an arbitrary preimage of $b$ exists: zero membership follows from the subspace hypothesis itself. In particular, if $b\\ne0_W$, then $T(0_V)=0_W\\ne b$, so $0_V\\notin U_b$ and $U_b$ cannot be a subspace, whether it is empty or nonempty.\n\nFor the reverse direction, suppose $b=0_W$. Because $0_V\\in V$ and $T(0_V)=0_W=b$, the definition of $U_b$ gives $0_V\\in U_b$.\n\nLet $u,v\\in U_b$ be arbitrary. Their membership gives $u,v\\in V$ and $T(u)=b=0_W$, $T(v)=b=0_W$. Since $V$ is a vector space, $u+v\\in V$. Additivity, substitution of these images, and the additive identity in $W$ give $T(u+v)=T(u)+T(v)=0_W+0_W=0_W=b$. Thus $u+v\\in U_b$ by its definition. Because the pair was arbitrary, addition closure holds.\n\nLet $a\\in\\mathbb{R}$ and $v\\in U_b$ be arbitrary. Membership gives $v\\in V$ and $T(v)=b=0_W$. Since $V$ is a real vector space, $av\\in V$. Scalar preservation, substitution of the image, and scalar multiplication of the zero vector give $T(av)=aT(v)=a0_W=0_W=b$. Thus $av\\in U_b$ by its definition. Because the scalar and vector were arbitrary, real scalar closure holds.\n\nTherefore, when $b=0_W$, the subset $U_b$ contains zero and satisfies both closure conditions, so Definition 2 makes it a subspace of $V$. Both directions have been proved, establishing the equivalence for every $b\\in W$.\n\nFull credit requires a valid argument in both directions, including the zero derivation and the universal closure arguments. Merely recognizing $U_0$ as the kernel does not supply the requested reconstruction.",
+      "studentAnswer": "T preserves zero. If b is nonzero and has no preimage, U_b is empty. The empty set is closed under addition and scalar multiplication, so it is a subspace. Therefore the equivalence is false."
+    }
+  }
+]

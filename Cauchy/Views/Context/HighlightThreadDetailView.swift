@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HighlightThreadDetailView: View {
     @Bindable var workspace: WorkspaceViewModel
+    @Environment(\.openWindow) private var openWindow
     var onBack: () -> Void
 
     @State private var question = ""
@@ -78,6 +79,12 @@ struct HighlightThreadDetailView: View {
 
             if let id = savedHighlightID, let highlight = savedHighlight {
                 Menu {
+                    Button("Learn This Section…") {
+                        LearningLibraryStore.shared.activate(from: workspace, newSection: true)
+                        openWindow(id: "learning")
+                        Task { await LearningLibraryStore.shared.refreshLibrary() }
+                    }
+                    Divider()
                     HighlightColorMenu(current: highlight.color) { colour in
                         workspace.setColor(colour, for: id)
                     }

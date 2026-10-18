@@ -166,10 +166,11 @@ extension WorkspaceViewModel {
     /// Reopens whatever was last being read. Silent about every failure: if the
     /// file is gone or unreadable the dashboard is the right thing to show, and
     /// an alert on launch about a document nobody asked for is not.
-    func restoreLastSession() async {
+    func restoreLastSession(preferredWorkspaceID: UUID? = nil) async {
         guard !CauchyApp.isHostingTests else { return }
         guard Self.reopensLastDocumentAtLaunch, pdfDocument == nil else { return }
-        guard let summary = await DocumentPersistenceService.shared.listWorkspaceSummaries().first else { return }
+        let summaries = await DocumentPersistenceService.shared.listWorkspaceSummaries()
+        guard let summary = Self.restoreSummary(in: summaries, preferredWorkspaceID: preferredWorkspaceID) else { return }
 
         var url = summary.documentURL
         if let bookmark = summary.bookmarkData,
@@ -178,5 +179,12 @@ extension WorkspaceViewModel {
         }
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         await openDocument(at: url, selecting: nil)
+    }
+
+    static func restoreSummary(in summaries: [WorkspaceSummary], preferredWorkspaceID: UUID?) -> WorkspaceSummary? {
+        // Learn can add newer documents to the shared library. Their recency
+        // must not displace the document last opened in the reader.
+        if let preferredWorkspaceID { return summaries.first { $0.workspaceID == preferredWorkspaceID } }
+        return summaries.first // migration for readers without a saved location
     }
 }

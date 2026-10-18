@@ -1,0 +1,790 @@
+{
+  "document": "parta_a2_metricspaces_notes.pdf",
+  "evaluationDate": "2026-10-17",
+  "scope": "Five human-approved source-reconciliation checks; isolated persistence; no learner answers or attempt histories transmitted.",
+  "originalCandidateCount": 547,
+  "isolatedOpenCandidateCount": 546,
+  "realRecordOpenCandidateCount": 547,
+  "quotedEvidenceCount": 18,
+  "dispositions": {
+    "extractionProblem": 2,
+    "prerequisite": 2,
+    "notLocated": 5,
+    "omitted": 2,
+    "foundElsewhere": 1
+  },
+  "reviews": [
+    {
+      "unitID": "9235ABFD-DA2B-4B8C-868B-7737E8086118",
+      "title": "Euclidean size and distance for vectors",
+      "anchorPDFPage": 5,
+      "originalWarnings": [
+        "The supplied text renders the example as $|x|=x^2+y^2$, without a square root. This conflicts with the stated Euclidean convention; the original typesetting is needed to verify the formula.",
+        "The notes assume familiarity with Euclidean size and distance rather than developing their properties."
+      ],
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reviewedAtUTC": "2026-10-17T14:28:38.344172+00:00",
+      "textSearchPageCount": 77,
+      "reviewedPDFPages": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        15,
+        21,
+        22,
+        23
+      ],
+      "findings": [
+        {
+          "evidence": [
+            {
+              "pageNumber": 5,
+              "quote": "x = (x,y) ∈R2 we have |x|= x2 + y2."
+            }
+          ],
+          "disposition": "extractionProblem",
+          "gapIndex": 0,
+          "explanation": "The extracted example lacks a square root. Later Euclidean definitions do not establish the original typesetting on page 5. Keep open for VISUAL review of that page."
+        },
+        {
+          "explanation": "Page 5 explicitly adopts the usual Euclidean notions as familiar background. Pages 21–22 later develop some properties, but do not fully resolve this broad warning. Keep the prerequisite open.",
+          "gapIndex": 1,
+          "disposition": "prerequisite",
+          "evidence": [
+            {
+              "pageNumber": 5,
+              "quote": "We shall use the usual Euclidean notion of size and distance on Rn."
+            },
+            {
+              "pageNumber": 22,
+              "quote": "this inequality is immediate\nfrom the Cauchy-Schwarz inequality"
+            }
+          ]
+        }
+      ],
+      "newProofTarget": null,
+      "studyUnit": {
+        "pageIndices": [
+          4
+        ],
+        "anchorPage": 4,
+        "prerequisites": [
+          "Coordinates of vectors in $\\mathbb{R}^n$",
+          "The usual Euclidean norm and distance"
+        ],
+        "sourceQuote": "We shall use the usual Euclidean notion of size and distance on Rn.",
+        "gaps": [
+          "The supplied text renders the example as $|x|=x^2+y^2$, without a square root. This conflicts with the stated Euclidean convention; the original typesetting is needed to verify the formula.",
+          "The notes assume familiarity with Euclidean size and distance rather than developing their properties."
+        ],
+        "proofRequired": false,
+        "id": "9235ABFD-DA2B-4B8C-868B-7737E8086118",
+        "title": "Euclidean size and distance for vectors",
+        "targets": [
+          {
+            "kind": "concept",
+            "objective": "Identify $|x|$ and $|x-a|$ as Euclidean size and distance, and state that the discussion primarily concerns $\\mathbb{R}^2$ but allows general dimensions.",
+            "id": "5CB8527E-38EB-47B9-A9AE-86B869F8C8B9",
+            "unitID": "9235ABFD-DA2B-4B8C-868B-7737E8086118"
+          },
+          {
+            "kind": "application",
+            "objective": "Express proximity between two vectors using their Euclidean distance and distinguish a vector displacement from its scalar size.",
+            "id": "425E3ABE-36D9-4AFB-8891-1CA90BDFA3D7",
+            "unitID": "9235ABFD-DA2B-4B8C-868B-7737E8086118"
+          }
+        ],
+        "reconciliation": {
+          "searchedPageCount": 77,
+          "reviewedAt": 1792247318.344172,
+          "proofEvidence": [],
+          "providerID": "codex",
+          "inspectedPageIndices": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            8,
+            9,
+            10,
+            11,
+            14,
+            20,
+            21,
+            22
+          ],
+          "issues": [
+            {
+              "evidence": [
+                {
+                  "pageNumber": 5,
+                  "quote": "x = (x,y) ∈R2 we have |x|= x2 + y2."
+                }
+              ],
+              "disposition": "extractionProblem",
+              "gapIndex": 0,
+              "explanation": "The extracted example lacks a square root. Later Euclidean definitions do not establish the original typesetting on page 5. Keep open for VISUAL review of that page."
+            },
+            {
+              "explanation": "Page 5 explicitly adopts the usual Euclidean notions as familiar background. Pages 21–22 later develop some properties, but do not fully resolve this broad warning. Keep the prerequisite open.",
+              "gapIndex": 1,
+              "disposition": "prerequisite",
+              "evidence": [
+                {
+                  "pageNumber": 5,
+                  "quote": "We shall use the usual Euclidean notion of size and distance on Rn."
+                },
+                {
+                  "pageNumber": 22,
+                  "quote": "this inequality is immediate\nfrom the Cauchy-Schwarz inequality"
+                }
+              ]
+            }
+          ],
+          "modelID": "gpt-6.1-sol"
+        }
+      }
+    },
+    {
+      "unitID": "0F73E8D6-ADED-4DD4-9E63-1E348BF93E9B",
+      "title": "Uniqueness of the total derivative",
+      "anchorPDFPage": 5,
+      "originalWarnings": [
+        "Uniqueness is announced but its proof is not supplied on core page 5 or adjacent page 6.",
+        "The domain assumptions needed for uniqueness are not stated. With an arbitrary restricted domain, the available increments may not determine a linear map on all of $\\mathbb{R}^n$."
+      ],
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reviewedAtUTC": "2026-10-17T14:28:51.693492+00:00",
+      "textSearchPageCount": 77,
+      "reviewedPDFPages": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        16,
+        18,
+        48,
+        60,
+        75
+      ],
+      "findings": [
+        {
+          "explanation": "Page 7 supplies a uniqueness argument for the stated full-domain setting and says it extends to general dimension. This partially resolves the warning, but does not establish uniqueness for the arbitrary restricted domains allowed on page 5. A complete argument with the required domain hypotheses remains unlocated.",
+          "gapIndex": 0,
+          "evidence": [
+            {
+              "pageNumber": 7,
+              "quote": "Assume briefly f : R2 →R is differentiable at a point a= (a,b)."
+            },
+            {
+              "pageNumber": 7,
+              "quote": "Note this proves that df(a) is unique, since the partial derivatives are uniquely defined (and\nthe same argument works for general dimension)."
+            }
+          ],
+          "disposition": "notLocated"
+        },
+        {
+          "explanation": "Page 5 allows an arbitrary subset domain. Page 7 explicitly uses the full domain R2, but does not impose that restriction on Definition 1.1.1. Page 9's openness assumption concerns Theorem 1.3.1, not uniqueness. The domain hypothesis for the general uniqueness claim remains unresolved.",
+          "gapIndex": 1,
+          "evidence": [
+            {
+              "pageNumber": 5,
+              "quote": "We say that a function f : Ω ⊆Rn →Rm is differentiable at a∈Ω if\nthere exists a linear map L: Rn →Rm such that"
+            },
+            {
+              "pageNumber": 7,
+              "quote": "take Ω = R2. So we are considering functions f : R2 →R."
+            },
+            {
+              "pageNumber": 9,
+              "quote": "The proof of Theorem 1.3.1 in fact works for any f : Ω ⊆R2 →R with continuous partial\nderivatives, provided one assumes Ω is open (Definition 1.6.1);"
+            }
+          ],
+          "disposition": "notLocated"
+        }
+      ],
+      "newProofTarget": null,
+      "studyUnit": {
+        "pageIndices": [
+          4
+        ],
+        "anchorPage": 4,
+        "prerequisites": [
+          "Definition of the total derivative",
+          "Linear maps and their equality",
+          "Limits of normalized errors"
+        ],
+        "sourceQuote": "We shall shortly see that L is unique when it exists.",
+        "gaps": [
+          "Uniqueness is announced but its proof is not supplied on core page 5 or adjacent page 6.",
+          "The domain assumptions needed for uniqueness are not stated. With an arbitrary restricted domain, the available increments may not determine a linear map on all of $\\mathbb{R}^n$."
+        ],
+        "proofRequired": true,
+        "id": "0F73E8D6-ADED-4DD4-9E63-1E348BF93E9B",
+        "title": "Uniqueness of the total derivative",
+        "targets": [
+          {
+            "kind": "concept",
+            "objective": "State the announced uniqueness claim for $L$ and identify the unresolved domain assumptions needed to make that claim valid.",
+            "unitID": "0F73E8D6-ADED-4DD4-9E63-1E348BF93E9B",
+            "id": "42FB624A-AED1-48B1-9140-535F953C905F"
+          },
+          {
+            "kind": "application",
+            "objective": "When assessing two proposed derivatives, identify whether the domain supplies enough increment directions to determine their equality.",
+            "unitID": "0F73E8D6-ADED-4DD4-9E63-1E348BF93E9B",
+            "id": "EB6C6D59-FCF4-440D-821E-78D6166D265B"
+          }
+        ],
+        "reconciliation": {
+          "proofEvidence": [],
+          "inspectedPageIndices": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            8,
+            9,
+            10,
+            15,
+            17,
+            47,
+            59,
+            74
+          ],
+          "searchedPageCount": 77,
+          "issues": [
+            {
+              "explanation": "Page 7 supplies a uniqueness argument for the stated full-domain setting and says it extends to general dimension. This partially resolves the warning, but does not establish uniqueness for the arbitrary restricted domains allowed on page 5. A complete argument with the required domain hypotheses remains unlocated.",
+              "gapIndex": 0,
+              "evidence": [
+                {
+                  "pageNumber": 7,
+                  "quote": "Assume briefly f : R2 →R is differentiable at a point a= (a,b)."
+                },
+                {
+                  "pageNumber": 7,
+                  "quote": "Note this proves that df(a) is unique, since the partial derivatives are uniquely defined (and\nthe same argument works for general dimension)."
+                }
+              ],
+              "disposition": "notLocated"
+            },
+            {
+              "explanation": "Page 5 allows an arbitrary subset domain. Page 7 explicitly uses the full domain R2, but does not impose that restriction on Definition 1.1.1. Page 9's openness assumption concerns Theorem 1.3.1, not uniqueness. The domain hypothesis for the general uniqueness claim remains unresolved.",
+              "gapIndex": 1,
+              "evidence": [
+                {
+                  "pageNumber": 5,
+                  "quote": "We say that a function f : Ω ⊆Rn →Rm is differentiable at a∈Ω if\nthere exists a linear map L: Rn →Rm such that"
+                },
+                {
+                  "pageNumber": 7,
+                  "quote": "take Ω = R2. So we are considering functions f : R2 →R."
+                },
+                {
+                  "pageNumber": 9,
+                  "quote": "The proof of Theorem 1.3.1 in fact works for any f : Ω ⊆R2 →R with continuous partial\nderivatives, provided one assumes Ω is open (Definition 1.6.1);"
+                }
+              ],
+              "disposition": "notLocated"
+            }
+          ],
+          "reviewedAt": 1792247331.693492,
+          "providerID": "codex",
+          "modelID": "gpt-6.1-sol"
+        }
+      }
+    },
+    {
+      "unitID": "3897D3FD-36EF-4F72-8AF3-9A8E9074AB19",
+      "title": "Multivariable chain rule and derivative matrix composition",
+      "anchorPDFPage": 11,
+      "originalWarnings": [
+        "The chain-rule proof is explicitly omitted and designated non-examinable by the source.",
+        "The matrix-norm properties needed for the omitted proof have explicitly not been covered.",
+        "The referenced end of Section 1.7 is not supplied.",
+        "No worked chain-rule example is supplied on these pages."
+      ],
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reviewedAtUTC": "2026-10-17T14:29:34.126784+00:00",
+      "textSearchPageCount": 77,
+      "reviewedPDFPages": [
+        3,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        15,
+        16,
+        17,
+        18,
+        75
+      ],
+      "findings": [
+        {
+          "evidence": [
+            {
+              "pageNumber": 11,
+              "quote": "The proof is omitted and non-examinable."
+            }
+          ],
+          "gapIndex": 0,
+          "explanation": "The source explicitly omits the chain-rule proof and declares it non-examinable. The proof obligation remains unresolved.",
+          "disposition": "omitted"
+        },
+        {
+          "evidence": [
+            {
+              "quote": "It is quite straightforward, but requires some\nsimple properties on sizes of matrices (that is to say, matrix norms) which we have not\ncovered.",
+              "pageNumber": 11
+            }
+          ],
+          "gapIndex": 1,
+          "explanation": "The source explicitly identifies uncovered matrix-norm properties as required supporting knowledge. This dependency remains open.",
+          "disposition": "prerequisite"
+        },
+        {
+          "evidence": [
+            {
+              "quote": "To do this we need a notion of size on matrices, or linear\nmaps. And this is really the only ingredient missing if we want to generalise our proof above\nto higher dimension. We will not pursue this further, but just end with some calculations.",
+              "pageNumber": 18
+            }
+          ],
+          "gapIndex": 2,
+          "explanation": "The referenced end of Section 1.7 is supplied on PDF page 18. It discusses the missing matrix-size ingredient; it does not supply the chain-rule proof.",
+          "disposition": "foundElsewhere"
+        },
+        {
+          "evidence": [
+            {
+              "quote": "We show that a version of the chain rule applies to these compositions.",
+              "pageNumber": 75
+            }
+          ],
+          "gapIndex": 3,
+          "explanation": "No worked example of the general multivariable chain rule and derivative-matrix composition is located in the supplied pages. Page 75 treats a restricted holomorphic-map/path composition; it does not resolve the entire warning. No explicit omission of examples is declared.",
+          "disposition": "notLocated"
+        }
+      ],
+      "newProofTarget": null,
+      "studyUnit": {
+        "id": "3897D3FD-36EF-4F72-8AF3-9A8E9074AB19",
+        "title": "Multivariable chain rule and derivative matrix composition",
+        "sourceQuote": "Assume\nthat f is differentiable at a and g is differentiable at f(a). Let h := g ◦f.",
+        "pageIndices": [
+          10
+        ],
+        "reconciliation": {
+          "inspectedPageIndices": [
+            2,
+            4,
+            5,
+            6,
+            8,
+            9,
+            10,
+            11,
+            12,
+            14,
+            15,
+            16,
+            17,
+            74
+          ],
+          "proofEvidence": [],
+          "issues": [
+            {
+              "evidence": [
+                {
+                  "pageNumber": 11,
+                  "quote": "The proof is omitted and non-examinable."
+                }
+              ],
+              "gapIndex": 0,
+              "explanation": "The source explicitly omits the chain-rule proof and declares it non-examinable. The proof obligation remains unresolved.",
+              "disposition": "omitted"
+            },
+            {
+              "evidence": [
+                {
+                  "quote": "It is quite straightforward, but requires some\nsimple properties on sizes of matrices (that is to say, matrix norms) which we have not\ncovered.",
+                  "pageNumber": 11
+                }
+              ],
+              "gapIndex": 1,
+              "explanation": "The source explicitly identifies uncovered matrix-norm properties as required supporting knowledge. This dependency remains open.",
+              "disposition": "prerequisite"
+            },
+            {
+              "evidence": [
+                {
+                  "quote": "To do this we need a notion of size on matrices, or linear\nmaps. And this is really the only ingredient missing if we want to generalise our proof above\nto higher dimension. We will not pursue this further, but just end with some calculations.",
+                  "pageNumber": 18
+                }
+              ],
+              "gapIndex": 2,
+              "explanation": "The referenced end of Section 1.7 is supplied on PDF page 18. It discusses the missing matrix-size ingredient; it does not supply the chain-rule proof.",
+              "disposition": "foundElsewhere"
+            },
+            {
+              "evidence": [
+                {
+                  "quote": "We show that a version of the chain rule applies to these compositions.",
+                  "pageNumber": 75
+                }
+              ],
+              "gapIndex": 3,
+              "explanation": "No worked example of the general multivariable chain rule and derivative-matrix composition is located in the supplied pages. Page 75 treats a restricted holomorphic-map/path composition; it does not resolve the entire warning. No explicit omission of examples is declared.",
+              "disposition": "notLocated"
+            }
+          ],
+          "providerID": "codex",
+          "reviewedAt": 1792247374.1267838,
+          "modelID": "gpt-6.1-sol",
+          "searchedPageCount": 77
+        },
+        "prerequisites": [
+          "Differentiability of maps between Euclidean spaces",
+          "Composition of functions",
+          "Composition of linear maps and matrix multiplication",
+          "Matrix norms and bounds on linear maps"
+        ],
+        "anchorPage": 10,
+        "gaps": [
+          "The chain-rule proof is explicitly omitted and designated non-examinable by the source.",
+          "The matrix-norm properties needed for the omitted proof have explicitly not been covered.",
+          "The referenced end of Section 1.7 is not supplied.",
+          "No worked chain-rule example is supplied on these pages."
+        ],
+        "proofRequired": true,
+        "targets": [
+          {
+            "unitID": "3897D3FD-36EF-4F72-8AF3-9A8E9074AB19",
+            "id": "937BCE9E-3538-4F82-914A-32F5700B7BBA",
+            "kind": "concept",
+            "objective": "State the chain rule for $f:\\mathbb R^n\\to\\mathbb R^m$ and $g:\\mathbb R^m\\to\\mathbb R^p$, including differentiability at $a$ and $f(a)$, and the formula $d(g\\circ f)(a)=dg(f(a))df(a)$."
+          },
+          {
+            "id": "9FF6F106-378D-4A1D-8619-4F326054B7B3",
+            "unitID": "3897D3FD-36EF-4F72-8AF3-9A8E9074AB19",
+            "kind": "application",
+            "objective": "Compute the derivative of a specified composition by evaluating each derivative at the correct point and multiplying the matrices in the correct order with compatible dimensions."
+          }
+        ]
+      }
+    },
+    {
+      "unitID": "BF308BE5-ABDC-4516-AC12-5ED5D83E5EC9",
+      "title": "Closed-set closure properties via complements",
+      "anchorPDFPage": 39,
+      "originalWarnings": [
+        "The source explicitly states the outcome without supplying the complement argument.",
+        "Clause (iii) is extracted as a finite intersection, duplicating clause (ii); the preceding De Morgan explanation indicates the intended finite-union property, but the union symbol cannot be verified from this text.",
+        "De Morgan's laws are invoked but not stated or proved."
+      ],
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reviewedAtUTC": "2026-10-17T14:29:47.708261+00:00",
+      "textSearchPageCount": 77,
+      "reviewedPDFPages": [
+        3,
+        12,
+        36,
+        37,
+        38,
+        39,
+        40,
+        43,
+        45,
+        48,
+        54,
+        59,
+        66
+      ],
+      "findings": [
+        {
+          "explanation": "The source explicitly declares that it only states the outcome; the complement argument is not supplied.",
+          "evidence": [
+            {
+              "pageNumber": 38,
+              "quote": "A result equivalent to Lemma 5.2.1 may be formulated in terms of closed sets, simply by\ntaking complements and applying de Morgan’s laws. We simply state the outcome."
+            }
+          ],
+          "gapIndex": 0,
+          "disposition": "omitted"
+        },
+        {
+          "explanation": "Clause (iii)'s set-operation symbol is missing from the supplied extraction. Neither an intersection nor a union can be verified. Keep open for VISUAL review of PDF page 39.",
+          "evidence": [
+            {
+              "pageNumber": 39,
+              "quote": "(iii) If I is finite then i∈I Fi is closed."
+            }
+          ],
+          "gapIndex": 1,
+          "disposition": "extractionProblem"
+        },
+        {
+          "explanation": "De Morgan’s laws are invoked, but their statements and supporting proofs are not located in the supplied pages. The invocation does not explicitly declare omission or delegate prior knowledge; this dependency remains open.",
+          "evidence": [
+            {
+              "quote": "taking complements and applying de Morgan’s laws. We simply state the outcome.",
+              "pageNumber": 38
+            }
+          ],
+          "gapIndex": 2,
+          "disposition": "notLocated"
+        }
+      ],
+      "newProofTarget": null,
+      "studyUnit": {
+        "reconciliation": {
+          "proofEvidence": [],
+          "inspectedPageIndices": [
+            2,
+            11,
+            35,
+            36,
+            37,
+            38,
+            39,
+            42,
+            44,
+            47,
+            53,
+            58,
+            65
+          ],
+          "searchedPageCount": 77,
+          "providerID": "codex",
+          "modelID": "gpt-6.1-sol",
+          "issues": [
+            {
+              "explanation": "The source explicitly declares that it only states the outcome; the complement argument is not supplied.",
+              "evidence": [
+                {
+                  "pageNumber": 38,
+                  "quote": "A result equivalent to Lemma 5.2.1 may be formulated in terms of closed sets, simply by\ntaking complements and applying de Morgan’s laws. We simply state the outcome."
+                }
+              ],
+              "gapIndex": 0,
+              "disposition": "omitted"
+            },
+            {
+              "explanation": "Clause (iii)'s set-operation symbol is missing from the supplied extraction. Neither an intersection nor a union can be verified. Keep open for VISUAL review of PDF page 39.",
+              "evidence": [
+                {
+                  "pageNumber": 39,
+                  "quote": "(iii) If I is finite then i∈I Fi is closed."
+                }
+              ],
+              "gapIndex": 1,
+              "disposition": "extractionProblem"
+            },
+            {
+              "explanation": "De Morgan’s laws are invoked, but their statements and supporting proofs are not located in the supplied pages. The invocation does not explicitly declare omission or delegate prior knowledge; this dependency remains open.",
+              "evidence": [
+                {
+                  "quote": "taking complements and applying de Morgan’s laws. We simply state the outcome.",
+                  "pageNumber": 38
+                }
+              ],
+              "gapIndex": 2,
+              "disposition": "notLocated"
+            }
+          ],
+          "reviewedAt": 1792247387.708261
+        },
+        "id": "BF308BE5-ABDC-4516-AC12-5ED5D83E5EC9",
+        "sourceQuote": "Lemma 5.2.2. Let X be a metric space and let {Fi : i ∈I}be a collection of closed\nsubsets.",
+        "prerequisites": [
+          "Definition 5.1.3",
+          "Lemma 5.2.1",
+          "De Morgan's laws",
+          "Empty indexed union and intersection conventions"
+        ],
+        "pageIndices": [
+          36,
+          37,
+          38
+        ],
+        "title": "Closed-set closure properties via complements",
+        "anchorPage": 38,
+        "proofRequired": true,
+        "targets": [
+          {
+            "unitID": "BF308BE5-ABDC-4516-AC12-5ED5D83E5EC9",
+            "objective": "State that $X$ and $\\varnothing$ are closed and arbitrary intersections of closed subsets are closed; identify the extraction ambiguity in the finite-family clause.",
+            "id": "0F37CDA3-276F-4C98-A8AD-2C6B4743134F",
+            "kind": "concept"
+          },
+          {
+            "unitID": "BF308BE5-ABDC-4516-AC12-5ED5D83E5EC9",
+            "objective": "Identify finite unions of closed subsets as the complement-dual consequence of finite-intersection openness.",
+            "id": "B8927DA6-47C4-4EBC-BA1C-C1D550C0588A",
+            "kind": "concept"
+          },
+          {
+            "unitID": "BF308BE5-ABDC-4516-AC12-5ED5D83E5EC9",
+            "objective": "Use complements and De Morgan's laws to establish closedness of arbitrary intersections and finite unions, including empty families.",
+            "id": "047A01ED-C986-437D-B328-1E3113045C9E",
+            "kind": "application"
+          }
+        ],
+        "gaps": [
+          "The source explicitly states the outcome without supplying the complement argument.",
+          "Clause (iii) is extracted as a finite intersection, duplicating clause (ii); the preceding De Morgan explanation indicates the intended finite-union property, but the union symbol cannot be verified from this text.",
+          "De Morgan's laws are invoked but not stated or proved."
+        ]
+      }
+    },
+    {
+      "unitID": "093AC5D4-2F39-4312-804B-E261F8889138",
+      "title": "Connected images and the intermediate value theorem",
+      "anchorPDFPage": 56,
+      "originalWarnings": [
+        "Page 56 gives a partial derivation: the image is connected by Theorem 8.1.8 and Lemma 8.1.6, then is asserted to be an interval; the proof that a connected subset of $\\mathbb{R}$ has the interval property is absent from the supplied excerpt, so the intermediate value argument is not source-complete."
+      ],
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reviewedAtUTC": "2026-10-17T14:29:57.406118+00:00",
+      "textSearchPageCount": 77,
+      "reviewedPDFPages": [
+        4,
+        8,
+        9,
+        10,
+        13,
+        14,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58
+      ],
+      "findings": [
+        {
+          "explanation": "Pages 55–56 prove preservation of connectedness under continuous maps and connectedness of [a,b]. Page 56 asserts that the image is an interval without proving that a connected subset of R has the interval property. Supply source pages proving that implication to complete the intermediate value argument.",
+          "disposition": "notLocated",
+          "evidence": [
+            {
+              "quote": "It follows that there is no way to disconnect Y.",
+              "pageNumber": 55
+            },
+            {
+              "quote": "Therefore [x,y] is connected.",
+              "pageNumber": 56
+            },
+            {
+              "quote": "Therefore this latter set\nis an interval and in particular it contains every c with between f(a) and f(b).",
+              "pageNumber": 56
+            }
+          ],
+          "gapIndex": 0
+        }
+      ],
+      "newProofTarget": null,
+      "studyUnit": {
+        "targets": [
+          {
+            "id": "124ADF67-63B5-43D3-97F4-4DC40881EEA7",
+            "unitID": "093AC5D4-2F39-4312-804B-E261F8889138",
+            "kind": "concept",
+            "objective": "State that a continuous map $f:[a,b]\\to\\mathbb{R}$, with real $a\\leq b$, has a connected image that is an interval."
+          },
+          {
+            "id": "2224E27F-5C5F-487E-8780-7C4E211F0CA4",
+            "unitID": "093AC5D4-2F39-4312-804B-E261F8889138",
+            "kind": "concept",
+            "objective": "State the intermediate value theorem: each real $c$ between $f(a)$ and $f(b)$ equals $f(t)$ for some $t\\in[a,b]$, assuming $f$ is continuous."
+          },
+          {
+            "id": "6762D5D5-1362-48B2-8168-7BF074A3E2A5",
+            "unitID": "093AC5D4-2F39-4312-804B-E261F8889138",
+            "kind": "application",
+            "objective": "Use continuity and endpoint values to establish that a specified intermediate value is attained on $[a,b]$."
+          }
+        ],
+        "anchorPage": 55,
+        "prerequisites": [
+          "Theorem 8.1.8: closed real intervals are connected",
+          "Lemma 8.1.6: continuous images of connected metric spaces are connected",
+          "The interval property of connected subsets of $\\mathbb{R}$"
+        ],
+        "proofRequired": true,
+        "sourceQuote": "Then, since [a,b] is connected, f([a,b]) is connected.",
+        "id": "093AC5D4-2F39-4312-804B-E261F8889138",
+        "gaps": [
+          "Page 56 gives a partial derivation: the image is connected by Theorem 8.1.8 and Lemma 8.1.6, then is asserted to be an interval; the proof that a connected subset of $\\mathbb{R}$ has the interval property is absent from the supplied excerpt, so the intermediate value argument is not source-complete."
+        ],
+        "title": "Connected images and the intermediate value theorem",
+        "reconciliation": {
+          "reviewedAt": 1792247397.406118,
+          "searchedPageCount": 77,
+          "inspectedPageIndices": [
+            3,
+            7,
+            8,
+            9,
+            12,
+            13,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57
+          ],
+          "issues": [
+            {
+              "explanation": "Pages 55–56 prove preservation of connectedness under continuous maps and connectedness of [a,b]. Page 56 asserts that the image is an interval without proving that a connected subset of R has the interval property. Supply source pages proving that implication to complete the intermediate value argument.",
+              "disposition": "notLocated",
+              "evidence": [
+                {
+                  "quote": "It follows that there is no way to disconnect Y.",
+                  "pageNumber": 55
+                },
+                {
+                  "quote": "Therefore [x,y] is connected.",
+                  "pageNumber": 56
+                },
+                {
+                  "quote": "Therefore this latter set\nis an interval and in particular it contains every c with between f(a) and f(b).",
+                  "pageNumber": 56
+                }
+              ],
+              "gapIndex": 0
+            }
+          ],
+          "modelID": "gpt-6.1-sol",
+          "providerID": "codex",
+          "proofEvidence": []
+        },
+        "pageIndices": [
+          54,
+          55
+        ]
+      }
+    }
+  ]
+}

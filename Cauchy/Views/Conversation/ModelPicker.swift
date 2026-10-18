@@ -10,6 +10,8 @@ struct ModelPicker: View {
         case inline
         /// Plain bordered button inside a Settings form row.
         case settings
+        /// Uses the system toolbar menu and its Liquid Glass background.
+        case toolbar
     }
 
     var style: Style = .inline
@@ -30,7 +32,16 @@ struct ModelPicker: View {
     @AppStorage(AssistantPreferences.modelKey(for: .openaiAPI))
     private var openaiToken = AssistantConnectorID.openaiAPI.connector.defaultChoice.storageToken
 
+    @ViewBuilder
     var body: some View {
+        if style == .toolbar {
+            menu.menuStyle(.button).buttonStyle(.automatic)
+        } else {
+            menu.menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+        }
+    }
+
+    private var menu: some View {
         Menu {
             Toggle("Automatic", isOn: binding(for: .automatic))
 
@@ -49,11 +60,13 @@ struct ModelPicker: View {
             // The chrome has to be part of the label: applied to the Menu it
             // would sit outside the button's hit area, and clicking the padding
             // would do nothing.
-            label.modifier(PickerChrome(style: style))
+            if style == .toolbar {
+                Label(resolved.label, systemImage: resolved.connector.symbol)
+                    .labelStyle(.titleAndIcon)
+            } else {
+                label.modifier(PickerChrome(style: style))
+            }
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
         .fixedSize()
         .accessibilityLabel("Model: \(resolved.label)")
         .help("Choose where answers come from")
@@ -186,6 +199,8 @@ private struct PickerChrome: ViewModifier {
                 .padding(.vertical, 5)
                 .contentShape(.rect(cornerRadius: 6))
                 .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
+        case .toolbar:
+            content
         }
     }
 }

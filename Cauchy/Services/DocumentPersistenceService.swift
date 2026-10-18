@@ -6,6 +6,36 @@ struct PersistedWorkspace: Codable, Sendable {
     var bookmarkData: Data?
 }
 
+/// Kept separately so a reader from an older release cannot erase learning
+/// fields it doesn't understand when it writes workspace.json.
+private struct LearningProgressRecord: Codable, Sendable {
+    var sessions: [LearningSession]
+    var map: LearningStudyMap?
+
+    init(_ workspace: DocumentWorkspace) {
+        sessions = workspace.learningSessions
+        map = workspace.learningStudyMap
+    }
+
+    func merging(_ incoming: Self) -> Self {
+        var byID: [UUID: LearningSession] = [:]
+        for session in sessions + incoming.sessions {
+            if byID[session.id].map({ $0.updatedAt > session.updatedAt }) != true { byID[session.id] = session }
+        }
+        var merged = self
+        merged.sessions = byID.values.sorted { $0.updatedAt > $1.updatedAt }
+        if let candidate = incoming.map, map.map({ $0.updatedAt > candidate.updatedAt }) != true {
+            merged.map = candidate
+        }
+        return merged
+    }
+
+    func apply(to workspace: inout DocumentWorkspace) {
+        workspace.learningSessions = sessions
+        workspace.learningStudyMap = map
+    }
+}
+
 /// Lightweight per-workspace sidecar so lookups and the dashboard don't have
 /// to decode every full workspace (including entire chat threads).
 struct WorkspaceSummary: Codable, Sendable {
@@ -30,12 +60,25 @@ actor DocumentPersistenceService {
         d.dateDecodingStrategy = .iso8601
         return d
     }()
+    // Independent learning writes can happen within the same second. Keep
+    // full timestamp precision here so a stale reader snapshot cannot win.
+    private let learningEncoder: JSONEncoder = {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .secondsSince1970
+        return e
+    }()
+    private let learningDecoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .secondsSince1970
+        return d
+    }()
 
     private struct PendingSnapshot: Sendable {
         let revision: UUID
         let workspace: DocumentWorkspace
         let bookmarkData: Data?
         let onError: (@Sendable (Error) -> Void)?
+        let learningOnly: Bool
     }
     // Enqueue synchronously so a shutdown flush also sees saves whose actor
     // scheduling tasks have not run yet. Each document owns its pending value.
@@ -139,7 +182,7 @@ actor DocumentPersistenceService {
         return nil
     }
 
-    func saveWorkspace(_ workspace: DocumentWorkspace, bookmarkData: Data?) throws {
+    func saveWorkspace(_ workspace: DocumentWorkspace, bookmarkData: Data?, learningOnly: Bool = false) throws {
         let directory = workspaceDirectory(for: workspace.id)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(
@@ -147,9 +190,22 @@ actor DocumentPersistenceService {
             withIntermediateDirectories: true
         )
 
-        let persisted = PersistedWorkspace(workspace: workspace, bookmarkData: bookmarkData)
+        let existing = persistedWorkspace(inDirectory: directory)
+        var record = LearningProgressRecord(existing?.workspace ?? workspace).merging(LearningProgressRecord(workspace))
+        if let durable = learningProgress(in: directory) { record = durable.merging(record) }
+        let learningURL = directory.appendingPathComponent("learning.json")
+        if record.map != nil || !record.sessions.isEmpty || FileManager.default.fileExists(atPath: learningURL.path) {
+            try learningEncoder.encode(record).write(to: learningURL, options: .atomic)
+        }
+        // A learning-only update owns no reader fields. In particular, never
+        // replace annotations written by another running reader instance.
+        var merged = learningOnly ? (existing?.workspace ?? workspace) : workspace
+        record.apply(to: &merged)
+        let persisted = PersistedWorkspace(workspace: merged, bookmarkData: bookmarkData ?? existing?.bookmarkData)
         let data = try encoder.encode(persisted)
-        try data.write(to: workspaceFileURL(for: workspace.id), options: .atomic)
+        if !learningOnly || existing == nil {
+            try data.write(to: workspaceFileURL(for: workspace.id), options: .atomic)
+        }
 
         try writeSummary(for: persisted)
     }
@@ -192,11 +248,20 @@ actor DocumentPersistenceService {
     nonisolated func scheduleSave(
         _ workspace: DocumentWorkspace,
         bookmarkData: Data?,
+        learningOnly: Bool = false,
         onError: (@Sendable (Error) -> Void)? = nil
     ) {
-        let snapshot = PendingSnapshot(revision: UUID(), workspace: workspace,
-                                       bookmarkData: bookmarkData, onError: onError)
-        snapshots.withLock { $0[workspace.id] = snapshot }
+        let snapshot = snapshots.withLock { values -> PendingSnapshot in
+            let prior = values[workspace.id]
+            var combined = learningOnly && prior?.learningOnly == false ? prior!.workspace : workspace
+            if let prior {
+                LearningProgressRecord(prior.workspace).merging(LearningProgressRecord(workspace)).apply(to: &combined)
+            }
+            let value = PendingSnapshot(revision: UUID(), workspace: combined, bookmarkData: bookmarkData,
+                onError: onError, learningOnly: learningOnly && prior?.learningOnly != false)
+            values[workspace.id] = value
+            return value
+        }
         Task { await debounceSave(id: workspace.id, revision: snapshot.revision) }
     }
 
@@ -214,7 +279,7 @@ actor DocumentPersistenceService {
         pendingSaves.removeValue(forKey: id)?.cancel()
         guard let snapshot = snapshots.withLock({ $0[id] }) else { return }
         do {
-            try saveWorkspace(snapshot.workspace, bookmarkData: snapshot.bookmarkData)
+            try saveWorkspace(snapshot.workspace, bookmarkData: snapshot.bookmarkData, learningOnly: snapshot.learningOnly)
             snapshots.withLock {
                 if $0[id]?.revision == snapshot.revision { $0[id] = nil }
             }
@@ -237,6 +302,10 @@ actor DocumentPersistenceService {
     /// library-wide search has to come back for it.
     func loadWorkspace(id: UUID) -> PersistedWorkspace? {
         if let pending = snapshots.withLock({ $0[id] }) {
+            if pending.learningOnly, var latest = persistedWorkspace(inDirectory: workspaceDirectory(for: id)) {
+                LearningProgressRecord(latest.workspace).merging(LearningProgressRecord(pending.workspace)).apply(to: &latest.workspace)
+                return latest
+            }
             return PersistedWorkspace(workspace: pending.workspace, bookmarkData: pending.bookmarkData)
         }
         return persistedWorkspace(inDirectory: workspaceDirectory(for: id))
@@ -292,9 +361,18 @@ actor DocumentPersistenceService {
         let fileURL = directory.appendingPathComponent("workspace.json")
         guard FileManager.default.fileExists(atPath: fileURL.path),
               let data = try? Data(contentsOf: fileURL),
-              let persisted = try? decoder.decode(PersistedWorkspace.self, from: data)
+              var persisted = try? decoder.decode(PersistedWorkspace.self, from: data)
         else { return nil }
+        if let progress = learningProgress(in: directory) {
+            LearningProgressRecord(persisted.workspace).merging(progress).apply(to: &persisted.workspace)
+        }
         return persisted
+    }
+
+    private func learningProgress(in directory: URL) -> LearningProgressRecord? {
+        guard let data = try? Data(contentsOf: directory.appendingPathComponent("learning.json")) else { return nil }
+        return (try? learningDecoder.decode(LearningProgressRecord.self, from: data))
+            ?? (try? decoder.decode(LearningProgressRecord.self, from: data))
     }
 
     private func writeSummary(for persisted: PersistedWorkspace) throws {

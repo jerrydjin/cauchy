@@ -1,0 +1,29 @@
+PAGE 1
+Linear maps and their kernels
+
+Definition 1. A map T from a real vector space V to a real vector space W is linear if T(u+v)=T(u)+T(v) for every u,v in V, and T(av)=aT(v) for every real scalar a and v in V. The kernel of T is ker(T)={v in V:T(v)=0_W}.
+
+Definition 2. A subset U of V is a subspace if it contains 0_V, is closed under addition, and is closed under real scalar multiplication.
+
+Theorem 1. The kernel of a linear map is a subspace of its domain.
+
+Proof. Scalar preservation gives T(0_V)=T(0v)=0T(v)=0_W, so 0_V is in ker(T). If u and v are in ker(T), then T(u+v)=T(u)+T(v)=0_W+0_W=0_W, so u+v is in ker(T). If a is any real scalar and v is in ker(T), then T(av)=aT(v)=a0_W=0_W, so av is in ker(T). These three properties establish the subspace claim.
+
+Example. For T(x,y)=x, the kernel is {(0,y):y is real}, a subspace of R^2. Checking finitely many vectors cannot prove the general closure conditions.
+
+Counterexample to removing linearity. The nonlinear map f(x)=x^2-1 has zero set {-1,1}, which does not contain zero and is not a subspace of R.
+
+PAGE 2
+Injectivity and an intentionally incomplete result
+
+Definition 3. A map T is injective if T(x)=T(y) implies x=y for every x,y in its domain.
+
+Theorem 2. A linear map T is injective if and only if ker(T)={0_V}.
+
+Proof. If T is injective and v is in ker(T), then T(v)=0_W=T(0_V), so v=0_V. Conversely, suppose ker(T)={0_V}. If T(x)=T(y), linearity gives T(x-y)=T(x)-T(y)=0_W. Thus x-y is in ker(T), so x-y=0_V and x=y. Both directions have been established.
+
+Example. The identity map is injective and its kernel is {0}. The map T(x,y)=x is not injective because T(0,0)=T(0,1), and its kernel contains (0,1).
+
+Theorem 3. If V is finite dimensional and T:V->W is linear, then dim(V)=dim(ker(T))+dim(im(T)). A basis is a linearly independent spanning set, and dimension is the size of a basis.
+
+Proof of Theorem 3 is intentionally omitted from these notes. A study map must show this as a missing proof, not silently mark rank-nullity as covered by the two earlier arguments.

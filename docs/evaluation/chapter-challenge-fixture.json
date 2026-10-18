@@ -1,0 +1,74 @@
+{
+  "request": {
+    "moduleID": "33333333-3333-4333-8333-333333333333",
+    "title": "Sequential compactness",
+    "connection": "Use closedness to keep a subsequence limit in the domain before applying continuity.",
+    "units": [
+      {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "title": "Closed subsets",
+        "anchorPage": 0,
+        "sourceQuote": "A closed subset of a sequentially compact metric space is sequentially compact.",
+        "pageIndices": [
+          0
+        ],
+        "prerequisites": [
+          "Convergent subsequences"
+        ],
+        "proofRequired": true,
+        "proofQuote": "A closed subset of a sequentially compact metric space is sequentially compact.",
+        "gaps": [],
+        "targets": [
+          {
+            "id": "44444444-4444-4444-8444-444444444444",
+            "unitID": "11111111-1111-4111-8111-111111111111",
+            "kind": "proof",
+            "objective": "Justify this consequence"
+          }
+        ]
+      },
+      {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "title": "Continuous images",
+        "anchorPage": 0,
+        "sourceQuote": "The image of a sequentially compact metric space under a continuous map is sequentially compact.",
+        "pageIndices": [
+          0
+        ],
+        "prerequisites": [
+          "Convergent subsequences"
+        ],
+        "proofRequired": true,
+        "proofQuote": "The image of a sequentially compact metric space under a continuous map is sequentially compact.",
+        "gaps": [],
+        "targets": [
+          {
+            "id": "54444444-4444-4444-8444-444444444444",
+            "unitID": "22222222-2222-4222-8222-222222222222",
+            "kind": "proof",
+            "objective": "Justify this consequence"
+          }
+        ]
+      }
+    ]
+  },
+  "source": {
+    "passages": [
+      {
+        "pageIndex": 0,
+        "text": "A metric space is sequentially compact if every sequence has a subsequence converging to a point of the space.\nA closed subset of a sequentially compact metric space is sequentially compact.\nProof. A sequence in the closed subset K is a sequence in X. Choose a convergent subsequence in X. Closedness puts its limit in K.\nThe image of a sequentially compact metric space under a continuous map is sequentially compact.\nProof. For a sequence of image points choose preimages. Sequential compactness gives a subsequence of preimages converging in the domain. Continuity makes the corresponding image subsequence converge to the image of that limit.\nA sequentially compact subspace of a metric space is closed and bounded: a missing closure point contradicts the subsequence property, and an unbounded sequence escaping every ball has no convergent subsequence."
+      }
+    ]
+  },
+  "authoredQuestion": {
+    "prompt": "Let X be sequentially compact, K a closed subset of X, and f: X \u2192 Y continuous between metric spaces. Prove that f(K) is sequentially compact.",
+    "expectedAnswer": "Choose any sequence in f(K) and preimages in K. Compactness of X gives a subsequence converging in X. Since K is closed, the limit lies in K. Continuity gives convergence of image points to its image in f(K).",
+    "hints": [],
+    "kind": "proof",
+    "gradingCriteria": [
+      "Choose preimages in K or apply the continuous-image theorem to a justified domain",
+      "Use closedness to justify sequential compactness of K or to place the subsequence limit in K",
+      "Apply continuity and conclude sequential compactness of f(K)"
+    ]
+  }
+}

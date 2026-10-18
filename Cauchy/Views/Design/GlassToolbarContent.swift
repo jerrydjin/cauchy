@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GlassToolbarContent: ToolbarContent {
     @Bindable var workspace: WorkspaceViewModel
+    @Environment(\.openWindow) private var openWindow
     @State private var pageFieldText = ""
 
     private var hasDocument: Bool {
@@ -95,6 +96,15 @@ struct GlassToolbarContent: ToolbarContent {
                 .disabled(workspace.currentPage >= workspace.pageCount)
 
             }
+        }
+        ToolbarSpacer(.fixed)
+        ToolbarItem {
+            Button("Learn", systemImage: "graduationcap") {
+                if hasDocument { LearningLibraryStore.shared.activate(from: workspace) }
+                openWindow(id: "learning")
+                Task { await LearningLibraryStore.shared.refreshLibrary() }
+            }
+            .help("Open the learning workspace (⇧⌘L)")
         }
     }
 

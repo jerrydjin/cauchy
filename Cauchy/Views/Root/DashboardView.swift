@@ -4,6 +4,7 @@ import PDFKit
 
 struct DashboardView: View {
     @Bindable var workspace: WorkspaceViewModel
+    @Environment(\.openWindow) private var openWindow
     
     @State private var recentWorkspaces: [WorkspaceSummary] = []
     @State private var isHoveringDropZone = false
@@ -39,6 +40,9 @@ struct DashboardView: View {
                         Text("A workspace for papers and textbooks")
                             .font(.title3)
                             .foregroundStyle(.secondary)
+
+                        Button("Open learning workspace", systemImage: "graduationcap") { openWindow(id: "learning") }
+                            .buttonStyle(.glass)
                     }
                 
                     // Primary action (Drop zone & Open button)
@@ -88,6 +92,8 @@ struct DashboardView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
+                        Button("Learn", systemImage: "graduationcap") { openWindow(id: "learning") }
+                            .buttonStyle(.glass)
                         Button("Open PDF…") { workspace.openDocument() }
                             .buttonStyle(.glassProminent)
                     }

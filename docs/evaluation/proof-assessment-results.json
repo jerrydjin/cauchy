@@ -1,0 +1,184 @@
+[
+  {
+    "name": "incomplete_kernel_proof",
+    "model": "gpt-6.1-sol",
+    "effectiveGrade": "incorrect",
+    "matchedExpectation": true,
+    "assessment": {
+      "grade": "incorrect",
+      "feedback": "Containing zero alone does not imply that a set is a subspace. Your answer also assumes zero membership without proving it, repeating the proposed proof\u2019s circular opening. It does not explain the limited closure checks or provide the requested replacement proof.",
+      "nextStep": "Start by using scalar preservation to establish $T(0_V)=0_W$ without assuming $0_V\\in K$, explaining each equality.",
+      "criteria": [
+        {
+          "index": 0,
+          "outcome": "notMet",
+          "feedback": "You do not identify the circular assumption or explain why checking one vector and the scalar $2$ fails to establish universal closure."
+        },
+        {
+          "index": 1,
+          "outcome": "met",
+          "feedback": "The real vector-space and linearity hypotheses are givens, and $K\\subseteq V$ follows from the supplied kernel definition. These facts need not be restated."
+        },
+        {
+          "index": 2,
+          "outcome": "notMet",
+          "feedback": "\u201cThe kernel contains zero\u201d asserts the required membership without independently deriving $T(0_V)=0_W$ from scalar preservation."
+        },
+        {
+          "index": 3,
+          "outcome": "notMet",
+          "feedback": "There is no argument for arbitrary $u,v\\in K$, no additivity calculation, and no justification that $u+v\\in K$."
+        },
+        {
+          "index": 4,
+          "outcome": "notMet",
+          "feedback": "There is no argument for arbitrary $a\\in\\mathbb{R}$ and $v\\in K$, no scalar-preservation calculation, and no justification that $av\\in K$."
+        },
+        {
+          "index": 5,
+          "outcome": "notMet",
+          "feedback": "You conclude that $K$ is a subspace from zero membership alone; Definition 2 also requires both closure conditions."
+        }
+      ]
+    }
+  },
+  {
+    "name": "valid_linear_combination_proof",
+    "model": "gpt-6.1-sol",
+    "effectiveGrade": "correct",
+    "matchedExpectation": true,
+    "assessment": {
+      "grade": "correct",
+      "feedback": "You correctly identify the circular opening and the failure of checks on one vector and one scalar. Your arbitrary linear-combination argument establishes both closure conditions, and your zero-image calculation independently establishes zero membership. The answer key and rubric are consistent with the question; your equivalent argument satisfies them.",
+      "nextStep": "Keep making the arbitrary choices explicit, as you did here, when proving universal closure conditions.",
+      "criteria": [
+        {
+          "index": 0,
+          "outcome": "met",
+          "feedback": "You identify the assumed zero membership and explain that checking $v+v$ and $2v$ cannot establish closure for arbitrary pairs and real scalars."
+        },
+        {
+          "index": 1,
+          "outcome": "met",
+          "feedback": "You explicitly establish $K\\subseteq V$ by definition. The real vector-space and linearity hypotheses are givens, and you validly use them without needing to restate them."
+        },
+        {
+          "index": 2,
+          "outcome": "met",
+          "feedback": "Your calculation $T(0_V)=T(0z)=0T(z)=0_W$ uses scalar preservation independently of kernel membership. The conventional zero-vector identities justify the other equalities, and the kernel definition justifies zero membership."
+        },
+        {
+          "index": 3,
+          "outcome": "met",
+          "feedback": "For arbitrary $u,v\\in K$, you establish $au+bv\\in V$ and calculate its image using linearity and their zero images. Setting $a=b=1$ proves addition closure and the required membership conclusion."
+        },
+        {
+          "index": 4,
+          "outcome": "met",
+          "feedback": "Your calculation covers arbitrary real coefficients and kernel vectors. Setting $b=0$ establishes scalar closure for arbitrary $u\\in K$ and real $a$; the conventional identity $au+0v=au$ is valid implicitly."
+        },
+        {
+          "index": 5,
+          "outcome": "met",
+          "feedback": "You explicitly conclude that zero membership and both closure properties are exactly the three subspace conditions, so Definition 2 establishes that $K$ is a subspace."
+        }
+      ]
+    }
+  },
+  {
+    "name": "valid_fibre_equivalence_proof",
+    "model": "gpt-6.1-sol",
+    "effectiveGrade": "correct",
+    "matchedExpectation": true,
+    "assessment": {
+      "grade": "correct",
+      "feedback": "Your zero calculation uses scalar preservation independently of $U_b$. The forward implication derives zero membership from the subspace hypothesis, and the reverse implication verifies all three conditions with arbitrary vectors and scalars. The proof is complete.",
+      "nextStep": "No correction is needed. For additional clarity, label additivity and scalar preservation in your two closure calculations.",
+      "criteria": [
+        {
+          "index": 0,
+          "outcome": "met",
+          "feedback": "The real vector-space, linearity, and arbitrary $b\\in W$ hypotheses are givens and need not be restated. The definition of $U_b$ supplies $U_b\\subseteq V$, consistently used throughout."
+        },
+        {
+          "index": 1,
+          "outcome": "met",
+          "feedback": "You choose $z\\in V$ using the existence of zero and derive $T(0_V)=T(0z)=0T(z)=0_W$ by scalar preservation. The conventional zero-multiplication identities are unambiguous, and no fibre membership is assumed."
+        },
+        {
+          "index": 2,
+          "outcome": "met",
+          "feedback": "You obtain $0_V\\in U_b$ from the subspace hypothesis, then $T(0_V)=b$ from its definition, and compare with the independently derived zero image."
+        },
+        {
+          "index": 3,
+          "outcome": "met",
+          "feedback": "Your forward implication rules out every $b\\ne0_W$, including empty fibres. You explicitly explain that zero membership follows from the subspace hypothesis. A separate negative-case discussion is redundant."
+        },
+        {
+          "index": 4,
+          "outcome": "met",
+          "feedback": "Under $b=0_W$, you establish zero membership and take arbitrary $u,v\\in U_b$. You state $u+v\\in V$ and use additivity and their zero images to establish $u+v\\in U_b$."
+        },
+        {
+          "index": 5,
+          "outcome": "met",
+          "feedback": "For arbitrary real $a$ and $v\\in U_b$, you state $av\\in V$ and use scalar preservation and $T(v)=0_W$ to establish $av\\in U_b$. The vector-space identities are valid implicit justifications."
+        },
+        {
+          "index": 6,
+          "outcome": "met",
+          "feedback": "You explicitly conclude that all three subspace conditions hold and that both implications establish the equivalence."
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing_reverse_implication",
+    "model": "gpt-6.1-sol",
+    "effectiveGrade": "partial",
+    "matchedExpectation": true,
+    "assessment": {
+      "grade": "partial",
+      "feedback": "Your zero-preservation calculation and forward implication are valid, taking $z\\in V$. However, proving that a subspace $U_b$ forces $b=0_W$ establishes only one direction. The reverse implication is missing, so the final claim of equivalence is unsupported.",
+      "nextStep": "Assume $b=0_W$ and use your zero-preservation calculation to establish $0_V\\in U_b$.",
+      "criteria": [
+        {
+          "index": 0,
+          "outcome": "met",
+          "feedback": "The real vector-space and linearity hypotheses, arbitrary $b\\in W$, and inclusion $U_b\\subseteq V$ are supplied by the question and need not be restated."
+        },
+        {
+          "index": 1,
+          "outcome": "met",
+          "feedback": "The displayed calculation derives zero preservation from scalar preservation, with $z$ understood as a vector in $V$. The zero-vector identities justify the other equalities implicitly; no membership in $U_b$ is assumed."
+        },
+        {
+          "index": 2,
+          "outcome": "met",
+          "feedback": "You use zero membership from the subspace hypothesis, infer $T(0_V)=b$ from membership in $U_b$, and combine this with zero preservation."
+        },
+        {
+          "index": 3,
+          "outcome": "met",
+          "feedback": "Your forward argument shows that zero membership requires $b=0_W$. Its contrapositive excludes a subspace when $b\\ne0_W$, including an empty $U_b$; a separate case discussion is unnecessary."
+        },
+        {
+          "index": 4,
+          "outcome": "notMet",
+          "feedback": "You do not establish zero membership under the assumption $b=0_W$ or prove addition closure for arbitrary members of $U_b$."
+        },
+        {
+          "index": 5,
+          "outcome": "notMet",
+          "feedback": "There is no scalar-closure argument for arbitrary $a\\in\\mathbb{R}$ and $v\\in U_b$ under $b=0_W$."
+        },
+        {
+          "index": 6,
+          "outcome": "notMet",
+          "feedback": "You assert equivalence, but have not established the three subspace conditions for the reverse direction. The supplied key correctly requires both directions."
+        }
+      ]
+    }
+  }
+]

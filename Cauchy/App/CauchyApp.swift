@@ -24,9 +24,23 @@ struct CauchyApp: App {
     private static let isVisionProbe = CommandLine.arguments.contains("--probe-vision")
     private static let isMentionProbe = CommandLine.arguments.contains("--probe-mentions")
     private static let isGraphProbe = CommandLine.arguments.contains("--probe-graph")
+    private static let isLearningSourceProbe = CommandLine.arguments.contains("--probe-learning-source")
+    static let learningUIFixtureRequested = CommandLine.arguments.contains("--learning-ui-fixture")
+        || Bundle.main.object(forInfoDictionaryKey: "CauchyLearningUIFixtureRoot") != nil
+    #if DEBUG
+    static let learningUIFixture = LearningUIFixture.requestedRoot(arguments: CommandLine.arguments,
+        bundleRoot: Bundle.main.object(forInfoDictionaryKey: "CauchyLearningUIFixtureRoot") as? String)
+        .map { LearningUIFixtureController(rootPath: $0) }
+    #endif
 
     init() {
-        if let config = Self.benchmarkConfig {
+        // Fixture launches never restore a reader or prune the real caches.
+        if Self.learningUIFixtureRequested { return }
+        if Self.isLearningSourceProbe {
+            Task { @MainActor in
+                exit(await LearningSourceReconciliationProbe.run(arguments: CommandLine.arguments))
+            }
+        } else if let config = Self.benchmarkConfig {
             Task.detached {
                 let code = await ReferenceIndexBenchmark.run(config: config)
                 exit(code)
@@ -120,20 +134,64 @@ struct CauchyApp: App {
         // else. Unidentified, SwiftUI presents the first window and supplies
         // File ▸ New Window itself.
         WindowGroup {
-            if Self.benchmarkConfig != nil || Self.isRetrievalProbe || Self.isOCRProbe || Self.isVisionProbe || Self.isMentionProbe || Self.isGraphProbe {
-                ProgressView("Running document probe — see terminal output…")
-                    .padding(40)
-            } else {
-                ReaderWindow()
-            }
+            #if DEBUG
+            if let fixture = Self.learningUIFixture { LearningUIFixtureView(controller: fixture) }
+            else if Self.learningUIFixtureRequested { fixtureUnavailable }
+            else { normalWindow }
+            #else
+            if Self.learningUIFixtureRequested { fixtureUnavailable }
+            else { normalWindow }
+            #endif
         }
         .commands { ReaderCommands() }
 
-        Settings {
-            SettingsView {
-                NotificationCenter.default.post(name: .assistantPreferencesChanged, object: nil)
+        Window("Learn", id: "learning") {
+            if !Self.isHostingTests {
+                #if DEBUG
+                if let fixture = Self.learningUIFixture { LearningUIFixtureView(controller: fixture) }
+                else if Self.learningUIFixtureRequested { fixtureUnavailable }
+                else { LearningWorkspaceView(library: .shared) }
+                #else
+                if Self.learningUIFixtureRequested { fixtureUnavailable }
+                else { LearningWorkspaceView(library: .shared) }
+                #endif
             }
         }
+        .defaultSize(width: 1240, height: 840)
+        .windowToolbarStyle(.unified)
+
+        Settings {
+            #if DEBUG
+            if Self.learningUIFixtureRequested {
+                Text("The authored verification fixture uses an offline tutor. Provider settings remain in the regular app.").padding(24)
+            } else { settingsContent }
+            #else
+            if Self.learningUIFixtureRequested { fixtureUnavailable }
+            else { settingsContent }
+            #endif
+        }
+    }
+
+    @ViewBuilder private var normalWindow: some View {
+        if Self.benchmarkConfig != nil || Self.isRetrievalProbe || Self.isOCRProbe || Self.isVisionProbe || Self.isMentionProbe || Self.isGraphProbe || Self.isLearningSourceProbe {
+            ProgressView("Running document probe — see terminal output…").padding(40)
+        } else { ReaderWindow() }
+    }
+
+    private var settingsContent: some View {
+        SettingsView { NotificationCenter.default.post(name: .assistantPreferencesChanged, object: nil) }
+    }
+
+    private var fixtureUnavailable: some View {
+        Text("Learning verification fixtures require a Debug build and a valid temporary fixture directory. No normal document or library was opened.").padding(24)
+    }
+
+    static func flushPendingSaves() async throws {
+        #if DEBUG
+        if let fixture = learningUIFixture { try await fixture.flush(); return }
+        #endif
+        if learningUIFixtureRequested { return }
+        try await DocumentPersistenceService.shared.flushAll()
     }
 }
 
@@ -142,6 +200,7 @@ struct CauchyApp: App {
 /// same one.
 private struct ReaderWindow: View {
     @State private var workspace = WorkspaceViewModel()
+    @AppStorage("reader.lastWorkspace") private var lastReadingWorkspace = ""
     @Environment(\.undoManager) private var windowUndoManager
 
     /// Only the window the app launches with reopens the last document; a
@@ -170,6 +229,9 @@ private struct ReaderWindow: View {
                 }
             }
             .focusedSceneValue(\.readerWorkspace, workspace)
+            .onChange(of: workspace.workspace?.id) {
+                if let id = workspace.workspace?.id { lastReadingWorkspace = id.uuidString }
+            }
             .onChange(of: windowUndoManager, initial: true) {
                 workspace.hostUndoManager = windowUndoManager
             }
@@ -179,7 +241,7 @@ private struct ReaderWindow: View {
             .task {
                 guard !didAttemptRestore, Self.claimLaunchRestore() else { return }
                 didAttemptRestore = true
-                await workspace.restoreLastSession()
+                await workspace.restoreLastSession(preferredWorkspaceID: UUID(uuidString: lastReadingWorkspace))
             }
     }
 
@@ -200,7 +262,7 @@ final class SaveLifecycleDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .commitReadingEdits, object: nil)
         Task {
             do {
-                try await DocumentPersistenceService.shared.flushAll()
+                try await CauchyApp.flushPendingSaves()
                 sender.reply(toApplicationShouldTerminate: true)
             } catch {
                 let alert = NSAlert()

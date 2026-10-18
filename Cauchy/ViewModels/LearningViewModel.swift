@@ -1,0 +1,426 @@
+import Foundation
+import Observation
+
+@MainActor
+@Observable
+final class LearningViewModel {
+    private(set) var sessions: [LearningSession] = []
+    private(set) var selectedSessionID: UUID?
+    enum Operation {
+        case lesson, assessment, exitQuestion, chapter
+
+        var label: String {
+            switch self {
+            case .lesson: "Preparing your lesson…"
+            case .chapter: "Connecting the chapter ideas…"
+            case .assessment: "Checking your reasoning…"
+            case .exitQuestion: "Preparing a fresh exit check…"
+            }
+        }
+    }
+    private(set) var operation: Operation?
+    var isBusy: Bool { operation != nil }
+    var errorMessage: String?
+
+    @ObservationIgnored var onChange: (([LearningSession]) -> Void)?
+    @ObservationIgnored var chapterRequestIsCurrent: ((LearningChapterRequest) -> Bool)?
+    @ObservationIgnored var sourceIsCurrent: ((LearningSource) -> Bool)?
+    @ObservationIgnored private let makeTutor: () -> any LearningTutorProtocol
+    @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var operationID: UUID?
+
+    init(makeTutor: @escaping () -> any LearningTutorProtocol = { LearningTutorService() }) {
+        self.makeTutor = makeTutor
+        self.now = Date.init
+    }
+
+    init(now: @escaping () -> Date, makeTutor: @escaping () -> any LearningTutorProtocol) {
+        self.makeTutor = makeTutor
+        self.now = now
+    }
+
+    var session: LearningSession? { sessions.first { $0.id == selectedSessionID } }
+
+    var answerDraft: String {
+        get { session?.answerDraft ?? "" }
+        set {
+            guard !isBusy, session?.feedback == nil, session?.chapter?.rescueVisible != true else { return }
+            update { $0.answerDraft = String(newValue.prefix(12_000)) }
+        }
+    }
+
+    var rescueDraft: String {
+        get { session?.chapter?.rescueDraft ?? "" }
+        set {
+            guard !isBusy, session?.chapter?.rescueVisible == true, session?.chapter?.rescueFeedback == nil else { return }
+            update { $0.chapter?.rescueDraft = String(newValue.prefix(12_000)) }
+        }
+    }
+
+    var outsideHelpUsed: Bool {
+        get { session?.outsideHelpUsed == true }
+        set {
+            guard !isBusy, session?.phase == .exitCheck, session?.feedback == nil else { return }
+            update {
+                $0.outsideHelpUsed = newValue
+                if newValue { $0.delayedReview?.helpUsed = true }
+            }
+        }
+    }
+
+    func restore(_ sessions: [LearningSession]) {
+        cancel()
+        self.sessions = sessions
+        selectedSessionID = nil
+        errorMessage = nil
+    }
+
+    func select(_ id: UUID) {
+        guard !isBusy, let saved = sessions.first(where: { $0.id == id }) else { return }
+        selectedSessionID = id
+        errorMessage = nil
+        if sourceIsCurrent?(saved.source) == false { errorMessage = LearningError.sourceChanged.localizedDescription }
+    }
+
+    func revalidateSelectedSource() {
+        guard let source = session?.source else { return }
+        if sourceIsCurrent?(source) == false {
+            errorMessage = "The source has a newer transcription. Your saved lesson, answers and citations are retained for inspection. Review the current source before new teaching or assessment."
+        }
+    }
+
+    func showSections() {
+        cancel()
+        selectedSessionID = nil
+        errorMessage = nil
+    }
+
+    func start(source: LearningSource, target: LearningStudyTarget? = nil) {
+        guard !isBusy, check(source) else { return }
+        perform(.lesson) { tutor in
+            var lesson: LearningLesson
+            if let target { lesson = try await tutor.makeLesson(source: source, target: target) }
+            else { lesson = try await tutor.makeLesson(source: source) }
+            if let target {
+                lesson.diagnostic.kind = target.kind
+                lesson.practice.kind = target.kind
+                lesson.exitCheck.kind = target.kind
+            }
+            try LearningTutorService.validate(lesson, source: source, target: target)
+            return lesson
+        } apply: { [weak self] lesson, tutor in
+            guard let self else { return }
+            var session = LearningSession(source: source, lesson: lesson, providerID: tutor.providerID, modelID: tutor.modelID)
+            session.studyTarget = target
+            self.sessions.insert(session, at: 0)
+            self.selectedSessionID = session.id
+            self.save()
+        }
+    }
+
+    func startDelayedReview(_ recommendation: LearningReviewRecommendation) {
+        guard !isBusy else { return }
+        if let active = recommendation.activeSessionID { select(active); return }
+        let previous = recommendation.previous
+        let target = recommendation.target
+        let startedAt = now()
+        guard recommendation.dueAt <= startedAt, !recommendation.unit.needsSourceReview,
+              previous.studyTarget?.id == target.id, previous.chapter == nil,
+              check(previous.source), previous.source.contains(quote: previous.lesson.sourceQuote) else { return }
+        let seen = sessions.filter { $0.studyTarget?.id == target.id }.flatMap { session in
+            [session.lesson.diagnostic.prompt, session.lesson.practice.prompt, session.lesson.exitCheck.prompt]
+                + session.attempts.map(\.question.prompt)
+        }
+        perform(.exitQuestion) { tutor in
+            var question = try await tutor.newExitQuestion(lesson: previous.lesson, source: previous.source, previous: seen)
+            question.kind = target.kind
+            try LearningTutorService.validate(question)
+            guard question.hints.isEmpty,
+                  !seen.contains(where: { LearningSource.normalized($0) == LearningSource.normalized(question.prompt) }) else {
+                throw LearningError.repeatedQuestion
+            }
+            return question
+        } apply: { [weak self] question, tutor in
+            guard let self, check(previous.source) else { return }
+            var lesson = previous.lesson
+            lesson.exitCheck = question
+            var review = LearningSession(source: previous.source, lesson: lesson, providerID: tutor.providerID, modelID: tutor.modelID,
+                                         createdAt: startedAt, updatedAt: startedAt)
+            review.studyTarget = target
+            review.phase = .exitCheck
+            review.delayedReview = .init(previousSessionID: previous.id, scheduledFor: recommendation.dueAt,
+                                        startedAt: startedAt, round: (previous.delayedReview?.round ?? 0) + 1)
+            sessions.insert(review, at: 0)
+            selectedSessionID = review.id
+            save()
+        }
+    }
+
+    func startChapter(request: LearningChapterRequest, source: LearningSource) {
+        guard !isBusy, check(source) else { return }
+        if let saved = sessions.first(where: { $0.chapter?.request.moduleID == request.moduleID }) {
+            select(saved.id)
+            return
+        }
+        do { try LearningTutorService.validateChapterRequest(request, source: source) }
+        catch { errorMessage = error.localizedDescription; return }
+        perform(.chapter) { tutor in
+            let challenge = try await tutor.makeChapterChallenge(request: request, source: source, previous: [])
+            try LearningTutorService.validate(challenge, request: request, source: source)
+            return challenge
+        } apply: { [weak self] challenge, tutor in
+            guard let self else { return }
+            // Reuse the persisted session envelope; this is not a local lesson
+            // and deliberately has no studyTarget, so no topic earns credit.
+            var session = LearningSession(source: source, lesson: challenge.sessionEnvelope, phase: .exitCheck,
+                providerID: tutor.providerID, modelID: tutor.modelID)
+            session.chapter = .init(request: request, challenge: challenge)
+            self.sessions.insert(session, at: 0)
+            self.selectedSessionID = session.id
+            self.save()
+        }
+    }
+
+    func openPrerequisiteRescue() {
+        guard !isBusy, let session, session.chapter != nil, session.phase == .exitCheck,
+              session.feedback == nil, check(session.source) else { return }
+        update {
+            $0.chapter?.assistanceUsed = true
+            $0.chapter?.rescueVisible = true
+        }
+    }
+
+    func returnToChapter() {
+        guard session?.chapter?.rescueVisible == true else { return }
+        cancel()
+        update { $0.chapter?.rescueVisible = false }
+    }
+
+    func setChapterScrollOffset(_ offset: Double) {
+        guard offset.isFinite, offset >= 0, session?.chapter != nil, session?.chapter?.rescueVisible == false else { return }
+        update { $0.chapter?.scrollOffset = offset }
+    }
+
+    func setChapterPosition(_ position: String) {
+        guard ["argument", "reasoning"].contains(position), session?.chapter != nil else { return }
+        update { $0.chapter?.position = position }
+    }
+
+    func freshChapterCheck() {
+        guard !isBusy, let session, let chapter = session.chapter, session.phase == .complete,
+              check(session.source) else { return }
+        guard chapterRequestIsCurrent?(chapter.request) != false else {
+            errorMessage = "The selected ideas now have open source obligations. Review the source before preparing a fresh challenge. Your saved argument is still here."
+            return
+        }
+        let previous = session.attempts.map { $0.question.prompt } + [chapter.challenge.question.prompt]
+        perform(.chapter) { tutor in
+            let challenge = try await tutor.makeChapterChallenge(request: chapter.request, source: session.source, previous: previous)
+            try LearningTutorService.validate(challenge, request: chapter.request, source: session.source, previous: previous)
+            return challenge
+        } apply: { [weak self] challenge, _ in
+            self?.update {
+                $0.lesson = challenge.sessionEnvelope
+                $0.chapter?.challenge = challenge
+                $0.chapter?.assistanceUsed = false
+                $0.chapter?.rescueVisible = false
+                $0.chapter?.rescueDraft = ""
+                $0.chapter?.rescueFeedback = nil
+                $0.chapter?.position = "argument"
+                $0.chapter?.scrollOffset = nil
+                $0.move(to: .exitCheck)
+            }
+        }
+    }
+
+    private func submitRescueCheck() {
+        guard !isBusy, let session, let chapter = session.chapter, chapter.rescueVisible,
+              chapter.rescueFeedback == nil, check(session.source) else { return }
+        let answer = chapter.rescueDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !answer.isEmpty else { return }
+        let question = chapter.challenge.refresher.check
+        perform(.assessment) { tutor in
+            try LearningTutorService.checkedAssessment(
+                await tutor.assess(question: question, answer: answer, source: session.source), question: question)
+        } apply: { [weak self] assessment, tutor in
+            self?.update {
+                $0.chapter?.rescueAttempts.append(.init(phase: .practice, question: question, answer: answer,
+                    assessment: assessment, assistanceUsed: true, providerID: tutor.providerID, modelID: tutor.modelID))
+                $0.chapter?.rescueFeedback = assessment
+            }
+        }
+    }
+
+    func submitAnswer() {
+        if session?.chapter?.rescueVisible == true { submitRescueCheck(); return }
+        guard !isBusy, let session, session.feedback == nil, let question = session.question,
+              check(session.source) else { return }
+        let answer = session.answerDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !answer.isEmpty else { return }
+        perform(.assessment) { tutor in
+            let assessment = try await tutor.assess(question: question, answer: answer, source: session.source)
+            return try LearningTutorService.checkedAssessment(assessment, question: question)
+        } apply: { [weak self] assessment, tutor in
+            self?.update { current in
+                var attempt = LearningAttempt(
+                    phase: session.phase, question: question, answer: answer, assessment: assessment,
+                    assistanceUsed: session.assistanceUsed,
+                    providerID: tutor.providerID, modelID: tutor.modelID
+                )
+                attempt.createdAt = self?.now() ?? Date()
+                current.attempts.append(attempt)
+                if session.phase == .exitCheck, session.studyTarget != nil, session.chapter == nil,
+                   attempt.hasIndependentCorrectResult || session.delayedReview != nil {
+                    let delay: TimeInterval = attempt.hasIndependentCorrectResult && session.delayedReview != nil ? 3 * 86_400 : 86_400
+                    current.reviewDueAt = attempt.createdAt.addingTimeInterval(delay)
+                }
+                current.feedback = assessment
+            }
+        }
+    }
+
+    func revealHint() {
+        guard !isBusy, let session, session.phase == .practice, session.feedback == nil,
+              let question = session.question, session.hintsRevealed < question.hints.count else { return }
+        update { $0.hintsRevealed += 1; $0.delayedReview?.helpUsed = true }
+    }
+
+    func revealSolution() {
+        guard !isBusy, session?.phase == .practice, session?.feedback != nil else { return }
+        update { $0.solutionRevealed = true; $0.delayedReview?.helpUsed = true }
+    }
+
+    func openedSource() {
+        guard !isBusy, session?.question != nil else { return }
+        update { $0.sourceOpened = true; $0.delayedReview?.helpUsed = true }
+    }
+
+    func tryAgain() {
+        guard !isBusy, session?.phase == .practice else { return }
+        update { $0.feedback = nil }
+    }
+
+    func studyInstead() {
+        guard !isBusy, let session, session.phase == .diagnostic,
+              session.feedback == nil, check(session.source) else { return }
+        update { $0.move(to: .lesson); $0.delayedReview?.helpUsed = true }
+    }
+
+    func reviewIdea() {
+        guard !isBusy, let session, session.phase == .practice,
+              check(session.source) else { return }
+        update { $0.move(to: .lesson); $0.delayedReview?.helpUsed = true }
+    }
+
+    func selectLessonPart(_ index: Int) {
+        guard !isBusy, let session, session.phase == .lesson,
+              session.lesson.parts.indices.contains(index) else { return }
+        update { $0.lessonPartIndex = index }
+    }
+
+    func continueLesson() {
+        guard !isBusy, let session, session.phase == .lesson else { return }
+        let next = session.currentLessonPartIndex + 1
+        if session.lesson.parts.indices.contains(next) { selectLessonPart(next) }
+        else { advance() }
+    }
+
+    func advance() {
+        guard !isBusy, let session, check(session.source) else { return }
+        switch session.phase {
+        case .diagnostic:
+            guard let feedback = session.feedback else { return }
+            if feedback.grade == .correct {
+                update { $0.move(to: .exitCheck) }
+            } else {
+                update { $0.move(to: .lesson) }
+            }
+        case .lesson:
+            update { $0.move(to: .practice) }
+        case .practice:
+            // Feedback alone is not evidence of readiness for an independent check.
+            guard session.feedback?.grade == .correct else { return }
+            if session.latestExitAttempt == nil {
+                update { $0.move(to: .exitCheck) }
+            } else {
+                // A failed exit item has been seen. A subsequent check needs a
+                // fresh question; repeating the same item is practice evidence.
+                let previous = [session.lesson.diagnostic.prompt, session.lesson.practice.prompt]
+                    + session.attempts.filter { $0.phase == .exitCheck }.map { $0.question.prompt }
+                perform(.exitQuestion) { tutor in
+                    try await tutor.newExitQuestion(lesson: session.lesson, source: session.source, previous: previous)
+                } apply: { [weak self] question, _ in
+                    self?.update {
+                        $0.lesson.exitCheck = question
+                        $0.move(to: .exitCheck)
+                    }
+                }
+            }
+        case .exitCheck:
+            guard session.feedback != nil else { return }
+            update { $0.move(to: .complete) }
+        case .complete: break
+        }
+    }
+
+    func practiseAgain() {
+        guard !isBusy, let session, session.chapter == nil, session.phase == .complete, check(session.source) else { return }
+        update { $0.move(to: .lesson); $0.delayedReview?.helpUsed = true }
+    }
+
+    func cancel() {
+        operationID = nil
+        task?.cancel()
+        task = nil
+        operation = nil
+    }
+
+    func waitForOperation() async { await task?.value }
+
+    private func check(_ source: LearningSource) -> Bool {
+        guard sourceIsCurrent?(source) != false else {
+            errorMessage = LearningError.sourceChanged.localizedDescription
+            return false
+        }
+        return true
+    }
+
+    private func update(_ change: (inout LearningSession) -> Void) {
+        guard let index = sessions.firstIndex(where: { $0.id == selectedSessionID }) else { return }
+        change(&sessions[index])
+        sessions[index].updatedAt = now()
+        save()
+    }
+
+    private func save() { onChange?(sessions) }
+
+    private func perform<Result>(
+        _ kind: Operation,
+        _ operation: @escaping @MainActor (any LearningTutorProtocol) async throws -> Result,
+        apply: @escaping @MainActor (Result, any LearningTutorProtocol) -> Void
+    ) {
+        guard !isBusy else { return }
+        errorMessage = nil
+        self.operation = kind
+        let id = UUID()
+        operationID = id
+        task = Task { [weak self] in
+            guard let self else { return }
+            let tutor = self.makeTutor()
+            do {
+                let result = try await operation(tutor)
+                try Task.checkCancellation()
+                guard self.operationID == id else { return }
+                apply(result, tutor)
+            } catch {
+                guard self.operationID == id else { return }
+                if !(error is CancellationError) { self.errorMessage = error.localizedDescription }
+            }
+            guard self.operationID == id else { return }
+            self.operation = nil
+            self.operationID = nil
+            self.task = nil
+        }
+    }
+}

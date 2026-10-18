@@ -77,7 +77,8 @@ final class WorkspaceViewModel: Equatable {
 
     var undoManager: UndoManager { hostUndoManager ?? fallbackUndoManager }
 
-    let persistence = DocumentPersistenceService.shared
+    let persistence: DocumentPersistenceService
+    private let learningLibrary: LearningLibraryStore
     private var securityScopedURL: URL?
     private var referenceIndexTask: Task<Void, Never>?
     private var referenceRebuildID: UUID?
@@ -93,7 +94,9 @@ final class WorkspaceViewModel: Equatable {
     /// the background.
     private var titleBackfillTask: Task<Void, Never>?
 
-    init() {
+    init(persistence: DocumentPersistenceService = .shared, learningLibrary: LearningLibraryStore = .shared) {
+        self.persistence = persistence
+        self.learningLibrary = learningLibrary
         find.currentPageProvider = { [weak self] in
             self?.viewportCoordinator.viewport.pageIndex ?? 0
         }
@@ -914,6 +917,7 @@ final class WorkspaceViewModel: Equatable {
         guard var ws = workspace else { return }
         ws.primaryViewport = viewportCoordinator.viewport
         highlightStore.exportToWorkspace(&ws)
+        learningLibrary.synchronize(&ws, bookmarkData: bookmarkData)
         workspace = ws
         persistence.scheduleSave(ws, bookmarkData: bookmarkData) { [weak self] error in
             Task { @MainActor in

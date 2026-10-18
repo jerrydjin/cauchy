@@ -298,8 +298,137 @@ def _score_paper(record: dict) -> dict:
         "print_agreement": declaration_print_agreement(truth, extracted["pages"]),
         "sections": [{"number": section.number, "title": section.title, "level": section.level} for section in truth.sections],
         "model_input": cost,
+        "author_year": _author_year_counts(extracted["pages"]),
         "profiles": profiles,
     }
+
+
+def _author_year_counts(pages: list[dict]) -> dict:
+    """Raw PDF text, not the emission counter.
+
+    Parenthetical (Smith 2019) and Smith et al. [2019] are one shape.
+    [IK99] and [CF25, Lemma 3.2.2] are the shape this corpus actually prints.
+    """
+    text = "\n".join(page["text"] for page in pages)
+    parenthetical = len(re.findall(
+        r"\(([A-Z][A-Za-z'’\-]+)(?:\s+et\s+al\.?)?\s+((?:19|20)\d{2})\)",
+        text,
+    ))
+    smith_bracket = len(re.findall(
+        r"([A-Z][A-Za-z'’\-]+)(?:\s+et\s+al\.?)?\s*\[((?:19|20)\d{2})\]",
+        text,
+    ))
+    keys = re.findall(
+        r"\[([A-Z][A-Za-z]*(?:\+[A-Za-z]*)?\d{2,4}[a-z]?)(?:\s*,\s*([^\]\n]{0,80}))?\]",
+        text,
+    )
+    qualified = sum(
+        1 for _key, qualifier in keys
+        if qualifier and re.search(
+            r"(?i)\b(?:theorem|lemma|proposition|corollary|definition|remark|example|equation|eq\.)\b",
+            qualifier,
+        )
+    )
+    return {
+        "parenthetical": parenthetical,
+        "smith_bracket": smith_bracket,
+        "author_keys": len(keys),
+        "qualified_keys": qualified,
+    }
+
+
+_GATE_ORDER = (
+    ("references", "fewer than 8 in-scope references"),
+    ("resolution", "resolution under 90%"),
+    ("wrong_link", "wrong link"),
+    ("citation", "citation emitted as a local reference"),
+    ("false_declaration", "indexed statement absent from the HTML"),
+    ("section", "section question missed the heading page"),
+)
+
+
+def _gates(card: dict) -> list[str]:
+    failed = []
+    if card["denominator"] < 8:
+        failed.append("references")
+    if card["resolution_rate"] < 0.90:
+        failed.append("resolution")
+    if card["wrong_links"]:
+        failed.append("wrong_link")
+    if card["citation_detections"]:
+        failed.append("citation")
+    if card["false_declaration_count"]:
+        failed.append("false_declaration")
+    if not card["section_questions"]["ok"]:
+        failed.append("section")
+    return failed
+
+
+def _first_fail_lines(random_rows: list[dict]) -> list[str]:
+    failing = [row for row in random_rows if not row["profiles"]["main"]["passes"]]
+    first: dict[str, list[str]] = {key: [] for key, _label in _GATE_ORDER}
+    blocked: dict[str, list[str]] = {key: [] for key, _label in _GATE_ORDER}
+    for row in failing:
+        gates = _gates(row["profiles"]["main"])
+        if not gates:
+            continue
+        first[gates[0]].append(row["id"])
+        for gate in gates:
+            blocked[gate].append(row["id"])
+    lines = [
+        "## What the failing papers hit first",
+        "",
+        f"{len(failing)} of {len(random_rows)} random papers fail on main. "
+        "The first check is the earliest gate in the pass rule: enough references, "
+        "then 90% resolution, wrong links, citation emissions, false declarations, "
+        "and section questions. A later gate can still fail the same paper; "
+        "the blocking count is every paper that fails that check.",
+        "",
+        "| First failing check | Papers | Blocking count |",
+        "|---|---:|---:|",
+    ]
+    for key, label in _GATE_ORDER:
+        ids = first[key]
+        if not ids and not blocked[key]:
+            continue
+        lines.append(f"| {label} | {len(ids)} | {len(blocked[key])} |")
+    lines.extend(["", "Papers by the first check they fail:", ""])
+    for key, label in _GATE_ORDER:
+        ids = first[key]
+        if not ids:
+            continue
+        lines.append(f"- **{label}** ({len(ids)}): {', '.join(ids)}")
+    lines.append("")
+    return lines
+
+
+def _author_year_lines(random_rows: list[dict]) -> list[str]:
+    counted = [row for row in random_rows if row.get("author_year")]
+    if not counted:
+        return []
+    parenthetical = sum(row["author_year"]["parenthetical"] for row in counted)
+    smith = sum(row["author_year"]["smith_bracket"] for row in counted)
+    keys = sum(row["author_year"]["author_keys"] for row in counted)
+    qualified = sum(row["author_year"]["qualified_keys"] for row in counted)
+    papers_with_keys = [row["id"] for row in counted if row["author_year"]["author_keys"]]
+    main_emitted = sum(row["profiles"]["main"]["citation_detections"] for row in counted)
+    hover_emitted = sum(row["profiles"]["hover"]["citation_detections"] for row in counted)
+    return [
+        "## Author–year citations in the PDF text",
+        "",
+        f"Across the {len(counted)} random papers, the text layer contains "
+        f"{parenthetical} parenthetical citations of the form (Smith 2019) and "
+        f"{smith} of the form Smith et al. [2019]. "
+        f"It contains {keys} alphanumeric keys such as [IK99], "
+        f"{qualified} of them qualified with a theorem, lemma, or equation, "
+        f"on {len(papers_with_keys)} papers"
+        f"{': ' + ', '.join(papers_with_keys) if papers_with_keys else ''}. "
+        f"Main emits {main_emitted} of those spans as local references; "
+        f"the hover profile, which still only suppresses numeric brackets, emits {hover_emitted}. "
+        "A count of 0 on main is the suppression firing. The HTML citation-style label "
+        "does not say author–year, because the HTML cite element often omits the key the PDF prints.",
+        "",
+    ]
 
 
 def _fmt_rate(card: dict) -> str:
@@ -485,6 +614,11 @@ def _write_markdown(payload: dict) -> None:
         f"{sum(_reference_only(row['profiles']['hover']) for row in random_rows)} of {len(random_rows)} pass on the hover branch. "
         "The headline above keeps the section question.",
         "",
+        "A bracket that the detector does not open is not a wrong link. "
+        "The heading page for a section question is the PDF outline entry whose title matches the HTML heading, "
+        "or else a title-shaped line. A numbered sentence is not that heading. "
+        "An outline bookmark that reads “Introduction” rather than “1. Introduction” is still section 1 when it is the first section bookmark.",
+        "",
         (
             f"Shared counters, such as a theorem followed by a lemma with the next number, "
             f"appear on {sum(1 for row in random_rows if row['shared_counters'])} of {len(random_rows)} papers. "
@@ -495,6 +629,8 @@ def _write_markdown(payload: dict) -> None:
         "",
         _search_blurb(random_rows),
         "",
+        *_first_fail_lines(random_rows),
+        *_author_year_lines(random_rows),
         "## Random papers",
         "",
         "| arXiv | cat | pages | class | main | hover | chat | both | index s | model toks |",

@@ -685,16 +685,28 @@ def _is_title_line(line: str) -> bool:
     return True
 
 
+def _title_text_follows(line: str, number: str) -> bool:
+    """A heading continues with a capitalised word.
+
+    "1. Introduction" and "4. Clique-sum" do. "1 + z", "4 =", and "4 be the" do not.
+    """
+    rest = re.sub(rf"^\s*(?:§\s*)?{re.escape(number)}\.?\s*", "", line.strip(), count=1)
+    return bool(re.match(r"[A-Z]", rest))
+
+
 def _matches_heading_line(line: str) -> bool:
-    if _number_in(line, _CHAPTER_TITLE) or _number_in(line, _PART_TITLE) or _number_in(line, _SECTION_TITLE):
-        return True
+    # "Section 4 constructs the metric." is a sentence. The keyword alone
+    # does not make it a heading; the line still has to be title-shaped.
     if not _is_title_line(line) or line.lower().startswith("part"):
         return False
-    if _leading_number(line, dotted=True) is not None:
+    if _number_in(line, _CHAPTER_TITLE) or _number_in(line, _PART_TITLE) or _number_in(line, _SECTION_TITLE):
         return True
+    dotted = _leading_number(line, dotted=True)
+    if dotted is not None:
+        return _title_text_follows(line, dotted)
     arabic = _leading_number(line, dotted=False)
     if arabic is not None and arabic.isdigit() and 1 <= int(arabic) <= 40:
-        return True
+        return _title_text_follows(line, arabic)
     return _leading_roman(line) is not None
 
 
@@ -721,6 +733,21 @@ def _display_label(title: str, kind: str | None = None) -> str | None:
     return cleaned
 
 
+_NON_SECTION_TITLE = re.compile(
+    r"(?i)^\s*(?:abstract|references|bibliography|acknowledgements?|acknowledgments?|"
+    r"contents|table of contents|index|notation)\s*\.?\s*$"
+)
+_STRUCTURAL_LABEL = re.compile(r"(?i)^\s*(?:chapter|chap\.?|ch\.?|part)\b")
+
+
+def _explicit_section_number(title: str) -> str | None:
+    return (
+        _number_in(title, _SECTION_TITLE)
+        or _leading_number(title, dotted=True)
+        or _leading_number(title, dotted=False)
+    )
+
+
 def _flatten(nodes: list[OutlineNode], depth: int = 0) -> list[tuple[str, int, int]]:
     result: list[tuple[str, int, int]] = []
     for node in nodes:
@@ -728,6 +755,49 @@ def _flatten(nodes: list[OutlineNode], depth: int = 0) -> list[tuple[str, int, i
             result.append((node.title, node.page_index, depth))
         result.extend(_flatten(node.children, depth + 1))
     return result
+
+
+def _numbered_outline(
+    nodes: list[OutlineNode],
+    prefix: str | None = None,
+    depth: int = 0,
+) -> list[tuple[str, str, int, int]]:
+    """Outline entries with a section number.
+
+    Bookmarks often read "Introduction" rather than "1. Introduction".
+    Those titles are numbered in sibling order, skipping the bibliography
+    and chapter labels. A title that already prints its number keeps it.
+    """
+    entries: list[tuple[str, str, int, int]] = []
+    prepared = []
+    for node in nodes:
+        title = node.title.strip()
+        explicit = _explicit_section_number(title) if title else None
+        prepared.append((node, title, explicit))
+    # "Introduction" beside "1. Preliminaries" is front matter. Invent a
+    # number only when none of the siblings already print one.
+    any_explicit = any(explicit for _node, _title, explicit in prepared)
+    counter = 0
+    for node, title, explicit in prepared:
+        if node.page_index < 0 or not title:
+            entries.extend(_numbered_outline(node.children, prefix, depth + 1))
+            continue
+        if explicit is None and (
+            any_explicit or _NON_SECTION_TITLE.match(title) or _STRUCTURAL_LABEL.match(title)
+        ):
+            entries.extend(_numbered_outline(node.children, prefix, depth + 1))
+            continue
+        if explicit is None:
+            counter += 1
+            number = str(counter) if prefix is None else f"{prefix}.{counter}"
+        else:
+            number = explicit
+            tail = explicit.split(".")[-1]
+            if tail.isdigit():
+                counter = max(counter, int(tail))
+        entries.append((title, number, node.page_index, depth))
+        entries.extend(_numbered_outline(node.children, number, depth + 1))
+    return entries
 
 
 def _make_span(
@@ -764,8 +834,16 @@ def _detected_headings(structure: Structure) -> list[Heading]:
 
 
 def _span_from_outline(structure: Structure, query: StructuralQuery) -> DocumentSpan | None:
-    flat = _flatten(structure.outline)
-    matches = [item for item in flat if _matches_title(item[0], query)]
+    flat_for_end = _flatten(structure.outline)
+    if query.kind == "section":
+        numbered = _numbered_outline(structure.outline)
+        matches = [
+            (title, page, depth)
+            for title, number, page, depth in numbered
+            if number == query.canonical or _matches_title(title, query)
+        ]
+    else:
+        matches = [item for item in flat_for_end if _matches_title(item[0], query)]
     if not matches:
         return None
 
@@ -776,13 +854,13 @@ def _span_from_outline(structure: Structure, query: StructuralQuery) -> Document
 
     title, page, depth = min(matches, key=sort_key)
     end = structure.page_count
-    for other_title, other_page, other_depth in flat:
+    for other_title, other_page, other_depth in flat_for_end:
         if other_depth <= depth and other_page > page:
             end = other_page
             break
     headings = [
         Heading(other_title, other_page, _display_label(other_title) or other_title)
-        for other_title, other_page, other_depth in flat
+        for other_title, other_page, other_depth in flat_for_end
         if other_depth > depth and page <= other_page < max(end, page + 1)
     ]
     return _make_span(title, query.kind, page, end, structure.page_count, headings)

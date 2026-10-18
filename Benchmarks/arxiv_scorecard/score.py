@@ -26,9 +26,11 @@ import time
 from collections import defaultdict
 
 from cauchy_logic import (
+    OutlineNode,
     PageSnapshot,
     StatementIndex,
     Structure,
+    _matches_heading_line,
     all_references,
     build_statement_index,
     is_likely_table_of_contents,
@@ -102,7 +104,57 @@ def _inside(spans: list[tuple[int, int]], start: int, end: int) -> bool:
     return any(span_start <= start and end <= span_end for span_start, span_end in spans)
 
 
-def _true_section_page(pages: list[dict], number: str, title: str) -> int | None:
+def _norm_title(title: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+    # "3.3. Steinberg splitting" and "Steinberg splitting" name the same heading.
+    cleaned = re.sub(r"^(?:(?:section|sec)\s+)?(?:\d+\s+)+", "", cleaned)
+    return cleaned.strip()
+
+
+def _titles_agree(wanted: str, got: str) -> bool:
+    if not wanted or not got:
+        return False
+    if wanted == got:
+        return True
+    # A shortened bookmark still names the same heading. Short titles such
+    # as "Introduction" only match exactly, so a later "Introduction to X"
+    # does not steal them.
+    if len(wanted) < 18 or len(got) < 18:
+        return False
+    return got.startswith(wanted + " ") or wanted.startswith(got + " ")
+
+
+def _outline_title_page(outline: list[OutlineNode], title: str) -> int | None:
+    wanted = _norm_title(title)
+    found: list[tuple[int, int, int]] = []
+
+    def walk(nodes: list[OutlineNode], depth: int = 0) -> None:
+        for node in nodes:
+            got = _norm_title(node.title)
+            if node.page_index >= 0 and _titles_agree(wanted, got):
+                found.append((abs(len(got) - len(wanted)), depth, node.page_index))
+            walk(node.children, depth + 1)
+
+    walk(outline)
+    if not found:
+        return None
+    found.sort()
+    return found[0][2]
+
+
+def _true_section_page(
+    pages: list[dict],
+    number: str,
+    title: str,
+    outline: list[OutlineNode] | None = None,
+) -> int | None:
+    # The bookmark title is the author's own heading. A numbered sentence
+    # on an earlier page ("3. Numerical experiments ... GPU-Preprocessor")
+    # is not that heading.
+    if outline:
+        bookmarked = _outline_title_page(outline, title)
+        if bookmarked is not None:
+            return bookmarked
     words = re.findall(r"[A-Za-z]{4,}", title)[:3]
     number_pattern = re.compile(
         rf"(?i)^\s*(?:§\s*|section\s+|appendix\s+)?{re.escape(number)}(?:\.(?!\d))?(?!\d)"
@@ -112,6 +164,8 @@ def _true_section_page(pages: list[dict], number: str, title: str) -> int | None
             continue
         for raw in page["text"].split("\n"):
             line = raw.strip()
+            if not _matches_heading_line(line):
+                continue
             if not number_pattern.search(line):
                 continue
             lowered = line.lower()
@@ -138,7 +192,8 @@ def _section_questions(truth: PaperTruth, pages: list[dict], structure: Structur
         if section.number in seen:
             continue
         seen.add(section.number)
-        truth_page = _true_section_page(pages, section.number, section.title)
+        outline = None if structure is None else structure.outline
+        truth_page = _true_section_page(pages, section.number, section.title, outline)
         question = f"what is section {section.number} about"
         query = structural_query(question)
         found = None if structure is None or query is None else locate(query, structure)
@@ -218,7 +273,8 @@ def score_profile(
         if number in section_cache:
             continue
         title = next((section.title for section in truth.sections if section.number == number), "")
-        truth_page = _true_section_page(pages, number, title)
+        outline = None if structure is None else structure.outline
+        truth_page = _true_section_page(pages, number, title, outline)
         query = None if structure is None else structural_query(f"what is section {number} about")
         found = None if query is None else locate(query, structure)
         section_cache[number] = truth_page is not None and found is not None and found.start_page == truth_page
@@ -228,8 +284,24 @@ def score_profile(
         extraction_misses += max(0, html_count - len(hits))
         for page_index, start, end, surface in hits:
             if _inside(cites.get(page_index, []), start, end):
-                wrong += 1
-                _add(examples["wrong"], f"p.{page_index + 1} {surface!r} sits inside a citation")
+                # The printed span is a citation. It is a wrong link only when
+                # the detector would open an indexed statement there. A
+                # suppressed citation is not a local reference, so it is not
+                # counted as resolved or missed either.
+                covering = [
+                    match for match in matches.get(page_index, [])
+                    if match.start < end and match.end > start
+                ]
+                opened = next(
+                    (match for match in covering if index.lookup(match.kind, match.number) is not None),
+                    None,
+                )
+                if opened is not None:
+                    wrong += 1
+                    _add(
+                        examples["wrong"],
+                        f"p.{page_index + 1} {surface!r} opened {opened.kind} {opened.number} from a citation",
+                    )
                 continue
             if kind == "section":
                 if section_cache.get(number) is True:

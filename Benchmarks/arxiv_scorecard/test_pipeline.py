@@ -325,6 +325,91 @@ class StructureTests(unittest.TestCase):
         missing = locate(structural_query("what is chapter 9 about"), _textbook())
         self.assertIsNone(missing)
 
+    def test_math_line_and_prose_are_not_section_headings(self) -> None:
+        structure = Structure(
+            outline=[],
+            pages=[
+                PageSnapshot(3, "1 + z7 holds in characteristic 7. Hence the relation is strict."),
+                PageSnapshot(4, "Section 4 constructs the approximate metric and solves the nonlinear equation."),
+                PageSnapshot(8, "1. Introduction\nThe algebra is introduced here and used below."),
+                PageSnapshot(11, "4. Approximate solutions\nThe metric is built in this section."),
+            ],
+            page_count=20,
+        )
+        section1 = locate(structural_query("what is section 1 about"), structure)
+        self.assertEqual(section1.start_page, 8)
+        section4 = locate(structural_query("what is section 4 about"), structure)
+        self.assertEqual(section4.start_page, 11)
+
+        clique = Structure(
+            outline=[],
+            pages=[
+                PageSnapshot(4, "4 be the\n4 ="),
+                PageSnapshot(10, "4. Clique-sum\nThe sum is defined here."),
+            ],
+            page_count=20,
+        )
+        self.assertEqual(locate(structural_query("what is section 4 about"), clique).start_page, 10)
+
+    def test_numbered_sibling_keeps_its_number_beside_introduction(self) -> None:
+        structure = Structure(
+            outline=[
+                OutlineNode("Introduction", 0),
+                OutlineNode("1. Preliminaries", 4),
+                OutlineNode("2. Affine realizations", 8),
+            ],
+            pages=[],
+            page_count=20,
+        )
+        self.assertEqual(locate(structural_query("what is section 1 about"), structure).start_page, 4)
+        self.assertEqual(locate(structural_query("what is section 2 about"), structure).start_page, 8)
+
+    def test_unnumbered_outline_bookmarks_are_sections_in_order(self) -> None:
+        structure = Structure(
+            outline=[
+                OutlineNode("Introduction", 0),
+                OutlineNode("Preliminaries", 2, [
+                    OutlineNode("Virasoro notation", 2),
+                ]),
+                OutlineNode("Proof of the main result", 5, [
+                    OutlineNode("Low homogeneous subspaces", 5),
+                ]),
+                OutlineNode("References", 12),
+            ],
+            pages=[],
+            page_count=16,
+        )
+        self.assertEqual(locate(structural_query("what is section 1 about"), structure).start_page, 0)
+        self.assertEqual(locate(structural_query("what is section 2 about"), structure).start_page, 2)
+        self.assertEqual(locate(structural_query("what is section 3 about"), structure).start_page, 5)
+        self.assertEqual(locate(structural_query("what is section 3.1 about"), structure).start_page, 5)
+        self.assertIsNone(locate(structural_query("what is section 4 about"), structure))
+
+
+class CitationScoreTests(unittest.TestCase):
+    def test_suppressed_citation_is_not_a_wrong_link(self) -> None:
+        from ground_truth import Declaration, Mention, PaperTruth, SectionInfo
+        from score import score_profile
+
+        truth = PaperTruth(
+            mentions=[
+                Mention("lemma", "1.15", "citation", "Lemma", False, "[IK99, Lemma 1.15]"),
+                Mention("lemma", "2.1", "local", "Lemma", False, "Lemma 2.1"),
+            ],
+            declarations=[Declaration("lemma", "2.1", None, 0)],
+            sections=[SectionInfo("1", "Introduction", 1)],
+        )
+        pages = [{
+            "page_index": 0,
+            "text": "See [IK99, Lemma 1.15] for the proof.\n1. Introduction\nLemma 2.1. The statement is short.",
+            "width": 100,
+            "blocks": [],
+        }]
+        # equation_label_x looks at blocks; an empty page still scores.
+        card = score_profile(truth, pages, "main", use_structure=False)
+        self.assertEqual(card["wrong_links"], 0)
+        self.assertEqual(card["citation_detections"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

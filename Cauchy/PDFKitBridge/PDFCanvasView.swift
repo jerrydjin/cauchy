@@ -91,6 +91,8 @@ final class PDFCanvasView: NSView {
     private var pendingHoverDetection: Task<Void, Never>?
     private var lastHoveredReference: DetectedReference?
     private var isOverReference = false
+    private weak var bibliographyDocument: PDFDocument?
+    private var bibliographyEntries: [BibliographyEntry] = []
 
     var referenceIndex: DocumentReferenceIndex?
     var referenceIndexReady = false
@@ -181,13 +183,32 @@ final class PDFCanvasView: NSView {
             return
         }
 
-        guard let probe = PDFTextExtractor.extractHoverProbe(at: pointInPDF, in: pdfView, on: page),
-              let reference = ReferenceDetector.bestReference(in: probe.snippet, cursorOffset: probe.cursorOffset),
+        guard let probe = PDFTextExtractor.extractHoverProbe(at: pointInPDF, in: pdfView, on: page) else {
+            clearReferenceHoverState()
+            return
+        }
+
+        if let citation = ReferenceDetector.externalCitation(in: probe.snippet, cursorOffset: probe.cursorOffset) {
+            // The result named in the citation belongs to the other paper.
+            // Show its bibliography entry, or nothing when that entry is missing.
+            // Clicking still does nothing: opening the cited paper is later.
+            if let hover = BibliographyIndex.hoverText(for: citation, in: bibliography()) {
+                lastHoveredReference = nil
+                toolTip = hover
+                showReferenceCursor()
+            } else {
+                clearReferenceHoverState()
+            }
+            return
+        }
+
+        guard let reference = ReferenceDetector.bestReference(in: probe.snippet, cursorOffset: probe.cursorOffset),
               let indexed = referenceIndex?.lookup(reference),
               !indexed.formattedBody.isEmpty else {
             clearReferenceHoverState()
             return
         }
+        toolTip = nil
 
         let block = DocumentBlockExtractor.block(from: indexed)
 
@@ -203,10 +224,31 @@ final class PDFCanvasView: NSView {
 
     private func clearReferenceHoverState() {
         lastHoveredReference = nil
+        toolTip = nil
         if isOverReference {
             isOverReference = false
             NSCursor.pop()
         }
+    }
+
+    private func bibliography() -> [BibliographyEntry] {
+        guard let document = pdfView.document else {
+            bibliographyDocument = nil
+            bibliographyEntries = []
+            return []
+        }
+        if bibliographyDocument !== document {
+            bibliographyDocument = document
+            var pages: [String] = []
+            pages.reserveCapacity(document.pageCount)
+            for index in 0..<document.pageCount {
+                if let text = document.page(at: index)?.string, !text.isEmpty {
+                    pages.append(text)
+                }
+            }
+            bibliographyEntries = BibliographyIndex.entries(in: pages.joined(separator: "\n"))
+        }
+        return bibliographyEntries
     }
 
     private func showReferenceCursor() {

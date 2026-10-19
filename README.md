@@ -4,7 +4,7 @@ Native macOS PDF reader for dense technical textbooks, mathematics papers, and a
 
 **[Download Cauchy for Mac](https://github.com/jerrydjin/cauchy/releases/latest/download/Cauchy.dmg)**
 
-Needs macOS 27. The first time you open it, go to System Settings, then Privacy & Security, and click Open Anyway.
+Needs an Apple Silicon Mac on macOS 27. The first time you open it, go to System Settings, then Privacy & Security, and click Open Anyway.
 
 <!-- TODO: screenshot of System Settings > Privacy & Security showing the Open Anyway button for Cauchy.
      Save it as docs/images/open-anyway.png and uncomment the next line.

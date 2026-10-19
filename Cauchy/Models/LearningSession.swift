@@ -187,6 +187,7 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
     var clarifications: [LearningClarification]? = nil
     var clarificationDrafts: [String: String]? = nil
     var clarificationHelpUsed: Bool? = nil
+    var studyRunItemID: UUID? = nil
 
     var currentLessonPartIndex: Int {
         min(max(lessonPartIndex ?? 0, 0), lesson.parts.count - 1)

@@ -27,6 +27,38 @@ final class LearningStudyMapViewModel {
         self.makeReconciler = { reconciler ?? LearningSourceReconciler() }
     }
 
+    var currentStudyRun: LearningStudyRun? { map?.studyRuns?.last }
+
+    func startStudyRun(_ run: LearningStudyRun) throws {
+        guard !isBusy, var updated = map, updated.pageSignatures == run.pageSignatures,
+              !run.items.isEmpty, run.items.count <= 3,
+              run.state == .active, run.items.allSatisfy({ $0.outcome == nil }),
+              Set(run.items.map(\.id)).count == run.items.count,
+              Set(run.items.map { $0.target.id }).count == run.items.count,
+              run.items.allSatisfy({ item in
+                  updated.units.contains { unit in
+                      unit.id == item.unitID && unit.learningTargets.contains {
+                          $0.id == item.target.id && $0.kind == item.target.kind && $0.objective == item.target.objective
+                      }
+                  }
+              }),
+              currentStudyRun == nil || currentStudyRun?.state == .finished else {
+            throw LearningStudyValidationError(reason: "Resume or finish the current study session before starting another.")
+        }
+        updated.studyRuns = (updated.studyRuns ?? []) + [run]
+        map = updated
+        save()
+    }
+
+    func updateStudyRun(_ id: UUID, _ change: (inout LearningStudyRun) -> Void) {
+        guard !isBusy, var updated = map, var runs = updated.studyRuns,
+              runs.last?.id == id, let index = runs.indices.last else { return }
+        change(&runs[index])
+        updated.studyRuns = runs
+        map = updated
+        save()
+    }
+
     /// Append a user-verified full-page transcription. Existing lessons and
     /// review findings stay intact; affected topics require a fresh review.
     func saveCorrection(pageIndex: Int, originalText: String, correctedText: String, note: String,
@@ -242,7 +274,8 @@ final class LearningStudyMapViewModel {
         let signatures = pages.map(LearningStudyInput.signature)
         if map?.pageSignatures != signatures {
             let syllabus = map?.syllabus
-            map = LearningStudyMap(pageSignatures: signatures, pages: pages.indices.map { .init(pageIndex: $0) }, syllabus: syllabus)
+            let runs = map?.studyRuns
+            map = LearningStudyMap(pageSignatures: signatures, pages: pages.indices.map { .init(pageIndex: $0) }, syllabus: syllabus, studyRuns: runs)
             save()
         }
         let pending = map?.unresolvedPages.map(\.pageIndex) ?? []

@@ -161,7 +161,7 @@ final class LearningViewModel {
         errorMessage = nil
     }
 
-    func start(source: LearningSource, target: LearningStudyTarget? = nil) {
+    func start(source: LearningSource, target: LearningStudyTarget? = nil, studyRunItemID: UUID? = nil) {
         guard !isBusy, check(source) else { return }
         perform(.lesson) { tutor in
             var lesson: LearningLesson
@@ -178,13 +178,14 @@ final class LearningViewModel {
             guard let self else { return }
             var session = LearningSession(source: source, lesson: lesson, providerID: tutor.providerID, modelID: tutor.modelID)
             session.studyTarget = target
+            session.studyRunItemID = studyRunItemID
             self.sessions.insert(session, at: 0)
             self.selectedSessionID = session.id
             self.save()
         }
     }
 
-    func startDelayedReview(_ recommendation: LearningReviewRecommendation) {
+    func startDelayedReview(_ recommendation: LearningReviewRecommendation, studyRunItemID: UUID? = nil) {
         guard !isBusy else { return }
         if let active = recommendation.activeSessionID { select(active); return }
         let previous = recommendation.previous
@@ -213,6 +214,7 @@ final class LearningViewModel {
             var review = LearningSession(source: previous.source, lesson: lesson, providerID: tutor.providerID, modelID: tutor.modelID,
                                          createdAt: startedAt, updatedAt: startedAt)
             review.studyTarget = target
+            review.studyRunItemID = studyRunItemID
             review.phase = .exitCheck
             review.delayedReview = .init(previousSessionID: previous.id, scheduledFor: recommendation.dueAt,
                                         startedAt: startedAt, round: (previous.delayedReview?.round ?? 0) + 1)

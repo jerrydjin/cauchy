@@ -130,6 +130,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
     var course: LearningCourse? = nil
     var sourceCorrections: [LearningSourceCorrection]? = nil
     var syllabus: LearningSyllabus? = nil
+    var studyRuns: [LearningStudyRun]? = nil
 
     func latestCorrection(for pageIndex: Int) -> LearningSourceCorrection? {
         sourceCorrections?.last { $0.pageIndex == pageIndex }

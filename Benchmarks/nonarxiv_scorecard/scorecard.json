@@ -1,5 +1,5 @@
 {
-  "method": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+  "method": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
   "papers": [
     {
       "id": "doty-permutation-groups",
@@ -12,7 +12,7 @@
         22,
         35
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "definition",
@@ -292,6 +292,19 @@
         }
       ],
       "sections": [],
+      "calibration": {
+        "group": "c",
+        "resolution_alone": 0.0,
+        "printed_in_scope_refs": 2,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": false,
+          "section_question": false,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 0.0,
@@ -321,7 +334,7 @@
         40,
         70
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -613,12 +626,25 @@
         }
       ],
       "sections": [],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 8,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": false,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
-        "resolution_rate": 0.0,
+        "resolution_rate": 1.0,
         "denominator": 8,
-        "correct": 0,
-        "missed": 8,
+        "correct": 8,
+        "missed": 0,
         "extraction_misses": 0,
         "wrong_links": 0,
         "citation_detections": 0,
@@ -626,7 +652,6 @@
         "false_declarations": [],
         "section_questions_ok": false,
         "fail_reasons": [
-          "resolution 0.0% is under 90%",
           "a section question missed its heading page"
         ]
       }
@@ -642,7 +667,7 @@
         51,
         84
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "definition",
@@ -975,6 +1000,19 @@
           "how": "The section number is alone on a line and the next line is the heading."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 34,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 0.8947,
@@ -1004,7 +1042,7 @@
         26,
         51
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "definition",
@@ -1200,6 +1238,19 @@
         }
       ],
       "sections": [],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 15,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": false,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 1.0,
@@ -1228,7 +1279,7 @@
         21,
         56
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -1392,73 +1443,10 @@
           "how": "The section number is alone on a line and the next line is the heading."
         },
         {
-          "number": "0.0",
-          "title": "2.5",
-          "level": 2,
-          "page": 15,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "2.5",
-          "title": "5.0",
-          "level": 2,
-          "page": 15,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "5.0",
-          "title": "-5.0",
-          "level": 2,
-          "page": 15,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "7.5",
-          "title": "10.0",
-          "level": 2,
-          "page": 17,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "10.0",
-          "title": "12.5",
-          "level": 2,
-          "page": 17,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "12.5",
-          "title": "0.0",
-          "level": 2,
-          "page": 17,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
           "number": "1.4",
           "title": "Linear equations and the integrating factor",
           "level": 2,
           "page": 19,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "10.5",
-          "title": "11.0",
-          "level": 2,
-          "page": 22,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "11.0",
-          "title": "11.5",
-          "level": 2,
-          "page": 22,
-          "how": "The section number is alone on a line and the next line is the heading."
-        },
-        {
-          "number": "11.5",
-          "title": "10.0",
-          "level": 2,
-          "page": 22,
           "how": "The section number is alone on a line and the next line is the heading."
         },
         {
@@ -1476,22 +1464,32 @@
           "how": "The section number is alone on a line and the next line is the heading."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 18,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
-        "passes": false,
-        "resolution_rate": 0.7353,
-        "denominator": 34,
+        "passes": true,
+        "resolution_rate": 1.0,
+        "denominator": 25,
         "correct": 25,
-        "missed": 1,
-        "extraction_misses": 8,
+        "missed": 0,
+        "extraction_misses": 0,
         "wrong_links": 0,
         "citation_detections": 0,
         "false_declaration_count": 0,
         "false_declarations": [],
-        "section_questions_ok": false,
-        "fail_reasons": [
-          "resolution 73.5% is under 90%",
-          "a section question missed its heading page"
-        ]
+        "section_questions_ok": true,
+        "fail_reasons": []
       }
     },
     {
@@ -1505,7 +1503,7 @@
         21,
         47
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -1664,12 +1662,25 @@
           "how": "PDF outline bookmark whose title starts with this number."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 17,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
-        "resolution_rate": 0.0476,
+        "resolution_rate": 0.8095,
         "denominator": 21,
-        "correct": 1,
-        "missed": 16,
+        "correct": 17,
+        "missed": 0,
         "extraction_misses": 4,
         "wrong_links": 0,
         "citation_detections": 0,
@@ -1677,7 +1688,7 @@
         "false_declarations": [],
         "section_questions_ok": true,
         "fail_reasons": [
-          "resolution 4.8% is under 90%"
+          "resolution 81.0% is under 90%"
         ]
       }
     },
@@ -1692,7 +1703,7 @@
         123,
         155
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -1957,9 +1968,9 @@
         },
         {
           "number": "33.7",
-          "title": "0",
+          "title": "\u0013",
           "level": 2,
-          "page": 6,
+          "page": 7,
           "how": "The section number is alone on a line and the next line is the heading."
         },
         {
@@ -1970,12 +1981,25 @@
           "how": "The section number is alone on a line and the next line is the heading."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 64,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
-        "resolution_rate": 0.806,
+        "resolution_rate": 0.9552,
         "denominator": 67,
-        "correct": 54,
-        "missed": 11,
+        "correct": 64,
+        "missed": 1,
         "extraction_misses": 2,
         "wrong_links": 0,
         "citation_detections": 0,
@@ -1983,7 +2007,6 @@
         "false_declarations": [],
         "section_questions_ok": false,
         "fail_reasons": [
-          "resolution 80.6% is under 90%",
           "a section question missed its heading page"
         ]
       }
@@ -1999,7 +2022,7 @@
         11,
         40
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -2273,6 +2296,19 @@
           "how": "PDF outline bookmark whose title starts with this number."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 18,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 0.475,
@@ -2301,7 +2337,7 @@
         32,
         50
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "theorem",
@@ -2425,12 +2461,25 @@
         }
       ],
       "sections": [],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 17,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": false,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
-        "resolution_rate": 0.0,
+        "resolution_rate": 1.0,
         "denominator": 17,
-        "correct": 0,
-        "missed": 17,
+        "correct": 17,
+        "missed": 0,
         "extraction_misses": 0,
         "wrong_links": 0,
         "citation_detections": 0,
@@ -2438,7 +2487,6 @@
         "false_declarations": [],
         "section_questions_ok": false,
         "fail_reasons": [
-          "resolution 0.0% is under 90%",
           "a section question missed its heading page"
         ]
       }
@@ -2454,7 +2502,7 @@
         20,
         45
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -2556,12 +2604,25 @@
           "how": "The section number is alone on a line and the next line is the heading."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 12,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
-        "resolution_rate": 0.1538,
+        "resolution_rate": 0.9231,
         "denominator": 13,
-        "correct": 2,
-        "missed": 10,
+        "correct": 12,
+        "missed": 0,
         "extraction_misses": 1,
         "wrong_links": 0,
         "citation_detections": 0,
@@ -2569,7 +2630,6 @@
         "false_declarations": [],
         "section_questions_ok": false,
         "fail_reasons": [
-          "resolution 15.4% is under 90%",
           "a section question missed its heading page"
         ]
       }
@@ -2585,7 +2645,7 @@
         55,
         90
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -2796,12 +2856,25 @@
           "how": "PDF outline bookmark whose title starts with this number."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 1,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": false,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
-        "resolution_rate": 0.2,
+        "resolution_rate": 0.3,
         "denominator": 10,
-        "correct": 2,
-        "missed": 1,
+        "correct": 3,
+        "missed": 0,
         "extraction_misses": 7,
         "wrong_links": 0,
         "citation_detections": 0,
@@ -2809,7 +2882,7 @@
         "false_declarations": [],
         "section_questions_ok": true,
         "fail_reasons": [
-          "resolution 20.0% is under 90%"
+          "resolution 30.0% is under 90%"
         ]
       }
     },
@@ -2824,7 +2897,7 @@
         17,
         70
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -3019,6 +3092,19 @@
           "how": "The section number is alone on a line and the next line is the heading."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": null,
+        "printed_in_scope_refs": 0,
+        "checks": {
+          "resolution": false,
+          "minimum_of_8": false,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 0.0,
@@ -3049,7 +3135,7 @@
         349,
         390
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "lemma",
@@ -3067,12 +3153,6 @@
           "kind": "lemma",
           "number": "9.1.6",
           "page": 4,
-          "how": "The PDF text layer has a line that begins with this label."
-        },
-        {
-          "kind": "lemma",
-          "number": "9.1.2.2",
-          "page": 5,
           "how": "The PDF text layer has a line that begins with this label."
         },
         {
@@ -3446,12 +3526,25 @@
           "how": "PDF outline bookmark whose title starts with this number."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 0.9888,
+        "printed_in_scope_refs": 89,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
-        "resolution_rate": 0.6262,
-        "denominator": 107,
-        "correct": 67,
-        "missed": 28,
+        "resolution_rate": 0.8738,
+        "denominator": 103,
+        "correct": 90,
+        "missed": 1,
         "extraction_misses": 12,
         "wrong_links": 0,
         "citation_detections": 0,
@@ -3459,7 +3552,7 @@
         "false_declarations": [],
         "section_questions_ok": true,
         "fail_reasons": [
-          "resolution 62.6% is under 90%"
+          "resolution 87.4% is under 90%"
         ]
       }
     },
@@ -3474,7 +3567,7 @@
         41,
         70
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "example",
@@ -3688,6 +3781,19 @@
         }
       ],
       "sections": [],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 5,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": false,
+          "section_question": false,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 1.0,
@@ -3717,7 +3823,7 @@
         26,
         57
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [
         {
           "kind": "definition",
@@ -4444,6 +4550,19 @@
           "how": "The section number is alone on a line and the next line is the heading."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": 1.0,
+        "printed_in_scope_refs": 46,
+        "checks": {
+          "resolution": true,
+          "minimum_of_8": true,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 0.8286,
@@ -4472,7 +4591,7 @@
         12,
         78
       ],
-      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. A comma after the number (\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by a heading. A following line that is itself only a number is a plot tick. A figure caption, or a bookmark whose first word is lowercase, is not a heading. Resolution alone counts printed theorem, lemma, definition, and equation spans. The minimum of 8 applies when there are at least 8 of those spans. The section question applies when the slice has a numbered heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
       "declarations": [],
       "sections": [
         {
@@ -4532,6 +4651,19 @@
           "how": "PDF outline bookmark whose title starts with this number."
         }
       ],
+      "calibration": {
+        "group": "a",
+        "resolution_alone": null,
+        "printed_in_scope_refs": 0,
+        "checks": {
+          "resolution": false,
+          "minimum_of_8": false,
+          "section_question": true,
+          "wrong_link": true,
+          "citation_as_local_ref": true,
+          "false_declaration": true
+        }
+      },
       "main": {
         "passes": false,
         "resolution_rate": 0.0,

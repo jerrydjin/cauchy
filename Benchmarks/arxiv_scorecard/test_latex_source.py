@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import io
+import re
 import tarfile
 import unittest
 from pathlib import Path
@@ -364,6 +365,71 @@ class MapTests(unittest.TestCase):
         self.assertEqual(reason, "latex", reason)
         self.assertEqual(built.statement_index.lookup("theorem", "1.1").page_index, 1)
 
+    def test_equation_follows_its_formula_when_the_number_repeats(self) -> None:
+        tex = _article(
+            "\\section{Opening}",
+            "\\begin{equation}alpha + beta = gamma\\end{equation}",
+            klass="amsart",
+        )
+        pages = [
+            _margin_page(0, "delta = epsilon\n(1)\n"),
+            _margin_page(1, "The notes mention alpha + beta = gamma in passing.\n\nHeader\n(1)\n"),
+            _margin_page(2, "alpha + beta = gamma\n(1)\n"),
+        ]
+        built = _from_source(tex, pages)
+        equation = built.statement_index.lookup("equation", "1")
+        self.assertIsNotNone(equation)
+        self.assertEqual(equation.page_index, 2)
+
+    def test_repeated_equation_with_the_same_formula_is_omitted(self) -> None:
+        tex = _article(
+            "\\section{Opening}",
+            "\\begin{equation}alpha + beta = gamma\\end{equation}",
+            klass="amsart",
+        )
+        pages = [
+            _margin_page(0, "1. Opening\nalpha + beta = gamma\n(1)\n"),
+            _margin_page(1, "alpha + beta = gamma\n(1)\n"),
+        ]
+        built = _from_source(tex, pages)
+        self.assertIsNone(built.statement_index.lookup("equation", "1"))
+
+    def test_order_keeps_the_tag_that_precedes_the_next_equation(self) -> None:
+        tex = _article(
+            "\\section{Opening}",
+            "\\begin{equation}ab\\end{equation}",
+            "\\begin{equation}delta epsilon zeta\\end{equation}",
+            klass="amsart",
+        )
+        pages = [
+            _margin_page(0, "1. Opening\n(1)\n"),
+            _margin_page(1, "delta epsilon zeta\n(2)\n"),
+            _margin_page(2, "(1)\n"),
+        ]
+        built = _from_source(tex, pages)
+        second = built.statement_index.lookup("equation", "2")
+        first = built.statement_index.lookup("equation", "1")
+        self.assertIsNotNone(second)
+        self.assertEqual(second.page_index, 1)
+        self.assertIsNotNone(first)
+        self.assertEqual(first.page_index, 0)
+
+    def test_two_in_order_tags_with_no_formula_are_omitted(self) -> None:
+        tex = _article(
+            "\\section{Opening}",
+            "\\begin{equation}ab\\end{equation}",
+            "\\begin{equation}delta epsilon zeta\\end{equation}",
+            klass="amsart",
+        )
+        pages = [
+            _margin_page(0, "1. Opening\n(1)\n"),
+            _margin_page(1, "(1)\n"),
+            _margin_page(2, "delta epsilon zeta\n(2)\n"),
+        ]
+        built = _from_source(tex, pages)
+        self.assertEqual(built.statement_index.lookup("equation", "2").page_index, 2)
+        self.assertIsNone(built.statement_index.lookup("equation", "1"))
+
     def test_unlocated_statement_is_left_out(self) -> None:
         tex = _article("\\section{Opening}", "\\begin{theorem}Something.\\end{theorem}")
         pages = [
@@ -394,6 +460,31 @@ class MapTests(unittest.TestCase):
         built, reason = build_source_index(pdf, extracted, fetcher=lambda _arxiv_id: b"%PDF-1.4")
         self.assertIsNone(built)
         self.assertIn("pdf-only", reason)
+
+
+def _margin_page(page_index: int, text: str) -> dict:
+    spans = {}
+    for match in re.finditer(r"\(\d+\)", text):
+        spans[match.start()] = 0.86
+    return {"page_index": page_index, "text": text, "span_x": spans, "two_column": False}
+
+
+def _from_source(tex: str, pages: list[dict]):
+    extracted = {
+        "page_count": len(pages),
+        "outline": [],
+        "pages": pages,
+        "metadata": {},
+        "two_column_pages": 0,
+    }
+    built, reason = build_source_index(
+        _empty_pdf(),
+        extracted,
+        fetcher=lambda _arxiv_id: gzip.compress(tex.encode()),
+    )
+    if built is None:
+        raise AssertionError(reason)
+    return built
 
 
 def _tar(members: dict[str, str]) -> bytes:

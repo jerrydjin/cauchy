@@ -331,6 +331,35 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("1", numbers)
         self.assertNotIn("2", numbers)
 
+    def test_own_line_and_run_in_statements_are_declarations(self) -> None:
+        page = "\n".join([
+            "Theorem 1.1.1",
+            "Suppose the sequence of steps is elementary.",
+            "Theorem 1.2 shows that the same bound is sharp.",
+            "Lemma 2.2, so the order divides the exponent.",
+            "Theorem 3.4 The probabilities assigned to the events sum to one.",
+            "We cite Theorem 3.4 again at the start of a sentence.",
+        ])
+        numbers = [(item.kind, item.number) for item in declaration_matches(page, {}, "main")]
+        self.assertIn(("theorem", "1.1.1"), numbers)
+        self.assertIn(("theorem", "3.4"), numbers)
+        self.assertNotIn(("theorem", "1.2"), numbers)
+        self.assertNotIn(("lemma", "2.2"), numbers)
+
+    def test_dotted_tag_on_its_own_line_uses_the_formula_above(self) -> None:
+        page = "\n".join([
+            "n D q times d plus r AND 0",
+            "(1.2)",
+            "This paragraph explains why the bound in the display is strict and cannot be improved further.",
+            "(1.3)",
+            "See below",
+            "(1.4)",
+        ])
+        numbers = [item.number for item in declaration_matches(page, {}, "main")]
+        self.assertIn("1.2", numbers)
+        self.assertNotIn("1.3", numbers)
+        self.assertNotIn("1.4", numbers)
+
 
 class StructureTests(unittest.TestCase):
     def test_chapter_section_and_part_from_the_outline(self) -> None:

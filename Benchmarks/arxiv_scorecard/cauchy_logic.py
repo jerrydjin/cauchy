@@ -350,7 +350,6 @@ def declaration_matches(
         before_start = _offset(source_text, match.start, -180)
         after = source_text[match.end : after_end]
         before = source_text[before_start : match.start]
-        next_character = next((char for char in after if not char.isspace()), None)
         newline = before.rfind("\n")
         line_start = newline + 1 if newline >= 0 else 0
         prefix = before[line_start:].strip()
@@ -371,7 +370,10 @@ def declaration_matches(
         if match.kind != "equation":
             if prefix:
                 continue
-            if next_character in {".", ":", "("}:
+            # A declaration starts the line. Textbooks put the label on its own
+            # line ("Theorem 1.1.1") or run the statement on ("Theorem 1.1 The
+            # claim..."). "Theorem 1.1 shows" and "Lemma 2.2, so" are mentions.
+            if _line_start_statement(after):
                 accepted.append(match)
             continue
 
@@ -414,6 +416,12 @@ def declaration_matches(
         full_line = source_text[full_line_start:full_line_end].strip()
         if full_line != matched_text:
             continue
+        # A dotted tag alone on the line, with the formula on the line above.
+        # The formula's operator is often a glyph the text layer does not
+        # spell as "=". A long sentence above the tag is a citation.
+        if "." in match.number and _short_formula_line(_previous_nonempty_line(source_text, full_line_start)):
+            accepted.append(match)
+            continue
         display_start = _offset(source_text, match.start, -600)
         preceding = source_text[display_start : match.start]
         if any(op in preceding for op in _MATH_SIGNALS):
@@ -424,6 +432,40 @@ def declaration_matches(
         if _following_line_is_display(source_text[match.end :]):
             accepted.append(match)
     return accepted
+
+
+def _line_start_statement(after: str) -> bool:
+    """True when the text after a line-start label is the statement, not a mention."""
+    line, _, remainder = after.partition("\n")
+    rest = line.strip()
+    if not rest:
+        following = next((item.strip() for item in remainder.splitlines() if item.strip()), "")
+        return bool(following) and not following[0].islower()
+    if rest[0] in ",;":
+        return False
+    if rest[0] in ".:(":
+        return True
+    if rest[0].isupper():
+        return True
+    return False
+
+
+def _previous_nonempty_line(text: str, line_start: int) -> str:
+    previous = text[:line_start].rstrip("\n")
+    if not previous:
+        return ""
+    return previous.splitlines()[-1].strip()
+
+
+def _short_formula_line(line: str) -> bool:
+    """A display, not a sentence. Glyphs may stand in for the operator."""
+    stripped = line.strip()
+    if not stripped or stripped.endswith("."):
+        return False
+    if any(op in stripped for op in _MATH_SIGNALS):
+        return len(re.findall(r"[A-Za-z]{3,}", stripped)) <= 8
+    words = re.findall(r"[A-Za-z]{3,}", stripped)
+    return len(words) <= 6 and re.search(r"[\d=<>+\-*/^_|]", stripped) is not None
 
 
 def _following_line_is_display(rest: str) -> bool:

@@ -2067,79 +2067,160 @@ def _number_ok(number: str) -> bool:
 # --- page mapping --------------------------------------------------------------
 
 
+@dataclass
+class _Hit:
+    page_index: int
+    start: int
+    end: int
+
+
 def _map_items(parsed: ParsedSource, extracted: dict) -> None:
     pages = extracted.get("pages") or []
+    outline = extracted.get("outline") or []
     for item in parsed.items:
         if item.role == "section":
-            item.page_index = _map_section(pages, extracted.get("outline") or [], item)
-        elif item.role == "equation":
-            item.page_index = _map_equation(pages, item.number)
-        else:
-            item.page_index = _map_statement(pages, item)
+            item.page_index = _map_section(pages, outline, item)
+    _place_statements(pages, [item for item in parsed.items if item.role == "statement"])
+    _place_equations(pages, [item for item in parsed.items if item.role == "equation"])
 
 
-def _map_statement(pages: list[dict], item: ParsedItem) -> int | None:
+def _place_statements(pages: list[dict], items: list[ParsedItem]) -> None:
+    hits_for = {id(item): _statement_hits(pages, item) for item in items}
+
+    def score(item: ParsedItem, hit: _Hit) -> int:
+        return _statement_score(pages, item.body, hit)
+
+    _place_numbered(items, hits_for, score, threshold=2)
+
+
+def _place_equations(pages: list[dict], items: list[ParsedItem]) -> None:
+    hits_for = {id(item): _equation_hits(pages, item.number) for item in items}
+
+    def score(item: ParsedItem, hit: _Hit) -> int:
+        return _equation_score(pages, item.body, hit)
+
+    _place_numbered(items, hits_for, score, threshold=2)
+
+
+def _place_numbered(
+    items: list[ParsedItem],
+    hits_for: dict[int, list[_Hit]],
+    score,
+    threshold: int,
+) -> None:
+    """Place each numbered item. A tie that still names one page is kept.
+
+    The source text next to the item (the statement, or the formula beside
+    its label) breaks a repeated number. Source order then drops an occurrence
+    that sits outside its neighbours. A number that still names two pages is
+    left unlocated.
+    """
+    anchor: dict[int, tuple[int, int]] = {}
+    for item in items:
+        hits = hits_for.get(id(item)) or []
+        pages = {hit.page_index for hit in hits}
+        if len(pages) == 1:
+            best = max(hits, key=lambda hit: (score(item, hit), -hit.start))
+            _remember(item, best, anchor)
+            continue
+        ranked = sorted(((score(item, hit), hit) for hit in hits), key=lambda pair: pair[0], reverse=True)
+        if ranked and ranked[0][0] >= threshold and (len(ranked) == 1 or ranked[0][0] > ranked[1][0]):
+            _remember(item, ranked[0][1], anchor)
+
+    changed = True
+    while changed:
+        changed = False
+        for index, item in enumerate(items):
+            if item.page_index is not None:
+                continue
+            hits = hits_for.get(id(item)) or []
+            if not hits:
+                continue
+            top = max(score(item, hit) for hit in hits)
+            pool = [hit for hit in hits if score(item, hit) == top]
+            allowed = [hit for hit in pool if _inside_neighbours(hit, items, index, anchor)]
+            pages = {hit.page_index for hit in allowed}
+            if len(pages) == 1 and allowed:
+                best = max(allowed, key=lambda hit: (score(item, hit), -hit.start))
+                _remember(item, best, anchor)
+                changed = True
+
+
+def _remember(item: ParsedItem, hit: _Hit, anchor: dict[int, tuple[int, int]]) -> None:
+    item.page_index = hit.page_index
+    anchor[id(item)] = (hit.page_index, hit.start)
+
+
+def _inside_neighbours(
+    hit: _Hit,
+    items: list[ParsedItem],
+    index: int,
+    anchor: dict[int, tuple[int, int]],
+) -> bool:
+    """Source order is reading order. An occurrence past the next placed item is not this one."""
+    previous = next((anchor[id(items[cursor])] for cursor in range(index - 1, -1, -1) if id(items[cursor]) in anchor), None)
+    following = next((anchor[id(items[cursor])] for cursor in range(index + 1, len(items)) if id(items[cursor]) in anchor), None)
+    here = (hit.page_index, hit.start)
+    if previous is not None and here <= previous:
+        return False
+    if following is not None and here >= following:
+        return False
+    return True
+
+
+def _page_text(pages: list[dict], page_index: int) -> str:
+    for page in pages:
+        if page.get("page_index") == page_index:
+            return page.get("text") or ""
+    return ""
+
+
+def _statement_hits(pages: list[dict], item: ParsedItem) -> list[_Hit]:
     if not item.number:
-        return None
+        return []
     head = re.escape(item.head)
     number = re.escape(item.number)
     primary = re.compile(rf"(?im)^[ \t]*{head}\s*{number}(?!\.\d)(?!\d)")
     swapped = re.compile(rf"(?im)^[ \t]*{number}(?!\.\d)(?!\d)\.?\s*{head}\b")
     loose = re.compile(rf"(?i)\b{head}\s*{number}(?!\.\d)(?!\d)")
-    hits = _heading_hits(pages, primary)
-    if len(hits) == 1:
-        return hits[0]
+    hits = _pattern_hits(pages, primary)
     if not hits:
-        hits = _heading_hits(pages, swapped)
-        if len(hits) == 1:
-            return hits[0]
-    if len(hits) > 1:
-        return _disambiguate(pages, hits, item.body, primary)
-    # The text layer often keeps the heading on the same line as the previous sentence.
-    return _disambiguate(pages, _heading_hits(pages, loose), item.body, loose)
+        hits = _pattern_hits(pages, swapped)
+    if not hits:
+        hits = _pattern_hits(pages, loose)
+    return hits
 
 
-def _heading_hits(pages: list[dict], pattern: re.Pattern[str]) -> list[int]:
-    hits: list[int] = []
+def _pattern_hits(pages: list[dict], pattern: re.Pattern[str]) -> list[_Hit]:
+    hits: list[_Hit] = []
     for page in pages:
         text = page.get("text") or ""
         if is_likely_table_of_contents(text):
             continue
-        if pattern.search(text):
-            hits.append(page["page_index"])
-    return list(dict.fromkeys(hits))
+        for match in pattern.finditer(text):
+            hits.append(_Hit(page["page_index"], match.start(), match.end()))
+    return hits
 
 
-def _disambiguate(pages: list[dict], hits: list[int], body: str, pattern: re.Pattern[str]) -> int | None:
-    """Pick the page whose heading is followed by the statement's own words.
+def _statement_score(pages: list[dict], body: str, hit: _Hit) -> int:
+    """Words of the statement, in the text just after the heading.
 
-    A later mention of the same number is not the declaration. When two pages
-    both look like the declaration, the item is left unlocated.
+    The label sits at the start of the environment, so a later mention of the
+    same number does not carry those words.
     """
-    if not hits:
-        return None
     words = [word.lower() for word in re.findall(r"[A-Za-z]{4,}", body)][:8]
     if len(words) < 2:
-        return None
-    scored: list[tuple[int, int]] = []
-    for page in pages:
-        if page["page_index"] not in hits:
-            continue
-        text = page.get("text") or ""
-        best = 0
-        for match in pattern.finditer(text):
-            window = text[match.end() : match.end() + 500].lower()
-            best = max(best, sum(1 for word in words if word in window))
-        scored.append((best, page["page_index"]))
-    scored.sort(reverse=True)
-    if scored[0][0] >= 2 and (len(scored) == 1 or scored[0][0] > scored[1][0]):
-        return scored[0][1]
-    return None
+        return 0
+    text = _page_text(pages, hit.page_index)
+    window = text[hit.end : hit.end + 400].lower()
+    return sum(1 for word in words if word in window)
 
 
-def _map_equation(pages: list[dict], number: str) -> int | None:
+def _equation_hits(pages: list[dict], number: str) -> list[_Hit]:
+    if not number:
+        return []
     pattern = re.compile(rf"\({re.escape(number)}\)(?!\d)")
-    hits: list[int] = []
+    hits: list[_Hit] = []
     for page in pages:
         text = page.get("text") or ""
         if is_likely_table_of_contents(text):
@@ -2148,14 +2229,34 @@ def _map_equation(pages: list[dict], number: str) -> int | None:
         keys = sorted(spans)
         two_column = bool(page.get("two_column"))
         for match in pattern.finditer(text):
-            if not _equation_label(text, match.start(), match.end(), spans, keys, two_column):
-                continue
-            hits.append(page["page_index"])
-            break
-    unique = list(dict.fromkeys(hits))
-    if len(unique) == 1:
-        return unique[0]
-    return None
+            if _equation_label(text, match.start(), match.end(), spans, keys, two_column):
+                hits.append(_Hit(page["page_index"], match.start(), match.end()))
+    return hits
+
+
+def _equation_score(pages: list[dict], body: str, hit: _Hit) -> int:
+    """The formula printed beside the tag, not a later citation of the number."""
+    text = _page_text(pages, hit.page_index)
+    window = _equation_window(text, hit.start, hit.end)
+    compact_body = re.sub(r"[^a-z0-9]+", "", body.lower())
+    compact_window = re.sub(r"[^a-z0-9]+", "", window.lower())
+    if len(compact_body) >= 4 and compact_body in compact_window:
+        return 3
+    words = [word.lower() for word in re.findall(r"[A-Za-z]{4,}", body)][:8]
+    if len(words) < 2:
+        return 0
+    lowered = window.lower()
+    return sum(1 for word in words if word in lowered)
+
+
+def _equation_window(text: str, start: int, end: int) -> str:
+    line_start = text.rfind("\n", 0, start) + 1
+    previous = text.rfind("\n", 0, max(0, line_start - 1)) + 1
+    earlier = text.rfind("\n", 0, max(0, previous - 1)) + 1
+    line_end = text.find("\n", end)
+    if line_end < 0:
+        line_end = len(text)
+    return text[earlier:line_end]
 
 
 def _equation_label(

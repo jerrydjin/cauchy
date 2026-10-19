@@ -2,11 +2,13 @@
 
 Each document is a chapter-sized slice. Expected labels were read from the PDF
 text layer: a declaration is a line that begins with the label (or, in Doty's
-numbering, with the number and then the label). A following lowercase word is
-a mention of that label, not another declaration. An equation number ends a
-line or is the whole line. Section pages are numbered outline bookmarks, or a
-line that is only the section number followed by the heading. The source path
-is off. Nothing here is an arXiv e-print.
+numbering, with the number and then the label). A following lowercase word, or
+a comma, is a mention of that label, not another declaration. An equation
+number ends a line or is the whole line. Section pages are numbered outline
+bookmarks, or a line that is only the section number followed by a heading. A
+following line that is only a number is a plot tick. Resolution alone is the
+printed theorem, lemma, definition, and equation spans. The source path is off.
+Nothing here is an arXiv e-print.
 
     python3 Benchmarks/nonarxiv_scorecard/run.py
 """
@@ -24,10 +26,10 @@ SCORECARD = ROOT / "scorecard.json"
 JSON_OUT = ROOT.parent / "results" / "2026-10-19-nonarxiv-source-off.json"
 sys.path.insert(0, str(ROOT.parent / "arxiv_scorecard"))
 
-from cauchy_logic import OutlineNode, Structure, PageSnapshot  # noqa: E402
+from cauchy_logic import OutlineNode, Structure, PageSnapshot, build_statement_index  # noqa: E402
 from ground_truth import Declaration, Mention, PaperTruth, SectionInfo  # noqa: E402
-from pdf_extract import extract_pdf  # noqa: E402
-from score import attach_structure, make_structure, score_profile  # noqa: E402
+from pdf_extract import equation_label_x, extract_pdf  # noqa: E402
+from score import _hits_for, attach_structure, make_structure, score_profile  # noqa: E402
 
 # 1-indexed inclusive PDF pages. Ranges sit on the chapters whose labels were read.
 CORPUS = [
@@ -265,6 +267,9 @@ def _declaration_lines(pages: list[dict], number_first: bool) -> list[dict]:
                 close = tail.find(")")
                 tail = tail[close + 1 :] if close >= 0 else ""
                 tail = tail.lstrip(" .:")
+            # "Lemma 9.1.2, so the order..." cites a clause. It is not a declaration.
+            if tail and tail[0] in ",;":
+                continue
             if tail and tail[0].islower():
                 continue
             key = (_KIND.get(kind, kind), number)
@@ -283,6 +288,18 @@ def _declaration_lines(pages: list[dict], number_first: bool) -> list[dict]:
 def _is_statement_word(word: str) -> bool:
     token = word.lower().rstrip(".:")
     return token in set(_HEAD.split("|")) or token in {"exercise", "exercises", "problem", "note", "proof"}
+
+
+def _is_heading_title(title: str) -> bool:
+    """A heading is not a figure caption or the continuation of a sentence."""
+    words = title.split()
+    if not words:
+        return False
+    if words[0].lower().rstrip(".:") in {"figure", "fig", "table"}:
+        return False
+    if words[0][:1].islower():
+        return False
+    return True
 
 
 def _sections(sliced: dict) -> list[dict]:
@@ -306,7 +323,7 @@ def _sections(sliced: dict) -> list[dict]:
             match = re.match(r"^\s*(\d+(?:\.\d+)*)\b", node.title or "")
             if match and node.page_index >= 0:
                 title = re.sub(r"^\s*\d+(?:\.\d+)*\s*", "", node.title or "").strip(" .")
-                if title and not _is_statement_word(title.split()[0]):
+                if title and not _is_statement_word(title.split()[0]) and _is_heading_title(title):
                     add(match.group(1), title, node.page_index, "PDF outline bookmark whose title starts with this number.")
             walk(node.children)
 
@@ -323,7 +340,10 @@ def _sections(sliced: dict) -> list[dict]:
             if split is None or index + 1 >= len(lines):
                 continue
             title = lines[index + 1]
-            if _is_statement_word(title.split()[0]):
+            if _is_statement_word(title.split()[0]) or not _is_heading_title(title):
+                continue
+            # A slope-field axis prints "0.0" and then "2.5". That is not a heading.
+            if re.fullmatch(r"-?\d+(?:\.\d+)?", title):
                 continue
             if len(title) > 80:
                 continue
@@ -374,6 +394,63 @@ def _truth(declarations: list[dict], sections: list[dict]) -> PaperTruth:
     return truth
 
 
+def _printed_resolution(pages: list[dict], index, declarations: list[dict]) -> dict:
+    """Resolution of printed in-scope spans. A label the page never prints is not a reference."""
+    correct = missed = 0
+    for item in declarations:
+        if item["kind"] not in {"theorem", "lemma", "definition", "equation"}:
+            continue
+        hits = _hits_for(pages, item["kind"], item["number"])
+        for _page, _start, _end, _surface in hits:
+            if index.lookup(item["kind"], item["number"]) is not None:
+                correct += 1
+            else:
+                missed += 1
+    printed = correct + missed
+    rate = None if printed == 0 else correct / printed
+    return {"printed": printed, "correct": correct, "missed": missed, "rate": rate}
+
+
+def _real_sections(sections: list[dict]) -> list[dict]:
+    return [item for item in sections if not re.fullmatch(r"-?\d+(?:\.\d+)?", item["title"])]
+
+
+def _calibrate(printed: dict, sections: list[dict], main: dict) -> dict:
+    """Which pass-bar checks a chapter slice can answer, and which failure group it is in.
+
+    The minimum of 8 and the section question do not apply to every slice. Resolution
+    is the fraction of printed theorem, lemma, definition, and equation spans.
+    """
+    count = printed["printed"]
+    rate = printed["rate"]
+    real = _real_sections(sections)
+    resolution_applies = count > 0
+    minimum_applies = count >= 8
+    section_applies = len(real) > 0
+    resolution_low = resolution_applies and rate is not None and rate < 0.90
+    # (a) resolution is not the failure. (b) a fair slice, and resolution is low.
+    # (c) resolution is low and the slice also lacks either 8 refs or a numbered section.
+    if not resolution_low:
+        group = "a"
+    elif minimum_applies and section_applies:
+        group = "b"
+    else:
+        group = "c"
+    return {
+        "group": group,
+        "resolution_alone": None if rate is None else round(rate, 4),
+        "printed_in_scope_refs": count,
+        "checks": {
+            "resolution": resolution_applies,
+            "minimum_of_8": minimum_applies,
+            "section_question": section_applies,
+            "wrong_link": True,
+            "citation_as_local_ref": True,
+            "false_declaration": True,
+        },
+    }
+
+
 def _score_record(record: dict) -> dict:
     extracted = extract_pdf(str(CACHE / record["file"]))
     start, end = record["pages"]
@@ -385,6 +462,8 @@ def _score_record(record: dict) -> dict:
     structure = make_structure(sliced)
     attach_structure(structure)
     main = score_profile(truth, sliced["pages"], "main", True)
+    prepared = [{**page, "equation_label_x": equation_label_x(page, "main")} for page in sliced["pages"]]
+    printed = _printed_resolution(sliced["pages"], build_statement_index(prepared, "main"), declarations)
     return {
         "id": record["id"],
         "title": record["title"],
@@ -396,6 +475,7 @@ def _score_record(record: dict) -> dict:
         "source_path": {"mode": "pdf", "reason": "flag off"},
         "declarations": declarations,
         "sections": sections,
+        "calibration": _calibrate(printed, sections, main),
         "profiles": {"main": main},
     }
 
@@ -410,11 +490,17 @@ def main() -> None:
             "expected declaration is a text-layer line that begins with the label; "
             "a following lowercase word is a mention, not a second declaration. "
             "Doty prints the number before the label. An equation number either "
-            "ends a line or is the whole line. Section pages are numbered outline "
-            "bookmarks when the PDF has them, and otherwise a line that contains "
-            "only the section number followed by the heading. The source path is "
-            "off. Journal PDFs from Discrete Analysis responded with an empty body, "
-            "so this set is books."
+            "ends a line or is the whole line. A comma after the number "
+            "(\"Lemma 2.2, so\") is a mention, not a declaration. Section pages are "
+            "numbered outline bookmarks when the PDF has them, and otherwise a line "
+            "that contains only the section number followed by a heading. A following "
+            "line that is itself only a number is a plot tick. A figure caption, or a "
+            "bookmark whose first word is lowercase, is not a heading. "
+            "Resolution alone counts printed theorem, lemma, definition, and equation "
+            "spans. The minimum of 8 applies when there are at least 8 of those spans. "
+            "The section question applies when the slice has a numbered heading. "
+            "The source path is off. Journal PDFs from Discrete Analysis responded "
+            "with an empty body, so this set is books."
         ),
         "papers": rows,
     }
@@ -434,6 +520,7 @@ def main() -> None:
             "how": payload["method"],
             "declarations": row["declarations"],
             "sections": [{k: item[k] for k in ("number", "title", "level", "page", "how")} for item in row["sections"]],
+            "calibration": row["calibration"],
             "main": {
                 "passes": main["passes"],
                 "resolution_rate": main["resolution_rate"],
@@ -459,6 +546,11 @@ def main() -> None:
             f"den={main['denominator']} false={main['false_declaration_count']} "
             f"cite={main['citation_detections']} sec={main['section_questions_ok']} "
             f"decls={len(item['declarations'])}"
+        )
+        cal = item["calibration"]
+        print(
+            f"  group={cal['group']} alone={cal['resolution_alone']} "
+            f"printed={cal['printed_in_scope_refs']} checks={cal['checks']}"
         )
         if main["fail_reasons"]:
             print("  ", "; ".join(main["fail_reasons"])[:180])

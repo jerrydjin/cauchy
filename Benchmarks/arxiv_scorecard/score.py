@@ -30,9 +30,11 @@ from cauchy_logic import (
     PageSnapshot,
     StatementIndex,
     Structure,
-    _matches_heading_line,
+    _external_citation_spans,
     all_references,
     build_statement_index,
+    _explicit_section_number,
+    heading_line,
     is_likely_table_of_contents,
     locate,
     structural_query,
@@ -55,10 +57,6 @@ _KIND_PATTERN = {
     "proof": r"proofs?",
 }
 
-_CITE = re.compile(
-    r"\[[^\[\]\n]{0,120}\]"
-)
-_YEAR = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
 
 
 def _boundary_number(number: str) -> str:
@@ -70,8 +68,9 @@ def _boundary_number(number: str) -> str:
 def _patterns(kind: str, number: str) -> list[re.Pattern[str]]:
     token = _boundary_number(number)
     if kind == "section":
+        # "Subsection 2.3" and "Subsubsection 6.2.1" name that numbered unit.
         return [
-            re.compile(rf"(?i)\b(?:sections?|sec\.?)\s*{token}"),
+            re.compile(rf"(?i)\b(?:sub(?:sub)?sections?|sections?|sec\.?)\s*{token}"),
             re.compile(rf"(?i)§\s*{token}"),
             re.compile(rf"(?i)\bappendices\s+{token}|\bappendix\s*{token}\b"),
         ]
@@ -87,17 +86,9 @@ def _patterns(kind: str, number: str) -> list[re.Pattern[str]]:
 
 
 def _citation_spans(text: str) -> list[tuple[int, int]]:
-    spans = []
-    for found in _CITE.finditer(text):
-        body = found.group(0)
-        if (
-            re.search(r"\d", body)
-            or re.search(r"(?i)\b(?:theorem|lemma|proposition|corollary|definition|thm|lem|prop)\b", body)
-            or _YEAR.search(body)
-            or re.search(r"\[[A-Z][A-Za-z.\-]+", body)
-        ):
-            spans.append((found.start(), found.end()))
-    return spans
+    # The same brackets the detector refuses to open, including one that the
+    # text layer splits across a line: "[Zho23,\nTheorem 1.1]".
+    return _external_citation_spans(text)
 
 
 def _inside(spans: list[tuple[int, int]], start: int, end: int) -> bool:
@@ -108,6 +99,9 @@ def _norm_title(title: str) -> str:
     cleaned = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
     # "3.3. Steinberg splitting" and "Steinberg splitting" name the same heading.
     cleaned = re.sub(r"^(?:(?:section|sec)\s+)?(?:\d+\s+)+", "", cleaned)
+    # Rendered math puts a space inside a symbol: "SL 2" and "SL2".
+    cleaned = re.sub(r"(?<=[a-z])\s+(?=\d)", "", cleaned)
+    cleaned = re.sub(r"(?<=\d)\s+(?=[a-z])", "", cleaned)
     return cleaned.strip()
 
 
@@ -124,14 +118,18 @@ def _titles_agree(wanted: str, got: str) -> bool:
     return got.startswith(wanted + " ") or wanted.startswith(got + " ")
 
 
-def _outline_title_page(outline: list[OutlineNode], title: str) -> int | None:
+def _outline_title_page(outline: list[OutlineNode], title: str, number: str | None = None) -> int | None:
     wanted = _norm_title(title)
     found: list[tuple[int, int, int]] = []
 
     def walk(nodes: list[OutlineNode], depth: int = 0) -> None:
         for node in nodes:
             got = _norm_title(node.title)
-            if node.page_index >= 0 and _titles_agree(wanted, got):
+            # "2. Shared title" is not the heading for section 2.2, even when
+            # the subsection repeats the parent's title.
+            bookmark_number = _explicit_section_number(node.title)
+            number_ok = not number or not bookmark_number or bookmark_number == number
+            if node.page_index >= 0 and number_ok and _titles_agree(wanted, got):
                 found.append((abs(len(got) - len(wanted)), depth, node.page_index))
             walk(node.children, depth + 1)
 
@@ -152,26 +150,28 @@ def _true_section_page(
     # on an earlier page ("3. Numerical experiments ... GPU-Preprocessor")
     # is not that heading.
     if outline:
-        bookmarked = _outline_title_page(outline, title)
+        bookmarked = _outline_title_page(outline, title, number)
         if bookmarked is not None:
             return bookmarked
     words = re.findall(r"[A-Za-z]{4,}", title)[:3]
+    # "2.4. Small cases" is section 2.4, not section 2.
     number_pattern = re.compile(
-        rf"(?i)^\s*(?:§\s*|section\s+|appendix\s+)?{re.escape(number)}(?:\.(?!\d))?(?!\d)"
+        rf"(?i)^\s*(?:§\s*|section\s+|appendix\s+)?{re.escape(number)}(?!\.\d)(?!\d)"
     )
     for page in pages:
         if is_likely_table_of_contents(page["text"]):
             continue
         for raw in page["text"].split("\n"):
             line = raw.strip()
-            if not _matches_heading_line(line):
+            heading = heading_line(line)
+            if heading is None:
                 continue
-            if not number_pattern.search(line):
+            if not number_pattern.search(heading):
                 continue
-            lowered = line.lower()
+            lowered = heading.lower()
             if words and not all(word.lower() in lowered for word in words[:2]):
                 continue
-            if len(line) > 160:
+            if len(heading) > 160:
                 continue
             return page["page_index"]
     return None

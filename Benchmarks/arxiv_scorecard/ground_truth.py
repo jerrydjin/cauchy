@@ -178,6 +178,11 @@ def _kind_number_from_tag(text: str) -> tuple[str, str, str | None] | None:
     return kind, found.group(2), (found.group(3).strip() if found.group(3) else None)
 
 
+# LaTeXML numbers an enumerated item as #S4.I7.i2 or #S1.I1.ix2. The link
+# text is the item number. That is not a section.
+_ITEM_HREF = re.compile(r"(?:^|#|\.)(?:I\d+|ix?\d+)(?:\.|$)")
+
+
 def _target(title: str, href: str, link_text: str) -> tuple[str, str] | None:
     titled = _TITLE_KIND.match(title.replace("\xa0", " ").strip())
     if titled:
@@ -187,6 +192,8 @@ def _target(title: str, href: str, link_text: str) -> tuple[str, str] | None:
         number = _NUMBER.search(link_text.replace("\xa0", " "))
         if number:
             return "equation", number.group(0)
+    if _ITEM_HREF.search(href):
+        return None
     if href.startswith("#S") and ".Thm" not in href and ".E" not in href:
         number = link_text.replace("\xa0", " ").strip().strip(".")
         number = re.sub(r"\s+", "", number)
@@ -197,7 +204,9 @@ def _target(title: str, href: str, link_text: str) -> tuple[str, str] | None:
 
 def parse_html(html: str) -> PaperTruth:
     soup = BeautifulSoup(html, "lxml")
-    for node in soup.select("script, style"):
+    # The annotation is the TeX source beside the rendered math. Reading both
+    # turns "SL 2" into "SL 2 \mathrm{SL}_{2}".
+    for node in soup.select("script, style, annotation"):
         node.decompose()
     truth = PaperTruth()
     order = 0

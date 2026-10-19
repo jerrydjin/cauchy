@@ -605,6 +605,11 @@ def _write_markdown(payload: dict) -> None:
         "- Every probed “what is section N about” question lands on the heading page.",
         "",
         "Main locates a section written as “N. Title” or “N.N. Title.” "
+        "A run-in heading such as “2.4. Small cases. Let G be a graph” is that section; the sentence after the title period is the paragraph. "
+        "A longer title with no following sentence, such as “6. Discriminants of minor-free graphs and completable cycles in the plane”, is still a heading. "
+        "“Subsection 2.3” and “Subsubsection 6.2.1” are references to those units. "
+        "An HTML link whose target is an enumerated item, such as #S4.I1.i2, is not a section. "
+        "A TeX annotation nested in a heading is not part of the title, and “SL 2” matches a bookmark “SL2”. "
         "Main also drops a local reference inside [12], [IK99, Lemma 1.15], (Smith 2019), or Smith et al. [2019]; "
         "an interval such as [0, 1] is not a citation. "
         "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. A number alone on its line is an equation when the next line is a formula, as in “(1)” followed by “xn+m xn = P(...)”. "

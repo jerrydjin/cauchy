@@ -406,6 +406,67 @@ class StructureTests(unittest.TestCase):
         )
         self.assertEqual(locate(structural_query("what is section 4 about"), clique).start_page, 10)
 
+    def test_run_in_heading_keeps_the_title_and_drops_the_paragraph(self) -> None:
+        structure = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                4,
+                "2.4. Small cases. Let G be a graph with four vertices and one cycle.\n"
+                "The rest of the page is ordinary prose about matrices.",
+            )],
+            page_count=8,
+        )
+        found = locate(structural_query("what is section 2.4 about"), structure)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.start_page, 4)
+        self.assertIn("Small cases", found.label)
+        self.assertNotIn("graph", found.label.lower())
+
+    def test_numbered_proof_sentence_is_not_a_run_in_heading(self) -> None:
+        structure = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                1,
+                "2.4. Let us check the first axiom. For any x and y the product stays inside.",
+            )],
+            page_count=4,
+        )
+        self.assertIsNone(locate(structural_query("what is section 2.4 about"), structure))
+
+    def test_long_title_is_a_heading_and_a_bibliography_line_is_not(self) -> None:
+        titled = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                2,
+                "6. Discriminants of minor-free graphs and completable cycles in the plane\n"
+                "Ordinary text follows on the next line and is not a heading.",
+            )],
+            page_count=5,
+        )
+        found = locate(structural_query("what is section 6 about"), titled)
+        self.assertEqual(found.start_page, 2)
+
+        bibliography = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                0,
+                "2. Ada Lovelace, Notes on the analytic engine and its design",
+            )],
+            page_count=3,
+        )
+        self.assertIsNone(locate(structural_query("what is section 2 about"), bibliography))
+
+    def test_a_parent_bookmark_does_not_answer_a_subsection_with_the_same_title(self) -> None:
+        from score import _true_section_page
+
+        pages = [
+            {"page_index": 3, "text": "2. Shared title\nThe parent section starts here with enough prose."},
+            {"page_index": 5, "text": "2.2. Shared title\nThe subsection starts on this later page."},
+        ]
+        outline = [OutlineNode("2. Shared title", 3)]
+        self.assertEqual(_true_section_page(pages, "2.2", "Shared title", outline), 5)
+        self.assertEqual(_true_section_page(pages, "2", "Shared title", outline), 3)
+
     def test_numbered_sibling_keeps_its_number_beside_introduction(self) -> None:
         structure = Structure(
             outline=[
@@ -464,6 +525,65 @@ class CitationScoreTests(unittest.TestCase):
         card = score_profile(truth, pages, "main", use_structure=False)
         self.assertEqual(card["wrong_links"], 0)
         self.assertEqual(card["citation_detections"], 0)
+
+    def test_a_citation_split_across_a_line_is_not_a_missed_local_reference(self) -> None:
+        from ground_truth import Declaration, Mention, PaperTruth, SectionInfo
+        from score import score_profile
+
+        truth = PaperTruth(
+            mentions=[
+                Mention("theorem", "1.1", "named", "Theorem", False, "Theorem 1.1"),
+                Mention("theorem", "2.2", "named", "Theorem", False, "Theorem 2.2"),
+            ],
+            declarations=[
+                Declaration("theorem", "1.1", None, 0),
+                Declaration("theorem", "2.2", None, 1),
+            ],
+            sections=[SectionInfo("1", "Introduction", 1)],
+        )
+        pages = [{
+            "page_index": 0,
+            "text": "See [Zho23,\nTheorem 1.1] for the model.\n1. Introduction\nTheorem 2.2. The local statement is short.",
+            "width": 100,
+            "blocks": [],
+        }]
+        card = score_profile(truth, pages, "main", use_structure=False)
+        self.assertEqual(card["citation_detections"], 0)
+        self.assertEqual(card["wrong_links"], 0)
+        self.assertEqual(card["missed"], 0)
+        self.assertGreaterEqual(card["correct"], 1)
+
+
+class HtmlReferenceTests(unittest.TestCase):
+    def test_enumerated_item_link_is_not_a_section(self) -> None:
+        html = """
+        <p>See (<a class="ltx_ref" href="#S4.I1.i2" title="item 2">2</a>)
+        and <a class="ltx_ref" href="#S3" title="3. Tracially AF algebras">3</a>
+        and <a class="ltx_ref" href="#S2.SS1.p1.1" title="2.1 Basics">2.1</a>.</p>
+        """
+        truth = parse_html(html)
+        sections = {(item.kind, item.number) for item in truth.mentions if item.kind == "section"}
+        self.assertNotIn(("section", "2"), sections)
+        self.assertIn(("section", "3"), sections)
+        self.assertIn(("section", "2.1"), sections)
+
+    def test_math_annotation_is_not_part_of_the_heading(self) -> None:
+        html = """
+        <h4 class="ltx_title ltx_title_subsubsection">
+          <span class="ltx_tag ltx_tag_subsubsection">2.1. </span>
+          Subgroups of
+          <math alttext="\\mathrm{SL}_{2}" class="ltx_Math">
+            <semantics>
+              <msub><mi>SL</mi><mn>2</mn></msub>
+              <annotation encoding="application/x-tex">\\mathrm{SL}_{2}</annotation>
+            </semantics>
+          </math>
+        </h4>
+        """
+        truth = parse_html(html)
+        self.assertEqual(len(truth.sections), 1)
+        self.assertNotIn("mathrm", truth.sections[0].title)
+        self.assertIn("SL", truth.sections[0].title)
 
 
 if __name__ == "__main__":

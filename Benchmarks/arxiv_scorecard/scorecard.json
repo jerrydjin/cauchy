@@ -10,7 +10,7 @@
       "page_count": 12,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.221,
+      "extract_seconds": 0.217,
       "declarations": 30,
       "mentions": 46,
       "citation_style": "numeric+qualified",
@@ -137,7 +137,7 @@
           "wrong_links": 0,
           "extraction_misses": 1,
           "denominator": 59,
-          "citation_detections": 6,
+          "citation_detections": 7,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
@@ -184,10 +184,10 @@
             "citation": [
               "p.3 lemma 1.15 in 'er the reader to [IK99, Lemma 1.15] for a proof. Lemma 2.1'",
               "p.4 definition 3.5 in 'utability from [CCC+18, Definition 3.5]. In Theorem 2.2, the r'",
+              "p.4 proposition 3.2 in 'n the proof of [BCMS26, Proposition 3.2]. Applying [CCC+18, Pro'",
               "p.4 proposition 3.6 in '3.2]. Applying [CCC+18, Proposition 3.6] we get I(X) : (h) = I('",
               "p.6 proposition 23 in 'in the proof of [BBT13, Proposition 23]. Consider the open sub'",
-              "p.9 proposition 28 in 'in the proof of [BBT13, Proposition 28]. Let B\u2032 := n Y i=0 i\u0338='",
-              "p.10 example 6.1 in 'ion. Proof. In [BCMS26, Example 6.1] it is proved that 4 < '"
+              "p.9 proposition 28 in 'in the proof of [BBT13, Proposition 28]. Let B\u2032 := n Y i=0 i\u0338='"
             ]
           },
           "number_search": {
@@ -201,7 +201,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "6 citation spans emitted as local refs",
+            "7 citation spans emitted as local refs",
             "section questions are not implemented"
           ]
         },
@@ -216,6 +216,72 @@
           "extraction_misses": 1,
           "denominator": 59,
           "citation_detections": 0,
+          "citation_links": 0,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 30,
+          "index_seconds": 0.019,
+          "section_questions": {
+            "probed": [
+              {
+                "question": "what is section 1 about",
+                "number": "1",
+                "title": "Introduction",
+                "truth_page": 0,
+                "predicted_page": 0,
+                "label": "\u00a71. Introduction",
+                "ok": true
+              },
+              {
+                "question": "what is section 3 about",
+                "number": "3",
+                "title": "Computation of VSP",
+                "truth_page": 2,
+                "predicted_page": 2,
+                "label": "\u00a73. Computation of VSP",
+                "ok": true
+              },
+              {
+                "question": "what is section 4 about",
+                "number": "4",
+                "title": "Final remarks",
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a74. Final remarks",
+                "ok": true
+              }
+            ],
+            "ok": true,
+            "reason": null
+          },
+          "examples": {
+            "missed": [],
+            "wrong": [],
+            "citation": []
+          },
+          "number_search": {
+            "query": "Lemma 2.1",
+            "served": true,
+            "short_query": "Lemma 2",
+            "short_serves_full_number": true,
+            "literal_lemma_4_served": false,
+            "printed_name": null,
+            "name_query_served_from_index": false,
+            "name_query": null
+          },
+          "fail_reasons": []
+        },
+        "combined": {
+          "profile": "hover",
+          "structure": true,
+          "passes": false,
+          "resolution_rate": 0.9831,
+          "correct": 58,
+          "missed": 0,
+          "wrong_links": 0,
+          "extraction_misses": 1,
+          "denominator": 59,
+          "citation_detections": 7,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
@@ -257,79 +323,13 @@
           "examples": {
             "missed": [],
             "wrong": [],
-            "citation": []
-          },
-          "number_search": {
-            "query": "Lemma 2.1",
-            "served": true,
-            "short_query": "Lemma 2",
-            "short_serves_full_number": true,
-            "literal_lemma_4_served": false,
-            "printed_name": null,
-            "name_query_served_from_index": false,
-            "name_query": null
-          },
-          "fail_reasons": []
-        },
-        "combined": {
-          "profile": "hover",
-          "structure": true,
-          "passes": false,
-          "resolution_rate": 0.9831,
-          "correct": 58,
-          "missed": 0,
-          "wrong_links": 0,
-          "extraction_misses": 1,
-          "denominator": 59,
-          "citation_detections": 6,
-          "citation_links": 0,
-          "false_declarations": [],
-          "false_declaration_count": 0,
-          "index_size": 30,
-          "index_seconds": 0.017,
-          "section_questions": {
-            "probed": [
-              {
-                "question": "what is section 1 about",
-                "number": "1",
-                "title": "Introduction",
-                "truth_page": 0,
-                "predicted_page": 0,
-                "label": "\u00a71. Introduction",
-                "ok": true
-              },
-              {
-                "question": "what is section 3 about",
-                "number": "3",
-                "title": "Computation of VSP",
-                "truth_page": 2,
-                "predicted_page": 2,
-                "label": "\u00a73. Computation of VSP",
-                "ok": true
-              },
-              {
-                "question": "what is section 4 about",
-                "number": "4",
-                "title": "Final remarks",
-                "truth_page": 9,
-                "predicted_page": 9,
-                "label": "\u00a74. Final remarks",
-                "ok": true
-              }
-            ],
-            "ok": true,
-            "reason": null
-          },
-          "examples": {
-            "missed": [],
-            "wrong": [],
             "citation": [
               "p.3 lemma 1.15 in 'er the reader to [IK99, Lemma 1.15] for a proof. Lemma 2.1'",
               "p.4 definition 3.5 in 'utability from [CCC+18, Definition 3.5]. In Theorem 2.2, the r'",
+              "p.4 proposition 3.2 in 'n the proof of [BCMS26, Proposition 3.2]. Applying [CCC+18, Pro'",
               "p.4 proposition 3.6 in '3.2]. Applying [CCC+18, Proposition 3.6] we get I(X) : (h) = I('",
               "p.6 proposition 23 in 'in the proof of [BBT13, Proposition 23]. Consider the open sub'",
-              "p.9 proposition 28 in 'in the proof of [BBT13, Proposition 28]. Let B\u2032 := n Y i=0 i\u0338='",
-              "p.10 example 6.1 in 'ion. Proof. In [BCMS26, Example 6.1] it is proved that 4 < '"
+              "p.9 proposition 28 in 'in the proof of [BBT13, Proposition 28]. Let B\u2032 := n Y i=0 i\u0338='"
             ]
           },
           "number_search": {
@@ -343,7 +343,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "6 citation spans emitted as local refs"
+            "7 citation spans emitted as local refs"
           ]
         }
       }
@@ -358,7 +358,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.312,
+      "extract_seconds": 0.315,
       "declarations": 32,
       "mentions": 78,
       "citation_style": "numeric+qualified",
@@ -396,12 +396,12 @@
         },
         {
           "number": "4",
-          "title": "The branch n \u2265 5 n\\geq 5",
+          "title": "The branch n \u2265 5",
           "level": 1
         },
         {
           "number": "5",
-          "title": "The branch n \u2264 4 n\\leq 4",
+          "title": "The branch n \u2264 4",
           "level": 1
         },
         {
@@ -416,32 +416,32 @@
         },
         {
           "number": "4.3",
-          "title": "Dimension estimates for the case \u03b4 = 0 \\delta=0",
+          "title": "Dimension estimates for the case \u03b4 = 0",
           "level": 2
         },
         {
           "number": "4.4",
-          "title": "Possible degrees for the case \u03b4 = 0 \\delta=0",
+          "title": "Possible degrees for the case \u03b4 = 0",
           "level": 2
         },
         {
           "number": "4.5",
-          "title": "Realization when n \u2265 5 n\\geq 5",
+          "title": "Realization when n \u2265 5",
           "level": 2
         },
         {
           "number": "5.1",
-          "title": "The cases n = 1 n=1 and n = 2 n=2",
+          "title": "The cases n = 1 and n = 2",
           "level": 2
         },
         {
           "number": "5.2",
-          "title": "The case n = 3 n=3",
+          "title": "The case n = 3",
           "level": 2
         },
         {
           "number": "5.3",
-          "title": "The case n = 4 n=4",
+          "title": "The case n = 4",
           "level": 2
         }
       ],
@@ -462,18 +462,18 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9254,
-          "correct": 62,
+          "resolution_rate": 0.9851,
+          "correct": 66,
           "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 5,
+          "extraction_misses": 1,
           "denominator": 67,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.031,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -497,7 +497,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "The branch n \u2264 4 n\\leq 4",
+                "title": "The branch n \u2264 4",
                 "truth_page": 19,
                 "predicted_page": 19,
                 "label": "\u00a75. The branch n4",
@@ -506,7 +506,7 @@
               {
                 "question": "what is section 4.5 about",
                 "number": "4.5",
-                "title": "Realization when n \u2265 5 n\\geq 5",
+                "title": "Realization when n \u2265 5",
                 "truth_page": 16,
                 "predicted_page": 16,
                 "label": "\u00a74.5. Realization when n5",
@@ -539,16 +539,16 @@
           "passes": false,
           "resolution_rate": 0.9254,
           "correct": 62,
-          "missed": 0,
+          "missed": 4,
           "wrong_links": 0,
-          "extraction_misses": 5,
+          "extraction_misses": 1,
           "denominator": 67,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.03,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -572,7 +572,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "The branch n \u2264 4 n\\leq 4",
+                "title": "The branch n \u2264 4",
                 "truth_page": 19,
                 "predicted_page": null,
                 "label": null,
@@ -581,7 +581,7 @@
               {
                 "question": "what is section 4.5 about",
                 "number": "4.5",
-                "title": "Realization when n \u2265 5 n\\geq 5",
+                "title": "Realization when n \u2265 5",
                 "truth_page": 16,
                 "predicted_page": null,
                 "label": null,
@@ -592,7 +592,12 @@
             "reason": "a section question missed its heading page"
           },
           "examples": {
-            "missed": [],
+            "missed": [
+              "p.6 'Subsection 4.1' did not locate section 4.1",
+              "p.6 'Subsection 4.2' did not locate section 4.2",
+              "p.6 'Subsections 4.3' did not locate section 4.3",
+              "p.6 'Subsection 4.5' did not locate section 4.5"
+            ],
             "wrong": [],
             "citation": []
           },
@@ -614,18 +619,18 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9254,
-          "correct": 62,
+          "resolution_rate": 0.9851,
+          "correct": 66,
           "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 5,
+          "extraction_misses": 1,
           "denominator": 67,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.031,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -649,7 +654,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "The branch n \u2264 4 n\\leq 4",
+                "title": "The branch n \u2264 4",
                 "truth_page": 19,
                 "predicted_page": 19,
                 "label": "\u00a75. The branch n4",
@@ -658,7 +663,7 @@
               {
                 "question": "what is section 4.5 about",
                 "number": "4.5",
-                "title": "Realization when n \u2265 5 n\\geq 5",
+                "title": "Realization when n \u2265 5",
                 "truth_page": 16,
                 "predicted_page": 16,
                 "label": "\u00a74.5. Realization when n5",
@@ -689,18 +694,18 @@
           "profile": "hover",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9254,
-          "correct": 62,
+          "resolution_rate": 0.9851,
+          "correct": 66,
           "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 5,
+          "extraction_misses": 1,
           "denominator": 67,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 32,
-          "index_seconds": 0.03,
+          "index_seconds": 0.033,
           "section_questions": {
             "probed": [
               {
@@ -724,7 +729,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "The branch n \u2264 4 n\\leq 4",
+                "title": "The branch n \u2264 4",
                 "truth_page": 19,
                 "predicted_page": 19,
                 "label": "\u00a75. The branch n4",
@@ -733,7 +738,7 @@
               {
                 "question": "what is section 4.5 about",
                 "number": "4.5",
-                "title": "Realization when n \u2265 5 n\\geq 5",
+                "title": "Realization when n \u2265 5",
                 "truth_page": 16,
                 "predicted_page": 16,
                 "label": "\u00a74.5. Realization when n5",
@@ -772,7 +777,7 @@
       "page_count": 42,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.641,
+      "extract_seconds": 0.654,
       "declarations": 127,
       "mentions": 315,
       "citation_style": "numeric+qualified",
@@ -798,7 +803,7 @@
         },
         {
           "number": "3",
-          "title": "Effects of \u03b2 \\beta and L L on the bifurcation and proof of Theorem 1.2",
+          "title": "Effects of \u03b2 and L on the bifurcation and proof of Theorem 1.2",
           "level": 1
         },
         {
@@ -838,12 +843,12 @@
         },
         {
           "number": "3.1",
-          "title": "Effects of \u03b2 \\beta and proof of Theorem 1.2 (1)",
+          "title": "Effects of \u03b2 and proof of Theorem 1.2 (1)",
           "level": 2
         },
         {
           "number": "3.2",
-          "title": "Effects of domain size L L and proof of Theorem 1.2 (2)",
+          "title": "Effects of domain size L and proof of Theorem 1.2 (2)",
           "level": 2
         },
         {
@@ -899,18 +904,18 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9089,
-          "correct": 359,
-          "missed": 7,
+          "resolution_rate": 0.919,
+          "correct": 363,
+          "missed": 5,
           "wrong_links": 0,
-          "extraction_misses": 29,
+          "extraction_misses": 27,
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.06,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [
               {
@@ -958,9 +963,7 @@
               "p.16 '(2.18)': not in the statement index",
               "p.22 '(2.18)': not in the statement index",
               "p.19 '(2.28)': not in the statement index",
-              "p.20 '(2.28)': not in the statement index",
-              "p.8 'Section 3' did not locate section 3",
-              "p.12 'Section 3' did not locate section 3"
+              "p.20 '(2.28)': not in the statement index"
             ],
             "wrong": [],
             "citation": []
@@ -983,16 +986,16 @@
           "passes": false,
           "resolution_rate": 0.8835,
           "correct": 349,
-          "missed": 17,
+          "missed": 19,
           "wrong_links": 0,
-          "extraction_misses": 29,
+          "extraction_misses": 27,
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.059,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [
               {
@@ -1066,18 +1069,18 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9089,
-          "correct": 359,
-          "missed": 7,
+          "resolution_rate": 0.919,
+          "correct": 363,
+          "missed": 5,
           "wrong_links": 0,
-          "extraction_misses": 29,
+          "extraction_misses": 27,
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.06,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [
               {
@@ -1125,9 +1128,7 @@
               "p.16 '(2.18)': not in the statement index",
               "p.22 '(2.18)': not in the statement index",
               "p.19 '(2.28)': not in the statement index",
-              "p.20 '(2.28)': not in the statement index",
-              "p.8 'Section 3' did not locate section 3",
-              "p.12 'Section 3' did not locate section 3"
+              "p.20 '(2.28)': not in the statement index"
             ],
             "wrong": [],
             "citation": []
@@ -1148,18 +1149,18 @@
           "profile": "hover",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9089,
-          "correct": 359,
-          "missed": 7,
+          "resolution_rate": 0.919,
+          "correct": 363,
+          "missed": 5,
           "wrong_links": 0,
-          "extraction_misses": 29,
+          "extraction_misses": 27,
           "denominator": 395,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.059,
+          "index_seconds": 0.062,
           "section_questions": {
             "probed": [
               {
@@ -1207,9 +1208,7 @@
               "p.16 '(2.18)': not in the statement index",
               "p.22 '(2.18)': not in the statement index",
               "p.19 '(2.28)': not in the statement index",
-              "p.20 '(2.28)': not in the statement index",
-              "p.8 'Section 3' did not locate section 3",
-              "p.12 'Section 3' did not locate section 3"
+              "p.20 '(2.28)': not in the statement index"
             ],
             "wrong": [],
             "citation": []
@@ -1238,7 +1237,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.526,
+      "extract_seconds": 0.537,
       "declarations": 49,
       "mentions": 136,
       "citation_style": "numeric+qualified",
@@ -1286,7 +1285,7 @@
         },
         {
           "number": "6",
-          "title": "MC discriminants of K 4 K_{4} -minor-free graphs and cycle-completable graphs",
+          "title": "MC discriminants of K 4 -minor-free graphs and cycle-completable graphs",
           "level": 1
         },
         {
@@ -1421,19 +1420,19 @@
         "main": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.8672,
-          "correct": 111,
-          "missed": 2,
+          "passes": true,
+          "resolution_rate": 0.9688,
+          "correct": 124,
+          "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 15,
+          "extraction_misses": 4,
           "denominator": 128,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 51,
-          "index_seconds": 0.047,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -1457,30 +1456,27 @@
               {
                 "question": "what is section 6 about",
                 "number": "6",
-                "title": "MC discriminants of K 4 K_{4} -minor-free graphs and cycle-completable graphs",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "title": "MC discriminants of K 4 -minor-free graphs and cycle-completable graphs",
+                "truth_page": 18,
+                "predicted_page": 18,
+                "label": "\u00a76. MC discriminants of K4-minor-free graphs and cycle-completable graphs",
+                "ok": true
               },
               {
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Coincidence beyond cycle-completable graphs",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a73.3. Coincidence beyond cycle-completable graphs",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.2 'Section 3.4' did not locate section 3.4",
-              "p.8 'Section 6' did not locate section 6"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -1494,10 +1490,7 @@
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "resolution 86.7% is under 90%",
-            "a section question missed its heading page"
-          ]
+          "fail_reasons": []
         },
         "hover": {
           "profile": "hover",
@@ -1505,16 +1498,16 @@
           "passes": false,
           "resolution_rate": 0.7812,
           "correct": 100,
-          "missed": 13,
+          "missed": 24,
           "wrong_links": 0,
-          "extraction_misses": 15,
+          "extraction_misses": 4,
           "denominator": 128,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 51,
-          "index_seconds": 0.045,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -1538,8 +1531,8 @@
               {
                 "question": "what is section 6 about",
                 "number": "6",
-                "title": "MC discriminants of K 4 K_{4} -minor-free graphs and cycle-completable graphs",
-                "truth_page": null,
+                "title": "MC discriminants of K 4 -minor-free graphs and cycle-completable graphs",
+                "truth_page": 18,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -1548,7 +1541,7 @@
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Coincidence beyond cycle-completable graphs",
-                "truth_page": null,
+                "truth_page": 9,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -1559,12 +1552,12 @@
           },
           "examples": {
             "missed": [
-              "p.18 'Section 1' did not locate section 1",
               "p.3 'Section 2' did not locate section 2",
-              "p.3 'Section 3' did not locate section 3",
-              "p.7 'Section 3' did not locate section 3",
-              "p.2 'Section 3.4' did not locate section 3.4",
-              "p.3 'Sections 4' did not locate section 4"
+              "p.7 'Subsection 2.1' did not locate section 2.1",
+              "p.28 'Subsection 2.1' did not locate section 2.1",
+              "p.2 'Subsection 2.3' did not locate section 2.3",
+              "p.6 'Subsection 2.4' did not locate section 2.4",
+              "p.19 'Subsection 2.6' did not locate section 2.6"
             ],
             "wrong": [],
             "citation": []
@@ -1587,12 +1580,87 @@
         "chat": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.8672,
-          "correct": 111,
-          "missed": 2,
+          "passes": true,
+          "resolution_rate": 0.9688,
+          "correct": 124,
+          "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 15,
+          "extraction_misses": 4,
+          "denominator": 128,
+          "citation_detections": 0,
+          "citation_links": 0,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 51,
+          "index_seconds": 0.049,
+          "section_questions": {
+            "probed": [
+              {
+                "question": "what is section 1 about",
+                "number": "1",
+                "title": "Introduction",
+                "truth_page": 0,
+                "predicted_page": 0,
+                "label": "\u00a71. Introduction",
+                "ok": true
+              },
+              {
+                "question": "what is section 4 about",
+                "number": "4",
+                "title": "Clique-sum",
+                "truth_page": 10,
+                "predicted_page": 10,
+                "label": "\u00a74. Clique-sum",
+                "ok": true
+              },
+              {
+                "question": "what is section 6 about",
+                "number": "6",
+                "title": "MC discriminants of K 4 -minor-free graphs and cycle-completable graphs",
+                "truth_page": 18,
+                "predicted_page": 18,
+                "label": "\u00a76. MC discriminants of K4-minor-free graphs and cycle-completable graphs",
+                "ok": true
+              },
+              {
+                "question": "what is section 3.3 about",
+                "number": "3.3",
+                "title": "Coincidence beyond cycle-completable graphs",
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a73.3. Coincidence beyond cycle-completable graphs",
+                "ok": true
+              }
+            ],
+            "ok": true,
+            "reason": null
+          },
+          "examples": {
+            "missed": [],
+            "wrong": [],
+            "citation": []
+          },
+          "number_search": {
+            "query": "Lemma 2.2",
+            "served": true,
+            "short_query": "Lemma 2",
+            "short_serves_full_number": true,
+            "literal_lemma_4_served": false,
+            "printed_name": null,
+            "name_query_served_from_index": false,
+            "name_query": null
+          },
+          "fail_reasons": []
+        },
+        "combined": {
+          "profile": "hover",
+          "structure": true,
+          "passes": true,
+          "resolution_rate": 0.9688,
+          "correct": 124,
+          "missed": 0,
+          "wrong_links": 0,
+          "extraction_misses": 4,
           "denominator": 128,
           "citation_detections": 0,
           "citation_links": 0,
@@ -1623,30 +1691,27 @@
               {
                 "question": "what is section 6 about",
                 "number": "6",
-                "title": "MC discriminants of K 4 K_{4} -minor-free graphs and cycle-completable graphs",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "title": "MC discriminants of K 4 -minor-free graphs and cycle-completable graphs",
+                "truth_page": 18,
+                "predicted_page": 18,
+                "label": "\u00a76. MC discriminants of K4-minor-free graphs and cycle-completable graphs",
+                "ok": true
               },
               {
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Coincidence beyond cycle-completable graphs",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a73.3. Coincidence beyond cycle-completable graphs",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.2 'Section 3.4' did not locate section 3.4",
-              "p.8 'Section 6' did not locate section 6"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -1660,91 +1725,7 @@
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "resolution 86.7% is under 90%",
-            "a section question missed its heading page"
-          ]
-        },
-        "combined": {
-          "profile": "hover",
-          "structure": true,
-          "passes": false,
-          "resolution_rate": 0.8672,
-          "correct": 111,
-          "missed": 2,
-          "wrong_links": 0,
-          "extraction_misses": 15,
-          "denominator": 128,
-          "citation_detections": 0,
-          "citation_links": 0,
-          "false_declarations": [],
-          "false_declaration_count": 0,
-          "index_size": 51,
-          "index_seconds": 0.053,
-          "section_questions": {
-            "probed": [
-              {
-                "question": "what is section 1 about",
-                "number": "1",
-                "title": "Introduction",
-                "truth_page": 0,
-                "predicted_page": 0,
-                "label": "\u00a71. Introduction",
-                "ok": true
-              },
-              {
-                "question": "what is section 4 about",
-                "number": "4",
-                "title": "Clique-sum",
-                "truth_page": 10,
-                "predicted_page": 10,
-                "label": "\u00a74. Clique-sum",
-                "ok": true
-              },
-              {
-                "question": "what is section 6 about",
-                "number": "6",
-                "title": "MC discriminants of K 4 K_{4} -minor-free graphs and cycle-completable graphs",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
-              },
-              {
-                "question": "what is section 3.3 about",
-                "number": "3.3",
-                "title": "Coincidence beyond cycle-completable graphs",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
-              }
-            ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
-          },
-          "examples": {
-            "missed": [
-              "p.2 'Section 3.4' did not locate section 3.4",
-              "p.8 'Section 6' did not locate section 6"
-            ],
-            "wrong": [],
-            "citation": []
-          },
-          "number_search": {
-            "query": "Lemma 2.2",
-            "served": true,
-            "short_query": "Lemma 2",
-            "short_serves_full_number": true,
-            "literal_lemma_4_served": false,
-            "printed_name": null,
-            "name_query_served_from_index": false,
-            "name_query": null
-          },
-          "fail_reasons": [
-            "resolution 86.7% is under 90%",
-            "a section question missed its heading page"
-          ]
+          "fail_reasons": []
         }
       }
     },
@@ -1758,7 +1739,7 @@
       "page_count": 23,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.358,
+      "extract_seconds": 0.364,
       "declarations": 47,
       "mentions": 19,
       "citation_style": "numeric+qualified",
@@ -1851,7 +1832,7 @@
         },
         {
           "number": "2.1.1",
-          "title": "Subgroups of SL 2 \\mathrm{SL}_{2}",
+          "title": "Subgroups of SL 2",
           "level": 3
         },
         {
@@ -1876,7 +1857,7 @@
         },
         {
           "number": "2.2.3",
-          "title": "\ud835\udc15 \\mathbf{V} -functors and \ud835\udc0e \\mathbf{O} -functors",
+          "title": "\ud835\udc15 -functors and \ud835\udc0e -functors",
           "level": 3
         }
       ],
@@ -1897,12 +1878,12 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.7727,
-          "correct": 17,
-          "missed": 2,
+          "resolution_rate": 0.8696,
+          "correct": 20,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 3,
-          "denominator": 22,
+          "denominator": 23,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
@@ -1910,7 +1891,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 48,
-          "index_seconds": 0.035,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -1954,10 +1935,7 @@
             "reason": null
           },
           "examples": {
-            "missed": [
-              "p.19 '\u00a72.1.1' did not locate section 2.1.1",
-              "p.17 '\u00a72.2.3' did not locate section 2.2.3"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -1972,7 +1950,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 77.3% is under 90%",
+            "resolution 87.0% is under 90%",
             "1 indexed statement is not in the HTML declarations"
           ]
         },
@@ -1980,20 +1958,20 @@
           "profile": "hover",
           "structure": false,
           "passes": false,
-          "resolution_rate": 0.7273,
+          "resolution_rate": 0.6957,
           "correct": 16,
-          "missed": 3,
+          "missed": 4,
           "wrong_links": 0,
           "extraction_misses": 3,
-          "denominator": 22,
-          "citation_detections": 27,
+          "denominator": 23,
+          "citation_detections": 30,
           "citation_links": 3,
           "false_declarations": [
             "p.20 equation 1"
           ],
           "false_declaration_count": 1,
           "index_size": 48,
-          "index_seconds": 0.033,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -2027,7 +2005,7 @@
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Steinberg splitting for elementary abelian groups",
-                "truth_page": null,
+                "truth_page": 15,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -2040,6 +2018,7 @@
             "missed": [
               "p.19 '\u00a72.1.1' did not locate section 2.1.1",
               "p.17 '\u00a72.2.3' did not locate section 2.2.3",
+              "p.3 '\u00a74.2' did not locate section 4.2",
               "p.21 '\u00a74.2' did not locate section 4.2"
             ],
             "wrong": [],
@@ -2049,7 +2028,7 @@
               "p.5 lemma 1.9.8 in '0. Moreover, by [Ben17, Lemma 1.9.8] we have supp(M|G) = su'",
               "p.5 lemma 1.9.5 in 'M) \u2282Pr\u22121 f (see [Ben17, Lemma 1.9.5]), while the condition '",
               "p.17 lemma 3.1.6 in 'ws directly from [CF25, Lemma 3.1.6], which shows that Str\u2212'",
-              "p.17 theorem 8.2.1 in ' categories, by [CEO24, Theorem 8.2.1]. Lemma 4.2. Consider s'"
+              "p.17 proposition 3.3.13 in 'dimension, see [EGNO15, Proposition 3.3.13], and Fr commutes with '"
             ]
           },
           "number_search": {
@@ -2063,8 +2042,8 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 72.7% is under 90%",
-            "27 citation spans emitted as local refs",
+            "resolution 69.6% is under 90%",
+            "30 citation spans emitted as local refs",
             "1 indexed statement is not in the HTML declarations",
             "section questions are not implemented"
           ]
@@ -2073,14 +2052,94 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.7727,
-          "correct": 17,
-          "missed": 2,
+          "resolution_rate": 0.8696,
+          "correct": 20,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 3,
-          "denominator": 22,
+          "denominator": 23,
           "citation_detections": 0,
           "citation_links": 0,
+          "false_declarations": [
+            "p.20 equation 1"
+          ],
+          "false_declaration_count": 1,
+          "index_size": 48,
+          "index_seconds": 0.036,
+          "section_questions": {
+            "probed": [
+              {
+                "question": "what is section 1 about",
+                "number": "1",
+                "title": "Introduction",
+                "truth_page": 0,
+                "predicted_page": 0,
+                "label": "\u00a71. Introduction",
+                "ok": true
+              },
+              {
+                "question": "what is section 3 about",
+                "number": "3",
+                "title": "The refined Steinberg splitting conjecture",
+                "truth_page": 5,
+                "predicted_page": 5,
+                "label": "\u00a73. The refined Steinberg splitting conjecture",
+                "ok": true
+              },
+              {
+                "question": "what is section 4 about",
+                "number": "4",
+                "title": "The Benson\u2013Etingof\u2013Ostrik conjecture",
+                "truth_page": 16,
+                "predicted_page": 16,
+                "label": "\u00a74. The Benson\u2013Etingof\u2013Ostrik conjecture",
+                "ok": true
+              },
+              {
+                "question": "what is section 3.3 about",
+                "number": "3.3",
+                "title": "Steinberg splitting for elementary abelian groups",
+                "truth_page": 15,
+                "predicted_page": 15,
+                "label": "\u00a73.3. Steinberg splitting for elementary abelian groups",
+                "ok": true
+              }
+            ],
+            "ok": true,
+            "reason": null
+          },
+          "examples": {
+            "missed": [],
+            "wrong": [],
+            "citation": []
+          },
+          "number_search": {
+            "query": "Lemma 2.1",
+            "served": true,
+            "short_query": "Lemma 2",
+            "short_serves_full_number": true,
+            "literal_lemma_4_served": false,
+            "printed_name": null,
+            "name_query_served_from_index": false,
+            "name_query": null
+          },
+          "fail_reasons": [
+            "resolution 87.0% is under 90%",
+            "1 indexed statement is not in the HTML declarations"
+          ]
+        },
+        "combined": {
+          "profile": "hover",
+          "structure": true,
+          "passes": false,
+          "resolution_rate": 0.8696,
+          "correct": 20,
+          "missed": 0,
+          "wrong_links": 0,
+          "extraction_misses": 3,
+          "denominator": 23,
+          "citation_detections": 30,
+          "citation_links": 3,
           "false_declarations": [
             "p.20 equation 1"
           ],
@@ -2130,93 +2189,7 @@
             "reason": null
           },
           "examples": {
-            "missed": [
-              "p.19 '\u00a72.1.1' did not locate section 2.1.1",
-              "p.17 '\u00a72.2.3' did not locate section 2.2.3"
-            ],
-            "wrong": [],
-            "citation": []
-          },
-          "number_search": {
-            "query": "Lemma 2.1",
-            "served": true,
-            "short_query": "Lemma 2",
-            "short_serves_full_number": true,
-            "literal_lemma_4_served": false,
-            "printed_name": null,
-            "name_query_served_from_index": false,
-            "name_query": null
-          },
-          "fail_reasons": [
-            "resolution 77.3% is under 90%",
-            "1 indexed statement is not in the HTML declarations"
-          ]
-        },
-        "combined": {
-          "profile": "hover",
-          "structure": true,
-          "passes": false,
-          "resolution_rate": 0.7727,
-          "correct": 17,
-          "missed": 2,
-          "wrong_links": 0,
-          "extraction_misses": 3,
-          "denominator": 22,
-          "citation_detections": 27,
-          "citation_links": 3,
-          "false_declarations": [
-            "p.20 equation 1"
-          ],
-          "false_declaration_count": 1,
-          "index_size": 48,
-          "index_seconds": 0.033,
-          "section_questions": {
-            "probed": [
-              {
-                "question": "what is section 1 about",
-                "number": "1",
-                "title": "Introduction",
-                "truth_page": 0,
-                "predicted_page": 0,
-                "label": "\u00a71. Introduction",
-                "ok": true
-              },
-              {
-                "question": "what is section 3 about",
-                "number": "3",
-                "title": "The refined Steinberg splitting conjecture",
-                "truth_page": 5,
-                "predicted_page": 5,
-                "label": "\u00a73. The refined Steinberg splitting conjecture",
-                "ok": true
-              },
-              {
-                "question": "what is section 4 about",
-                "number": "4",
-                "title": "The Benson\u2013Etingof\u2013Ostrik conjecture",
-                "truth_page": 16,
-                "predicted_page": 16,
-                "label": "\u00a74. The Benson\u2013Etingof\u2013Ostrik conjecture",
-                "ok": true
-              },
-              {
-                "question": "what is section 3.3 about",
-                "number": "3.3",
-                "title": "Steinberg splitting for elementary abelian groups",
-                "truth_page": 15,
-                "predicted_page": 15,
-                "label": "\u00a73.3. Steinberg splitting for elementary abelian groups",
-                "ok": true
-              }
-            ],
-            "ok": true,
-            "reason": null
-          },
-          "examples": {
-            "missed": [
-              "p.19 '\u00a72.1.1' did not locate section 2.1.1",
-              "p.17 '\u00a72.2.3' did not locate section 2.2.3"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": [
               "p.2 equation 1 in '([CF26, Conjecture 5.4.2(1)], [CF25]). For any r \u22651'",
@@ -2224,7 +2197,7 @@
               "p.5 lemma 1.9.8 in '0. Moreover, by [Ben17, Lemma 1.9.8] we have supp(M|G) = su'",
               "p.5 lemma 1.9.5 in 'M) \u2282Pr\u22121 f (see [Ben17, Lemma 1.9.5]), while the condition '",
               "p.17 lemma 3.1.6 in 'ws directly from [CF25, Lemma 3.1.6], which shows that Str\u2212'",
-              "p.17 theorem 8.2.1 in ' categories, by [CEO24, Theorem 8.2.1]. Lemma 4.2. Consider s'"
+              "p.17 proposition 3.3.13 in 'dimension, see [EGNO15, Proposition 3.3.13], and Fr commutes with '"
             ]
           },
           "number_search": {
@@ -2238,8 +2211,8 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 77.3% is under 90%",
-            "27 citation spans emitted as local refs",
+            "resolution 87.0% is under 90%",
+            "30 citation spans emitted as local refs",
             "1 indexed statement is not in the HTML declarations"
           ]
         }
@@ -2255,7 +2228,7 @@
       "page_count": 54,
       "two_column_pages": 0,
       "document_class": "scrartcl",
-      "extract_seconds": 0.52,
+      "extract_seconds": 0.53,
       "declarations": 117,
       "mentions": 108,
       "citation_style": "qualified",
@@ -2415,7 +2388,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.063,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [
               {
@@ -2485,12 +2458,12 @@
           "wrong_links": 0,
           "extraction_misses": 0,
           "denominator": 110,
-          "citation_detections": 42,
-          "citation_links": 12,
+          "citation_detections": 58,
+          "citation_links": 15,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.058,
+          "index_seconds": 0.059,
           "section_questions": {
             "probed": [
               {
@@ -2536,7 +2509,7 @@
           "examples": {
             "missed": [
               "p.6 'Section 2' did not locate section 2",
-              "p.12 'Sections 2.4' did not locate section 2.4",
+              "p.3 'Subsection 2.4' did not locate section 2.4",
               "p.8 'Section 2.5' did not locate section 2.5",
               "p.6 'Section 3' did not locate section 3",
               "p.6 'Section 4' did not locate section 4",
@@ -2549,7 +2522,7 @@
               "p.4 definition 1.1 in 'tation C\u03b2,\u03c4,L of [CV24, Definitions 1.1 and 2.5], with metric g'",
               "p.4 definition 2.5 in '24, Definitions 1.1 and 2.5], with metric gC, radia'",
               "p.5 proposition 2.1 in 'ahler regularity [HT20, Proposition 2.1], and interpo- lation. '",
-              "p.5 lemma 3.2 in ' calculation in [Jia26, Lemma 3.2 and the proof of Propos'"
+              "p.5 theorem 4.1 in 'construction in [Gro14, Theorem 4.1] preserves the holomorp'"
             ]
           },
           "number_search": {
@@ -2563,7 +2536,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "42 citation spans emitted as local refs",
+            "58 citation spans emitted as local refs",
             "section questions are not implemented"
           ]
         },
@@ -2582,7 +2555,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.059,
+          "index_seconds": 0.06,
           "section_questions": {
             "probed": [
               {
@@ -2652,12 +2625,12 @@
           "wrong_links": 0,
           "extraction_misses": 0,
           "denominator": 110,
-          "citation_detections": 42,
-          "citation_links": 12,
+          "citation_detections": 58,
+          "citation_links": 15,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.057,
+          "index_seconds": 0.059,
           "section_questions": {
             "probed": [
               {
@@ -2709,7 +2682,7 @@
               "p.4 definition 1.1 in 'tation C\u03b2,\u03c4,L of [CV24, Definitions 1.1 and 2.5], with metric g'",
               "p.4 definition 2.5 in '24, Definitions 1.1 and 2.5], with metric gC, radia'",
               "p.5 proposition 2.1 in 'ahler regularity [HT20, Proposition 2.1], and interpo- lation. '",
-              "p.5 lemma 3.2 in ' calculation in [Jia26, Lemma 3.2 and the proof of Propos'"
+              "p.5 theorem 4.1 in 'construction in [Gro14, Theorem 4.1] preserves the holomorp'"
             ]
           },
           "number_search": {
@@ -2723,7 +2696,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "42 citation spans emitted as local refs"
+            "58 citation spans emitted as local refs"
           ]
         }
       }
@@ -2738,7 +2711,7 @@
       "page_count": 20,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.246,
+      "extract_seconds": 0.251,
       "declarations": 43,
       "mentions": 62,
       "citation_style": "numeric+qualified",
@@ -2836,7 +2809,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 43,
-          "index_seconds": 0.024,
+          "index_seconds": 0.025,
           "section_questions": {
             "probed": [
               {
@@ -2911,7 +2884,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 43,
-          "index_seconds": 0.024,
+          "index_seconds": 0.025,
           "section_questions": {
             "probed": [
               {
@@ -3135,7 +3108,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.438,
+      "extract_seconds": 0.443,
       "declarations": 75,
       "mentions": 152,
       "citation_style": "numeric+qualified",
@@ -3200,18 +3173,18 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9644,
-          "correct": 217,
+          "resolution_rate": 0.9733,
+          "correct": 219,
           "missed": 6,
           "wrong_links": 0,
-          "extraction_misses": 2,
+          "extraction_misses": 0,
           "denominator": 225,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.036,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -3282,16 +3255,16 @@
           "passes": false,
           "resolution_rate": 0.9644,
           "correct": 217,
-          "missed": 6,
+          "missed": 8,
           "wrong_links": 0,
-          "extraction_misses": 2,
+          "extraction_misses": 0,
           "denominator": 225,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.035,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -3325,7 +3298,7 @@
                 "question": "what is section 3.2 about",
                 "number": "3.2",
                 "title": "Upper estimate by interpolation",
-                "truth_page": null,
+                "truth_page": 7,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -3339,7 +3312,8 @@
               "p.16 '(39)': not in the statement index",
               "p.19 '(39)': not in the statement index",
               "p.17 '(41)': not in the statement index",
-              "p.24 '(64)': not in the statement index"
+              "p.24 '(64)': not in the statement index",
+              "p.4 'Subsection 3.2' did not locate section 3.2"
             ],
             "wrong": [],
             "citation": []
@@ -3362,18 +3336,18 @@
           "profile": "main",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9644,
-          "correct": 217,
+          "resolution_rate": 0.9733,
+          "correct": 219,
           "missed": 6,
           "wrong_links": 0,
-          "extraction_misses": 2,
+          "extraction_misses": 0,
           "denominator": 225,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.036,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -3442,18 +3416,18 @@
           "profile": "hover",
           "structure": true,
           "passes": true,
-          "resolution_rate": 0.9644,
-          "correct": 217,
+          "resolution_rate": 0.9733,
+          "correct": 219,
           "missed": 6,
           "wrong_links": 0,
-          "extraction_misses": 2,
+          "extraction_misses": 0,
           "denominator": 225,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.034,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -3530,7 +3504,7 @@
       "page_count": 14,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.291,
+      "extract_seconds": 0.298,
       "declarations": 40,
       "mentions": 118,
       "citation_style": "numeric",
@@ -3684,7 +3658,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.025,
+          "index_seconds": 0.026,
           "section_questions": {
             "probed": [
               {
@@ -3759,7 +3733,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.023,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -3843,7 +3817,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.025,
+          "index_seconds": 0.026,
           "section_questions": {
             "probed": [
               {
@@ -3990,7 +3964,7 @@
       "page_count": 36,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.524,
+      "extract_seconds": 0.589,
       "declarations": 43,
       "mentions": 86,
       "citation_style": "qualified",
@@ -4044,12 +4018,12 @@
         },
         {
           "number": "2.1",
-          "title": "Legendrian spheres in ( \u211d 2 \u200b n + 1 , \u03be std ) (\\mathbb{R}^{2n+1},\\xi_{\\mathrm{std}}) and ( \ud835\udd4a 2 \u200b n + 1 , \u03be std ) (\\mathbb{S}^{2n+1},\\xi_{\\mathrm{std}})",
+          "title": "Legendrian spheres in ( \u211d 2 \u200b n + 1 , \u03be std ) and ( \ud835\udd4a 2 \u200b n + 1 , \u03be std )",
           "level": 2
         },
         {
           "number": "2.2",
-          "title": "Contact ( + 1 ) (+1) -surgery",
+          "title": "Contact ( + 1 ) -surgery",
           "level": 2
         },
         {
@@ -4079,17 +4053,17 @@
         },
         {
           "number": "4.1",
-          "title": "Augmented wrapped Floer cohomology H \u200b W \u2217 \u200b ( L , \u03f5 ) HW^{*}(L,\\epsilon)",
+          "title": "Augmented wrapped Floer cohomology H \u200b W \u2217 \u200b ( L , \u03f5 )",
           "level": 2
         },
         {
           "number": "4.2",
-          "title": "Augmented symplectic cohomology of the cobordism S \u200b H \u2217 \u200b ( W , \u03f5 ) SH^{*}(W,\\epsilon)",
+          "title": "Augmented symplectic cohomology of the cobordism S \u200b H \u2217 \u200b ( W , \u03f5 )",
           "level": 2
         },
         {
           "number": "4.3",
-          "title": "The CO \\CO map for augmented symplectic cohomology",
+          "title": "The CO map for augmented symplectic cohomology",
           "level": 2
         },
         {
@@ -4109,7 +4083,7 @@
         },
         {
           "number": "3.1.1",
-          "title": "Setting the Hamiltonian to zero on W W",
+          "title": "Setting the Hamiltonian to zero on W",
           "level": 3
         }
       ],
@@ -4130,12 +4104,12 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.6271,
-          "correct": 37,
-          "missed": 7,
+          "resolution_rate": 0.7414,
+          "correct": 43,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 15,
-          "denominator": 59,
+          "denominator": 58,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
@@ -4149,7 +4123,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.053,
+          "index_seconds": 0.054,
           "section_questions": {
             "probed": [
               {
@@ -4183,24 +4157,17 @@
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Structures on symplectic cohomology and wrapped Floer cohomology",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 13,
+                "predicted_page": 13,
+                "label": "\u00a73.3. Structures on symplectic cohomology and wrapped Floer cohomology. Symplectic cohomology",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.23 '\u00a73.1' did not locate section 3.1",
-              "p.23 '\u00a73.2' did not locate section 3.2",
-              "p.29 '\u00a73.3' did not locate section 3.3",
-              "p.8 '\u00a73.4' did not locate section 3.4",
-              "p.6 'Theorem 1.1': detector missed it",
-              "p.7 'Theorem 1.1': detector missed it"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -4215,23 +4182,22 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 62.7% is under 90%",
-            "7 indexed statements are not in the HTML declarations",
-            "a section question missed its heading page"
+            "resolution 74.1% is under 90%",
+            "7 indexed statements are not in the HTML declarations"
           ]
         },
         "hover": {
           "profile": "hover",
           "structure": false,
           "passes": false,
-          "resolution_rate": 0.541,
-          "correct": 33,
-          "missed": 11,
-          "wrong_links": 2,
+          "resolution_rate": 0.4762,
+          "correct": 30,
+          "missed": 13,
+          "wrong_links": 5,
           "extraction_misses": 15,
-          "denominator": 61,
-          "citation_detections": 33,
-          "citation_links": 5,
+          "denominator": 63,
+          "citation_detections": 40,
+          "citation_links": 8,
           "false_declarations": [
             "p.11 equation 3.3",
             "p.11 equation 3.4",
@@ -4243,7 +4209,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.049,
+          "index_seconds": 0.052,
           "section_questions": {
             "probed": [
               {
@@ -4259,7 +4225,7 @@
                 "question": "what is section 3 about",
                 "number": "3",
                 "title": "Symplectic cohomology, wrapped Floer cohomology, and contact homology",
-                "truth_page": null,
+                "truth_page": 7,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -4277,7 +4243,7 @@
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Structures on symplectic cohomology and wrapped Floer cohomology",
-                "truth_page": null,
+                "truth_page": 13,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -4291,20 +4257,23 @@
               "p.3 '\u00a72' did not locate section 2",
               "p.3 '\u00a73' did not locate section 3",
               "p.6 '\u00a73' did not locate section 3",
+              "p.8 '\u00a73' did not locate section 3",
               "p.23 '\u00a73.1' did not locate section 3.1",
-              "p.23 '\u00a73.2' did not locate section 3.2",
-              "p.29 '\u00a73.3' did not locate section 3.3"
+              "p.23 '\u00a73.2' did not locate section 3.2"
             ],
             "wrong": [
-              "p.30 'Theorem 1.1' opened theorem 1.1 from a citation"
+              "p.6 'Theorem 1.1' opened theorem 1.1 from a citation",
+              "p.7 'Theorem 1.1' opened theorem 1.1 from a citation",
+              "p.30 'Theorem 1.1' opened theorem 1.1 from a citation",
+              "p.31 'Theorem 1.1' opened theorem 1.1 from a citation"
             ],
             "citation": [
+              "p.2 proposition 6 in 'a strong \ufb01lling [MNW13, Proposition 6]. According to [MNW13, '",
               "p.2 corollary 7 in ']. According to [MNW13, Corollary 7] (which generalizes the'",
               "p.2 corollary 6 in ' dim = 3 case of [NW11, Corollary 6]), the vanishing of CH('",
               "p.3 theorem 1.3 in '\u2013Sablo\ufb00\u2013Traynor [BST15, Theorem 1.3] constructed Lagrangian'",
               "p.3 proposition 3.2 in 'it follows from [EES05, Proposition 3.2] that for any Legendria'",
-              "p.3 corollary 4.5 in 'Ganatra\u2013Lazarev [EGL20, Corollary 4.5]. In particular, by [EG'",
-              "p.3 theorem 4.7 in ' particular, by [EGL20, Theorem 4.7], when n = 2, the \ufb01llin'"
+              "p.3 corollary 4.5 in 'Ganatra\u2013Lazarev [EGL20, Corollary 4.5]. In particular, by [EG'"
             ]
           },
           "number_search": {
@@ -4318,9 +4287,9 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 54.1% is under 90%",
-            "2 wrong links",
-            "33 citation spans emitted as local refs",
+            "resolution 47.6% is under 90%",
+            "5 wrong links",
+            "40 citation spans emitted as local refs",
             "7 indexed statements are not in the HTML declarations",
             "section questions are not implemented"
           ]
@@ -4329,12 +4298,12 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.6271,
-          "correct": 37,
-          "missed": 7,
+          "resolution_rate": 0.7414,
+          "correct": 43,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 15,
-          "denominator": 59,
+          "denominator": 58,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
@@ -4348,7 +4317,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.053,
+          "index_seconds": 0.055,
           "section_questions": {
             "probed": [
               {
@@ -4382,24 +4351,17 @@
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Structures on symplectic cohomology and wrapped Floer cohomology",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 13,
+                "predicted_page": 13,
+                "label": "\u00a73.3. Structures on symplectic cohomology and wrapped Floer cohomology. Symplectic cohomology",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.23 '\u00a73.1' did not locate section 3.1",
-              "p.23 '\u00a73.2' did not locate section 3.2",
-              "p.29 '\u00a73.3' did not locate section 3.3",
-              "p.8 '\u00a73.4' did not locate section 3.4",
-              "p.6 'Theorem 1.1': detector missed it",
-              "p.7 'Theorem 1.1': detector missed it"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -4414,23 +4376,22 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 62.7% is under 90%",
-            "7 indexed statements are not in the HTML declarations",
-            "a section question missed its heading page"
+            "resolution 74.1% is under 90%",
+            "7 indexed statements are not in the HTML declarations"
           ]
         },
         "combined": {
           "profile": "hover",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.6557,
-          "correct": 40,
-          "missed": 4,
-          "wrong_links": 2,
+          "resolution_rate": 0.6825,
+          "correct": 43,
+          "missed": 0,
+          "wrong_links": 5,
           "extraction_misses": 15,
-          "denominator": 61,
-          "citation_detections": 33,
-          "citation_links": 5,
+          "denominator": 63,
+          "citation_detections": 40,
+          "citation_links": 8,
           "false_declarations": [
             "p.11 equation 3.3",
             "p.11 equation 3.4",
@@ -4442,7 +4403,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.049,
+          "index_seconds": 0.051,
           "section_questions": {
             "probed": [
               {
@@ -4476,32 +4437,30 @@
                 "question": "what is section 3.3 about",
                 "number": "3.3",
                 "title": "Structures on symplectic cohomology and wrapped Floer cohomology",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 13,
+                "predicted_page": 13,
+                "label": "\u00a73.3. Structures on symplectic cohomology and wrapped Floer cohomology. Symplectic cohomology",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.23 '\u00a73.1' did not locate section 3.1",
-              "p.23 '\u00a73.2' did not locate section 3.2",
-              "p.29 '\u00a73.3' did not locate section 3.3",
-              "p.8 '\u00a73.4' did not locate section 3.4"
-            ],
+            "missed": [],
             "wrong": [
-              "p.30 'Theorem 1.1' opened theorem 1.1 from a citation"
+              "p.6 'Theorem 1.1' opened theorem 1.1 from a citation",
+              "p.7 'Theorem 1.1' opened theorem 1.1 from a citation",
+              "p.30 'Theorem 1.1' opened theorem 1.1 from a citation",
+              "p.31 'Theorem 1.1' opened theorem 1.1 from a citation"
             ],
             "citation": [
+              "p.2 proposition 6 in 'a strong \ufb01lling [MNW13, Proposition 6]. According to [MNW13, '",
               "p.2 corollary 7 in ']. According to [MNW13, Corollary 7] (which generalizes the'",
               "p.2 corollary 6 in ' dim = 3 case of [NW11, Corollary 6]), the vanishing of CH('",
               "p.3 theorem 1.3 in '\u2013Sablo\ufb00\u2013Traynor [BST15, Theorem 1.3] constructed Lagrangian'",
               "p.3 proposition 3.2 in 'it follows from [EES05, Proposition 3.2] that for any Legendria'",
-              "p.3 corollary 4.5 in 'Ganatra\u2013Lazarev [EGL20, Corollary 4.5]. In particular, by [EG'",
-              "p.3 theorem 4.7 in ' particular, by [EGL20, Theorem 4.7], when n = 2, the \ufb01llin'"
+              "p.3 corollary 4.5 in 'Ganatra\u2013Lazarev [EGL20, Corollary 4.5]. In particular, by [EG'"
             ]
           },
           "number_search": {
@@ -4515,11 +4474,10 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 65.6% is under 90%",
-            "2 wrong links",
-            "33 citation spans emitted as local refs",
-            "7 indexed statements are not in the HTML declarations",
-            "a section question missed its heading page"
+            "resolution 68.3% is under 90%",
+            "5 wrong links",
+            "40 citation spans emitted as local refs",
+            "7 indexed statements are not in the HTML declarations"
           ]
         }
       }
@@ -4534,7 +4492,7 @@
       "page_count": 19,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.471,
+      "extract_seconds": 0.482,
       "declarations": 40,
       "mentions": 58,
       "citation_style": "numeric+qualified",
@@ -4567,7 +4525,7 @@
         },
         {
           "number": "3",
-          "title": "The theory of \u2102 \u2061 ( ( t ) ) \\mathbb{C}(\\!(t)\\!)",
+          "title": "The theory of \u2102 \u2061 ( ( t ) )",
           "level": 1
         },
         {
@@ -4577,12 +4535,12 @@
         },
         {
           "number": "5",
-          "title": "Formally T T -adic fields",
+          "title": "Formally T -adic fields",
           "level": 1
         },
         {
           "number": "6",
-          "title": "The t t -Kochen operator and the characterization theorem",
+          "title": "The t -Kochen operator and the characterization theorem",
           "level": 1
         },
         {
@@ -4592,7 +4550,7 @@
         },
         {
           "number": "8",
-          "title": "The T T -spectrum",
+          "title": "The T -spectrum",
           "level": 1
         },
         {
@@ -4646,7 +4604,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 40,
-          "index_seconds": 0.035,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -4661,7 +4619,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "Formally T T -adic fields",
+                "title": "Formally T -adic fields",
                 "truth_page": 6,
                 "predicted_page": 6,
                 "label": "\u00a75. Formally T-adic fields",
@@ -4729,7 +4687,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 39,
-          "index_seconds": 0.033,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -4744,7 +4702,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "Formally T T -adic fields",
+                "title": "Formally T -adic fields",
                 "truth_page": 6,
                 "predicted_page": null,
                 "label": null,
@@ -4763,7 +4721,7 @@
                 "question": "what is section 2.2 about",
                 "number": "2.2",
                 "title": "Radicals and zero sets",
-                "truth_page": null,
+                "truth_page": 3,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -4813,7 +4771,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 40,
-          "index_seconds": 0.035,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -4828,7 +4786,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "Formally T T -adic fields",
+                "title": "Formally T -adic fields",
                 "truth_page": 6,
                 "predicted_page": 6,
                 "label": "\u00a75. Formally T-adic fields",
@@ -4911,7 +4869,7 @@
               {
                 "question": "what is section 5 about",
                 "number": "5",
-                "title": "Formally T T -adic fields",
+                "title": "Formally T -adic fields",
                 "truth_page": 6,
                 "predicted_page": 6,
                 "label": "\u00a75. Formally T-adic fields",
@@ -4974,7 +4932,7 @@
       "page_count": 16,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.212,
+      "extract_seconds": 0.215,
       "declarations": 29,
       "mentions": 114,
       "citation_style": "numeric",
@@ -5025,7 +4983,7 @@
         },
         {
           "number": "4.3",
-          "title": "The adjoint of D D and an L p L^{p} Douglas inequality",
+          "title": "The adjoint of D and an L p Douglas inequality",
           "level": 2
         }
       ],
@@ -5132,7 +5090,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 29,
-          "index_seconds": 0.02,
+          "index_seconds": 0.021,
           "section_questions": {
             "probed": [
               {
@@ -5166,7 +5124,7 @@
                 "question": "what is section 4.2 about",
                 "number": "4.2",
                 "title": "Khinchin\u2019s inequality for Steinhaus variables",
-                "truth_page": null,
+                "truth_page": 11,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -5213,7 +5171,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 29,
-          "index_seconds": 0.021,
+          "index_seconds": 0.022,
           "section_questions": {
             "probed": [
               {
@@ -5288,7 +5246,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 29,
-          "index_seconds": 0.02,
+          "index_seconds": 0.021,
           "section_questions": {
             "probed": [
               {
@@ -5360,7 +5318,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.399,
+      "extract_seconds": 0.404,
       "declarations": 31,
       "mentions": 56,
       "citation_style": "numeric+qualified",
@@ -5485,7 +5443,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.04,
+          "index_seconds": 0.041,
           "section_questions": {
             "probed": [
               {
@@ -5555,12 +5513,12 @@
           "wrong_links": 1,
           "extraction_misses": 0,
           "denominator": 47,
-          "citation_detections": 16,
+          "citation_detections": 18,
           "citation_links": 4,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.037,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -5594,7 +5552,7 @@
                 "question": "what is section 2.4 about",
                 "number": "2.4",
                 "title": "Upper Bounds on Chow Groups of Enriques Surfaces",
-                "truth_page": null,
+                "truth_page": 6,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -5620,8 +5578,8 @@
               "p.5 example 1.3 in ' surface over k [Huy16, Example 1.3 (iii)]. In particular, '",
               "p.5 proposition 1.3.3 in 'the argument of [CDL25, Proposition 1.3.3]. \u25a1 5 '",
               "p.8 theorem 1 in 'is 8-torsion by [Gaz25, Theorem 1]. Also the birational m'",
-              "p.10 proposition 3.1 in ']\u00d7E2[2], E1, E2 [Shi06, Proposition 3.1]. Let L = m1E1 + m2E2 +'",
-              "p.11 equation 3.3 in 'change to k. By [Bea09, (3.3) in Section 3], Br(SC) \u223c'"
+              "p.8 example 2.22 in 'sion [Mil80, Chapter 3, Example 2.22]. 8 '",
+              "p.9 corollary 5.7 in ' on X by \u02dc\u03c3. By [Bea09, Corollary 5.7], it suffices to show t'"
             ]
           },
           "number_search": {
@@ -5637,7 +5595,7 @@
           "fail_reasons": [
             "resolution 85.1% is under 90%",
             "1 wrong link",
-            "16 citation spans emitted as local refs",
+            "18 citation spans emitted as local refs",
             "section questions are not implemented"
           ]
         },
@@ -5656,7 +5614,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.039,
+          "index_seconds": 0.041,
           "section_questions": {
             "probed": [
               {
@@ -5726,12 +5684,12 @@
           "wrong_links": 1,
           "extraction_misses": 0,
           "denominator": 47,
-          "citation_detections": 16,
+          "citation_detections": 18,
           "citation_links": 4,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.037,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -5784,8 +5742,8 @@
               "p.5 example 1.3 in ' surface over k [Huy16, Example 1.3 (iii)]. In particular, '",
               "p.5 proposition 1.3.3 in 'the argument of [CDL25, Proposition 1.3.3]. \u25a1 5 '",
               "p.8 theorem 1 in 'is 8-torsion by [Gaz25, Theorem 1]. Also the birational m'",
-              "p.10 proposition 3.1 in ']\u00d7E2[2], E1, E2 [Shi06, Proposition 3.1]. Let L = m1E1 + m2E2 +'",
-              "p.11 equation 3.3 in 'change to k. By [Bea09, (3.3) in Section 3], Br(SC) \u223c'"
+              "p.8 example 2.22 in 'sion [Mil80, Chapter 3, Example 2.22]. 8 '",
+              "p.9 corollary 5.7 in ' on X by \u02dc\u03c3. By [Bea09, Corollary 5.7], it suffices to show t'"
             ]
           },
           "number_search": {
@@ -5800,7 +5758,7 @@
           },
           "fail_reasons": [
             "1 wrong link",
-            "16 citation spans emitted as local refs"
+            "18 citation spans emitted as local refs"
           ]
         }
       }
@@ -5815,7 +5773,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "siamart251216",
-      "extract_seconds": 0.836,
+      "extract_seconds": 0.816,
       "declarations": 51,
       "mentions": 90,
       "citation_style": "numeric+qualified",
@@ -6033,14 +5991,14 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 56,
-          "index_seconds": 0.038,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
                 "question": "what is section 1 about",
                 "number": "1",
                 "title": "Introduction",
-                "truth_page": null,
+                "truth_page": 0,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -6049,7 +6007,7 @@
                 "question": "what is section 4 about",
                 "number": "4",
                 "title": "Two level overlapping Schwarz methods",
-                "truth_page": null,
+                "truth_page": 9,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -6067,7 +6025,7 @@
                 "question": "what is section 4.2 about",
                 "number": "4.2",
                 "title": "Continuous reduced coarse space",
-                "truth_page": null,
+                "truth_page": 9,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -6257,9 +6215,9 @@
       "page_count": 41,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.485,
+      "extract_seconds": 0.488,
       "declarations": 185,
-      "mentions": 115,
+      "mentions": 102,
       "citation_style": "numeric+qualified",
       "citation_count": 68,
       "why": null,
@@ -6295,7 +6253,7 @@
         },
         {
           "number": "4",
-          "title": "C \u2217 C^{*} -algebras with a Cantor spectrum subalgebra",
+          "title": "C \u2217 -algebras with a Cantor spectrum subalgebra",
           "level": 1
         },
         {
@@ -6380,19 +6338,19 @@
         "main": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.8288,
+          "passes": true,
+          "resolution_rate": 0.9388,
           "correct": 92,
           "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 19,
-          "denominator": 111,
+          "extraction_misses": 6,
+          "denominator": 98,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 178,
-          "index_seconds": 0.055,
+          "index_seconds": 0.057,
           "section_questions": {
             "probed": [
               {
@@ -6416,7 +6374,7 @@
               {
                 "question": "what is section 4 about",
                 "number": "4",
-                "title": "C \u2217 C^{*} -algebras with a Cantor spectrum subalgebra",
+                "title": "C \u2217 -algebras with a Cantor spectrum subalgebra",
                 "truth_page": 19,
                 "predicted_page": 19,
                 "label": "\u00a74. C*-algebras with a Cantor spectrum subalgebra",
@@ -6450,26 +6408,24 @@
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "resolution 82.9% is under 90%"
-          ]
+          "fail_reasons": []
         },
         "hover": {
           "profile": "hover",
           "structure": false,
           "passes": false,
-          "resolution_rate": 0.7928,
+          "resolution_rate": 0.898,
           "correct": 88,
           "missed": 4,
           "wrong_links": 0,
-          "extraction_misses": 19,
-          "denominator": 111,
+          "extraction_misses": 6,
+          "denominator": 98,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 178,
-          "index_seconds": 0.053,
+          "index_seconds": 0.055,
           "section_questions": {
             "probed": [
               {
@@ -6493,7 +6449,7 @@
               {
                 "question": "what is section 4 about",
                 "number": "4",
-                "title": "C \u2217 C^{*} -algebras with a Cantor spectrum subalgebra",
+                "title": "C \u2217 -algebras with a Cantor spectrum subalgebra",
                 "truth_page": 19,
                 "predicted_page": null,
                 "label": null,
@@ -6503,7 +6459,7 @@
                 "question": "what is section 3.1 about",
                 "number": "3.1",
                 "title": "Properties of tracially AF algebras",
-                "truth_page": null,
+                "truth_page": 9,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -6533,20 +6489,95 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 79.3% is under 90%",
+            "resolution 89.8% is under 90%",
             "section questions are not implemented"
           ]
         },
         "chat": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.8288,
+          "passes": true,
+          "resolution_rate": 0.9388,
           "correct": 92,
           "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 19,
-          "denominator": 111,
+          "extraction_misses": 6,
+          "denominator": 98,
+          "citation_detections": 0,
+          "citation_links": 0,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 178,
+          "index_seconds": 0.057,
+          "section_questions": {
+            "probed": [
+              {
+                "question": "what is section 1 about",
+                "number": "1",
+                "title": "Introduction",
+                "truth_page": 0,
+                "predicted_page": 0,
+                "label": "\u00a71. Introduction",
+                "ok": true
+              },
+              {
+                "question": "what is section 3 about",
+                "number": "3",
+                "title": "Tracially AF algebras",
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a73. Tracially AF algebras",
+                "ok": true
+              },
+              {
+                "question": "what is section 4 about",
+                "number": "4",
+                "title": "C \u2217 -algebras with a Cantor spectrum subalgebra",
+                "truth_page": 19,
+                "predicted_page": 19,
+                "label": "\u00a74. C*-algebras with a Cantor spectrum subalgebra",
+                "ok": true
+              },
+              {
+                "question": "what is section 3.1 about",
+                "number": "3.1",
+                "title": "Properties of tracially AF algebras",
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a73.1. Properties of tracially AF algebras",
+                "ok": true
+              }
+            ],
+            "ok": true,
+            "reason": null
+          },
+          "examples": {
+            "missed": [],
+            "wrong": [],
+            "citation": []
+          },
+          "number_search": {
+            "query": "Lemma 2.3",
+            "served": true,
+            "short_query": "Lemma 2",
+            "short_serves_full_number": true,
+            "literal_lemma_4_served": false,
+            "printed_name": null,
+            "name_query_served_from_index": false,
+            "name_query": null
+          },
+          "fail_reasons": []
+        },
+        "combined": {
+          "profile": "hover",
+          "structure": true,
+          "passes": true,
+          "resolution_rate": 0.9388,
+          "correct": 92,
+          "missed": 0,
+          "wrong_links": 0,
+          "extraction_misses": 6,
+          "denominator": 98,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
@@ -6576,7 +6607,7 @@
               {
                 "question": "what is section 4 about",
                 "number": "4",
-                "title": "C \u2217 C^{*} -algebras with a Cantor spectrum subalgebra",
+                "title": "C \u2217 -algebras with a Cantor spectrum subalgebra",
                 "truth_page": 19,
                 "predicted_page": 19,
                 "label": "\u00a74. C*-algebras with a Cantor spectrum subalgebra",
@@ -6610,86 +6641,7 @@
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "resolution 82.9% is under 90%"
-          ]
-        },
-        "combined": {
-          "profile": "hover",
-          "structure": true,
-          "passes": false,
-          "resolution_rate": 0.8288,
-          "correct": 92,
-          "missed": 0,
-          "wrong_links": 0,
-          "extraction_misses": 19,
-          "denominator": 111,
-          "citation_detections": 0,
-          "citation_links": 0,
-          "false_declarations": [],
-          "false_declaration_count": 0,
-          "index_size": 178,
-          "index_seconds": 0.053,
-          "section_questions": {
-            "probed": [
-              {
-                "question": "what is section 1 about",
-                "number": "1",
-                "title": "Introduction",
-                "truth_page": 0,
-                "predicted_page": 0,
-                "label": "\u00a71. Introduction",
-                "ok": true
-              },
-              {
-                "question": "what is section 3 about",
-                "number": "3",
-                "title": "Tracially AF algebras",
-                "truth_page": 9,
-                "predicted_page": 9,
-                "label": "\u00a73. Tracially AF algebras",
-                "ok": true
-              },
-              {
-                "question": "what is section 4 about",
-                "number": "4",
-                "title": "C \u2217 C^{*} -algebras with a Cantor spectrum subalgebra",
-                "truth_page": 19,
-                "predicted_page": 19,
-                "label": "\u00a74. C*-algebras with a Cantor spectrum subalgebra",
-                "ok": true
-              },
-              {
-                "question": "what is section 3.1 about",
-                "number": "3.1",
-                "title": "Properties of tracially AF algebras",
-                "truth_page": 9,
-                "predicted_page": 9,
-                "label": "\u00a73.1. Properties of tracially AF algebras",
-                "ok": true
-              }
-            ],
-            "ok": true,
-            "reason": null
-          },
-          "examples": {
-            "missed": [],
-            "wrong": [],
-            "citation": []
-          },
-          "number_search": {
-            "query": "Lemma 2.3",
-            "served": true,
-            "short_query": "Lemma 2",
-            "short_serves_full_number": true,
-            "literal_lemma_4_served": false,
-            "printed_name": null,
-            "name_query_served_from_index": false,
-            "name_query": null
-          },
-          "fail_reasons": [
-            "resolution 82.9% is under 90%"
-          ]
+          "fail_reasons": []
         }
       }
     },
@@ -6703,7 +6655,7 @@
       "page_count": 22,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.238,
+      "extract_seconds": 0.243,
       "declarations": 22,
       "mentions": 94,
       "citation_style": "numeric",
@@ -6841,7 +6793,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.031,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -6916,7 +6868,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.029,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -6932,7 +6884,7 @@
                 "question": "what is section 3 about",
                 "number": "3",
                 "title": "GPU-Preprocessor",
-                "truth_page": null,
+                "truth_page": 2,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -7001,7 +6953,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.031,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -7076,7 +7028,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.029,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -7148,7 +7100,7 @@
       "page_count": 40,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.763,
+      "extract_seconds": 0.771,
       "declarations": 93,
       "mentions": 152,
       "citation_style": "qualified",
@@ -7278,7 +7230,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.072,
+          "index_seconds": 0.074,
           "section_questions": {
             "probed": [
               {
@@ -7360,7 +7312,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.072,
+          "index_seconds": 0.075,
           "section_questions": {
             "probed": [
               {
@@ -7450,7 +7402,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.073,
+          "index_seconds": 0.075,
           "section_questions": {
             "probed": [
               {
@@ -7532,7 +7484,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.071,
+          "index_seconds": 0.073,
           "section_questions": {
             "probed": [
               {
@@ -7609,7 +7561,7 @@
       "page_count": 17,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.331,
+      "extract_seconds": 0.364,
       "declarations": 20,
       "mentions": 46,
       "citation_style": "numeric",
@@ -7662,7 +7614,7 @@
         },
         {
           "number": "3.2",
-          "title": "The structure of A 1 \u200b ( V ) A_{1}(V)",
+          "title": "The structure of A 1 \u200b ( V )",
           "level": 2
         }
       ],
@@ -7694,7 +7646,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.027,
+          "index_seconds": 0.03,
           "section_questions": {
             "probed": [
               {
@@ -7769,7 +7721,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.029,
+          "index_seconds": 0.028,
           "section_questions": {
             "probed": [
               {
@@ -7996,7 +7948,7 @@
       "page_count": 30,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.351,
+      "extract_seconds": 0.357,
       "declarations": 70,
       "mentions": 106,
       "citation_style": "numeric+qualified",
@@ -8034,7 +7986,7 @@
         },
         {
           "number": "4",
-          "title": "Tilted R R -polynomials",
+          "title": "Tilted R -polynomials",
           "level": 1
         },
         {
@@ -8059,7 +8011,7 @@
         },
         {
           "number": "0.3",
-          "title": "R R -polynomials and point counting",
+          "title": "R -polynomials and point counting",
           "level": 2
         },
         {
@@ -8134,7 +8086,7 @@
         },
         {
           "number": "4.4",
-          "title": "Comparison with the type A A construction",
+          "title": "Comparison with the type A construction",
           "level": 2
         },
         {
@@ -8149,7 +8101,7 @@
         },
         {
           "number": "6.3",
-          "title": "Realizing tilted Richardson varieties in G / B G/B",
+          "title": "Realizing tilted Richardson varieties in G / B",
           "level": 2
         }
       ],
@@ -8170,12 +8122,12 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9174,
-          "correct": 111,
-          "missed": 5,
+          "resolution_rate": 0.959,
+          "correct": 117,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 5,
-          "denominator": 121,
+          "denominator": 122,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
@@ -8198,7 +8150,7 @@
               {
                 "question": "what is section 4 about",
                 "number": "4",
-                "title": "Tilted R R -polynomials",
+                "title": "Tilted R -polynomials",
                 "truth_page": 16,
                 "predicted_page": 16,
                 "label": "\u00a74. Tilted R-polynomials",
@@ -8217,23 +8169,17 @@
                 "question": "what is section 2.2 about",
                 "number": "2.2",
                 "title": "Affine realizations of tilted Bruhat intervals",
-                "truth_page": 8,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a72.2. Affine realizations of tilted Bruhat intervals",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.7 '(4.3)': detector missed it",
-              "p.5 '\u00a71.2' did not locate section 1.2",
-              "p.12 '\u00a72.1' did not locate section 2.1",
-              "p.14 '\u00a73.1' did not locate section 3.1",
-              "p.24 '\u00a73.1' did not locate section 3.1"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -8248,20 +8194,19 @@
             "name_query": null
           },
           "fail_reasons": [
-            "1 indexed statement is not in the HTML declarations",
-            "a section question missed its heading page"
+            "1 indexed statement is not in the HTML declarations"
           ]
         },
         "hover": {
           "profile": "hover",
           "structure": false,
           "passes": false,
-          "resolution_rate": 0.8678,
+          "resolution_rate": 0.8607,
           "correct": 105,
-          "missed": 11,
+          "missed": 12,
           "wrong_links": 0,
           "extraction_misses": 5,
-          "denominator": 121,
+          "denominator": 122,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
@@ -8269,7 +8214,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.038,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -8284,7 +8229,7 @@
               {
                 "question": "what is section 4 about",
                 "number": "4",
-                "title": "Tilted R R -polynomials",
+                "title": "Tilted R -polynomials",
                 "truth_page": 16,
                 "predicted_page": null,
                 "label": null,
@@ -8303,7 +8248,7 @@
                 "question": "what is section 2.2 about",
                 "number": "2.2",
                 "title": "Affine realizations of tilted Bruhat intervals",
-                "truth_page": null,
+                "truth_page": 9,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -8314,10 +8259,10 @@
           },
           "examples": {
             "missed": [
-              "p.7 '(4.3)': detector missed it",
               "p.4 'Section 1' did not locate section 1",
               "p.5 '\u00a71.2' did not locate section 1.2",
               "p.4 'Section 2' did not locate section 2",
+              "p.26 '\u00a72' did not locate section 2",
               "p.12 '\u00a72.1' did not locate section 2.1",
               "p.2 'Section 3' did not locate section 3"
             ],
@@ -8335,7 +8280,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 86.8% is under 90%",
+            "resolution 86.1% is under 90%",
             "1 indexed statement is not in the HTML declarations",
             "section questions are not implemented"
           ]
@@ -8344,12 +8289,12 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9174,
-          "correct": 111,
-          "missed": 5,
+          "resolution_rate": 0.959,
+          "correct": 117,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 5,
-          "denominator": 121,
+          "denominator": 122,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
@@ -8372,7 +8317,7 @@
               {
                 "question": "what is section 4 about",
                 "number": "4",
-                "title": "Tilted R R -polynomials",
+                "title": "Tilted R -polynomials",
                 "truth_page": 16,
                 "predicted_page": 16,
                 "label": "\u00a74. Tilted R-polynomials",
@@ -8391,23 +8336,17 @@
                 "question": "what is section 2.2 about",
                 "number": "2.2",
                 "title": "Affine realizations of tilted Bruhat intervals",
-                "truth_page": 8,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a72.2. Affine realizations of tilted Bruhat intervals",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.7 '(4.3)': detector missed it",
-              "p.5 '\u00a71.2' did not locate section 1.2",
-              "p.12 '\u00a72.1' did not locate section 2.1",
-              "p.14 '\u00a73.1' did not locate section 3.1",
-              "p.24 '\u00a73.1' did not locate section 3.1"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -8422,20 +8361,19 @@
             "name_query": null
           },
           "fail_reasons": [
-            "1 indexed statement is not in the HTML declarations",
-            "a section question missed its heading page"
+            "1 indexed statement is not in the HTML declarations"
           ]
         },
         "combined": {
           "profile": "hover",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9174,
-          "correct": 111,
-          "missed": 5,
+          "resolution_rate": 0.959,
+          "correct": 117,
+          "missed": 0,
           "wrong_links": 0,
           "extraction_misses": 5,
-          "denominator": 121,
+          "denominator": 122,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [
@@ -8443,7 +8381,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.038,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -8458,7 +8396,7 @@
               {
                 "question": "what is section 4 about",
                 "number": "4",
-                "title": "Tilted R R -polynomials",
+                "title": "Tilted R -polynomials",
                 "truth_page": 16,
                 "predicted_page": 16,
                 "label": "\u00a74. Tilted R-polynomials",
@@ -8477,23 +8415,17 @@
                 "question": "what is section 2.2 about",
                 "number": "2.2",
                 "title": "Affine realizations of tilted Bruhat intervals",
-                "truth_page": 8,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 9,
+                "predicted_page": 9,
+                "label": "\u00a72.2. Affine realizations of tilted Bruhat intervals",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
-            "missed": [
-              "p.7 '(4.3)': detector missed it",
-              "p.5 '\u00a71.2' did not locate section 1.2",
-              "p.12 '\u00a72.1' did not locate section 2.1",
-              "p.14 '\u00a73.1' did not locate section 3.1",
-              "p.24 '\u00a73.1' did not locate section 3.1"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
@@ -8508,8 +8440,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "1 indexed statement is not in the HTML declarations",
-            "a section question missed its heading page"
+            "1 indexed statement is not in the HTML declarations"
           ]
         }
       }
@@ -8524,7 +8455,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.431,
+      "extract_seconds": 0.395,
       "declarations": 128,
       "mentions": 35,
       "citation_style": "numeric",
@@ -8699,7 +8630,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.031,
+          "index_seconds": 0.032,
           "section_questions": {
             "probed": [
               {
@@ -8776,7 +8707,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.034,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -8851,7 +8782,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.031,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -8923,9 +8854,9 @@
       "page_count": 82,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 1.153,
+      "extract_seconds": 1.303,
       "declarations": 162,
-      "mentions": 206,
+      "mentions": 205,
       "citation_style": "qualified",
       "citation_count": 213,
       "why": "The random sample has no paper of 60 or more pages. This 82-page survey is kept as that edge case and is not one of the 20.",
@@ -8951,12 +8882,12 @@
         },
         {
           "number": "2",
-          "title": "The mapping class group of S 3 S^{3}",
+          "title": "The mapping class group of S 3",
           "level": 1
         },
         {
           "number": "3",
-          "title": "The mapping class group of S 1 \u00d7 S 2 S^{1}\\times S^{2}",
+          "title": "The mapping class group of S 1 \u00d7 S 2",
           "level": 1
         },
         {
@@ -9006,12 +8937,12 @@
         },
         {
           "number": "1.1",
-          "title": "Symmetries of M M",
+          "title": "Symmetries of M",
           "level": 2
         },
         {
           "number": "1.2",
-          "title": "The map to outer automorphisms of \u03c0 1 \u200b ( M ) \\pi_{1}(M)",
+          "title": "The map to outer automorphisms of \u03c0 1 \u200b ( M )",
           "level": 2
         },
         {
@@ -9036,12 +8967,12 @@
         },
         {
           "number": "2.1",
-          "title": "Triviality of \u03c0 0 \u200b Diff + \u2061 ( S 3 ) {\\pi_{0}\\Diff^{+}(S^{3})}",
+          "title": "Triviality of \u03c0 0 \u200b Diff + \u2061 ( S 3 )",
           "level": 2
         },
         {
           "number": "2.2",
-          "title": "\u0393 4 = 0 \\Gamma_{4}=0",
+          "title": "\u0393 4 = 0",
           "level": 2
         },
         {
@@ -9066,7 +8997,7 @@
         },
         {
           "number": "4.1",
-          "title": "Defining L \u2061 ( p , q ) L(p,q)",
+          "title": "Defining L \u2061 ( p , q )",
           "level": 2
         },
         {
@@ -9171,7 +9102,7 @@
         },
         {
           "number": "8.7",
-          "title": "Base orbifold S 2 S^{2} with exactly three exceptional fibres",
+          "title": "Base orbifold S 2 with exactly three exceptional fibres",
           "level": 2
         },
         {
@@ -9191,7 +9122,7 @@
         },
         {
           "number": "10.2",
-          "title": "The kernel of \u03c1 \\rho",
+          "title": "The kernel of \u03c1",
           "level": 2
         },
         {
@@ -9221,12 +9152,12 @@
         },
         {
           "number": "1.5.1",
-          "title": "The 3-manifold S 3 S^{3}",
+          "title": "The 3-manifold S 3",
           "level": 3
         },
         {
           "number": "1.5.2",
-          "title": "The 3-manifold S 1 \u00d7 S 2 S^{1}\\times S^{2}",
+          "title": "The 3-manifold S 1 \u00d7 S 2",
           "level": 3
         },
         {
@@ -9281,17 +9212,17 @@
         },
         {
           "number": "10.3.2",
-          "title": "Explicit description of splitting in the case M = M n M=M_{n}",
+          "title": "Explicit description of splitting in the case M = M n",
           "level": 3
         },
         {
           "number": "11.2.1",
-          "title": "The sphere complex S \u2061 ( M ) S(M)",
+          "title": "The sphere complex S \u2061 ( M )",
           "level": 3
         },
         {
           "number": "11.2.2",
-          "title": "The quotient of S \u2061 ( M ) S(M)",
+          "title": "The quotient of S \u2061 ( M )",
           "level": 3
         },
         {
@@ -9336,19 +9267,19 @@
         "main": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.9738,
-          "correct": 223,
-          "missed": 6,
+          "passes": true,
+          "resolution_rate": 0.987,
+          "correct": 227,
+          "missed": 3,
           "wrong_links": 0,
           "extraction_misses": 0,
-          "denominator": 229,
-          "citation_detections": 2,
+          "denominator": 230,
+          "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.126,
+          "index_seconds": 0.127,
           "section_questions": {
             "probed": [
               {
@@ -9382,28 +9313,22 @@
                 "question": "what is section 6.2 about",
                 "number": "6.2",
                 "title": "Statement of the main theorems on Haken 3-manifolds",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 32,
+                "predicted_page": 32,
+                "label": "\u00a76.2. Statement of the main theorems on Haken 3-manifolds. In the case",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
             "missed": [
               "p.63 '(10.11)': not in the statement index",
-              "p.64 '(10.11)': not in the statement index",
-              "p.3 'Section 3' did not locate section 3",
-              "p.5 'Section 3' did not locate section 3",
-              "p.7 'Section 3' did not locate section 3"
+              "p.64 '(10.11)': not in the statement index"
             ],
             "wrong": [],
-            "citation": [
-              "p.37 theorem 1 in 'wn by J\u00f8rgensen [J\u00f8r77, Theorem 1] that there exist compa'",
-              "p.39 theorem 2.28 in 'r as well (see [L\u00a8uc10, Theorem 2.28]). In particular, if tw'"
-            ]
+            "citation": []
           },
           "number_search": {
             "query": "Lemma 2.4",
@@ -9415,27 +9340,24 @@
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "2 citation spans emitted as local refs",
-            "a section question missed its heading page"
-          ]
+          "fail_reasons": []
         },
         "hover": {
           "profile": "hover",
           "structure": false,
           "passes": false,
-          "resolution_rate": 0.8712,
+          "resolution_rate": 0.8675,
           "correct": 203,
-          "missed": 26,
+          "missed": 27,
           "wrong_links": 4,
           "extraction_misses": 0,
-          "denominator": 233,
-          "citation_detections": 63,
+          "denominator": 234,
+          "citation_detections": 72,
           "citation_links": 5,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.18,
+          "index_seconds": 0.122,
           "section_questions": {
             "probed": [
               {
@@ -9469,7 +9391,7 @@
                 "question": "what is section 6.2 about",
                 "number": "6.2",
                 "title": "Statement of the main theorems on Haken 3-manifolds",
-                "truth_page": null,
+                "truth_page": 32,
                 "predicted_page": null,
                 "label": null,
                 "ok": false
@@ -9513,28 +9435,28 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 87.1% is under 90%",
+            "resolution 86.8% is under 90%",
             "4 wrong links",
-            "63 citation spans emitted as local refs",
+            "72 citation spans emitted as local refs",
             "section questions are not implemented"
           ]
         },
         "chat": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.9738,
-          "correct": 223,
-          "missed": 6,
+          "passes": true,
+          "resolution_rate": 0.987,
+          "correct": 227,
+          "missed": 3,
           "wrong_links": 0,
           "extraction_misses": 0,
-          "denominator": 229,
-          "citation_detections": 2,
+          "denominator": 230,
+          "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.124,
+          "index_seconds": 0.129,
           "section_questions": {
             "probed": [
               {
@@ -9568,28 +9490,22 @@
                 "question": "what is section 6.2 about",
                 "number": "6.2",
                 "title": "Statement of the main theorems on Haken 3-manifolds",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 32,
+                "predicted_page": 32,
+                "label": "\u00a76.2. Statement of the main theorems on Haken 3-manifolds. In the case",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
             "missed": [
               "p.63 '(10.11)': not in the statement index",
-              "p.64 '(10.11)': not in the statement index",
-              "p.3 'Section 3' did not locate section 3",
-              "p.5 'Section 3' did not locate section 3",
-              "p.7 'Section 3' did not locate section 3"
+              "p.64 '(10.11)': not in the statement index"
             ],
             "wrong": [],
-            "citation": [
-              "p.37 theorem 1 in 'wn by J\u00f8rgensen [J\u00f8r77, Theorem 1] that there exist compa'",
-              "p.39 theorem 2.28 in 'r as well (see [L\u00a8uc10, Theorem 2.28]). In particular, if tw'"
-            ]
+            "citation": []
           },
           "number_search": {
             "query": "Lemma 2.4",
@@ -9601,27 +9517,24 @@
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "2 citation spans emitted as local refs",
-            "a section question missed its heading page"
-          ]
+          "fail_reasons": []
         },
         "combined": {
           "profile": "hover",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.9571,
-          "correct": 223,
-          "missed": 6,
+          "resolution_rate": 0.9701,
+          "correct": 227,
+          "missed": 3,
           "wrong_links": 4,
           "extraction_misses": 0,
-          "denominator": 233,
-          "citation_detections": 63,
+          "denominator": 234,
+          "citation_detections": 72,
           "citation_links": 5,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.116,
+          "index_seconds": 0.122,
           "section_questions": {
             "probed": [
               {
@@ -9655,22 +9568,19 @@
                 "question": "what is section 6.2 about",
                 "number": "6.2",
                 "title": "Statement of the main theorems on Haken 3-manifolds",
-                "truth_page": null,
-                "predicted_page": null,
-                "label": null,
-                "ok": false
+                "truth_page": 32,
+                "predicted_page": 32,
+                "label": "\u00a76.2. Statement of the main theorems on Haken 3-manifolds. In the case",
+                "ok": true
               }
             ],
-            "ok": false,
-            "reason": "a section question missed its heading page"
+            "ok": true,
+            "reason": null
           },
           "examples": {
             "missed": [
               "p.63 '(10.11)': not in the statement index",
-              "p.64 '(10.11)': not in the statement index",
-              "p.3 'Section 3' did not locate section 3",
-              "p.5 'Section 3' did not locate section 3",
-              "p.7 'Section 3' did not locate section 3"
+              "p.64 '(10.11)': not in the statement index"
             ],
             "wrong": [
               "p.76 'Thm. 2.1' opened theorem 2.1 from a citation",
@@ -9699,8 +9609,7 @@
           },
           "fail_reasons": [
             "4 wrong links",
-            "63 citation spans emitted as local refs",
-            "a section question missed its heading page"
+            "72 citation spans emitted as local refs"
           ]
         }
       }
@@ -9715,7 +9624,7 @@
       "page_count": 24,
       "two_column_pages": 24,
       "document_class": "revtex4-2",
-      "extract_seconds": 0.501,
+      "extract_seconds": 0.588,
       "declarations": 164,
       "mentions": 189,
       "citation_style": "numeric+qualified",
@@ -9807,12 +9716,56 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.5519,
+          "resolution_rate": 0.5706,
           "correct": 101,
-          "missed": 10,
+          "missed": 4,
           "wrong_links": 0,
           "extraction_misses": 72,
-          "denominator": 183,
+          "denominator": 177,
+          "citation_detections": 0,
+          "citation_links": 0,
+          "false_declarations": [],
+          "false_declaration_count": 0,
+          "index_size": 47,
+          "index_seconds": 0.063,
+          "section_questions": {
+            "probed": [],
+            "ok": false,
+            "reason": "no numbered section heading in the HTML"
+          },
+          "examples": {
+            "missed": [
+              "p.5 '(20)': not in the statement index",
+              "p.2 'Section V' did not locate section V"
+            ],
+            "wrong": [],
+            "citation": []
+          },
+          "number_search": {
+            "query": "Lemma 9",
+            "served": true,
+            "short_query": null,
+            "short_serves_full_number": true,
+            "literal_lemma_4_served": false,
+            "printed_name": null,
+            "name_query_served_from_index": false,
+            "name_query": null
+          },
+          "fail_reasons": [
+            "resolution 57.1% is under 90%",
+            "a section question missed its heading page"
+          ]
+        },
+        "hover": {
+          "profile": "hover",
+          "structure": false,
+          "passes": false,
+          "resolution_rate": 0.5706,
+          "correct": 101,
+          "missed": 4,
+          "wrong_links": 0,
+          "extraction_misses": 72,
+          "denominator": 177,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
@@ -9826,11 +9779,7 @@
           },
           "examples": {
             "missed": [
-              "p.3 'Eq. (12)': detector missed it",
               "p.5 '(20)': not in the statement index",
-              "p.3 '(31)': detector missed it",
-              "p.3 '(43)': detector missed it",
-              "p.3 '(46)': detector missed it",
               "p.2 'Section V' did not locate section V"
             ],
             "wrong": [],
@@ -9847,55 +9796,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 55.2% is under 90%",
-            "a section question missed its heading page"
-          ]
-        },
-        "hover": {
-          "profile": "hover",
-          "structure": false,
-          "passes": false,
-          "resolution_rate": 0.5519,
-          "correct": 101,
-          "missed": 10,
-          "wrong_links": 0,
-          "extraction_misses": 72,
-          "denominator": 183,
-          "citation_detections": 0,
-          "citation_links": 0,
-          "false_declarations": [],
-          "false_declaration_count": 0,
-          "index_size": 47,
-          "index_seconds": 0.061,
-          "section_questions": {
-            "probed": [],
-            "ok": false,
-            "reason": "no numbered section heading in the HTML"
-          },
-          "examples": {
-            "missed": [
-              "p.3 'Eq. (12)': detector missed it",
-              "p.5 '(20)': not in the statement index",
-              "p.3 '(31)': detector missed it",
-              "p.3 '(43)': detector missed it",
-              "p.3 '(46)': detector missed it",
-              "p.2 'Section V' did not locate section V"
-            ],
-            "wrong": [],
-            "citation": []
-          },
-          "number_search": {
-            "query": "Lemma 9",
-            "served": true,
-            "short_query": null,
-            "short_serves_full_number": true,
-            "literal_lemma_4_served": false,
-            "printed_name": null,
-            "name_query_served_from_index": false,
-            "name_query": null
-          },
-          "fail_reasons": [
-            "resolution 55.2% is under 90%",
+            "resolution 57.1% is under 90%",
             "section questions are not implemented"
           ]
         },
@@ -9903,18 +9804,18 @@
           "profile": "main",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.5519,
+          "resolution_rate": 0.5706,
           "correct": 101,
-          "missed": 10,
+          "missed": 4,
           "wrong_links": 0,
           "extraction_misses": 72,
-          "denominator": 183,
+          "denominator": 177,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.061,
+          "index_seconds": 0.063,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -9922,11 +9823,7 @@
           },
           "examples": {
             "missed": [
-              "p.3 'Eq. (12)': detector missed it",
               "p.5 '(20)': not in the statement index",
-              "p.3 '(31)': detector missed it",
-              "p.3 '(43)': detector missed it",
-              "p.3 '(46)': detector missed it",
               "p.2 'Section V' did not locate section V"
             ],
             "wrong": [],
@@ -9943,7 +9840,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 55.2% is under 90%",
+            "resolution 57.1% is under 90%",
             "a section question missed its heading page"
           ]
         },
@@ -9951,18 +9848,18 @@
           "profile": "hover",
           "structure": true,
           "passes": false,
-          "resolution_rate": 0.5519,
+          "resolution_rate": 0.5706,
           "correct": 101,
-          "missed": 10,
+          "missed": 4,
           "wrong_links": 0,
           "extraction_misses": 72,
-          "denominator": 183,
+          "denominator": 177,
           "citation_detections": 0,
           "citation_links": 0,
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.06,
+          "index_seconds": 0.062,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -9970,11 +9867,7 @@
           },
           "examples": {
             "missed": [
-              "p.3 'Eq. (12)': detector missed it",
               "p.5 '(20)': not in the statement index",
-              "p.3 '(31)': detector missed it",
-              "p.3 '(43)': detector missed it",
-              "p.3 '(46)': detector missed it",
               "p.2 'Section V' did not locate section V"
             ],
             "wrong": [],
@@ -9991,7 +9884,7 @@
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 55.2% is under 90%",
+            "resolution 57.1% is under 90%",
             "a section question missed its heading page"
           ]
         }

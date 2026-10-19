@@ -686,6 +686,20 @@ def _matches_title(title: str, query: StructuralQuery) -> bool:
     )
 
 
+# A run-in heading is "2.4. Small cases. Let G be ...". The words after the
+# title period are the paragraph, not part of the heading. A sentence that
+# happens to be numbered ("2.4. Let us check the axiom. For any x ...") is not.
+_SENTENCE_OPENER = re.compile(
+    r"(?i)^(let|if|we|suppose|assume|since|then|clearly|hence|thus|therefore|"
+    r"now|next|indeed|moreover|however|where|when|because|it|this|note|recall|"
+    r"consequently|furthermore|also)\b"
+)
+_RUN_IN_HEADING = re.compile(
+    r"^\s*(\d+(?:\.\d+)+)\.\s+([A-Z][^.=]{1,80}?)\.\s+\S"
+)
+_NAME_THEN_COMMA = re.compile(r"^[A-Z]\w+\s+[A-Z]\w+,")
+
+
 def _is_title_line(line: str) -> bool:
     words = line.split()
     if not 1 <= len(words) <= 8:
@@ -700,6 +714,56 @@ def _is_title_line(line: str) -> bool:
     return True
 
 
+def _run_in_title(line: str) -> str | None:
+    """Title prefix of a heading whose paragraph starts on the same line."""
+    found = _RUN_IN_HEADING.match(line.strip())
+    if found is None:
+        return None
+    title = found.group(2).strip()
+    words = title.split()
+    if not 1 <= len(words) <= 12 or _SENTENCE_OPENER.match(title):
+        return None
+    return f"{found.group(1)}. {title}"
+
+
+def _long_bare_title(line: str) -> str | None:
+    """A heading that is only a title, longer than a short line, with no body.
+
+    "6. Discriminants of minor-free graphs and completable cycles in the plane"
+    is one. "2. Ada Lovelace, Notes on the engine" is a bibliography entry.
+    """
+    stripped = line.strip()
+    words = stripped.split()
+    if not 9 <= len(words) <= 16:
+        return None
+    if not re.match(r"^\s*\d+(?:\.\d+)*\.\s+[A-Z]", stripped):
+        return None
+    if re.search(r"[;:?!=()\[\]]", stripped):
+        return None
+    rest = re.sub(r"^\s*\d+(?:\.\d+)*\.\s+", "", stripped)
+    if _SENTENCE_OPENER.match(rest) or _NAME_THEN_COMMA.match(rest):
+        return None
+    if stripped.endswith("."):
+        return None
+    return stripped
+
+
+def heading_line(line: str) -> str | None:
+    """Heading text on this line, or None when the line is prose."""
+    stripped = line.strip()
+    if not stripped:
+        return None
+    peeled = _run_in_title(stripped)
+    if peeled is not None and _matches_heading_line(peeled):
+        return peeled
+    long_title = _long_bare_title(stripped)
+    if long_title is not None and _opens_with_section_title(long_title):
+        return long_title
+    if _matches_heading_line(stripped):
+        return stripped
+    return None
+
+
 def _title_text_follows(line: str, number: str) -> bool:
     """A heading continues with a capitalised word.
 
@@ -709,10 +773,8 @@ def _title_text_follows(line: str, number: str) -> bool:
     return bool(re.match(r"[A-Z]", rest))
 
 
-def _matches_heading_line(line: str) -> bool:
-    # "Section 4 constructs the metric." is a sentence. The keyword alone
-    # does not make it a heading; the line still has to be title-shaped.
-    if not _is_title_line(line) or line.lower().startswith("part"):
+def _opens_with_section_title(line: str) -> bool:
+    if line.lower().startswith("part"):
         return False
     if _number_in(line, _CHAPTER_TITLE) or _number_in(line, _PART_TITLE) or _number_in(line, _SECTION_TITLE):
         return True
@@ -723,6 +785,14 @@ def _matches_heading_line(line: str) -> bool:
     if arabic is not None and arabic.isdigit() and 1 <= int(arabic) <= 40:
         return _title_text_follows(line, arabic)
     return _leading_roman(line) is not None
+
+
+def _matches_heading_line(line: str) -> bool:
+    # "Section 4 constructs the metric." is a sentence. The keyword alone
+    # does not make it a heading; the line still has to be title-shaped.
+    if not _is_title_line(line):
+        return False
+    return _opens_with_section_title(line)
 
 
 def _heading_rank(title: str) -> int:
@@ -839,12 +909,12 @@ def _detected_headings(structure: Structure) -> list[Heading]:
         if is_likely_table_of_contents(page.text):
             continue
         for raw in page.text.split("\n"):
-            line = raw.strip()
-            if not 3 <= len(line) <= 120 or len(line.split()) > 14:
+            # A run-in heading keeps its title and drops the paragraph that
+            # follows the title period, so the line can be longer than a title.
+            heading = heading_line(raw.strip())
+            if heading is None or not 3 <= len(heading) <= 160:
                 continue
-            if not _matches_heading_line(line):
-                continue
-            found.append(Heading(line, page.page_index, _display_label(line) or line))
+            found.append(Heading(heading, page.page_index, _display_label(heading) or heading))
     return found
 
 

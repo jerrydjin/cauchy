@@ -57,6 +57,8 @@ def _get(url: str, timeout: int = 90) -> bytes:
         except urllib.error.HTTPError as error:
             if error.code == 404:
                 raise
+            if error.code == 429:
+                time.sleep(15 * (attempt + 1))
             last_error = error
         except Exception as error:  # noqa: BLE001
             last_error = error
@@ -64,16 +66,29 @@ def _get(url: str, timeout: int = 90) -> bytes:
     raise RuntimeError(f"failed to fetch {url}: {last_error}")
 
 
-def _arxiv_query(category: str, start: int) -> list[dict]:
-    query = urllib.parse.urlencode({
-        "search_query": f"cat:{category}",
-        "start": start,
-        "max_results": 25,
-        "sortBy": "submittedDate",
-        "sortOrder": "descending",
-    })
-    payload = _get(f"http://export.arxiv.org/api/query?{query}")
+def _arxiv_search(search_query: str, start: int, max_results: int = 25, sort_order: str = "descending") -> tuple[int, list[dict]]:
+    # Brackets in a date range must stay literal. urlencode would quote them
+    # and the API would treat the range as a phrase.
+    encoded = urllib.parse.quote(search_query, safe="[]")
+    encoded = encoded.replace("%20", "+")
+    url = (
+        "http://export.arxiv.org/api/query?search_query="
+        + encoded
+        + f"&start={start}&max_results={max_results}&sortBy=submittedDate&sortOrder={sort_order}"
+    )
+    payload = _get(url)
     root = ET.fromstring(payload)
+    total_text = root.findtext("opensearch:totalResults", default="0", namespaces={
+        "opensearch": "http://a9.com/-/spec/opensearch/1.1/",
+    })
+    try:
+        total = int(total_text or "0")
+    except ValueError:
+        total = 0
+    return total, _entries(root)
+
+
+def _entries(root: ET.Element) -> list[dict]:
     papers = []
     for entry in root.findall("a:entry", ATOM):
         raw_id = entry.findtext("a:id", default="", namespaces=ATOM)
@@ -93,7 +108,12 @@ def _arxiv_query(category: str, start: int) -> list[dict]:
     return papers
 
 
-def _accept_html(paper: dict, category: str, used: set[str]) -> dict | None:
+def _arxiv_query(category: str, start: int) -> list[dict]:
+    _total, papers = _arxiv_search(f"cat:{category}", start)
+    return papers
+
+
+def _accept_html(paper: dict, category: str, used: set[str], pause: float = 1.0) -> dict | None:
     if paper["id"] in used:
         return None
     cached = CACHE / "html" / f"{paper['id']}.html"
@@ -106,17 +126,17 @@ def _accept_html(paper: dict, category: str, used: set[str]) -> dict | None:
         html = _get(f"https://arxiv.org/html/{paper['id']}")
     except Exception as error:  # noqa: BLE001
         print(f"  skip {paper['id']}: {error}", flush=True)
-        time.sleep(1)
+        time.sleep(pause)
         return None
     text = html.decode("utf-8", "replace")
     if "ltx_ref" not in text and "ltx_tag_theorem" not in text:
         print(f"  skip {paper['id']}: HTML has no LaTeXML refs", flush=True)
-        time.sleep(1)
+        time.sleep(pause)
         return None
     (CACHE / "html").mkdir(parents=True, exist_ok=True)
     (CACHE / "html" / f"{paper['id']}.html").write_text(text)
     print(f"  took {paper['id']} {paper['title'][:70]}", flush=True)
-    time.sleep(1)
+    time.sleep(pause)
     return {**paper, "primary_category": category, "role": "random", "html_bytes": len(html)}
 
 
@@ -164,6 +184,101 @@ def sample_ids(existing: list[dict] | None = None, categories: list[str] | None 
         ),
         "papers": chosen,
         "edge_cases": [],
+    }
+
+
+WIDE_SEED = 20261019
+WIDE_PATH = ROOT / "dev_ids_wide.json"
+
+
+def _pick_in_year(rng: random.Random, category: str, year: int, used: set[str]) -> dict | None:
+    """First LaTeXML HTML paper in this category and calendar year."""
+    search = f"cat:{category} AND submittedDate:[{year}01010000 TO {year}12312359]"
+    total: int | None = None
+    start = rng.randrange(0, 120)
+    for window in range(8):
+        offset = start + window * 20
+        if total:
+            offset = offset % total
+        print(f"sampling {category} {year} offset {offset}", flush=True)
+        time.sleep(3)
+        try:
+            found_total, candidates = _arxiv_search(search, offset, max_results=20, sort_order="ascending")
+        except Exception as error:  # noqa: BLE001
+            print(f"  api failed: {error}", flush=True)
+            time.sleep(15)
+            continue
+        total = found_total or total
+        if total == 0:
+            print(f"  no API hits for {category} {year}", flush=True)
+            return None
+        rng.shuffle(candidates)
+        for paper in candidates:
+            if not str(paper.get("published", "")).startswith(str(year)):
+                continue
+            picked = _accept_html(paper, category, used, pause=0.4)
+            if picked is not None:
+                picked.pop("html_bytes", None)
+                picked["cohort"] = "added"
+                picked["sample_year"] = year
+                return picked
+    return None
+
+
+def sample_wide(original_payload: dict) -> dict:
+    """Forty more papers: two per category, years spread over 2021–2026.
+
+    Eligibility matches sample_ids: a math.* category query, and LaTeXML HTML
+    that contains an internal reference or a theorem tag. The original twenty
+    stay in the file so one run scores all sixty.
+    """
+    rng = random.Random(WIDE_SEED)
+    original = []
+    for paper in original_payload["papers"]:
+        copied = dict(paper)
+        copied["cohort"] = "original"
+        copied.pop("html_bytes", None)
+        original.append(copied)
+    used = {paper["id"] for paper in original}
+    used.update(paper["id"] for paper in original_payload.get("edge_cases") or [])
+    added = []
+    for index, category in enumerate(CATEGORIES):
+        years = (2021 + (index % 6), 2021 + ((index + 3) % 6))
+        for year in years:
+            picked = _pick_in_year(rng, category, year, used)
+            if picked is None:
+                for fallback in range(2021, 2027):
+                    if fallback == year:
+                        continue
+                    print(f"  fallback {category} {year} -> {fallback}", flush=True)
+                    picked = _pick_in_year(rng, category, fallback, used)
+                    if picked is not None:
+                        picked["requested_year"] = year
+                        break
+            if picked is None:
+                raise SystemExit(f"no HTML paper for {category} {year}")
+            used.add(picked["id"])
+            added.append(picked)
+    year_counts: dict[str, int] = {}
+    for paper in added:
+        year = str(paper["published"])[:4]
+        year_counts[year] = year_counts.get(year, 0) + 1
+    return {
+        "seed": WIDE_SEED,
+        "sampled_on": "2026-10-19",
+        "method": (
+            "The original twenty papers, plus two more from each of the same "
+            "20 math.* categories. Each category is asked for one paper in "
+            "2021+(i mod 6) and one in 2021+((i+3) mod 6), with seed 20261019. "
+            "A paper is eligible when cat:math.* returns it and its arXiv HTML "
+            "has a LaTeXML internal ref or theorem tag, the same rule as ids.json. "
+            "If that year has no such HTML, a later year in 2021–2026 is used "
+            "and requested_year records the miss."
+        ),
+        "year_counts": year_counts,
+        "papers": original + added,
+        "original_ids": [paper["id"] for paper in original],
+        "added_ids": [paper["id"] for paper in added],
     }
 
 
@@ -284,6 +399,7 @@ def _score_paper(record: dict) -> dict:
         "title": record.get("title"),
         "primary_category": record.get("primary_category"),
         "role": record.get("role", "random"),
+        "cohort": record.get("cohort", ""),
         "published": record.get("published"),
         "comment": record.get("comment"),
         "page_count": extracted["page_count"],
@@ -590,11 +706,25 @@ def _write_markdown(payload: dict) -> None:
     random_rows = [row for row in rows if row["role"] == "random"]
     main_pass = sum(1 for row in random_rows if row["profiles"]["main"]["passes"])
     combined_pass = sum(1 for row in random_rows if row["profiles"]["combined"]["passes"])
+    cohort_lines = []
+    for cohort, label in (("original", "original-20"), ("added", "added-40")):
+        subset = [row for row in random_rows if row.get("cohort") == cohort]
+        if not subset:
+            continue
+        cohort_main = sum(1 for row in subset if row["profiles"]["main"]["passes"])
+        cohort_both = sum(1 for row in subset if row["profiles"]["combined"]["passes"])
+        cohort_hover = sum(1 for row in subset if _reference_only(row["profiles"]["hover"]))
+        cohort_lines.append(
+            f"**{label}:** main {cohort_main} of {len(subset)}, "
+            f"hover+chat {cohort_both} of {len(subset)}, "
+            f"hover reference-only {cohort_hover} of {len(subset)}."
+        )
     lines = [
         "# arXiv maths scorecard",
         "",
         f"**{main_pass} of {len(random_rows)} random papers work with no fixes on main.**",
         f"**{combined_pass} of {len(random_rows)} pass if the open hover and chat branches are both applied.**",
+        *cohort_lines,
         "",
         "A paper works with no fixes when all of these hold:",
         "",
@@ -612,7 +742,7 @@ def _write_markdown(payload: dict) -> None:
         "A TeX annotation nested in a heading is not part of the title, and “SL 2” matches a bookmark “SL2”. "
         "Main also drops a local reference inside [12], [IK99, Lemma 1.15], (Smith 2019), or Smith et al. [2019]; "
         "an interval such as [0, 1] is not a citation. "
-        "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. A number alone on its line is an equation when the next line is a formula, as in “(1)” followed by “xn+m xn = P(...)”. "
+        "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. A number alone on its line is an equation when the next line is a formula, as in “(1)” followed by “xn+m xn = P(...)”. A dotted tag alone on its line, such as “(2.4)”, is an equation even when the math font extracts no equals sign; a bare integer on its own line is not. A section number on its own line joins the next line when both are emphasized: bold for a section, italic for a dotted subsection. "
         "“Lemmas 4.6” is lemma 4.6, and “Lemma 2” retrieves a lemma numbered 2.1. "
         "A parenthetical printed on the declaration, such as “(Zorn)”, is stored as the statement name. "
         "Dropping only the section-question condition, "
@@ -741,11 +871,32 @@ def _write_markdown(payload: dict) -> None:
     MD_OUT.write_text("\n".join(lines))
 
 
+def _passes(rows: list[dict], profile: str) -> tuple[int, int]:
+    scored = [row for row in rows if row.get("profiles")]
+    return sum(row["profiles"][profile]["passes"] for row in scored), len(scored)
+
+
 def main() -> None:
+    global IDS_PATH, JSON_OUT, MD_OUT
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample", action="store_true", help="draw a new id list and replace ids.json")
+    parser.add_argument("--sample-wide", action="store_true", help="write dev_ids_wide.json (original 20 plus 40)")
+    parser.add_argument("--ids", default="", help="score this id file instead of ids.json")
+    parser.add_argument("--json-out", default="", help="write the scorecard JSON here")
+    parser.add_argument("--markdown", default="", help="write the scorecard markdown here")
     parser.add_argument("--limit", type=int, default=0, help="score only the first N random papers")
     args = parser.parse_args()
+    if args.sample_wide:
+        payload = sample_wide(_load_ids())
+        WIDE_PATH.write_text(json.dumps(payload, indent=2) + "\n")
+        print(f"wrote {WIDE_PATH} papers={len(payload['papers'])} years={payload['year_counts']}", flush=True)
+        return
+    if args.ids:
+        IDS_PATH = Path(args.ids)
+    if args.json_out:
+        JSON_OUT = Path(args.json_out)
+    if args.markdown:
+        MD_OUT = Path(args.markdown)
     if args.sample or not IDS_PATH.exists():
         payload = sample_ids()
         if IDS_PATH.exists():
@@ -785,11 +936,16 @@ def main() -> None:
                 flush=True,
             )
     random_rows = [row for row in rows if row["role"] == "random" and row.get("profiles")]
-    print(
-        f"HEADLINE main {sum(row['profiles']['main']['passes'] for row in random_rows)}/{len(random_rows)} "
-        f"combined {sum(row['profiles']['combined']['passes'] for row in random_rows)}/{len(random_rows)}",
-        flush=True,
-    )
+    main_pass, main_n = _passes(random_rows, "main")
+    combined_pass, combined_n = _passes(random_rows, "combined")
+    print(f"HEADLINE main {main_pass}/{main_n} combined {combined_pass}/{combined_n}", flush=True)
+    for cohort in ("original", "added"):
+        subset = [row for row in random_rows if row.get("cohort") == cohort]
+        if not subset:
+            continue
+        cohort_main, cohort_n = _passes(subset, "main")
+        cohort_both, _ = _passes(subset, "combined")
+        print(f"COHORT {cohort} main {cohort_main}/{cohort_n} combined {cohort_both}/{cohort_n}", flush=True)
 
 
 if __name__ == "__main__":

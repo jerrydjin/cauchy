@@ -384,7 +384,7 @@ class StructureTests(unittest.TestCase):
         structure = Structure(
             outline=[],
             pages=[
-                PageSnapshot(3, "1 + z7 holds in characteristic 7. Hence the relation is strict."),
+                PageSnapshot(3, "1 + w holds over a prime field. Hence the relation is strict."),
                 PageSnapshot(4, "Section 4 constructs the approximate metric and solves the nonlinear equation."),
                 PageSnapshot(8, "1. Introduction\nThe algebra is introduced here and used below."),
                 PageSnapshot(11, "4. Approximate solutions\nThe metric is built in this section."),
@@ -400,11 +400,68 @@ class StructureTests(unittest.TestCase):
             outline=[],
             pages=[
                 PageSnapshot(4, "4 be the\n4 ="),
-                PageSnapshot(10, "4. Clique-sum\nThe sum is defined here."),
+                PageSnapshot(10, "4. Block-sum\nThe sum is defined here."),
             ],
             page_count=20,
         )
         self.assertEqual(locate(structural_query("what is section 4 about"), clique).start_page, 10)
+
+    def test_a_bold_section_number_on_its_own_line_keeps_the_title(self) -> None:
+        structure = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                2,
+                "1.\nIntroduction\nThe argument starts here and is not a heading.",
+                [True, True, False],
+            )],
+            page_count=4,
+        )
+        found = locate(structural_query("what is section 1 about"), structure)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.start_page, 2)
+        self.assertIn("Introduction", found.label)
+
+    def test_an_italic_subsection_number_on_its_own_line_keeps_the_title(self) -> None:
+        structure = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                4,
+                "3.2.\nData assimilation strategy\nThe filter is derived in the following paragraphs.",
+                [False, False, False],
+                [True, True, False],
+            )],
+            page_count=6,
+        )
+        found = locate(structural_query("what is section 3.2 about"), structure)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.start_page, 4)
+        self.assertIn("assimilation", found.label)
+
+    def test_a_numbered_step_on_its_own_line_is_not_a_heading(self) -> None:
+        structure = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                1,
+                "3.\nFix an isomorphism of the underlying bundle\nMore prose follows.",
+                [False, False, False],
+            )],
+            page_count=3,
+        )
+        self.assertIsNone(locate(structural_query("what is section 3 about"), structure))
+
+    def test_a_dotted_number_alone_on_a_line_is_an_equation(self) -> None:
+        from cauchy_logic import declaration_matches
+
+        text = (
+            "The estimate is recorded below.\n"
+            "(2.4)\n"
+            "where the symbol denotes the usual pairing in the module."
+        )
+        found = declaration_matches(text)
+        self.assertTrue(any(match.kind == "equation" and match.number == "2.4" for match in found))
+        bare = "The cases are listed below.\n(2)\nwhere the reader may consult the appendix."
+        bare_found = declaration_matches(bare)
+        self.assertFalse(any(match.kind == "equation" and match.number == "2" for match in bare_found))
 
     def test_run_in_heading_keeps_the_title_and_drops_the_paragraph(self) -> None:
         structure = Structure(
@@ -472,7 +529,7 @@ class StructureTests(unittest.TestCase):
             outline=[
                 OutlineNode("Introduction", 0),
                 OutlineNode("1. Preliminaries", 4),
-                OutlineNode("2. Affine realizations", 8),
+                OutlineNode("2. Linear models", 8),
             ],
             pages=[],
             page_count=20,
@@ -485,10 +542,10 @@ class StructureTests(unittest.TestCase):
             outline=[
                 OutlineNode("Introduction", 0),
                 OutlineNode("Preliminaries", 2, [
-                    OutlineNode("Virasoro notation", 2),
+                    OutlineNode("Generator notation", 2),
                 ]),
                 OutlineNode("Proof of the main result", 5, [
-                    OutlineNode("Low homogeneous subspaces", 5),
+                    OutlineNode("Low degree subspaces", 5),
                 ]),
                 OutlineNode("References", 12),
             ],

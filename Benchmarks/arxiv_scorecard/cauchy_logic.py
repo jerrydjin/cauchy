@@ -414,6 +414,11 @@ def declaration_matches(
         full_line = source_text[full_line_start:full_line_end].strip()
         if full_line != matched_text:
             continue
+        # A dotted tag alone on a line is the equation number. Enumerated
+        # items are bare integers, and a math font often extracts no "=".
+        if "." in match.number:
+            accepted.append(match)
+            continue
         display_start = _offset(source_text, match.start, -600)
         preceding = source_text[display_start : match.start]
         if any(op in preceding for op in _MATH_SIGNALS):
@@ -551,6 +556,10 @@ class OutlineNode:
 class PageSnapshot:
     page_index: int
     text: str
+    # Parallel to text.split("\\n"). A heading number is bold or, for a
+    # subsection, italic. The title may end in a math symbol that is not.
+    line_bold: list[bool] = field(default_factory=list)
+    line_italic: list[bool] = field(default_factory=list)
 
 
 @dataclass
@@ -748,6 +757,73 @@ def _long_bare_title(line: str) -> str | None:
     return stripped
 
 
+_SECTION_NUMBER_LINE = re.compile(r"^(?:§\s*)?(\d+(?:\.\d+){0,2})\.?$")
+
+
+def _split_heading_title(text: str) -> bool:
+    """The line after a bold section number is the title, not a proof step.
+
+    "Introduction" and "Estimating the medium" are titles. "Fix an
+    isomorphism" is a sentence, and another number is the next tag.
+    """
+    stripped = text.strip()
+    if not stripped or len(stripped) > 160:
+        return False
+    if _SECTION_NUMBER_LINE.match(stripped):
+        return False
+    if not re.match(r"[A-Z]", stripped):
+        return False
+    words = stripped.split()
+    if not 1 <= len(words) <= 16:
+        return False
+    if not re.search(r"[A-Za-z]{4,}", stripped):
+        return False
+    if _SENTENCE_OPENER.match(stripped):
+        return False
+    letters = [char for char in stripped if char.isalpha()]
+    if letters and sum(char.isupper() for char in letters) / len(letters) > 0.8 and len(words) <= 6:
+        return False
+    return True
+
+
+def logical_lines(
+    text: str,
+    line_bold: list[bool] | None = None,
+    line_italic: list[bool] | None = None,
+) -> list[str]:
+    """Join an emphasized section number to the title on the next line.
+
+    Many article classes put "1." and "Introduction" on separate visual
+    lines, with the number bold and a subsection number italic. A page
+    number or an enumerated step is not emphasized on both lines. Emphasis
+    is the first glyph, so a math symbol at the end of the title does not
+    cancel it.
+    """
+    raw = text.split("\n")
+    if not line_bold and not line_italic:
+        return raw
+    bold = list(line_bold or []) + [False] * max(0, len(raw) - len(line_bold or []))
+    italic = list(line_italic or []) + [False] * max(0, len(raw) - len(line_italic or []))
+    joined: list[str] = []
+    index = 0
+    while index < len(raw):
+        line = raw[index].strip()
+        number = _SECTION_NUMBER_LINE.match(line)
+        emphasized = bold[index] or (italic[index] and number is not None and "." in number.group(1))
+        if emphasized and number is not None and 1 <= int(number.group(1).split(".")[0]) <= 40:
+            nxt = index + 1
+            while nxt < len(raw) and not raw[nxt].strip():
+                nxt += 1
+            if nxt < len(raw) and (bold[nxt] or italic[nxt]) and _split_heading_title(raw[nxt]):
+                tag = line if line.endswith(".") else f"{line}."
+                joined.append(f"{tag} {raw[nxt].strip()}")
+                index = nxt + 1
+                continue
+        joined.append(raw[index])
+        index += 1
+    return joined
+
+
 def heading_line(line: str) -> str | None:
     """Heading text on this line, or None when the line is prose."""
     stripped = line.strip()
@@ -767,7 +843,7 @@ def heading_line(line: str) -> str | None:
 def _title_text_follows(line: str, number: str) -> bool:
     """A heading continues with a capitalised word.
 
-    "1. Introduction" and "4. Clique-sum" do. "1 + z", "4 =", and "4 be the" do not.
+    "1. Introduction" and "4. Block-sum" do. "1 + z", "4 =", and "4 be the" do not.
     """
     rest = re.sub(rf"^\s*(?:§\s*)?{re.escape(number)}\.?\s*", "", line.strip(), count=1)
     return bool(re.match(r"[A-Z]", rest))
@@ -908,7 +984,7 @@ def _detected_headings(structure: Structure) -> list[Heading]:
     for page in structure.pages:
         if is_likely_table_of_contents(page.text):
             continue
-        for raw in page.text.split("\n"):
+        for raw in logical_lines(page.text, page.line_bold, page.line_italic):
             # A run-in heading keeps its title and drops the paragraph that
             # follows the title period, so the line can be longer than a title.
             heading = heading_line(raw.strip())

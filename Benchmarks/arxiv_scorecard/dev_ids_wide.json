@@ -1,0 +1,1135 @@
+{
+  "seed": 20261019,
+  "sampled_on": "2026-10-19",
+  "method": "The original twenty papers, plus two more from each of the same 20 math.* categories. Each category is asked for one paper in 2021+(i mod 6) and one in 2021+((i+3) mod 6), with seed 20261019. A paper is eligible when cat:math.* returns it and its arXiv HTML has a LaTeXML internal ref or theorem tag, the same rule as ids.json. If that year has no such HTML, a later year in 2021\u20132026 is used and requested_year records the miss.",
+  "year_counts": {
+    "2021": 7,
+    "2024": 7,
+    "2022": 7,
+    "2025": 7,
+    "2023": 6,
+    "2026": 6
+  },
+  "papers": [
+    {
+      "id": "2610.21544",
+      "title": "On the variety of sum of powers of certain complete intersection forms",
+      "published": "2026-10-15",
+      "comment": "Comments are welcome!",
+      "categories": [
+        "math.AC",
+        "math.AG"
+      ],
+      "authors": [
+        "Meghana Bhat",
+        "Ronnie Sebastian"
+      ],
+      "primary_category": "math.AG",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.11671",
+      "title": "A complete classification of the rational realization of gap-two products of Eilenberg--MacLane spaces as classifying spaces",
+      "published": "2026-10-08",
+      "comment": "",
+      "categories": [
+        "math.AT"
+      ],
+      "authors": [
+        "Yang Bai",
+        "Xiugui Liu",
+        "Jiaxi Zha"
+      ],
+      "primary_category": "math.AT",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.20976",
+      "title": "Chemotaxis models with signal-dependent sensitivity and a logistic-type source, III: Bifurcation and spike-like solutions",
+      "published": "2026-10-14",
+      "comment": "42 pages, 4 figures",
+      "categories": [
+        "math.AP"
+      ],
+      "authors": [
+        "Le Chen",
+        "Ian Ruau",
+        "Wenxian Shen"
+      ],
+      "primary_category": "math.AP",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.21341",
+      "title": "Matrix Completion Discriminants",
+      "published": "2026-10-15",
+      "comment": "29 pages, 2 figures",
+      "categories": [
+        "math.CO",
+        "math.AG",
+        "math.OC"
+      ],
+      "authors": [
+        "Yoshiyuki Sekiguchi",
+        "Shin-ichi Tanigawa"
+      ],
+      "primary_category": "math.CO",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.04096",
+      "title": "The Benson--Etingof--Ostrik conjecture for finite tensor categories",
+      "published": "2026-10-02",
+      "comment": "",
+      "categories": [
+        "math.RT",
+        "math.CT"
+      ],
+      "authors": [
+        "Kevin Coulembier",
+        "Johannes Flake"
+      ],
+      "primary_category": "math.CT",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.21303",
+      "title": "Asymptotics of the Moduli Spaces of Parabolic $\\mathrm{SL}(3,\\mathbb C)$-Higgs Bundles",
+      "published": "2026-10-15",
+      "comment": "",
+      "categories": [
+        "math.DG",
+        "math-ph",
+        "math.AG"
+      ],
+      "authors": [
+        "Shiyu Cao"
+      ],
+      "primary_category": "math.DG",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.21627",
+      "title": "Degree Growth of Rational Maps with Laurent Property",
+      "published": "2026-10-15",
+      "comment": "20 pages",
+      "categories": [
+        "math.DS",
+        "math-ph"
+      ],
+      "authors": [
+        "Melih Emin Can"
+      ],
+      "primary_category": "math.DS",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.18041",
+      "title": "Completely symmetric subspaces of noncommutative $L_p$-spaces",
+      "published": "2026-10-13",
+      "comment": "",
+      "categories": [
+        "math.FA",
+        "math.OA"
+      ],
+      "authors": [
+        "Jinghao Huang"
+      ],
+      "primary_category": "math.FA",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.20306",
+      "title": "The zero divisor and augmentation conjectures for medial quandle rings",
+      "published": "2026-10-14",
+      "comment": "12 pages + references. Comments welcome",
+      "categories": [
+        "math.RA",
+        "math.GR"
+      ],
+      "authors": [
+        "Luc Ta"
+      ],
+      "primary_category": "math.GR",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.19333",
+      "title": "Algebraic overtwistedness of contact $(+1)$-surgeries via augmented Floer theories",
+      "published": "2026-10-14",
+      "comment": "36 pages, comments welcome!",
+      "categories": [
+        "math.SG",
+        "math.GT"
+      ],
+      "authors": [
+        "Russell Avdek",
+        "Youlin Li",
+        "Zhengyi Zhou"
+      ],
+      "primary_category": "math.GT",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.14417",
+      "title": "A Nullstellensatz for the field of complex Laurent series",
+      "published": "2026-10-10",
+      "comment": "Comments welcome!",
+      "categories": [
+        "math.LO",
+        "math.AC"
+      ],
+      "authors": [
+        "Pablo Cubides Kovacsics",
+        "Sebasti\u00e1n Uribe Rinc\u00f3n"
+      ],
+      "primary_category": "math.LO",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.16227",
+      "title": "Contractivity of Rudin's diagonal restriction operator for $H^p$ of the polydisc",
+      "published": "2026-10-12",
+      "comment": "",
+      "categories": [
+        "math.FA",
+        "math.CA",
+        "math.CV"
+      ],
+      "authors": [
+        "Ole Fredrik Brevig",
+        "Javier G\u00f3mez-Serrano",
+        "Joaquim Ortega-Cerd\u00e0",
+        "Kristian Seip"
+      ],
+      "primary_category": "math.CA",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.19307",
+      "title": "Zero-cycles and Brauer groups on certain Enriques surfaces",
+      "published": "2026-10-13",
+      "comment": "27 pages",
+      "categories": [
+        "math.NT"
+      ],
+      "authors": [
+        "Thomas Jaklitsch"
+      ],
+      "primary_category": "math.NT",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.18580",
+      "title": "A two-level preconditioner for discontinuous virtual element methods with irregular subdomains",
+      "published": "2026-10-13",
+      "comment": "28 pages, 5 figures",
+      "categories": [
+        "math.NA"
+      ],
+      "authors": [
+        "Juan G. Calvo",
+        "C\u00e9sar Herrera"
+      ],
+      "primary_category": "math.NA",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.13792",
+      "title": "The generator problem for C*-algebras with comparison",
+      "published": "2026-10-09",
+      "comment": "41 pages",
+      "categories": [
+        "math.OA"
+      ],
+      "authors": [
+        "Ben Bouwen",
+        "Jorge Castillejos",
+        "Jakub Curda"
+      ],
+      "primary_category": "math.OA",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.19840",
+      "title": "GPU-Accelerated Preprocessing for Large-Scale Linear Programming",
+      "published": "2026-10-14",
+      "comment": "",
+      "categories": [
+        "math.OC"
+      ],
+      "authors": [
+        "Kaihuang Chen",
+        "Jiawei Lu",
+        "Defeng Sun",
+        "Yancheng Yuan",
+        "Guojun Zhang",
+        "Xiangyu Zhang",
+        "Xinyuan Zhao"
+      ],
+      "primary_category": "math.OC",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.21864",
+      "title": "Localisation of the monkey walk with an \"impurity\" at the origin",
+      "published": "2026-10-15",
+      "comment": "",
+      "categories": [
+        "math.PR"
+      ],
+      "authors": [
+        "Wilfred Armfield",
+        "C\u00e9cile Mailler"
+      ],
+      "primary_category": "math.PR",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.15448",
+      "title": "The First Modular Zhu Algebra of $L(\\frac12,0)_F$ in Characteristic Seven",
+      "published": "2026-10-11",
+      "comment": "",
+      "categories": [
+        "math.QA"
+      ],
+      "authors": [
+        "Haihua Huang"
+      ],
+      "primary_category": "math.QA",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.14991",
+      "title": "Affine realization of tilted Richardson varieties",
+      "published": "2026-10-10",
+      "comment": "30 pages",
+      "categories": [
+        "math.AG",
+        "math.CO",
+        "math.RT"
+      ],
+      "authors": [
+        "Xuhua He",
+        "Qingchao Yu"
+      ],
+      "primary_category": "math.RT",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2610.11661",
+      "title": "BiHom-Poisson conformal superalgebras arising from related algebraic structures",
+      "published": "2026-10-08",
+      "comment": "",
+      "categories": [
+        "math.RA"
+      ],
+      "authors": [
+        "Bakol\u00c8 Louamou",
+        "Ibrahima Bakayoko",
+        "Kol B\u00c9atrice Gamou"
+      ],
+      "primary_category": "math.RA",
+      "role": "random",
+      "cohort": "original"
+    },
+    {
+      "id": "2101.03789",
+      "title": "A tree-based algorithm for the integration of monomials in the Chow ring of the moduli space of stable marked curves of genus zero",
+      "published": "2021-01-11",
+      "comment": "",
+      "categories": [
+        "math.AG",
+        "math.CO"
+      ],
+      "authors": [
+        "Jiayue Qi"
+      ],
+      "primary_category": "math.AG",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2021
+    },
+    {
+      "id": "2401.03709",
+      "title": "Brauer and Neron-Severi groups of surfaces over finite fields",
+      "published": "2024-01-08",
+      "comment": "",
+      "categories": [
+        "math.AG",
+        "math.KT",
+        "math.NT"
+      ],
+      "authors": [
+        "Thomas H. Geisser"
+      ],
+      "primary_category": "math.AG",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2024
+    },
+    {
+      "id": "2201.01481",
+      "title": "Quandles over a hyperboloid of one sheet and the longitudinal mapping knot invariant for $SL(2,\\mathbb{R})$",
+      "published": "2022-01-05",
+      "comment": "2 figures. arXiv admin note: text overlap with arXiv:2104.04921",
+      "categories": [
+        "math.GT",
+        "math.AT"
+      ],
+      "authors": [
+        "Kentaro Yonemura"
+      ],
+      "primary_category": "math.AT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2022
+    },
+    {
+      "id": "2501.15569",
+      "title": "Symmetric quasi-coherent sheaves",
+      "published": "2025-01-26",
+      "comment": "Appendix B has been added illustrating that the symmetric theory is an extension of the classical one",
+      "categories": [
+        "math.AG",
+        "math.AT",
+        "math.RA"
+      ],
+      "authors": [
+        "Grigory Garkusha"
+      ],
+      "primary_category": "math.AT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2025
+    },
+    {
+      "id": "2301.04601",
+      "title": "On Fractional Musielak-Sobolev spaces and applications to nonlocal problems",
+      "published": "2023-01-11",
+      "comment": "",
+      "categories": [
+        "math.AP"
+      ],
+      "authors": [
+        "J. C. de Albuquerque",
+        "L. R. S. de Assis",
+        "M. L. M. Carvalho",
+        "A. Salort"
+      ],
+      "primary_category": "math.AP",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2023
+    },
+    {
+      "id": "2601.02568",
+      "title": "Travelling Waves in a Mathematical Model for Oncolytic Virotherapy",
+      "published": "2026-01-05",
+      "comment": "",
+      "categories": [
+        "math.AP"
+      ],
+      "authors": [
+        "Negar Mohammadnejad",
+        "Thomas Hillen"
+      ],
+      "primary_category": "math.AP",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2026
+    },
+    {
+      "id": "2401.01030",
+      "title": "Spectral conditions for factor-criticality of graphs",
+      "published": "2024-01-02",
+      "comment": "",
+      "categories": [
+        "math.CO"
+      ],
+      "authors": [
+        "Jin Cai",
+        "Bo Zhou"
+      ],
+      "primary_category": "math.CO",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2024
+    },
+    {
+      "id": "2101.04000",
+      "title": "A variety of Steiner loops satisfying Moufang's theorem: A solution to Rajah's Problem",
+      "published": "2021-01-11",
+      "comment": "",
+      "categories": [
+        "math.GR",
+        "math.CO"
+      ],
+      "authors": [
+        "Ale\u0161 Dr\u00e1pal",
+        "Petr Vojt\u011bchovsk\u00fd"
+      ],
+      "primary_category": "math.CO",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2021
+    },
+    {
+      "id": "2501.06662",
+      "title": "The magnitude of categories of texts enriched by language models",
+      "published": "2025-01-11",
+      "comment": "26 pages",
+      "categories": [
+        "math.CT",
+        "cs.CL"
+      ],
+      "authors": [
+        "Tai-Danae Bradley",
+        "Juan Pablo Vigneaux"
+      ],
+      "primary_category": "math.CT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2025
+    },
+    {
+      "id": "2202.07067",
+      "title": "Torsion theories of simplicial groups with truncated Moore complex",
+      "published": "2022-02-14",
+      "comment": "",
+      "categories": [
+        "math.CT",
+        "math.AT",
+        "math.RA"
+      ],
+      "authors": [
+        "Guillermo L\u00f3pez Cafaggi"
+      ],
+      "primary_category": "math.CT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2022
+    },
+    {
+      "id": "2601.08804",
+      "title": "Price Inequality and the Growth of Harmonic Functions on Non-Positively Curved Manifolds",
+      "published": "2026-01-13",
+      "comment": "The proof in Appendix B is simplified, relying solely on a maximum principle argument. 17 pages, no figures",
+      "categories": [
+        "math.DG"
+      ],
+      "authors": [
+        "Luca F. Di Cerbo",
+        "Hayden Hunter",
+        "Aaron K. Thrasher"
+      ],
+      "primary_category": "math.DG",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2026
+    },
+    {
+      "id": "2301.02591",
+      "title": "A new proof of gluing formula for analytic torsion forms",
+      "published": "2023-01-06",
+      "comment": "39 pages. Some typos are corrected, some proofs are simplified. Any comments are welcome! Text overlap with arXiv:2301.01990",
+      "categories": [
+        "math.DG",
+        "math.AP",
+        "math.SP"
+      ],
+      "authors": [
+        "Junrong Yan"
+      ],
+      "primary_category": "math.DG",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2023
+    },
+    {
+      "id": "2101.08227",
+      "title": "Decision Theory and Large Deviations for Dynamical Hypotheses Tests: Neyman-Pearson, Min-Max and Bayesian Tests",
+      "published": "2021-01-20",
+      "comment": "",
+      "categories": [
+        "math.ST",
+        "cond-mat.stat-mech",
+        "math-ph",
+        "math.DS",
+        "math.PR"
+      ],
+      "authors": [
+        "Hermes H. Ferreira",
+        "Artur O. Lopes",
+        "Silvia R. C. Lopes"
+      ],
+      "primary_category": "math.DS",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2021
+    },
+    {
+      "id": "2401.01475",
+      "title": "Smooth invariant foliations and Koopman eigenfunctions about stable equilibria of semiflows",
+      "published": "2024-01-03",
+      "comment": "",
+      "categories": [
+        "math.DS",
+        "math.AP",
+        "physics.flu-dyn"
+      ],
+      "authors": [
+        "Gergely Buza"
+      ],
+      "primary_category": "math.DS",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2024
+    },
+    {
+      "id": "2201.01371",
+      "title": "Various notions of point derivations in Banach algebras",
+      "published": "2022-01-04",
+      "comment": "",
+      "categories": [
+        "math.FA"
+      ],
+      "authors": [
+        "Ali Rejali",
+        "Sakineh Chameh"
+      ],
+      "primary_category": "math.FA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2022
+    },
+    {
+      "id": "2501.07680",
+      "title": "Input-to-state stability in integral norms for linear infinite-dimensional systems",
+      "published": "2025-01-13",
+      "comment": "Revised proofs and updated references. Accepted for publication in SIAM Journal on Control and Optimization",
+      "categories": [
+        "math.OC",
+        "math.FA"
+      ],
+      "authors": [
+        "Sahiba Arora",
+        "Andrii Mironchenko"
+      ],
+      "primary_category": "math.FA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2025
+    },
+    {
+      "id": "2301.06347",
+      "title": "A modular idealizer chain and unrefinability of partitions with repeated parts",
+      "published": "2023-01-16",
+      "comment": "",
+      "categories": [
+        "math.RA",
+        "math.CO",
+        "math.GR"
+      ],
+      "authors": [
+        "Riccardo Aragona",
+        "Roberto Civino",
+        "Norberto Gavioli"
+      ],
+      "primary_category": "math.GR",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2023
+    },
+    {
+      "id": "2601.16295",
+      "title": "Local limit theorems for random isometries of the plane",
+      "published": "2026-01-22",
+      "comment": "",
+      "categories": [
+        "math.PR",
+        "math.GR",
+        "math.NT"
+      ],
+      "authors": [
+        "Reuben Drogin",
+        "Felipe Hern\u00e1ndez"
+      ],
+      "primary_category": "math.GR",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2026
+    },
+    {
+      "id": "2401.03520",
+      "title": "Fundamental groups of 2-complexes with nonpositive planar sectional curvature",
+      "published": "2024-01-07",
+      "comment": "10 pages, 1 figure",
+      "categories": [
+        "math.GR",
+        "math.GT"
+      ],
+      "authors": [
+        "Lycka Drakengren"
+      ],
+      "primary_category": "math.GT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2024
+    },
+    {
+      "id": "2102.00901",
+      "title": "Tangles, relative character varieties, and holonomy perturbed traceless flat moduli spaces",
+      "published": "2021-02-01",
+      "comment": "20 pages, 1 figure, comments welcome",
+      "categories": [
+        "math.GT",
+        "math.RT",
+        "math.SG"
+      ],
+      "authors": [
+        "Guillem Cazassus",
+        "Chris Herald",
+        "Paul Kirk"
+      ],
+      "primary_category": "math.GT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2021
+    },
+    {
+      "id": "2502.05733",
+      "title": "On definable J-sets",
+      "published": "2025-02-09",
+      "comment": "",
+      "categories": [
+        "math.LO"
+      ],
+      "authors": [
+        "Zhentao Zhang"
+      ],
+      "primary_category": "math.LO",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2025
+    },
+    {
+      "id": "2202.01959",
+      "title": "Finite Relation Algebras",
+      "published": "2022-02-04",
+      "comment": "14 pages, 0 figures",
+      "categories": [
+        "math.LO",
+        "math.CO"
+      ],
+      "authors": [
+        "James Koussas"
+      ],
+      "primary_category": "math.LO",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2022
+    },
+    {
+      "id": "2601.16548",
+      "title": "Painlev\u00e9 IV, bi-confluent Heun equations and the Hankel determinant generated by a discontinuous semi-classical Laguerre weight",
+      "published": "2026-01-23",
+      "comment": "19 pages",
+      "categories": [
+        "math.CA"
+      ],
+      "authors": [
+        "Mengkun Zhu",
+        "Jianduo Yu"
+      ],
+      "primary_category": "math.CA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2026
+    },
+    {
+      "id": "2301.09975",
+      "title": "Kamenev type conditions for oscillation of third order linear ordinary differential equations",
+      "published": "2023-01-23",
+      "comment": "",
+      "categories": [
+        "math.CA"
+      ],
+      "authors": [
+        "G. A. Grigorian"
+      ],
+      "primary_category": "math.CA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2023
+    },
+    {
+      "id": "2101.05480",
+      "title": "Gauss lattices and complex continued fractions",
+      "published": "2021-01-14",
+      "comment": "",
+      "categories": [
+        "math.NT"
+      ],
+      "authors": [
+        "Nicolas Chevallier"
+      ],
+      "primary_category": "math.NT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2021
+    },
+    {
+      "id": "2401.06100",
+      "title": "Special values of $p$-adic $L$-functions and Iwasawa $\u03bb$-invariants of Dirichlet characters",
+      "published": "2024-01-11",
+      "comment": "20 pages",
+      "categories": [
+        "math.NT"
+      ],
+      "authors": [
+        "Heiko Knospe"
+      ],
+      "primary_category": "math.NT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2024
+    },
+    {
+      "id": "2201.03733",
+      "title": "The perfectly matched layer (PML) for hyperbolic wave propagation problems: A review",
+      "published": "2022-01-11",
+      "comment": "",
+      "categories": [
+        "math.NA",
+        "cs.CE",
+        "physics.geo-ph"
+      ],
+      "authors": [
+        "Kenneth Duru",
+        "Gunilla Kreiss"
+      ],
+      "primary_category": "math.NA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2022
+    },
+    {
+      "id": "2501.06373",
+      "title": "Analysis of a Shear beam model with suspenders in thermoelasticity of type III",
+      "published": "2025-01-10",
+      "comment": "This is a preprint version of the paper published open access in 'Journal of Computational and Applied Mathematics' at [https://doi.org/10.1016/j.cam.2024.116471]",
+      "categories": [
+        "math.AP",
+        "math.NA"
+      ],
+      "authors": [
+        "Meriem Chabekh",
+        "Nadhir Chougui",
+        "Delfim F. M. Torres"
+      ],
+      "primary_category": "math.NA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2025
+    },
+    {
+      "id": "2301.13423",
+      "title": "Analysis for idempotent states on quantum permutation groups",
+      "published": "2023-01-31",
+      "comment": "41 pages, one figure, revised version some corrections, improvements in notation, and expanded proof by Vaes in an appendix; comments welcome via email",
+      "categories": [
+        "math.OA",
+        "math.QA"
+      ],
+      "authors": [
+        "J. P. McCarthy"
+      ],
+      "primary_category": "math.OA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2023
+    },
+    {
+      "id": "2601.14873",
+      "title": "Order isomorphisms in $C^*$-algebras",
+      "published": "2026-01-21",
+      "comment": "",
+      "categories": [
+        "math.OA",
+        "math.FA"
+      ],
+      "authors": [
+        "Youssef El Khatiri"
+      ],
+      "primary_category": "math.OA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2026
+    },
+    {
+      "id": "2401.05617",
+      "title": "Estimating the time-evolving refractivity of a turbulent medium using optical beam measurements: a data assimilation approach",
+      "published": "2024-01-11",
+      "comment": "",
+      "categories": [
+        "physics.optics",
+        "eess.SP",
+        "math.OC"
+      ],
+      "authors": [
+        "Anjali Nair",
+        "Qin Li",
+        "Samuel N. Stechmann"
+      ],
+      "primary_category": "math.OC",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2024
+    },
+    {
+      "id": "2101.03716",
+      "title": "Fairness over time in dynamic resource allocation with an application in Healthcare",
+      "published": "2021-01-11",
+      "comment": "",
+      "categories": [
+        "math.OC"
+      ],
+      "authors": [
+        "Andrea Lodi",
+        "Philippe Olivier",
+        "Gilles Pesant",
+        "Sriram Sankaranarayanan"
+      ],
+      "primary_category": "math.OC",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2021
+    },
+    {
+      "id": "2501.05947",
+      "title": "Symmetry Analysis of Semi-Linear Partial Differential Equations and Forward Backward Stochastic Differential Equations",
+      "published": "2025-01-10",
+      "comment": "",
+      "categories": [
+        "math.PR"
+      ],
+      "authors": [
+        "Anas Ouknine",
+        "Paul Lescot"
+      ],
+      "primary_category": "math.PR",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2025
+    },
+    {
+      "id": "2201.01899",
+      "title": "Invariant Galton-Watson trees: metric properties and attraction with respect to generalized dynamical pruning",
+      "published": "2022-01-06",
+      "comment": "30 pages",
+      "categories": [
+        "math.PR"
+      ],
+      "authors": [
+        "Yevgeniy Kovchegov",
+        "Guochen Xu",
+        "Ilya Zaliapin"
+      ],
+      "primary_category": "math.PR",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2022
+    },
+    {
+      "id": "2601.05136",
+      "title": "State integrals for the quantized $\\operatorname{SL}_2(\\mathbb{C})$ Chern-Simons invariant",
+      "published": "2026-01-08",
+      "comment": "15 + 4 pages. v2 updated to match new version of arXiv:2509.02365",
+      "categories": [
+        "math.GT",
+        "math.QA"
+      ],
+      "authors": [
+        "Calvin McPhail-Snyder"
+      ],
+      "primary_category": "math.QA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2026
+    },
+    {
+      "id": "2301.02670",
+      "title": "Brane wrapping, AKSZ sigma models, and QP manifolds",
+      "published": "2023-01-06",
+      "comment": "39 pages, 1 figure. v2: added references & acknowledgements",
+      "categories": [
+        "hep-th",
+        "math-ph",
+        "math.QA",
+        "math.SG"
+      ],
+      "authors": [
+        "Alex S. Arvanitakis",
+        "David Tennyson"
+      ],
+      "primary_category": "math.QA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2023
+    },
+    {
+      "id": "2101.04091",
+      "title": "A transitivity result for ad-nilpotent ideals in type A",
+      "published": "2021-01-11",
+      "comment": "11 pages. Corrected Table 1",
+      "categories": [
+        "math.RT",
+        "math.CO"
+      ],
+      "authors": [
+        "Molly Fenn",
+        "Eric Sommers"
+      ],
+      "primary_category": "math.RT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2021
+    },
+    {
+      "id": "2401.09156",
+      "title": "Symmetric varieties for endoscopic groups",
+      "published": "2024-01-17",
+      "comment": "v2. Several minor errors and typos fixed. Comments welcome and appreciated!",
+      "categories": [
+        "math.NT",
+        "math.AG",
+        "math.RT"
+      ],
+      "authors": [
+        "Spencer Leslie"
+      ],
+      "primary_category": "math.RT",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2024
+    },
+    {
+      "id": "2201.09321",
+      "title": "A Spectral Theorem for Zeon Matrices",
+      "published": "2022-01-23",
+      "comment": "",
+      "categories": [
+        "math.RA",
+        "math.SP"
+      ],
+      "authors": [
+        "G. Stacey Staples"
+      ],
+      "primary_category": "math.RA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2022
+    },
+    {
+      "id": "2501.19379",
+      "title": "A Basis Theorem for Rings with Commuting Operators in Characteristic Zero",
+      "published": "2025-01-31",
+      "comment": "21 pages",
+      "categories": [
+        "math.AC",
+        "math.RA"
+      ],
+      "authors": [
+        "Cas Burton"
+      ],
+      "primary_category": "math.RA",
+      "role": "random",
+      "cohort": "added",
+      "sample_year": 2025
+    }
+  ],
+  "original_ids": [
+    "2610.21544",
+    "2610.11671",
+    "2610.20976",
+    "2610.21341",
+    "2610.04096",
+    "2610.21303",
+    "2610.21627",
+    "2610.18041",
+    "2610.20306",
+    "2610.19333",
+    "2610.14417",
+    "2610.16227",
+    "2610.19307",
+    "2610.18580",
+    "2610.13792",
+    "2610.19840",
+    "2610.21864",
+    "2610.15448",
+    "2610.14991",
+    "2610.11661"
+  ],
+  "added_ids": [
+    "2101.03789",
+    "2401.03709",
+    "2201.01481",
+    "2501.15569",
+    "2301.04601",
+    "2601.02568",
+    "2401.01030",
+    "2101.04000",
+    "2501.06662",
+    "2202.07067",
+    "2601.08804",
+    "2301.02591",
+    "2101.08227",
+    "2401.01475",
+    "2201.01371",
+    "2501.07680",
+    "2301.06347",
+    "2601.16295",
+    "2401.03520",
+    "2102.00901",
+    "2502.05733",
+    "2202.01959",
+    "2601.16548",
+    "2301.09975",
+    "2101.05480",
+    "2401.06100",
+    "2201.03733",
+    "2501.06373",
+    "2301.13423",
+    "2601.14873",
+    "2401.05617",
+    "2101.03716",
+    "2501.05947",
+    "2201.01899",
+    "2601.05136",
+    "2301.02670",
+    "2101.04091",
+    "2401.09156",
+    "2201.09321",
+    "2501.19379"
+  ]
+}

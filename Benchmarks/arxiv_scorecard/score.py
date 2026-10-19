@@ -35,6 +35,7 @@ from cauchy_logic import (
     build_statement_index,
     _explicit_section_number,
     heading_line,
+    logical_lines,
     is_likely_table_of_contents,
     locate,
     structural_query,
@@ -161,7 +162,7 @@ def _true_section_page(
     for page in pages:
         if is_likely_table_of_contents(page["text"]):
             continue
-        for raw in page["text"].split("\n"):
+        for raw in logical_lines(page["text"], page.get("line_bold"), page.get("line_italic")):
             line = raw.strip()
             heading = heading_line(line)
             if heading is None:
@@ -494,6 +495,15 @@ attach_structure(None)
 def make_structure(extracted: dict) -> Structure:
     return Structure(
         outline=extracted["outline"],
-        pages=[PageSnapshot(page["page_index"], page["text"]) for page in extracted["pages"] if page["text"].strip()],
+        pages=[
+            PageSnapshot(
+                page["page_index"],
+                page["text"],
+                page.get("line_bold") or [],
+                page.get("line_italic") or [],
+            )
+            for page in extracted["pages"]
+            if page["text"].strip()
+        ],
         page_count=extracted["page_count"],
     )

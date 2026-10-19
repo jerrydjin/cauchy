@@ -41,6 +41,10 @@ struct LearningSessionView: View {
                     }
                     if let error = learning.errorMessage { errorContent(error) }
                     if let session = learning.session {
+                        if let run = document.selectedStudyRun {
+                            Text("Study session · \((run.currentIndex ?? 0) + 1) of \(run.items.count)")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
                         if let chapter = session.chapter { chapterContent(session, chapter: chapter) }
                         else { sessionContent(session) }
                     } else {
@@ -761,7 +765,19 @@ struct LearningSessionView: View {
                     primaryAction(advanceLabel(session)) { learning.advance() }
                 }
             case .complete:
-                if session.passedExitCheck {
+                if let run = document.selectedStudyRun {
+                    if document.canAdvanceStudyRun {
+                        primaryAction(run.currentIndex == run.items.count - 1 ? "Finish study session" : "Next in session") {
+                            if document.advanceStudyRun(), document.studyMap.currentStudyRun?.state == .finished {
+                                onShowStudyMap()
+                            }
+                        }
+                        Button("Review and practise again") { learning.practiseAgain() }
+                    } else {
+                        primaryAction("Review and practise again") { learning.practiseAgain() }
+                        Button("Finish session here") { document.finishStudyRun(); onShowStudyMap() }
+                    }
+                } else if session.passedExitCheck {
                     if session.studyTarget != nil {
                         primaryAction("Continue learning", action: onShowStudyMap)
                     } else {

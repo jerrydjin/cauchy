@@ -94,6 +94,7 @@
 		B827E289C412C8814674397B /* HighlightStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0391333626F787B3DD3B6581 /* HighlightStore.swift */; };
 		E4B5BEFCC555D2B054B9727A /* LearningLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9FD16917E99C6126EF1DF3 /* LearningLibraryStore.swift */; };
 		30BEAD67E21EFCCB41933947 /* LearningStudyMapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72645474CFC04DE6B2C8083 /* LearningStudyMapViewModel.swift */; };
+		DD6A3B0623E6B79B0A3BC34B /* LearningStudyRunCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D8781DBAC598CAF1CEB529 /* LearningStudyRunCoordinator.swift */; };
 		F3E9A50552431B0598828AF9 /* LearningViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94404F26F5E55EA7D7564F9A /* LearningViewModel.swift */; };
 		B1C467648587E1A7320124AD /* OpenDocumentRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BE7425F2146FC0E5FE7D9A0 /* OpenDocumentRegistry.swift */; };
 		7F7442B51383BAD5CA720BFE /* PDFFindModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7659EED199ACC6DC1CE4E2BC /* PDFFindModel.swift */; };
@@ -125,6 +126,7 @@
 		EAF036A31C87938B8A914D70 /* LearningClarificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A66B57877326FEC773E7A12A /* LearningClarificationView.swift */; };
 		A357D6DA553033D76DA7A7AE /* LearningSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */; };
 		C845A9B0CE4DBC667FC17B25 /* LearningStudyMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52FBBC4B019CC4FCD683125 /* LearningStudyMapView.swift */; };
+		C5D913FD1B1EB3C5A4E47788 /* LearningStudyRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABEA6693626712DA9AA7CF2E /* LearningStudyRunView.swift */; };
 		203D0C0CC5FE8D24EC08B6DD /* LearningWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184F53A9257704194841382A /* LearningWorkspaceView.swift */; };
 		B6D56D660943088D8C0130C4 /* OCRResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A72B949D2D1F37938C789E0E /* OCRResultView.swift */; };
 		71B65D76316E7ABEE2EB699F /* FindBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B56E43390B834002E23904B /* FindBarView.swift */; };
@@ -258,6 +260,7 @@
 		0391333626F787B3DD3B6581 /* HighlightStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightStore.swift; sourceTree = "<group>"; };
 		DD9FD16917E99C6126EF1DF3 /* LearningLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningLibraryStore.swift; sourceTree = "<group>"; };
 		D72645474CFC04DE6B2C8083 /* LearningStudyMapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyMapViewModel.swift; sourceTree = "<group>"; };
+		E1D8781DBAC598CAF1CEB529 /* LearningStudyRunCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyRunCoordinator.swift; sourceTree = "<group>"; };
 		94404F26F5E55EA7D7564F9A /* LearningViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningViewModel.swift; sourceTree = "<group>"; };
 		0BE7425F2146FC0E5FE7D9A0 /* OpenDocumentRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenDocumentRegistry.swift; sourceTree = "<group>"; };
 		7659EED199ACC6DC1CE4E2BC /* PDFFindModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFFindModel.swift; sourceTree = "<group>"; };
@@ -289,6 +292,7 @@
 		A66B57877326FEC773E7A12A /* LearningClarificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningClarificationView.swift; sourceTree = "<group>"; };
 		E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningSessionView.swift; sourceTree = "<group>"; };
 		F52FBBC4B019CC4FCD683125 /* LearningStudyMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyMapView.swift; sourceTree = "<group>"; };
+		ABEA6693626712DA9AA7CF2E /* LearningStudyRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyRunView.swift; sourceTree = "<group>"; };
 		184F53A9257704194841382A /* LearningWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningWorkspaceView.swift; sourceTree = "<group>"; };
 		A72B949D2D1F37938C789E0E /* OCRResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRResultView.swift; sourceTree = "<group>"; };
 		8B56E43390B834002E23904B /* FindBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindBarView.swift; sourceTree = "<group>"; };
@@ -456,6 +460,7 @@
 			0391333626F787B3DD3B6581 /* HighlightStore.swift */,
 			DD9FD16917E99C6126EF1DF3 /* LearningLibraryStore.swift */,
 			D72645474CFC04DE6B2C8083 /* LearningStudyMapViewModel.swift */,
+			E1D8781DBAC598CAF1CEB529 /* LearningStudyRunCoordinator.swift */,
 			94404F26F5E55EA7D7564F9A /* LearningViewModel.swift */,
 			0BE7425F2146FC0E5FE7D9A0 /* OpenDocumentRegistry.swift */,
 			7659EED199ACC6DC1CE4E2BC /* PDFFindModel.swift */,
@@ -507,6 +512,7 @@
 			A66B57877326FEC773E7A12A /* LearningClarificationView.swift */,
 			E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */,
 			F52FBBC4B019CC4FCD683125 /* LearningStudyMapView.swift */,
+			ABEA6693626712DA9AA7CF2E /* LearningStudyRunView.swift */,
 			184F53A9257704194841382A /* LearningWorkspaceView.swift */,
 		); path = Learning; sourceTree = "<group>"; };
 		5E8DE94FC74A0AE3091DB869 /* OCR */ = { isa = PBXGroup; children = (
@@ -673,6 +679,7 @@
 			B827E289C412C8814674397B,
 			E4B5BEFCC555D2B054B9727A,
 			30BEAD67E21EFCCB41933947,
+			DD6A3B0623E6B79B0A3BC34B,
 			F3E9A50552431B0598828AF9,
 			B1C467648587E1A7320124AD,
 			7F7442B51383BAD5CA720BFE,
@@ -704,6 +711,7 @@
 			EAF036A31C87938B8A914D70,
 			A357D6DA553033D76DA7A7AE,
 			C845A9B0CE4DBC667FC17B25,
+			C5D913FD1B1EB3C5A4E47788,
 			203D0C0CC5FE8D24EC08B6DD,
 			B6D56D660943088D8C0130C4,
 			71B65D76316E7ABEE2EB699F,

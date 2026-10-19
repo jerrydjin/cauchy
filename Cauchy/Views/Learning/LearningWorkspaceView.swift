@@ -103,6 +103,24 @@ struct LearningWorkspaceView: View {
                 }
                 ToolbarSpacer(.fixed)
                 ToolbarItem {
+                    if let document = library.selectedDocument, let run = document.studyMap.currentStudyRun, run.state != .finished {
+                        Menu("Study session", systemImage: "list.bullet.clipboard") {
+                            if run.state == .active {
+                                Button("Pause session") {
+                                    document.pauseStudyRun()
+                                    Task { await library.navigate(to: .studyMap(document.id)) }
+                                }
+                            } else {
+                                Button("Resume session") { document.continueStudyRun() }.disabled(document.isBusy)
+                            }
+                            Button("Finish session here") {
+                                document.finishStudyRun()
+                                Task { await library.navigate(to: .studyMap(document.id)) }
+                            }
+                        }.disabled(document.studyMap.isBusy)
+                    }
+                }
+                ToolbarItem {
                     if library.isVerificationFixture {
                         Label("Offline fixture", systemImage: "testtube.2")
                     } else {

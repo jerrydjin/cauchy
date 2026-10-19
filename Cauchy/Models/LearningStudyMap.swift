@@ -165,10 +165,10 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
         pendingStudies(sessions: sessions).filter { !$0.requiresSourceReview }
     }
 
-    func nextDelayedReview(sessions: [LearningSession], now: Date) -> LearningReviewRecommendation? {
+    func nextDelayedReview(sessions: [LearningSession], now: Date, targetID: UUID? = nil) -> LearningReviewRecommendation? {
         var candidates: [LearningReviewRecommendation] = []
         for unit in units {
-            for target in unit.learningTargets {
+            for target in unit.learningTargets where targetID == nil || target.id == targetID {
                 let related = sessions.filter { $0.chapter == nil && $0.studyTarget?.id == target.id }
                 if let active = related.filter({ $0.delayedReview != nil && $0.phase != .complete })
                     .max(by: { $0.updatedAt < $1.updatedAt }) {

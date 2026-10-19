@@ -15,6 +15,7 @@ struct LearningStudyMapView: View {
     @State private var syllabusProvenance = ""
     @State private var syllabusKinds: Set<LearningStudyKind> = [.concept, .proof, .application]
     @State private var syllabusMapping: LearningSyllabusSelection?
+    @State private var showingStudyPlan = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var planner: LearningStudyMapViewModel { document.studyMap }
     private var nextStudy: LearningStudyRecommendation? {
@@ -41,6 +42,7 @@ struct LearningStudyMapView: View {
         .sheet(item: $syllabusMapping) { selection in
             LearningSyllabusMappingEditor(document: document, requirement: selection.requirement, kind: selection.kind)
         }
+        .sheet(isPresented: $showingStudyPlan) { LearningStudyRunPlanView(document: document) }
     }
 
     private var preparation: some View {
@@ -176,7 +178,9 @@ struct LearningStudyMapView: View {
                 }
                 errors
                 Divider()
-                if let review = map.nextDelayedReview(sessions: document.learning.sessions, now: reviewClock) {
+                if let run = planner.currentStudyRun, run.state != .finished || run.summaryAcknowledgedAt == nil {
+                    LearningStudyRunCard(document: document, run: run, map: map, assistantAvailable: assistantAvailable)
+                } else if let review = map.nextDelayedReview(sessions: document.learning.sessions, now: reviewClock) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(review.activeSessionID == nil ? "Revisit an earlier idea" : "Continue your delayed check")
                             .font(.title2.weight(.semibold))
@@ -221,6 +225,10 @@ struct LearningStudyMapView: View {
                 } else {
                     Text("Available checks passed. Review source gaps, and return later to check retention.")
                         .font(.callout).foregroundStyle(.secondary)
+                }
+                if planner.currentStudyRun == nil || (planner.currentStudyRun?.state == .finished && planner.currentStudyRun?.summaryAcknowledgedAt != nil) {
+                    Button("Plan a study session…", systemImage: "list.bullet.clipboard") { showingStudyPlan = true }
+                        .buttonStyle(.borderless).disabled(document.isBusy || !assistantAvailable)
                 }
                 Divider()
                 DisclosureGroup("Explore \(course.modules.count) chapters", isExpanded: $chaptersExpanded) {
@@ -303,6 +311,15 @@ struct LearningStudyMapView: View {
                 }
                 sourceReview(map)
                 syllabusReview(map)
+                if let runs = map.studyRuns?.filter({ $0.state == .finished }), !runs.isEmpty {
+                    DisclosureGroup("Past study sessions") {
+                        ForEach(runs.reversed()) { run in
+                            DisclosureGroup(run.startedAt.formatted(date: .abbreviated, time: .shortened)) {
+                                LearningStudyRunRecord(run: run).padding(.top, 10)
+                            }.padding(.top, 8)
+                        }
+                    }
+                }
                 DisclosureGroup("Coverage details") {
                     coverage(map).padding(.top, 12)
                     if !map.unresolvedPages.isEmpty {
@@ -646,45 +663,7 @@ struct LearningStudyMapView: View {
     }
 
     private func study(_ target: LearningStudyTarget, unit: LearningStudyUnit, prepareNew: Bool = false) {
-        // Existing lessons and drafts remain available for inspection, but
-        // damaged source text cannot silently generate another lesson.
-        if !prepareNew, let session = document.learning.sessions.first(where: { $0.delayedReview == nil && $0.studyTarget?.id == target.id }) {
-            document.learning.select(session.id)
-            return
-        }
-        guard !unit.needsSourceReview else { return }
-        guard let map = planner.map, unit.learningPageIndices.allSatisfy({ index in
-            guard map.pageSignatures.indices.contains(index), let text = document.pdfDocument.page(at: index)?.string else { return false }
-            return LearningStudyInput.signature(text) == map.pageSignatures[index]
-        }) else {
-            document.learning.errorMessage = LearningError.sourceChanged.localizedDescription
-            return
-        }
-        let source = LearningSource(passages: unit.learningPageIndices.compactMap { index in
-            guard let text = document.pdfDocument.page(at: index)?.string else { return nil }
-            return try? map.passage(pageIndex: index, originalText: text)
-        })
-        guard source.passages.count == unit.learningPageIndices.count,
-              LearningSource(passages: source.passages.filter { $0.pageIndex == unit.teachingAnchor.pageIndex }).contains(quote: unit.teachingAnchor.quote) else {
-            document.learning.errorMessage = LearningError.sourceChanged.localizedDescription
-            return
-        }
-        var contextualTarget = target
-        if let course = map.course, let module = course.modules.first(where: { $0.unitIDs.contains(unit.id) }) {
-            let connections = course.connections.filter { $0.toUnitID == unit.id || $0.fromUnitID == unit.id }.map(\.reason)
-            contextualTarget.courseContext = ([course.title, course.overview, module.title, module.goal] + connections).joined(separator: "\n")
-        }
-        let openIssues = unit.gaps.enumerated().compactMap { index, gap -> String? in
-            let review = unit.reconciliation?.issues.first { $0.gapIndex == index }
-            guard review?.disposition != .foundElsewhere else { return nil }
-            return review.map { "\($0.disposition.label): \($0.explanation) Original warning: \(gap)" } ?? gap
-        }
-        if !openIssues.isEmpty {
-            contextualTarget.courseContext = (contextualTarget.courseContext ?? "")
-                + "\nOpen source obligations (retain explicitly; do not invent missing arguments or hypotheses):\n"
-                + openIssues.joined(separator: "\n")
-        }
-        document.learning.start(source: source, target: contextualTarget)
+        document.study(target, unit: unit, prepareNew: prepareNew)
     }
 
     private func sourceReview(_ map: LearningStudyMap) -> some View {

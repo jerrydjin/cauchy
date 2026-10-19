@@ -95,6 +95,17 @@ final class LearningStudyRunTests: XCTestCase {
         XCTAssertEqual(run.items.count, 3)
     }
 
+    func testPinnedDelayedTargetDoesNotOpenAnUnrelatedEarlierDueCheck() throws {
+        let map = map()
+        let targets = [map.units[0].targets[0], map.units[1].targets[2]]
+        var originals = targets.map { session(target: $0, date: now.addingTimeInterval(-3 * 86_400)) }
+        originals[0].reviewDueAt = now.addingTimeInterval(-2 * 86_400)
+        originals[1].reviewDueAt = now.addingTimeInterval(-86_400)
+        XCTAssertEqual(map.nextDelayedReview(sessions: originals, now: now)?.target.id, targets[0].id)
+        XCTAssertEqual(map.nextDelayedReview(sessions: originals, now: now, targetID: targets[1].id)?.target.id, targets[1].id)
+        XCTAssertNil(map.nextDelayedReview(sessions: originals, now: now, targetID: UUID()))
+    }
+
     func testBlockedSourceRemainsFirstAndCannotBeSkippedByThePlan() throws {
         var map = map()
         let unit = map.units[0]
@@ -253,6 +264,136 @@ final class LearningStudyRunTests: XCTestCase {
     }
 
 #if DEBUG
+    func testCoordinatorStopsAfterTheLastPlannedRequirementWithoutStartingAnotherLesson() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-run-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: try XCTUnwrap(document.studyMap.map), sessions: document.learning.sessions, count: 2, now: Date()))
+        document.beginStudyRun(run)
+        await document.learning.waitForOperation()
+        for index in 0..<2 {
+            if document.learning.session?.phase == .practice {
+                document.learning.answerDraft = "fixture correct"
+                document.learning.submitAnswer()
+                await document.learning.waitForOperation()
+                document.learning.advance()
+            }
+            XCTAssertEqual(document.learning.session?.phase, .exitCheck)
+            document.learning.answerDraft = "fixture correct"
+            document.learning.submitAnswer()
+            await document.learning.waitForOperation()
+            document.learning.advance()
+            XCTAssertTrue(document.advanceStudyRun())
+            XCTAssertEqual(document.studyMap.currentStudyRun?.attemptedCount, index + 1)
+        }
+        let finished = try XCTUnwrap(document.studyMap.currentStudyRun)
+        XCTAssertEqual(finished.state, .finished)
+        XCTAssertNotNil(finished.endedAt)
+        XCTAssertNil(finished.currentItem)
+        XCTAssertTrue(finished.items.allSatisfy { $0.outcome?.independentCorrect == true })
+        XCTAssertEqual(document.learning.sessions.count, 3)
+        XCTAssertFalse(document.learning.isBusy)
+        XCTAssertFalse(document.advanceStudyRun())
+        XCTAssertEqual(document.studyMap.currentStudyRun, finished)
+        try await controller.flush()
+    }
+
+    func testCoordinatorResumesExactDelayedDraftAfterPersistenceRestartThenOpensTheSavedLesson() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-run-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let originalLesson = try XCTUnwrap(document.learning.sessions.first { $0.delayedReview == nil && $0.phase == .practice })
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: try XCTUnwrap(document.studyMap.map), sessions: document.learning.sessions, count: 2, now: Date()))
+        document.beginStudyRun(run)
+        await document.learning.waitForOperation()
+        let selected = try XCTUnwrap(document.learning.session)
+        XCTAssertEqual(selected.studyRunItemID, run.items[0].id)
+        XCTAssertEqual(selected.studyTarget?.kind, .application)
+        document.learning.answerDraft = "Unsent delayed reasoning"
+        document.pauseStudyRun()
+        try await controller.flush()
+
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        XCTAssertEqual(restored.studyMap.currentStudyRun?.id, run.id)
+        XCTAssertEqual(restored.studyMap.currentStudyRun?.state, .paused)
+        restored.continueStudyRun()
+        XCTAssertEqual(restored.learning.session?.id, selected.id)
+        XCTAssertEqual(restored.learning.session?.answerDraft, "Unsent delayed reasoning")
+        XCTAssertEqual(restored.selectedStudyRun?.id, run.id)
+        restored.learning.answerDraft = "fixture correct"
+        restored.learning.submitAnswer()
+        await restored.learning.waitForOperation()
+        restored.learning.advance()
+        XCTAssertTrue(restored.canAdvanceStudyRun)
+        XCTAssertTrue(restored.advanceStudyRun())
+        XCTAssertEqual(restored.studyMap.currentStudyRun?.currentIndex, 1)
+        XCTAssertEqual(restored.learning.session?.id, originalLesson.id)
+        XCTAssertEqual(restored.learning.session?.answerDraft, originalLesson.answerDraft)
+        XCTAssertEqual(restored.learning.session?.hintsRevealed, originalLesson.hintsRevealed)
+        let beforeFinish = restored.learning.sessions
+        restored.finishStudyRun()
+        XCTAssertEqual(restored.learning.sessions, beforeFinish)
+        XCTAssertEqual(restored.studyMap.currentStudyRun?.attemptedCount, 1)
+        XCTAssertNil(restored.studyMap.currentStudyRun?.items[1].outcome)
+        XCTAssertEqual(restored.studyMap.currentStudyRun?.state, .finished)
+        try await restarted.flush()
+    }
+
+    func testCoordinatorFinishesHelpedAndUncertainWorkWithoutAdvancingOrChangingAssessments() async throws {
+        for (answer, helped) in [("fixture correct", true), ("fixture uncertain", false)] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-run-\(UUID())")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let controller = LearningUIFixtureController(rootPath: root.path)
+            await controller.load()
+            let document = try XCTUnwrap(controller.library?.selectedDocument)
+            let run = try XCTUnwrap(LearningStudyRun.plan(map: try XCTUnwrap(document.studyMap.map), sessions: document.learning.sessions, now: Date()))
+            document.beginStudyRun(run)
+            await document.learning.waitForOperation()
+            document.learning.answerDraft = answer
+            document.learning.outsideHelpUsed = helped
+            document.learning.submitAnswer()
+            await document.learning.waitForOperation()
+            document.learning.advance()
+            XCTAssertFalse(document.canAdvanceStudyRun)
+            XCTAssertFalse(document.advanceStudyRun())
+            let before = document.learning.sessions
+            document.finishStudyRun()
+            XCTAssertEqual(document.learning.sessions, before)
+            let outcome = try XCTUnwrap(document.studyMap.currentStudyRun?.items[0].outcome)
+            XCTAssertFalse(outcome.independentCorrect)
+            XCTAssertEqual(outcome.grade, helped ? .correct : .uncertain)
+            XCTAssertEqual(outcome.assistanceUsed, helped)
+            XCTAssertEqual(document.studyMap.currentStudyRun?.attemptedCount, 1)
+            try await controller.flush()
+        }
+    }
+
+    func testCoordinatorKeepsBlockedSourceInContextWithoutGeneratingOrSkipping() throws {
+        let pdf = try LearningUIFixture.makePDF()
+        var workspace = try LearningUIFixture.makeWorkspace(document: pdf, url: URL(fileURLWithPath: "/tmp/authored.pdf"))
+        var map = try XCTUnwrap(workspace.learningStudyMap)
+        let blocked = try XCTUnwrap(map.units.first { $0.id == LearningUIFixture.blockedID })
+        map.course = .init(title: "Blocked", overview: "Authored", modules: [.init(title: "Source review", goal: "Inspect", unitIDs: [blocked.id])], connections: [])
+        workspace.learningStudyMap = map
+        let document = LearningDocument(workspace: workspace, document: pdf, bookmarkData: nil)
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: workspace.learningSessions, now: Date()))
+        // Remove the unrelated due review so the planned stop is the source issue.
+        let blockedRun = LearningStudyRun(pageSignatures: run.pageSignatures, items: run.items.filter { $0.unitID == blocked.id }, startedAt: Date())
+        document.beginStudyRun(blockedRun)
+        XCTAssertEqual(document.notesPageIndex, blocked.anchorPage)
+        XCTAssertTrue(document.notesVisible)
+        XCTAssertFalse(document.learning.isBusy)
+        XCTAssertEqual(document.learning.sessions, workspace.learningSessions)
+        document.finishStudyRun()
+        XCTAssertEqual(document.studyMap.currentStudyRun?.attemptedCount, 0)
+    }
+
     func testRebuildingChangedNotesRetainsThePlanAsBlockedHistory() async throws {
         var map = map()
         let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: [], now: now))

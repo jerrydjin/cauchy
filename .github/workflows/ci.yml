@@ -75,3 +75,22 @@ jobs:
             -scheme Cauchy \
             -configuration Debug \
             -destination 'platform=macOS'
+
+  # The app target cannot be launched on this runner. This job compiles a
+  # macOS 26 tool that draws the citation hover with ImageRenderer and uploads
+  # the PNG.
+  designer-snapshots:
+    runs-on: xcode-27
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Render citation hover
+        run: bash Snapshots/render.sh Snapshots/out
+
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: citation-hover
+          path: Snapshots/out/*.png
+          if-no-files-found: error

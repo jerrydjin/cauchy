@@ -363,6 +363,12 @@ enum LLMReferenceIndexSupport {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard fullLine == matchedText else { return false }
 
+            // A dotted tag alone on a line is the equation number. Enumerated
+            // items are bare integers, and a math font often extracts no "=".
+            if match.reference.number.contains(".") {
+                return true
+            }
+
             let displayStart = sourceText.index(
                 match.range.lowerBound,
                 offsetBy: -600,

@@ -140,6 +140,76 @@ final class AskStructureLocatorTests: XCTestCase {
         XCTAssertEqual(span.endPage, 4)
     }
 
+    func testRunInHeadingKeepsTheTitleAndDropsTheParagraph() {
+        let structure = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 4,
+                    text: "2.4. Small cases. Let G be a graph with four vertices and one cycle.\nThe rest of the page is ordinary prose about matrices."
+                ),
+            ],
+            pageCount: 8
+        )
+        let query = AskStructureLocator.query(in: "what is section 2.4 about")!
+        guard case .found(let span) = AskStructureLocator.locate(query, in: structure) else {
+            return XCTFail("Expected the run-in heading")
+        }
+        XCTAssertEqual(span.startPage, 4)
+        XCTAssertTrue(span.label.contains("Small cases"))
+        XCTAssertFalse(span.label.lowercased().contains("graph"))
+    }
+
+    func testNumberedProofSentenceIsNotARunInHeading() {
+        let structure = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 1,
+                    text: "2.4. Let us check the first axiom. For any x and y the product stays inside."
+                ),
+            ],
+            pageCount: 4
+        )
+        let query = AskStructureLocator.query(in: "what is section 2.4 about")!
+        if case .found = AskStructureLocator.locate(query, in: structure) {
+            XCTFail("A numbered proof sentence is not a section heading")
+        }
+    }
+
+    func testLongTitleIsAHeadingAndABibliographyLineIsNot() {
+        let titled = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 2,
+                    text: "6. Discriminants of minor-free graphs and completable cycles in the plane\nOrdinary text follows on the next line and is not a heading."
+                ),
+            ],
+            pageCount: 5
+        )
+        let section6 = AskStructureLocator.query(in: "what is section 6 about")!
+        guard case .found(let span) = AskStructureLocator.locate(section6, in: titled) else {
+            return XCTFail("Expected the long title")
+        }
+        XCTAssertEqual(span.startPage, 2)
+
+        let bibliography = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 0,
+                    text: "2. Ada Lovelace, Notes on the analytic engine and its design"
+                ),
+            ],
+            pageCount: 3
+        )
+        let section2 = AskStructureLocator.query(in: "what is section 2 about")!
+        if case .found = AskStructureLocator.locate(section2, in: bibliography) {
+            XCTFail("A bibliography line is not a section heading")
+        }
+    }
+
     private var paper: AskDocumentStructure {
         AskDocumentStructure(
             outline: [],

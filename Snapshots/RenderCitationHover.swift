@@ -2,8 +2,8 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// Renders the citation hover for arXiv:2610.04096, using the PDF text layer
-/// and BibliographyIndex. The cite is the printed "[BEO23, Conjecture 1.4]".
+/// Renders a citation hover from a synthetic bibliography. The cite is
+/// "[QR23, Lemma 2.1]".
 @main
 enum RenderCitationHover {
     @MainActor
@@ -20,26 +20,26 @@ enum RenderCitationHover {
     private static func render() throws {
         let root = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[1] : FileManager.default.currentDirectoryPath)
         let output = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "Snapshots/out")
-        let fixture = root.appendingPathComponent("Snapshots/Fixtures/2610.04096-references.txt")
+        let fixture = root.appendingPathComponent("Snapshots/Fixtures/synthetic-references.txt")
         let text = try String(contentsOf: fixture, encoding: .utf8)
         let entries = BibliographyIndex.entries(in: text)
         let citation = ExternalCitation(
-            key: "BEO23",
+            key: "QR23",
             author: nil,
             year: nil,
-            qualifier: "Conjecture 1.4",
+            qualifier: "Lemma 2.1",
             range: text.startIndex..<text.startIndex
         )
         guard let hover = BibliographyIndex.hoverText(for: citation, in: entries) else {
-            throw SnapshotError("BibliographyIndex returned no hover for [BEO23, Conjecture 1.4]")
+            throw SnapshotError("BibliographyIndex returned no hover for [QR23, Lemma 2.1]")
         }
-        guard hover.contains("Benson"), hover.contains("2023"), hover.contains("Conjecture 1.4 in the cited paper") else {
+        guard hover.contains("Quinn"), hover.contains("2023"), hover.contains("Lemma 2.1 in the cited paper") else {
             throw SnapshotError("unexpected hover text: \(hover)")
         }
 
         NSApplication.shared.setActivationPolicy(.prohibited)
         let view = SnapshotChrome(
-            caption: "arXiv:2610.04096  ·  hover on [BEO23, Conjecture 1.4]",
+            caption: "Hover on [QR23, Lemma 2.1]",
             content: CitationHoverPopover(text: hover)
         )
         try writePNG(view, to: output.appendingPathComponent("citation-hover.png"), minimumBytes: 2_000)

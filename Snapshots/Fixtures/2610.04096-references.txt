@@ -1,8 +1,0 @@
-References
-[BE19]
-D. Benson and P. Etingof. “Symmetric tensor categories in characteristic 2”. In: Adv.
-Math. 351 (2019), pp. 967–999.
-[BEO23]
-D. Benson, P. Etingof, and V. Ostrik. “New incompressible symmetric tensor categories
-in positive characteristic”. In: Duke Math. J. 172.1 (2023), pp. 105–200.
-[Ben17]

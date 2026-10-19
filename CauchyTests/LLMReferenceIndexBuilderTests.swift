@@ -545,6 +545,64 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .definition, number: "8.2")))
     }
 
+    func testLetteredStatementAndAppendixEquationAreDeclarations() {
+        let page = """
+        Theorem B. Let S be a connected surface.
+        Theorem B is false for the empty surface.
+        Proof. The identity f = 0 is the claim used below.
+        (A.2)
+        SO(2) is a group, not equation 2.
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertEqual(declarations.filter { $0 == DetectedReference(kind: .theorem, number: "B") }.count, 1)
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "A.2")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
+        XCTAssertFalse(
+            ReferenceDetector.allReferences(in: page).contains {
+                $0.reference == DetectedReference(kind: .equation, number: "2")
+            }
+        )
+    }
+
+    func testSplitSectionHeadingJoinsTheNumberAndTitle() {
+        let body = """
+        1
+        Introduction
+        The argument begins with a definition.
+        """
+        XCTAssertEqual(
+            LLMReferenceIndexSupport.headings(on: body),
+            ["1. Introduction"]
+        )
+
+        let contents = """
+        1
+        Introduction
+        2
+        Background
+        4
+        """
+        XCTAssertFalse(LLMReferenceIndexSupport.headings(on: contents).contains("1. Introduction"))
+
+        let runningHeader = """
+        2
+        MATSUOKA, TAKUO
+        The category is faithful.
+        """
+        XCTAssertTrue(LLMReferenceIndexSupport.headings(on: runningHeader).isEmpty)
+
+        let sentence = """
+        3
+        Any category can be regarded as a bicategory by considering its hom sets as the
+        corresponding groupoids.
+        """
+        XCTAssertTrue(LLMReferenceIndexSupport.headings(on: sentence).isEmpty)
+
+        let numberedSentence = "1. For each epsilon the bound is strict and cannot be relaxed here."
+        XCTAssertTrue(LLMReferenceIndexSupport.headings(on: numberedSentence).isEmpty)
+    }
+
     func testDeclarationGuardAcceptsEquationNumberOnOwnLine() {
         let page = """
         We minimize the joint loss

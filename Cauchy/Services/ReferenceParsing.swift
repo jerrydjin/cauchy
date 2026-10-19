@@ -5,11 +5,12 @@ enum ReferenceParsing {
 
     // \s* (not \s+): PDF text extraction can join a line-wrapped
     // "Definition\n1.5.1" without any separator character.
-    // Appendices also use labels such as "Remark A.0.5". Keep the letter form
-    // scoped to dotted labels so an ordinary word after "Remark" is not a number.
-    static let namedBlockPattern = #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\s*(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"#
+    // A single capital is a statement number ("Theorem B", "Remark A.0.5").
+    // It has to stand alone: "Lemmas 4.6" is not lemma s, and "Theorem AB" is not theorem A.
+    static let namedBlockPattern = #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\s*(\d+(?:\.\d+)*|(?<=\s)(?-i:[A-Z])(?:\.\d+)*(?![A-Za-z]))"#
 
-    static let equationCitePattern = #"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)\s*\)"#
+    // "(A.2)" is an appendix tag. "SO(2)" is a group, not equation 2.
+    static let equationCitePattern = #"(?i)(?<![A-Za-z])(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*((?-i:[A-Z])(?:\.\d+)+|\d+(?:\.\d+)*)\s*\)"#
 
     // The optional panel suffix belongs to the mention, not the figure's
     // identity: "Fig. 3a,b" links to the numbered Figure 3 object.

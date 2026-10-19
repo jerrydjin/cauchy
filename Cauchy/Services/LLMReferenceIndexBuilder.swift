@@ -459,6 +459,100 @@ enum LLMReferenceIndexSupport {
         return words.count <= 6 && hasDigitOrOperator
     }
 
+    /// Headings on one page. A section number may sit on the line above its
+    /// title (`1` / `Introduction`). A contents entry is that pair followed by
+    /// a page number, and a running header in capitals is not a title.
+    static func headings(on pageText: String) -> [String] {
+        if isLikelyTableOfContents(pageText) { return [] }
+        let lines = pageText.split(separator: "\n", omittingEmptySubsequences: false).map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        var found: [String] = []
+        var index = 0
+        while index < lines.count {
+            let current = lines[index]
+            var next = index + 1
+            while next < lines.count && lines[next].isEmpty { next += 1 }
+            if !current.isEmpty, next < lines.count,
+               let joined = splitHeading(numberLine: current, titleLine: lines[next]),
+               joined.count >= 3, joined.count <= 160,
+               !followedByPageNumber(lines, after: next) {
+                found.append(joined)
+                index = next + 1
+                continue
+            }
+            if let heading = sameLineHeading(current), heading.count >= 3, heading.count <= 160 {
+                found.append(heading)
+            }
+            index += 1
+        }
+        return found
+    }
+
+    private static let sentenceOpeners: Set<String> = [
+        "let", "if", "we", "for", "any", "suppose", "assume", "since", "then",
+        "clearly", "hence", "thus", "therefore", "now", "next", "indeed",
+        "moreover", "however", "where", "when", "because", "it", "this", "note",
+        "recall", "consequently", "furthermore", "also",
+    ]
+
+    private static func splitHeading(numberLine: String, titleLine: String) -> String? {
+        let number = numberLine.trimmingCharacters(in: .whitespaces)
+        guard let match = number.range(of: #"^\d+(?:\.\d+)*\.?$"#, options: .regularExpression) else {
+            return nil
+        }
+        var digits = String(number[match])
+        if digits.hasSuffix(".") { digits.removeLast() }
+        if !digits.contains("."), let value = Int(digits), !(1...40).contains(value) {
+            return nil
+        }
+        guard isSplitTitle(titleLine) else { return nil }
+        var title = titleLine.trimmingCharacters(in: .whitespaces)
+        if title.hasSuffix(".") {
+            title.removeLast()
+            title = title.trimmingCharacters(in: .whitespaces)
+        }
+        guard !title.isEmpty else { return nil }
+        return "\(digits). \(title)"
+    }
+
+    private static func isSplitTitle(_ line: String) -> Bool {
+        let stripped = line.trimmingCharacters(in: .whitespaces)
+        guard !stripped.isEmpty, stripped.count <= 140, let first = stripped.first, first.isUppercase else {
+            return false
+        }
+        let words = stripped.split(whereSeparator: \.isWhitespace)
+        guard (1...8).contains(words.count) else { return false }
+        if sentenceOpeners.contains(words[0].lowercased()) { return false }
+        let letters = stripped.filter(\.isLetter)
+        if !letters.isEmpty {
+            let capitals = letters.filter(\.isUppercase).count
+            if Double(capitals) / Double(letters.count) > 0.7 { return false }
+        }
+        if stripped.contains(where: { "=<>≤≥".contains($0) }) { return false }
+        if stripped.hasSuffix("."), words.count > 6 { return false }
+        return true
+    }
+
+    private static func followedByPageNumber(_ lines: [String], after titleIndex: Int) -> Bool {
+        var next = titleIndex + 1
+        while next < lines.count && lines[next].isEmpty { next += 1 }
+        guard next < lines.count else { return false }
+        return lines[next].range(of: #"^\d{1,4}$"#, options: .regularExpression) != nil
+    }
+
+    private static func sameLineHeading(_ line: String) -> String? {
+        let stripped = line.trimmingCharacters(in: .whitespaces)
+        guard stripped.range(of: #"^\d+(?:\.\d+)*\.?\s+\S"#, options: .regularExpression) != nil else {
+            return nil
+        }
+        let words = stripped.split(whereSeparator: \.isWhitespace)
+        guard let firstWord = words.dropFirst().first else { return nil }
+        if sentenceOpeners.contains(firstWord.lowercased()) { return nil }
+        if words.count > 12 { return nil }
+        return stripped
+    }
+
     static func isLikelyDeclaration(
         _ reference: DetectedReference,
         in sourceText: String,

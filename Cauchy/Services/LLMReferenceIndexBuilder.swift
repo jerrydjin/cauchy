@@ -433,11 +433,17 @@ enum LLMReferenceIndexSupport {
     }
 
     private static func previousNonemptyLine(in text: String, before index: String.Index) -> String {
-        let trimmed = text[..<index].dropLast(while: { $0 == "\n" || $0 == "\r" })
-        guard let newline = trimmed.lastIndex(of: "\n") else {
-            return trimmed.trimmingCharacters(in: .whitespaces)
+        var end = index
+        while end > text.startIndex {
+            let previous = text.index(before: end)
+            let character = text[previous]
+            if character != "\n" && character != "\r" {
+                break
+            }
+            end = previous
         }
-        return trimmed[trimmed.index(after: newline)...].trimmingCharacters(in: .whitespaces)
+        let lineStart = text[..<end].lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
+        return text[lineStart..<end].trimmingCharacters(in: .whitespaces)
     }
 
     private static func isShortFormulaLine(_ line: String) -> Bool {

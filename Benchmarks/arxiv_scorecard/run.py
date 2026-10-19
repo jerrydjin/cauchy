@@ -606,7 +606,7 @@ def _write_markdown(payload: dict) -> None:
         "Main locates a section written as “N. Title” or “N.N. Title.” "
         "Main also drops a local reference inside [12], [IK99, Lemma 1.15], (Smith 2019), or Smith et al. [2019]; "
         "an interval such as [0, 1] is not a citation. "
-        "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. "
+        "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. A number alone on its line is an equation when the next line is a formula, as in “(1)” followed by “xn+m xn = P(...)”. "
         "“Lemmas 4.6” is lemma 4.6, and “Lemma 2” retrieves a lemma numbered 2.1. "
         "A parenthetical printed on the declaration, such as “(Zorn)”, is stored as the statement name. "
         "Dropping only the section-question condition, "

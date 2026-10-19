@@ -418,7 +418,21 @@ def declaration_matches(
         preceding = source_text[display_start : match.start]
         if any(op in preceding for op in _MATH_SIGNALS):
             accepted.append(match)
+            continue
+        # The formula can sit on the line after the number. A sentence that
+        # merely contains "=" is not a display.
+        if _following_line_is_display(source_text[match.end :]):
+            accepted.append(match)
     return accepted
+
+
+def _following_line_is_display(rest: str) -> bool:
+    lines = rest.split("\n")[1:5]
+    next_line = next((line.strip() for line in lines if line.strip()), "")
+    if not next_line or not any(op in next_line for op in _DISPLAY_OPERATORS):
+        return False
+    words = re.findall(r"[A-Za-z]{3,}", next_line)
+    return len(words) <= 2
 
 
 def _fallback_body(source_text: str, match: Match, declarations: list[Match]) -> str | None:

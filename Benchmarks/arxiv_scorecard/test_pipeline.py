@@ -248,6 +248,19 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("4", numbers)
         self.assertIn("5", numbers)
 
+    def test_own_line_equation_keeps_the_formula_on_the_next_line(self) -> None:
+        page = "\n".join([
+            "(2)",
+            "Then f = 0 whenever the hypothesis holds.",
+            "We first consider recurrences of the form",
+            "(1)",
+            "xn+mxn = P(xn+1, . . . , xn+m-1) =",
+            "for n ≥ 0.",
+        ])
+        numbers = [item.number for item in declaration_matches(page, {}, "main")]
+        self.assertIn("1", numbers)
+        self.assertNotIn("2", numbers)
+
 
 class StructureTests(unittest.TestCase):
     def test_chapter_section_and_part_from_the_outline(self) -> None:

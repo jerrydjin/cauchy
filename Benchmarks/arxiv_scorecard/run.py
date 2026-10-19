@@ -4,9 +4,14 @@ Usage, from the repo root:
 
     python3 Benchmarks/arxiv_scorecard/run.py
     python3 Benchmarks/arxiv_scorecard/run.py --sample
+    python3 Benchmarks/arxiv_scorecard/run.py --ids path/to/ids.json
 
 The default command scores Benchmarks/arxiv_scorecard/ids.json. --sample
 draws a fresh stratified set (seed 20261018) and is what produced that file.
+--ids scores another list and does not rewrite ids.json. The headline counts
+every paper in that list except the survey and two-column edge roles.
+--json-out and --markdown-out write the report somewhere other than the
+committed scorecard files.
 PDFs and HTML are cached under Benchmarks/arxiv_scorecard/cache/ and are not
 committed. The scorecard uses the Python port of Cauchy's detector, source
 fallback statement index, and section locator; it does not launch the macOS
@@ -198,8 +203,8 @@ def declaration_print_agreement(truth, pages: list[dict]) -> dict:
     }
 
 
-def _load_ids() -> dict:
-    return json.loads(IDS_PATH.read_text())
+def _load_ids(path: Path | None = None) -> dict:
+    return json.loads((path or IDS_PATH).read_text())
 
 
 def _cache_html(arxiv_id: str) -> str:
@@ -346,6 +351,14 @@ _GATE_ORDER = (
     ("false_declaration", "indexed statement absent from the HTML"),
     ("section", "section question missed the heading page"),
 )
+
+# ids.json keeps these outside the 20. Any other role belongs to the scored set,
+# so a list passed to --ids is not dropped from the headline.
+_EDGE_ROLES = frozenset({"survey-60-pages", "two-column"})
+
+
+def _headline_rows(rows: list[dict]) -> list[dict]:
+    return [row for row in rows if row.get("profiles") and row.get("role") not in _EDGE_ROLES]
 
 
 def _gates(card: dict) -> list[str]:
@@ -501,7 +514,7 @@ def _section_split(rows: list[dict]) -> tuple[int, int, int, int]:
 
 
 def _tickets(rows: list[dict]) -> list[dict]:
-    random_rows = [row for row in rows if row["role"] == "random"]
+    random_rows = _headline_rows(rows)
     comparable = [row for row in random_rows if not _low_print_agreement(row)]
     main_citation = sum(row["profiles"]["main"]["citation_detections"] for row in comparable)
     hover_citation = sum(row["profiles"]["hover"]["citation_detections"] for row in comparable)
@@ -511,7 +524,7 @@ def _tickets(rows: list[dict]) -> list[dict]:
     ]
     edge_worse = [
         f"{row['id']} {row['profiles']['main']['citation_detections']}→{row['profiles']['hover']['citation_detections']}"
-        for row in rows if row["role"] != "random"
+        for row in rows if row.get("role") in _EDGE_ROLES
         and row["profiles"]["hover"]["citation_detections"] > row["profiles"]["main"]["citation_detections"]
     ]
     main_false = sum(row["profiles"]["main"]["false_declaration_count"] for row in comparable)
@@ -587,7 +600,7 @@ def _tickets(rows: list[dict]) -> list[dict]:
 
 def _write_markdown(payload: dict) -> None:
     rows = [row for row in payload["papers"] if row.get("profiles")]
-    random_rows = [row for row in rows if row["role"] == "random"]
+    random_rows = _headline_rows(rows)
     main_pass = sum(1 for row in random_rows if row["profiles"]["main"]["passes"])
     combined_pass = sum(1 for row in random_rows if row["profiles"]["combined"]["passes"])
     lines = [
@@ -655,7 +668,7 @@ def _write_markdown(payload: dict) -> None:
                 tokens=row["model_input"]["estimated_input_tokens"],
             )
         )
-    edges = [row for row in rows if row["role"] != "random"]
+    edges = [row for row in rows if row.get("role") in _EDGE_ROLES]
     if edges:
         longest = max((row["page_count"] for row in random_rows), default=0)
         two_col = sum(row["two_column_pages"] for row in random_rows)
@@ -737,11 +750,21 @@ def _write_markdown(payload: dict) -> None:
 
 
 def main() -> None:
+    global JSON_OUT, MD_OUT
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample", action="store_true", help="draw a new id list and replace ids.json")
     parser.add_argument("--limit", type=int, default=0, help="score only the first N random papers")
+    parser.add_argument("--ids", type=Path, default=None, help="score this id list instead of ids.json")
+    parser.add_argument("--json-out", type=Path, default=None, help="write the scorecard JSON here")
+    parser.add_argument("--markdown-out", type=Path, default=None, help="write the markdown report here")
     args = parser.parse_args()
-    if args.sample or not IDS_PATH.exists():
+    if args.json_out is not None:
+        JSON_OUT = args.json_out
+    if args.markdown_out is not None:
+        MD_OUT = args.markdown_out
+    if args.ids is not None:
+        payload = _load_ids(args.ids)
+    elif args.sample or not IDS_PATH.exists():
         payload = sample_ids()
         if IDS_PATH.exists():
             payload["edge_cases"] = _load_ids().get("edge_cases") or []
@@ -779,7 +802,7 @@ def main() -> None:
                 f"combined pass={rows[-1]['profiles']['combined']['passes']}",
                 flush=True,
             )
-    random_rows = [row for row in rows if row["role"] == "random" and row.get("profiles")]
+    random_rows = _headline_rows(rows)
     print(
         f"HEADLINE main {sum(row['profiles']['main']['passes'] for row in random_rows)}/{len(random_rows)} "
         f"combined {sum(row['profiles']['combined']['passes'] for row in random_rows)}/{len(random_rows)}",

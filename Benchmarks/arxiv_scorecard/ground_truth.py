@@ -74,6 +74,7 @@ class Mention:
     cue: str
     in_citation: bool
     snippet: str
+    anchor: str = ""
 
 
 @dataclass
@@ -82,6 +83,8 @@ class Declaration:
     number: str
     name: str | None
     order: int
+    anchor: str = ""
+    section: str = ""
 
 
 @dataclass
@@ -115,6 +118,17 @@ class PaperTruth:
         if not styles:
             return "none"
         return "+".join(sorted(styles))
+
+
+def _id_matching(node: Tag, pattern: re.Pattern[str]) -> str:
+    current: Tag | None = node
+    while isinstance(current, Tag):
+        identifier = current.get("id") or ""
+        if pattern.search(identifier):
+            return identifier
+        parent = current.parent
+        current = parent if isinstance(parent, Tag) else None
+    return ""
 
 
 def _in_toc(node: Tag) -> bool:
@@ -205,7 +219,14 @@ def parse_html(html: str) -> PaperTruth:
                 if named:
                     name = named.group(1).strip()
         seen_declarations.add((kind, number))
-        truth.declarations.append(Declaration(kind, number, name, order))
+        host = span.find_parent(id=re.compile(r"^Thm"))
+        anchor = host.get("id") if isinstance(host, Tag) else ""
+        section_node = span.find_parent(id=re.compile(r"^S\d+"))
+        section = ""
+        if isinstance(section_node, Tag):
+            found = re.match(r"S(\d+)", section_node.get("id") or "")
+            section = found.group(1) if found else ""
+        truth.declarations.append(Declaration(kind, number, name, order, anchor or "", section))
         order += 1
 
     # LaTeXML sometimes prints a remark as a bold run-in, not a theorem tag:
@@ -239,7 +260,8 @@ def parse_html(html: str) -> PaperTruth:
         if key in seen_declarations:
             continue
         seen_declarations.add(key)
-        truth.declarations.append(Declaration("equation", number.group(0), None, order))
+        anchor = _id_matching(span, re.compile(r"\.E\d+$"))
+        truth.declarations.append(Declaration("equation", number.group(0), None, order, anchor))
         order += 1
 
     for level, selector in (
@@ -329,9 +351,81 @@ def parse_html(html: str) -> PaperTruth:
             )
         if kind == "section" and form == "bare":
             form = "section_word"
-        truth.mentions.append(Mention(kind, number, form, cue_text, in_citation, _snippet(anchor)))
+        href = anchor.get("href") or ""
+        target_id = href[1:] if href.startswith("#") else ""
+        truth.mentions.append(Mention(kind, number, form, cue_text, in_citation, _snippet(anchor), target_id))
 
     return truth
+
+
+_BARE_NUMBER = re.compile(r"^\d+$")
+_EQUATION_ANCHOR = re.compile(r"S(\d+)(?:\.SS\d+)*\.E\d+$")
+_STATEMENT_KINDS = {"theorem", "lemma", "proposition", "corollary", "definition", "remark", "example"}
+
+
+def use_printed_numbers(truth: PaperTruth, pdf_text: str) -> None:
+    """LaTeXML sometimes numbers with one counter while the PDF prints section numbers.
+
+    Equation tag ``(1)`` with id ``S1.E1`` is ``(1.1)`` on the page. Remark 1 in
+    section 2 is Remark 2.1. Apply this only when every guessed label is printed,
+    so a paper that really uses ``(1)`` is left alone.
+    """
+    _remap_equations(truth, pdf_text)
+    _remap_statements(truth, pdf_text)
+
+
+def _remap_equations(truth: PaperTruth, pdf_text: str) -> None:
+    equations = [item for item in truth.declarations if item.kind == "equation" and item.anchor]
+    if not equations or any(_BARE_NUMBER.fullmatch(item.number) is None for item in equations):
+        return
+    groups: dict[str, list[Declaration]] = {}
+    for item in equations:
+        found = _EQUATION_ANCHOR.search(item.anchor)
+        if found is None:
+            return
+        groups.setdefault(found.group(1), []).append(item)
+    planned: dict[str, str] = {}
+    for section, items in groups.items():
+        for index, item in enumerate(items, start=1):
+            printed = f"{section}.{index}"
+            if f"({printed})" not in pdf_text:
+                return
+            planned[item.anchor] = printed
+    by_number = {item.number: planned[item.anchor] for item in equations}
+    for item in equations:
+        item.number = planned[item.anchor]
+    for mention in truth.mentions:
+        if mention.kind != "equation":
+            continue
+        if mention.anchor in planned:
+            mention.number = planned[mention.anchor]
+        elif mention.number in by_number:
+            mention.number = by_number[mention.number]
+
+
+def _remap_statements(truth: PaperTruth, pdf_text: str) -> None:
+    statements = [
+        item for item in truth.declarations
+        if item.kind in _STATEMENT_KINDS and item.anchor.startswith("Thm") and item.section
+    ]
+    if not statements or any(_BARE_NUMBER.fullmatch(item.number) is None for item in statements):
+        return
+    groups: dict[str, list[Declaration]] = {}
+    for item in statements:
+        groups.setdefault(item.section, []).append(item)
+    planned: dict[str, str] = {}
+    for section, items in groups.items():
+        for index, item in enumerate(items, start=1):
+            printed = f"{section}.{index}"
+            label = f"{item.kind} {printed}"
+            if re.search(rf"(?i)\b{re.escape(label)}\b", pdf_text) is None:
+                return
+            planned[item.anchor] = printed
+    for item in statements:
+        item.number = planned[item.anchor]
+    for mention in truth.mentions:
+        if mention.anchor in planned:
+            mention.number = planned[mention.anchor]
 
 
 def shared_counter(declarations: list[Declaration]) -> list[str]:

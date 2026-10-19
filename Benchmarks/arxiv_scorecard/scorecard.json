@@ -10,7 +10,7 @@
       "page_count": 12,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.217,
+      "extract_seconds": 0.221,
       "declarations": 30,
       "mentions": 46,
       "citation_style": "numeric+qualified",
@@ -142,7 +142,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 30,
-          "index_seconds": 0.017,
+          "index_seconds": 0.018,
           "section_questions": {
             "probed": [
               {
@@ -358,7 +358,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.309,
+      "extract_seconds": 0.312,
       "declarations": 32,
       "mentions": 78,
       "citation_style": "numeric+qualified",
@@ -772,7 +772,7 @@
       "page_count": 42,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.629,
+      "extract_seconds": 0.641,
       "declarations": 127,
       "mentions": 315,
       "citation_style": "numeric+qualified",
@@ -1159,7 +1159,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 127,
-          "index_seconds": 0.062,
+          "index_seconds": 0.059,
           "section_questions": {
             "probed": [
               {
@@ -1238,7 +1238,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.525,
+      "extract_seconds": 0.526,
       "declarations": 49,
       "mentions": 136,
       "citation_style": "numeric+qualified",
@@ -1514,7 +1514,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 51,
-          "index_seconds": 0.044,
+          "index_seconds": 0.045,
           "section_questions": {
             "probed": [
               {
@@ -1599,7 +1599,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 51,
-          "index_seconds": 0.049,
+          "index_seconds": 0.047,
           "section_questions": {
             "probed": [
               {
@@ -1680,7 +1680,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 51,
-          "index_seconds": 0.045,
+          "index_seconds": 0.053,
           "section_questions": {
             "probed": [
               {
@@ -1758,7 +1758,7 @@
       "page_count": 23,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.356,
+      "extract_seconds": 0.358,
       "declarations": 47,
       "mentions": 19,
       "citation_style": "numeric+qualified",
@@ -2255,7 +2255,7 @@
       "page_count": 54,
       "two_column_pages": 0,
       "document_class": "scrartcl",
-      "extract_seconds": 0.514,
+      "extract_seconds": 0.52,
       "declarations": 117,
       "mentions": 108,
       "citation_style": "qualified",
@@ -2415,7 +2415,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.061,
+          "index_seconds": 0.063,
           "section_questions": {
             "probed": [
               {
@@ -2490,7 +2490,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 117,
-          "index_seconds": 0.057,
+          "index_seconds": 0.058,
           "section_questions": {
             "probed": [
               {
@@ -2738,7 +2738,7 @@
       "page_count": 20,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.243,
+      "extract_seconds": 0.246,
       "declarations": 43,
       "mentions": 62,
       "citation_style": "numeric+qualified",
@@ -2836,7 +2836,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 43,
-          "index_seconds": 0.025,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -2911,7 +2911,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 43,
-          "index_seconds": 0.025,
+          "index_seconds": 0.024,
           "section_questions": {
             "probed": [
               {
@@ -3135,7 +3135,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.456,
+      "extract_seconds": 0.438,
       "declarations": 75,
       "mentions": 152,
       "citation_style": "numeric+qualified",
@@ -3211,7 +3211,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.04,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -3291,7 +3291,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.036,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -3373,7 +3373,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.04,
+          "index_seconds": 0.036,
           "section_questions": {
             "probed": [
               {
@@ -3453,7 +3453,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 72,
-          "index_seconds": 0.035,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -3530,7 +3530,7 @@
       "page_count": 14,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.305,
+      "extract_seconds": 0.291,
       "declarations": 40,
       "mentions": 118,
       "citation_style": "numeric",
@@ -3684,7 +3684,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.027,
+          "index_seconds": 0.025,
           "section_questions": {
             "probed": [
               {
@@ -3759,7 +3759,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 40,
-          "index_seconds": 0.024,
+          "index_seconds": 0.023,
           "section_questions": {
             "probed": [
               {
@@ -3990,7 +3990,7 @@
       "page_count": 36,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.558,
+      "extract_seconds": 0.524,
       "declarations": 43,
       "mentions": 86,
       "citation_style": "qualified",
@@ -4149,7 +4149,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.058,
+          "index_seconds": 0.053,
           "section_questions": {
             "probed": [
               {
@@ -4243,7 +4243,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.051,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -4442,7 +4442,7 @@
           ],
           "false_declaration_count": 7,
           "index_size": 43,
-          "index_seconds": 0.051,
+          "index_seconds": 0.049,
           "section_questions": {
             "probed": [
               {
@@ -4534,7 +4534,7 @@
       "page_count": 19,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.496,
+      "extract_seconds": 0.471,
       "declarations": 40,
       "mentions": 58,
       "citation_style": "numeric+qualified",
@@ -4646,7 +4646,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 40,
-          "index_seconds": 0.037,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -4729,7 +4729,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 39,
-          "index_seconds": 0.04,
+          "index_seconds": 0.033,
           "section_questions": {
             "probed": [
               {
@@ -4813,7 +4813,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 40,
-          "index_seconds": 0.043,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -4896,7 +4896,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 39,
-          "index_seconds": 0.042,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -4974,7 +4974,7 @@
       "page_count": 16,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.244,
+      "extract_seconds": 0.212,
       "declarations": 29,
       "mentions": 114,
       "citation_style": "numeric",
@@ -5132,7 +5132,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 29,
-          "index_seconds": 0.021,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -5213,7 +5213,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 29,
-          "index_seconds": 0.022,
+          "index_seconds": 0.021,
           "section_questions": {
             "probed": [
               {
@@ -5288,7 +5288,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 29,
-          "index_seconds": 0.021,
+          "index_seconds": 0.02,
           "section_questions": {
             "probed": [
               {
@@ -5360,7 +5360,7 @@
       "page_count": 27,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.431,
+      "extract_seconds": 0.399,
       "declarations": 31,
       "mentions": 56,
       "citation_style": "numeric+qualified",
@@ -5485,7 +5485,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.042,
+          "index_seconds": 0.04,
           "section_questions": {
             "probed": [
               {
@@ -5560,7 +5560,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.039,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -5656,7 +5656,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.04,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -5731,7 +5731,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 31,
-          "index_seconds": 0.038,
+          "index_seconds": 0.037,
           "section_questions": {
             "probed": [
               {
@@ -5815,7 +5815,7 @@
       "page_count": 29,
       "two_column_pages": 0,
       "document_class": "siamart251216",
-      "extract_seconds": 0.916,
+      "extract_seconds": 0.836,
       "declarations": 51,
       "mentions": 90,
       "citation_style": "numeric+qualified",
@@ -5823,9 +5823,9 @@
       "why": null,
       "shared_counters": [],
       "print_agreement": {
-        "named_in_pdf": 0,
+        "named_in_pdf": 18,
         "named_total": 18,
-        "equations_in_pdf": 1,
+        "equations_in_pdf": 33,
         "equations_total": 33
       },
       "sections": [
@@ -5946,32 +5946,19 @@
         "main": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.0,
-          "correct": 0,
-          "missed": 2,
+          "passes": true,
+          "resolution_rate": 0.9835,
+          "correct": 119,
+          "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 77,
-          "denominator": 79,
+          "extraction_misses": 2,
+          "denominator": 121,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.1 equation 1.1",
-            "p.1 equation 1.2",
-            "p.10 equation 3.7",
-            "p.10 equation 3.8",
-            "p.10 equation 3.9",
-            "p.11 remark 4.1",
-            "p.12 lemma 5.1",
-            "p.12 theorem 4.2",
-            "p.13 equation 5.1",
-            "p.13 equation 5.2",
-            "p.13 equation 5.3",
-            "p.13 lemma 5.2"
-          ],
-          "false_declaration_count": 51,
+          "false_declarations": [],
+          "false_declaration_count": 0,
           "index_size": 56,
-          "index_seconds": 0.044,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -6015,57 +6002,38 @@
             "reason": null
           },
           "examples": {
-            "missed": [
-              "p.14 '(1)': not in the statement index",
-              "p.21 '(1)': not in the statement index"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
           "number_search": {
-            "query": "Lemma 4",
-            "served": false,
-            "short_query": null,
-            "short_serves_full_number": false,
+            "query": "Lemma 3.1",
+            "served": true,
+            "short_query": "Lemma 3",
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "resolution 0.0% is under 90%",
-            "51 indexed statements are not in the HTML declarations"
-          ]
+          "fail_reasons": []
         },
         "hover": {
           "profile": "hover",
           "structure": false,
           "passes": false,
-          "resolution_rate": 0.0,
-          "correct": 0,
-          "missed": 2,
+          "resolution_rate": 0.9835,
+          "correct": 119,
+          "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 77,
-          "denominator": 79,
+          "extraction_misses": 2,
+          "denominator": 121,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.1 equation 1.1",
-            "p.1 equation 1.2",
-            "p.10 equation 3.7",
-            "p.10 equation 3.8",
-            "p.10 equation 3.9",
-            "p.11 remark 4.1",
-            "p.12 lemma 5.1",
-            "p.12 theorem 4.2",
-            "p.13 equation 5.1",
-            "p.13 equation 5.2",
-            "p.13 equation 5.3",
-            "p.13 lemma 5.2"
-          ],
-          "false_declaration_count": 51,
+          "false_declarations": [],
+          "false_declaration_count": 0,
           "index_size": 56,
-          "index_seconds": 0.043,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -6109,58 +6077,40 @@
             "reason": "a section question missed its heading page"
           },
           "examples": {
-            "missed": [
-              "p.14 '(1)': not in the statement index",
-              "p.21 '(1)': not in the statement index"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
           "number_search": {
-            "query": "Lemma 4",
-            "served": false,
-            "short_query": null,
-            "short_serves_full_number": false,
+            "query": "Lemma 3.1",
+            "served": true,
+            "short_query": "Lemma 3",
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
           "fail_reasons": [
-            "resolution 0.0% is under 90%",
-            "51 indexed statements are not in the HTML declarations",
             "section questions are not implemented"
           ]
         },
         "chat": {
           "profile": "main",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.0,
-          "correct": 0,
-          "missed": 2,
+          "passes": true,
+          "resolution_rate": 0.9835,
+          "correct": 119,
+          "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 77,
-          "denominator": 79,
+          "extraction_misses": 2,
+          "denominator": 121,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.1 equation 1.1",
-            "p.1 equation 1.2",
-            "p.10 equation 3.7",
-            "p.10 equation 3.8",
-            "p.10 equation 3.9",
-            "p.11 remark 4.1",
-            "p.12 lemma 5.1",
-            "p.12 theorem 4.2",
-            "p.13 equation 5.1",
-            "p.13 equation 5.2",
-            "p.13 equation 5.3",
-            "p.13 lemma 5.2"
-          ],
-          "false_declaration_count": 51,
+          "false_declarations": [],
+          "false_declaration_count": 0,
           "index_size": 56,
-          "index_seconds": 0.048,
+          "index_seconds": 0.039,
           "section_questions": {
             "probed": [
               {
@@ -6204,57 +6154,38 @@
             "reason": null
           },
           "examples": {
-            "missed": [
-              "p.14 '(1)': not in the statement index",
-              "p.21 '(1)': not in the statement index"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
           "number_search": {
-            "query": "Lemma 4",
-            "served": false,
-            "short_query": null,
-            "short_serves_full_number": false,
+            "query": "Lemma 3.1",
+            "served": true,
+            "short_query": "Lemma 3",
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "resolution 0.0% is under 90%",
-            "51 indexed statements are not in the HTML declarations"
-          ]
+          "fail_reasons": []
         },
         "combined": {
           "profile": "hover",
           "structure": true,
-          "passes": false,
-          "resolution_rate": 0.0,
-          "correct": 0,
-          "missed": 2,
+          "passes": true,
+          "resolution_rate": 0.9835,
+          "correct": 119,
+          "missed": 0,
           "wrong_links": 0,
-          "extraction_misses": 77,
-          "denominator": 79,
+          "extraction_misses": 2,
+          "denominator": 121,
           "citation_detections": 0,
           "citation_links": 0,
-          "false_declarations": [
-            "p.1 equation 1.1",
-            "p.1 equation 1.2",
-            "p.10 equation 3.7",
-            "p.10 equation 3.8",
-            "p.10 equation 3.9",
-            "p.11 remark 4.1",
-            "p.12 lemma 5.1",
-            "p.12 theorem 4.2",
-            "p.13 equation 5.1",
-            "p.13 equation 5.2",
-            "p.13 equation 5.3",
-            "p.13 lemma 5.2"
-          ],
-          "false_declaration_count": 51,
+          "false_declarations": [],
+          "false_declaration_count": 0,
           "index_size": 56,
-          "index_seconds": 0.047,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -6298,27 +6229,21 @@
             "reason": null
           },
           "examples": {
-            "missed": [
-              "p.14 '(1)': not in the statement index",
-              "p.21 '(1)': not in the statement index"
-            ],
+            "missed": [],
             "wrong": [],
             "citation": []
           },
           "number_search": {
-            "query": "Lemma 4",
-            "served": false,
-            "short_query": null,
-            "short_serves_full_number": false,
+            "query": "Lemma 3.1",
+            "served": true,
+            "short_query": "Lemma 3",
+            "short_serves_full_number": true,
             "literal_lemma_4_served": false,
             "printed_name": null,
             "name_query_served_from_index": false,
             "name_query": null
           },
-          "fail_reasons": [
-            "resolution 0.0% is under 90%",
-            "51 indexed statements are not in the HTML declarations"
-          ]
+          "fail_reasons": []
         }
       }
     },
@@ -6332,7 +6257,7 @@
       "page_count": 41,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.569,
+      "extract_seconds": 0.485,
       "declarations": 185,
       "mentions": 115,
       "citation_style": "numeric+qualified",
@@ -6467,7 +6392,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 178,
-          "index_seconds": 0.06,
+          "index_seconds": 0.055,
           "section_questions": {
             "probed": [
               {
@@ -6544,7 +6469,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 178,
-          "index_seconds": 0.055,
+          "index_seconds": 0.053,
           "section_questions": {
             "probed": [
               {
@@ -6627,7 +6552,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 178,
-          "index_seconds": 0.062,
+          "index_seconds": 0.055,
           "section_questions": {
             "probed": [
               {
@@ -6704,7 +6629,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 178,
-          "index_seconds": 0.062,
+          "index_seconds": 0.053,
           "section_questions": {
             "probed": [
               {
@@ -6778,7 +6703,7 @@
       "page_count": 22,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.277,
+      "extract_seconds": 0.238,
       "declarations": 22,
       "mentions": 94,
       "citation_style": "numeric",
@@ -6916,7 +6841,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.034,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -6991,7 +6916,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.032,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -7076,7 +7001,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.032,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -7151,7 +7076,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 24,
-          "index_seconds": 0.031,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -7223,7 +7148,7 @@
       "page_count": 40,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.884,
+      "extract_seconds": 0.763,
       "declarations": 93,
       "mentions": 152,
       "citation_style": "qualified",
@@ -7353,7 +7278,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.078,
+          "index_seconds": 0.072,
           "section_questions": {
             "probed": [
               {
@@ -7435,7 +7360,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.076,
+          "index_seconds": 0.072,
           "section_questions": {
             "probed": [
               {
@@ -7525,7 +7450,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.079,
+          "index_seconds": 0.073,
           "section_questions": {
             "probed": [
               {
@@ -7607,7 +7532,7 @@
           ],
           "false_declaration_count": 4,
           "index_size": 99,
-          "index_seconds": 0.079,
+          "index_seconds": 0.071,
           "section_questions": {
             "probed": [
               {
@@ -7684,7 +7609,7 @@
       "page_count": 17,
       "two_column_pages": 0,
       "document_class": "article",
-      "extract_seconds": 0.357,
+      "extract_seconds": 0.331,
       "declarations": 20,
       "mentions": 46,
       "citation_style": "numeric",
@@ -7769,7 +7694,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.029,
+          "index_seconds": 0.027,
           "section_questions": {
             "probed": [
               {
@@ -7844,7 +7769,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.03,
+          "index_seconds": 0.029,
           "section_questions": {
             "probed": [
               {
@@ -7924,7 +7849,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.03,
+          "index_seconds": 0.028,
           "section_questions": {
             "probed": [
               {
@@ -7999,7 +7924,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 20,
-          "index_seconds": 0.028,
+          "index_seconds": 0.027,
           "section_questions": {
             "probed": [
               {
@@ -8071,7 +7996,7 @@
       "page_count": 30,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.389,
+      "extract_seconds": 0.351,
       "declarations": 70,
       "mentions": 106,
       "citation_style": "numeric+qualified",
@@ -8258,7 +8183,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.043,
+          "index_seconds": 0.04,
           "section_questions": {
             "probed": [
               {
@@ -8344,7 +8269,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.041,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -8432,7 +8357,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.041,
+          "index_seconds": 0.04,
           "section_questions": {
             "probed": [
               {
@@ -8518,7 +8443,7 @@
           ],
           "false_declaration_count": 1,
           "index_size": 74,
-          "index_seconds": 0.04,
+          "index_seconds": 0.038,
           "section_questions": {
             "probed": [
               {
@@ -8599,7 +8524,7 @@
       "page_count": 25,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 0.455,
+      "extract_seconds": 0.431,
       "declarations": 128,
       "mentions": 35,
       "citation_style": "numeric",
@@ -8699,7 +8624,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.039,
+          "index_seconds": 0.035,
           "section_questions": {
             "probed": [
               {
@@ -8774,7 +8699,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.035,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -8851,7 +8776,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.037,
+          "index_seconds": 0.034,
           "section_questions": {
             "probed": [
               {
@@ -8926,7 +8851,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 128,
-          "index_seconds": 0.034,
+          "index_seconds": 0.031,
           "section_questions": {
             "probed": [
               {
@@ -8998,7 +8923,7 @@
       "page_count": 82,
       "two_column_pages": 0,
       "document_class": "amsart",
-      "extract_seconds": 1.204,
+      "extract_seconds": 1.153,
       "declarations": 162,
       "mentions": 206,
       "citation_style": "qualified",
@@ -9423,7 +9348,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.128,
+          "index_seconds": 0.126,
           "section_questions": {
             "probed": [
               {
@@ -9510,7 +9435,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.19,
+          "index_seconds": 0.18,
           "section_questions": {
             "probed": [
               {
@@ -9609,7 +9534,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.129,
+          "index_seconds": 0.124,
           "section_questions": {
             "probed": [
               {
@@ -9696,7 +9621,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 163,
-          "index_seconds": 0.124,
+          "index_seconds": 0.116,
           "section_questions": {
             "probed": [
               {
@@ -9790,7 +9715,7 @@
       "page_count": 24,
       "two_column_pages": 24,
       "document_class": "revtex4-2",
-      "extract_seconds": 0.578,
+      "extract_seconds": 0.501,
       "declarations": 164,
       "mentions": 189,
       "citation_style": "numeric+qualified",
@@ -9893,7 +9818,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.064,
+          "index_seconds": 0.062,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -9941,7 +9866,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.063,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -9989,7 +9914,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.067,
+          "index_seconds": 0.061,
           "section_questions": {
             "probed": [],
             "ok": false,
@@ -10037,7 +9962,7 @@
           "false_declarations": [],
           "false_declaration_count": 0,
           "index_size": 47,
-          "index_seconds": 0.064,
+          "index_seconds": 0.06,
           "section_questions": {
             "probed": [],
             "ok": false,

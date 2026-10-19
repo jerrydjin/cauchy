@@ -259,7 +259,7 @@ def _document_class(arxiv_id: str) -> str:
 
 def _score_paper(record: dict) -> dict:
     sys.path.insert(0, str(ROOT))
-    from ground_truth import parse_html, shared_counter
+    from ground_truth import parse_html, shared_counter, use_printed_numbers
     from pdf_extract import extract_pdf
     from score import attach_structure, make_structure, model_input_estimate, score_profile
 
@@ -269,6 +269,7 @@ def _score_paper(record: dict) -> dict:
     extracted = extract_pdf(str(pdf_path))
     extract_seconds = time.perf_counter() - started
     truth = parse_html(html)
+    use_printed_numbers(truth, "\n".join(page["text"] for page in extracted["pages"]))
     structure = make_structure(extracted)
     attach_structure(structure)
     profiles = {
@@ -619,7 +620,7 @@ def _write_markdown(payload: dict) -> None:
         "or else a title-shaped line. A numbered sentence is not that heading. "
         "An outline bookmark that reads “Introduction” rather than “1. Introduction” is still section 1 when it is the first section bookmark. "
         "A citation bracket may be split by a line break, as in “[17, Theorem 3.31(c)]”. "
-        "The HTML declaration list includes a plural tag such as “Examples 6.7” and a bold run-in such as “Remark 3.13.”",
+        "The HTML declaration list includes a plural tag such as “Examples 6.7” and a bold run-in such as “Remark 3.13.” When every HTML equation tag is a bare integer but the PDF prints “(1.1)”, and every HTML statement uses one counter but the PDF prints “Remark 2.1”, the score uses the printed number.",
         "",
         (
             f"Shared counters, such as a theorem followed by a lemma with the next number, "

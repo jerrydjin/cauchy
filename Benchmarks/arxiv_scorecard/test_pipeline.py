@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from ground_truth import parse_html, use_printed_numbers  # noqa: E402
 from cauchy_logic import (  # noqa: E402
     IndexedStatement,
     OutlineNode,
@@ -220,6 +221,43 @@ def _textbook() -> Structure:
         ],
         page_count=80,
     )
+
+
+class PrintedNumberTests(unittest.TestCase):
+    def test_bare_html_counter_uses_the_printed_section_number(self) -> None:
+        html = """
+        <div id="S2">
+          <div class="ltx_theorem" id="Thmtheorem1">
+            <span class="ltx_tag ltx_tag_theorem">Remark 1.</span>
+          </div>
+        </div>
+        <div id="S1">
+          <span class="ltx_tag ltx_tag_equation" id="S1.E1">(1)</span>
+        </div>
+        <p>See <a class="ltx_ref" href="#Thmtheorem1" title="Remark 1">1</a>
+        and <a class="ltx_ref" href="#S1.E1" title="Equation 1">(1)</a>.</p>
+        """
+        truth = parse_html(html)
+        use_printed_numbers(truth, "Remark 2.1. The note.\nThe identity (1.1) holds.")
+        numbers = {(item.kind, item.number) for item in truth.declarations}
+        self.assertIn(("remark", "2.1"), numbers)
+        self.assertIn(("equation", "1.1"), numbers)
+        mentioned = {(item.kind, item.number) for item in truth.mentions}
+        self.assertIn(("remark", "2.1"), mentioned)
+        self.assertIn(("equation", "1.1"), mentioned)
+
+    def test_bare_equation_tag_stays_when_the_pdf_prints_it(self) -> None:
+        html = """
+        <div id="S1"><span class="ltx_tag ltx_tag_equation" id="S1.E1">(1)</span></div>
+        <div id="S1"><span class="ltx_tag ltx_tag_equation" id="S1.E2">(2)</span></div>
+        <div id="S1"><span class="ltx_tag ltx_tag_equation" id="S1.E3">(3)</span></div>
+        """
+        truth = parse_html(html)
+        use_printed_numbers(truth, "The recurrence (1) implies (2) and (3).")
+        self.assertEqual(
+            [item.number for item in truth.declarations if item.kind == "equation"],
+            ["1", "2", "3"],
+        )
 
 
 class DeclarationTests(unittest.TestCase):

@@ -57,11 +57,11 @@ final class AskStructureLocatorTests: XCTestCase {
         let structure = AskDocumentStructure(
             outline: [],
             pages: [
-                AskPageSnapshot(pageIndex: 3, text: "1 + z7 holds in characteristic 7. Hence the relation is strict."),
+                AskPageSnapshot(pageIndex: 3, text: "1 + w holds over a prime field. Hence the relation is strict."),
                 AskPageSnapshot(pageIndex: 4, text: "Section 4 constructs the approximate metric and solves the nonlinear equation."),
                 AskPageSnapshot(pageIndex: 4, text: "4 be the"),
                 AskPageSnapshot(pageIndex: 8, text: "1. Introduction\nThe algebra is introduced here and used below."),
-                AskPageSnapshot(pageIndex: 10, text: "4. Clique-sum\nThe sum is defined here."),
+                AskPageSnapshot(pageIndex: 10, text: "4. Block-sum\nThe sum is defined here."),
             ],
             pageCount: 20
         )
@@ -82,10 +82,10 @@ final class AskStructureLocatorTests: XCTestCase {
             outline: [
                 AskOutlineNode(title: "Introduction", pageIndex: 0, children: []),
                 AskOutlineNode(title: "Preliminaries", pageIndex: 2, children: [
-                    AskOutlineNode(title: "Virasoro notation", pageIndex: 2, children: []),
+                    AskOutlineNode(title: "Generator notation", pageIndex: 2, children: []),
                 ]),
                 AskOutlineNode(title: "Proof of the main result", pageIndex: 5, children: [
-                    AskOutlineNode(title: "Low homogeneous subspaces", pageIndex: 5, children: []),
+                    AskOutlineNode(title: "Low degree subspaces", pageIndex: 5, children: []),
                 ]),
                 AskOutlineNode(title: "References", pageIndex: 12, children: []),
             ],
@@ -109,7 +109,7 @@ final class AskStructureLocatorTests: XCTestCase {
             outline: [
                 AskOutlineNode(title: "Introduction", pageIndex: 0, children: []),
                 AskOutlineNode(title: "1. Preliminaries", pageIndex: 4, children: []),
-                AskOutlineNode(title: "2. Affine realizations", pageIndex: 8, children: []),
+                AskOutlineNode(title: "2. Linear models", pageIndex: 8, children: []),
             ],
             pages: [],
             pageCount: 20
@@ -146,23 +146,23 @@ final class AskStructureLocatorTests: XCTestCase {
             pages: [
                 AskPageSnapshot(
                     pageIndex: 0,
-                    text: "1. Introduction\nA Poisson algebra is both an associative algebra and a Lie algebra."
+                    text: "1. Introduction\nThis note fixes notation for the rest of the argument."
                 ),
                 AskPageSnapshot(
                     pageIndex: 1,
-                    text: "2. Preliminaries and some results\nWe recall the notions used below in this paper."
+                    text: "2. Background and notation\nWe recall the notions used below."
                 ),
                 AskPageSnapshot(
                     pageIndex: 5,
-                    text: "2.1. Generalities.\nA few definitions used throughout the constructions."
+                    text: "2.1. Standing conventions.\nA few definitions used throughout the constructions."
                 ),
                 AskPageSnapshot(
                     pageIndex: 13,
-                    text: "3. Construction theorems\nThe constructions occupy the rest of the paper."
+                    text: "3. Main constructions\nThe constructions occupy the rest of the note."
                 ),
                 AskPageSnapshot(
                     pageIndex: 14,
-                    text: "3.1. From BiHom-associative conformal superalgebras.\nTheorem 3.5. If A is regular then the bracket is Poisson."
+                    text: "3.1. From associative envelopes.\nTheorem 3.5. A regular envelope induces a bracket."
                 ),
             ],
             pageCount: 25

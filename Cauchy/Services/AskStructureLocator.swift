@@ -505,7 +505,7 @@ enum AskStructureLocator {
         return leadingRoman(in: line) != nil
     }
 
-    /// The text after the number has to open with a capital. "4. Clique-sum"
+    /// The text after the number has to open with a capital. "4. Block-sum"
     /// does. "4 be the" and "1 + z" do not.
     private static func titleTextFollows(_ line: String, number: String) -> Bool {
         var rest = line.trimmingCharacters(in: .whitespaces)

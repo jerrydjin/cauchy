@@ -51,3 +51,9 @@ The subsequent **56 targeted Learn tests pass with no failures or skips** (`/tmp
 The final native cold restart restores **Worked example**, its saved exchange and its own unsent follow-up. The earlier idea’s separate unsent draft remains saved. After viewing that restored panel and quitting, the complete `learning.json` (sessions and map) equals its pre-restart snapshot. All checkpoint Swift files, generated project references, tests and recorded live responses match the isolated source snapshot. A screenshot of the actual authored fixture panel is retained in the chat artifacts as `learn_step_question_panel.png`.
 
 This is a local Learn checkpoint, ready for the separately coordinated reader integration. No push, merge, reader-PR adoption or shared-checkout branch change is part of this milestone.
+
+## Integrated-baseline smoke check
+
+After the coordinator handed back `d8bb040`, the combined Debug app from `/tmp/cauchy-sync-build-20261018` was copied into the same separately named fixture bundle. The combined test result was independently read: **304 passed, zero failed or skipped**. The adopted app/test source matches the tested `cec0fb2` tree; the coordinator also records its Release build in [workstream synchronization](workstream-sync.md).
+
+In the native 1,000-point dark window, Learn restored the exact worked-example step, its reply and unsent follow-up. Escape returned focus to Ask, and Space reopened it. Source details opened PDF page 1 in the notes inspector without changing the teaching step. Closing the inspector and returning to the path retained the single due-review action and collapsed course details. After quit, the entire persisted `learning.json` still matched the pre-integration fixture snapshot. This is a narrow integrated Learn smoke check; it does not extend the earlier model-quality or accessibility claims.

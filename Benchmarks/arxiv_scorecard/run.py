@@ -7,10 +7,12 @@ Usage, from the repo root:
 
 The default command scores Benchmarks/arxiv_scorecard/ids.json. --sample
 draws a fresh stratified set (seed 20261018) and is what produced that file.
-PDFs and HTML are cached under Benchmarks/arxiv_scorecard/cache/ and are not
-committed. The scorecard uses the Python port of Cauchy's detector, source
-fallback statement index, and section locator; it does not launch the macOS
-app or call a model.
+``--latex-source`` builds the statement index and section outline from the
+arXiv e-print when the PDF is an arXiv paper, and keeps the PDF heuristics
+whenever that path fails or the flag is absent. PDFs and HTML are cached
+under Benchmarks/arxiv_scorecard/cache/ and are not committed. The scorecard
+uses the Python port of Cauchy's detector, source fallback statement index,
+and section locator; it does not launch the macOS app or call a model.
 """
 
 from __future__ import annotations
@@ -257,7 +259,7 @@ def _document_class(arxiv_id: str) -> str:
     return found.group(1).strip() if found else "not-found"
 
 
-def _score_paper(record: dict) -> dict:
+def _score_paper(record: dict, latex_source: bool = False) -> dict:
     sys.path.insert(0, str(ROOT))
     from ground_truth import parse_html, shared_counter, use_printed_numbers
     from pdf_extract import extract_pdf
@@ -272,11 +274,45 @@ def _score_paper(record: dict) -> dict:
     use_printed_numbers(truth, "\n".join(page["text"] for page in extracted["pages"]))
     structure = make_structure(extracted)
     attach_structure(structure)
+    statement_index = None
+    locator = None
+    truth_outline = None
+    source_info: dict = {"mode": "pdf", "reason": "flag off"}
+    if latex_source:
+        from latex_source import build_source_index
+
+        source_started = time.perf_counter()
+        built, source_reason = build_source_index(str(pdf_path), extracted)
+        source_info = {
+            "mode": "latex" if built is not None else "pdf-fallback",
+            "reason": source_reason,
+            "seconds": round(time.perf_counter() - source_started, 3),
+        }
+        if built is not None:
+            statement_index = built.statement_index
+            locator = built.locator
+            truth_outline = extracted["outline"]
+            source_info.update({
+                "identifier": built.identifier.fetch_id,
+                "id_source": built.identifier.source,
+                "located_statements": built.located_statements,
+                "omitted_statements": built.omitted_statements,
+                "located_sections": built.located_sections,
+                "omitted_sections": built.omitted_sections,
+                "bibliography": len(built.parsed.bibliography),
+                "citations": len(built.parsed.citations),
+                "labels": len(built.parsed.labels),
+            })
+    profile_kwargs = {
+        "statement_index": statement_index,
+        "locator": locator,
+        "truth_outline": truth_outline,
+    }
     profiles = {
-        "main": score_profile(truth, extracted["pages"], "main", use_structure=True),
-        "hover": score_profile(truth, extracted["pages"], "hover", use_structure=False),
-        "chat": score_profile(truth, extracted["pages"], "main", use_structure=True),
-        "combined": score_profile(truth, extracted["pages"], "hover", use_structure=True),
+        "main": score_profile(truth, extracted["pages"], "main", True, **profile_kwargs),
+        "hover": score_profile(truth, extracted["pages"], "hover", False, **profile_kwargs),
+        "chat": score_profile(truth, extracted["pages"], "main", True, **profile_kwargs),
+        "combined": score_profile(truth, extracted["pages"], "hover", True, **profile_kwargs),
     }
     cost = model_input_estimate(extracted["pages"], "main")
     return {
@@ -300,6 +336,7 @@ def _score_paper(record: dict) -> dict:
         "sections": [{"number": section.number, "title": section.title, "level": section.level} for section in truth.sections],
         "model_input": cost,
         "author_year": _author_year_counts(extracted["pages"]),
+        "source_path": source_info,
         "profiles": profiles,
     }
 
@@ -585,7 +622,7 @@ def _tickets(rows: list[dict]) -> list[dict]:
     return tickets
 
 
-def _write_markdown(payload: dict) -> None:
+def _write_markdown(payload: dict, md_out: Path | None = None) -> None:
     rows = [row for row in payload["papers"] if row.get("profiles")]
     random_rows = [row for row in rows if row["role"] == "random"]
     main_pass = sum(1 for row in random_rows if row["profiles"]["main"]["passes"])
@@ -737,31 +774,45 @@ def _write_markdown(payload: dict) -> None:
     for index, ticket in enumerate(_tickets(rows), start=1):
         lines.append(f"{index}. **{ticket['title']}** — {ticket['problem']} Size: {ticket['size']} Evidence: {ticket['evidence']}")
     lines.append("")
-    MD_OUT.parent.mkdir(parents=True, exist_ok=True)
-    MD_OUT.write_text("\n".join(lines))
+    destination = md_out or MD_OUT
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text("\n".join(lines))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample", action="store_true", help="draw a new id list and replace ids.json")
     parser.add_argument("--limit", type=int, default=0, help="score only the first N random papers")
+    parser.add_argument(
+        "--latex-source",
+        action="store_true",
+        help="build the index from arXiv LaTeX when the PDF is an arXiv paper",
+    )
+    parser.add_argument("--ids", type=Path, default=None, help="score this id file instead of ids.json")
+    parser.add_argument("--json-out", type=Path, default=None, help="write the scorecard JSON here")
+    parser.add_argument("--md-out", type=Path, default=None, help="write the markdown report here")
+    parser.add_argument("--skip-edge", action="store_true", help="do not score ids.json edge cases")
     args = parser.parse_args()
-    if args.sample or not IDS_PATH.exists():
+    ids_path = args.ids or IDS_PATH
+    json_out = args.json_out or JSON_OUT
+    md_out = args.md_out or MD_OUT
+    if args.sample or not ids_path.exists():
         payload = sample_ids()
-        if IDS_PATH.exists():
-            payload["edge_cases"] = _load_ids().get("edge_cases") or []
-        IDS_PATH.write_text(json.dumps(payload, indent=2) + "\n")
+        if ids_path.exists():
+            payload["edge_cases"] = json.loads(ids_path.read_text()).get("edge_cases") or []
+        ids_path.write_text(json.dumps(payload, indent=2) + "\n")
     else:
-        payload = _load_ids()
+        payload = json.loads(ids_path.read_text())
     records = list(payload["papers"])
     if args.limit:
         records = records[: args.limit]
-    records.extend(payload.get("edge_cases") or [])
+    if not args.skip_edge:
+        records.extend(payload.get("edge_cases") or [])
     rows = []
     for record in records:
         print(f"scoring {record['id']}", flush=True)
         try:
-            rows.append(_score_paper(record))
+            rows.append(_score_paper(record, latex_source=args.latex_source))
         except Exception as error:  # noqa: BLE001
             print(f"FAILED {record['id']}: {error}", flush=True)
             rows.append({
@@ -772,8 +823,9 @@ def main() -> None:
                 "error": str(error),
                 "profiles": {},
             })
-        JSON_OUT.write_text(json.dumps({"papers": rows}, indent=2) + "\n")
-        _write_markdown({"papers": rows})
+        json_out.parent.mkdir(parents=True, exist_ok=True)
+        json_out.write_text(json.dumps({"papers": rows, "latex_source": args.latex_source}, indent=2) + "\n")
+        _write_markdown({"papers": rows}, md_out)
         profile = rows[-1].get("profiles", {}).get("main")
         if profile is None:
             print(f"  no score ({rows[-1].get('error', 'unknown')})", flush=True)

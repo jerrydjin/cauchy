@@ -1,0 +1,465 @@
+{
+  "method": "Original 20 from ids.json plus wide_sample.json. Edge cases are excluded. dev_ids_wide.json was not in the repository.",
+  "papers": [
+    {
+      "id": "2610.21544",
+      "title": "On the variety of sum of powers of certain complete intersection forms",
+      "published": "2026-10-15",
+      "primary_category": "math.AG",
+      "role": "random"
+    },
+    {
+      "id": "2610.11671",
+      "title": "A complete classification of the rational realization of gap-two products of Eilenberg--MacLane spaces as classifying spaces",
+      "published": "2026-10-08",
+      "primary_category": "math.AT",
+      "role": "random"
+    },
+    {
+      "id": "2610.20976",
+      "title": "Chemotaxis models with signal-dependent sensitivity and a logistic-type source, III: Bifurcation and spike-like solutions",
+      "published": "2026-10-14",
+      "primary_category": "math.AP",
+      "role": "random"
+    },
+    {
+      "id": "2610.21341",
+      "title": "Matrix Completion Discriminants",
+      "published": "2026-10-15",
+      "primary_category": "math.CO",
+      "role": "random"
+    },
+    {
+      "id": "2610.04096",
+      "title": "The Benson--Etingof--Ostrik conjecture for finite tensor categories",
+      "published": "2026-10-02",
+      "primary_category": "math.CT",
+      "role": "random"
+    },
+    {
+      "id": "2610.21303",
+      "title": "Asymptotics of the Moduli Spaces of Parabolic $\\mathrm{SL}(3,\\mathbb C)$-Higgs Bundles",
+      "published": "2026-10-15",
+      "primary_category": "math.DG",
+      "role": "random"
+    },
+    {
+      "id": "2610.21627",
+      "title": "Degree Growth of Rational Maps with Laurent Property",
+      "published": "2026-10-15",
+      "primary_category": "math.DS",
+      "role": "random"
+    },
+    {
+      "id": "2610.18041",
+      "title": "Completely symmetric subspaces of noncommutative $L_p$-spaces",
+      "published": "2026-10-13",
+      "primary_category": "math.FA",
+      "role": "random"
+    },
+    {
+      "id": "2610.20306",
+      "title": "The zero divisor and augmentation conjectures for medial quandle rings",
+      "published": "2026-10-14",
+      "primary_category": "math.GR",
+      "role": "random"
+    },
+    {
+      "id": "2610.19333",
+      "title": "Algebraic overtwistedness of contact $(+1)$-surgeries via augmented Floer theories",
+      "published": "2026-10-14",
+      "primary_category": "math.GT",
+      "role": "random"
+    },
+    {
+      "id": "2610.14417",
+      "title": "A Nullstellensatz for the field of complex Laurent series",
+      "published": "2026-10-10",
+      "primary_category": "math.LO",
+      "role": "random"
+    },
+    {
+      "id": "2610.16227",
+      "title": "Contractivity of Rudin's diagonal restriction operator for $H^p$ of the polydisc",
+      "published": "2026-10-12",
+      "primary_category": "math.CA",
+      "role": "random"
+    },
+    {
+      "id": "2610.19307",
+      "title": "Zero-cycles and Brauer groups on certain Enriques surfaces",
+      "published": "2026-10-13",
+      "primary_category": "math.NT",
+      "role": "random"
+    },
+    {
+      "id": "2610.18580",
+      "title": "A two-level preconditioner for discontinuous virtual element methods with irregular subdomains",
+      "published": "2026-10-13",
+      "primary_category": "math.NA",
+      "role": "random"
+    },
+    {
+      "id": "2610.13792",
+      "title": "The generator problem for C*-algebras with comparison",
+      "published": "2026-10-09",
+      "primary_category": "math.OA",
+      "role": "random"
+    },
+    {
+      "id": "2610.19840",
+      "title": "GPU-Accelerated Preprocessing for Large-Scale Linear Programming",
+      "published": "2026-10-14",
+      "primary_category": "math.OC",
+      "role": "random"
+    },
+    {
+      "id": "2610.21864",
+      "title": "Localisation of the monkey walk with an \"impurity\" at the origin",
+      "published": "2026-10-15",
+      "primary_category": "math.PR",
+      "role": "random"
+    },
+    {
+      "id": "2610.15448",
+      "title": "The First Modular Zhu Algebra of $L(\\frac12,0)_F$ in Characteristic Seven",
+      "published": "2026-10-11",
+      "primary_category": "math.QA",
+      "role": "random"
+    },
+    {
+      "id": "2610.14991",
+      "title": "Affine realization of tilted Richardson varieties",
+      "published": "2026-10-10",
+      "primary_category": "math.RT",
+      "role": "random"
+    },
+    {
+      "id": "2610.11661",
+      "title": "BiHom-Poisson conformal superalgebras arising from related algebraic structures",
+      "published": "2026-10-08",
+      "primary_category": "math.RA",
+      "role": "random"
+    },
+    {
+      "id": "2112.15313",
+      "title": "On Orbifold Gromov-Witten Classes",
+      "published": "2021-12-31",
+      "primary_category": "math.AG",
+      "role": "random",
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.20869",
+      "title": "Hypersurface Arrangements with Generic Hypersurfaces Added",
+      "published": "2024-12-30",
+      "primary_category": "math.AG",
+      "role": "random",
+      "sample_year": 2024
+    },
+    {
+      "id": "2212.11942",
+      "title": "Big mapping class groups with uncountable integral homology",
+      "published": "2022-12-22",
+      "primary_category": "math.AT",
+      "role": "random",
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.20551",
+      "title": "An Arithmetic Topology viewpoint on Descent theory and Equivariant Categories",
+      "published": "2025-12-23",
+      "primary_category": "math.AT",
+      "role": "random",
+      "sample_year": 2025
+    },
+    {
+      "id": "2401.00439",
+      "title": "On the breathing of spectral bands in periodic quantum waveguides with inflating resonators",
+      "published": "2023-12-31",
+      "primary_category": "math.AP",
+      "role": "random",
+      "sample_year": 2023
+    },
+    {
+      "id": "2610.23753",
+      "title": "Asymptotic stability of a Bloch skyrmion for the Landau-Lifshitz-Gilbert equation",
+      "published": "2026-10-16",
+      "primary_category": "math.AP",
+      "role": "random",
+      "sample_year": 2026
+    },
+    {
+      "id": "2501.00275",
+      "title": "Further results for classical and universal characters twisted by roots of unity",
+      "published": "2024-12-31",
+      "primary_category": "math.CO",
+      "role": "random",
+      "sample_year": 2024
+    },
+    {
+      "id": "2112.15205",
+      "title": "Spaces of polynomials with constrained real divisors, II. (Co)homology & stabilization",
+      "published": "2021-12-30",
+      "primary_category": "math.CO",
+      "role": "random",
+      "sample_year": 2021
+    },
+    {
+      "id": "2512.22078",
+      "title": "Notes on some categories related to that of finite totally ordered sets",
+      "published": "2025-12-26",
+      "primary_category": "math.CT",
+      "role": "random",
+      "sample_year": 2025
+    },
+    {
+      "id": "2212.12358",
+      "title": "A skew approach to enrichment for Gray-categories",
+      "published": "2022-12-23",
+      "primary_category": "math.CT",
+      "role": "random",
+      "sample_year": 2022
+    },
+    {
+      "id": "2610.23441",
+      "title": "Complete harmonic metrics and subharmonic functions on the complex plane",
+      "published": "2026-10-16",
+      "primary_category": "math.DG",
+      "role": "random",
+      "sample_year": 2026
+    },
+    {
+      "id": "2401.00607",
+      "title": "Ricci flows which terminate in cones",
+      "published": "2023-12-31",
+      "primary_category": "math.DG",
+      "role": "random",
+      "sample_year": 2023
+    },
+    {
+      "id": "2112.15073",
+      "title": "$\u03bc$-norm of an operator",
+      "published": "2021-12-30",
+      "primary_category": "math.DS",
+      "role": "random",
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.20958",
+      "title": "The selection problem for a new class of perturbations of Hamilton-Jacobi equations and its applications",
+      "published": "2024-12-30",
+      "primary_category": "math.DS",
+      "role": "random",
+      "sample_year": 2024
+    },
+    {
+      "id": "2301.00284",
+      "title": "Square Root Normal Fields for Lipschitz surfaces and the Wasserstein Fisher Rao metric",
+      "published": "2022-12-31",
+      "primary_category": "math.FA",
+      "role": "random",
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.24348",
+      "title": "An explicit construction of heat kernels and Green's functions in measure spaces",
+      "published": "2025-12-30",
+      "primary_category": "math.FA",
+      "role": "random",
+      "sample_year": 2025
+    },
+    {
+      "id": "2312.16416",
+      "title": "A proof of {Gross}' conjecture on $2$-automorphic $2$-groups",
+      "published": "2023-12-27",
+      "primary_category": "math.GR",
+      "role": "random",
+      "sample_year": 2023
+    },
+    {
+      "id": "2610.22719",
+      "title": "The Diophantine Problem in Wreath Products of Groups",
+      "published": "2026-10-15",
+      "primary_category": "math.GR",
+      "role": "random",
+      "sample_year": 2026
+    },
+    {
+      "id": "2412.19764",
+      "title": "Cartesian subgroups in graph products of groups",
+      "published": "2024-12-27",
+      "primary_category": "math.GT",
+      "role": "random",
+      "sample_year": 2024
+    },
+    {
+      "id": "2112.14700",
+      "title": "Framed combinatorial topology",
+      "published": "2021-12-29",
+      "primary_category": "math.GT",
+      "role": "random",
+      "sample_year": 2021
+    },
+    {
+      "id": "2601.00118",
+      "title": "The universal logic of repeated experiments",
+      "published": "2025-12-31",
+      "primary_category": "math.LO",
+      "role": "random",
+      "sample_year": 2025
+    },
+    {
+      "id": "2212.14059",
+      "title": "Elekes-Szab\u00f3 for collinearity on cubic surfaces",
+      "published": "2022-12-28",
+      "primary_category": "math.LO",
+      "role": "random",
+      "sample_year": 2022
+    },
+    {
+      "id": "2610.23817",
+      "title": "On extremal problems related to the Krzy\u017c conjecture",
+      "published": "2026-10-16",
+      "primary_category": "math.CA",
+      "role": "random",
+      "sample_year": 2026
+    },
+    {
+      "id": "2312.17410",
+      "title": "Fractional Maximal operator in hyperbolic spaces",
+      "published": "2023-12-29",
+      "primary_category": "math.CA",
+      "role": "random",
+      "sample_year": 2023
+    },
+    {
+      "id": "2112.14739",
+      "title": "Extendible Functions and Local Root Numbers Remarks on a paper of R.P. Langlands",
+      "published": "2021-12-29",
+      "primary_category": "math.NT",
+      "role": "random",
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.21194",
+      "title": "On the clique number of random Cayley graphs and related topics",
+      "published": "2024-12-30",
+      "primary_category": "math.NT",
+      "role": "random",
+      "sample_year": 2024
+    },
+    {
+      "id": "2212.14387",
+      "title": "Well-Posedness and Finite Element Approximation of Mixed Dimensional Partial Differential Equations",
+      "published": "2022-12-29",
+      "primary_category": "math.NA",
+      "role": "random",
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.24650",
+      "title": "A unified spatiotemporal formulation with physics-preserving structure for time-dependent convection-diffusion problems",
+      "published": "2025-12-31",
+      "primary_category": "math.NA",
+      "role": "random",
+      "sample_year": 2025
+    },
+    {
+      "id": "2312.13626",
+      "title": "Averaging multipliers on locally compact quantum groups",
+      "published": "2023-12-21",
+      "primary_category": "math.OA",
+      "role": "random",
+      "sample_year": 2023
+    },
+    {
+      "id": "2610.19590",
+      "title": "On the Isomorphism of Semicircular Algebras",
+      "published": "2026-10-14",
+      "primary_category": "math.OA",
+      "role": "random",
+      "sample_year": 2026
+    },
+    {
+      "id": "2501.00236",
+      "title": "Efficient Algorithm Design of Dynamic Spectrum Access by Whittle Index",
+      "published": "2024-12-31",
+      "primary_category": "math.OC",
+      "role": "random",
+      "sample_year": 2024
+    },
+    {
+      "id": "2112.15316",
+      "title": "Homogeneous Formulation of Convex Quadratic Programs for Infeasibility Detection",
+      "published": "2021-12-31",
+      "primary_category": "math.OC",
+      "role": "random",
+      "sample_year": 2021
+    },
+    {
+      "id": "2512.24714",
+      "title": "Boundary error control for numerical solution of BSDEs by the convolution-FFT method",
+      "published": "2025-12-31",
+      "primary_category": "math.PR",
+      "role": "random",
+      "sample_year": 2025
+    },
+    {
+      "id": "2301.00065",
+      "title": "Learning Koopman eigenfunctions of stochastic diffusions with optimal importance sampling and ISOKANN",
+      "published": "2022-12-30",
+      "primary_category": "math.PR",
+      "role": "random",
+      "sample_year": 2022
+    },
+    {
+      "id": "2610.23321",
+      "title": "Anomalies for compact simple Lie groups via $G$-kernels for loop group nets",
+      "published": "2026-10-16",
+      "primary_category": "math.QA",
+      "role": "random",
+      "sample_year": 2026
+    },
+    {
+      "id": "2312.17578",
+      "title": "Noncommutative Hamiltonian structures and quantizations on preprojective algebras",
+      "published": "2023-12-29",
+      "primary_category": "math.QA",
+      "role": "random",
+      "sample_year": 2023
+    },
+    {
+      "id": "2112.14288",
+      "title": "Towards a categorification of scattering amplitudes",
+      "published": "2021-12-28",
+      "primary_category": "math.RT",
+      "role": "random",
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.20673",
+      "title": "Hilbert Series of $S_3$-Quasi-Invariant Polynomials in Characteristics 2, 3",
+      "published": "2024-12-30",
+      "primary_category": "math.RT",
+      "role": "random",
+      "sample_year": 2024
+    },
+    {
+      "id": "2212.13806",
+      "title": "Matrix product states, geometry, and invariant theory",
+      "published": "2022-12-28",
+      "primary_category": "math.RA",
+      "role": "random",
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.24783",
+      "title": "On rational orbits in some prehomogeneous vector spaces",
+      "published": "2025-12-31",
+      "primary_category": "math.RA",
+      "role": "random",
+      "sample_year": 2025
+    }
+  ]
+}

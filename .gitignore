@@ -29,3 +29,4 @@ xcuserdata/
 __pycache__/
 *.pyc
 Benchmarks/arxiv_scorecard/cache/
+Benchmarks/nonarxiv_scorecard/cache/

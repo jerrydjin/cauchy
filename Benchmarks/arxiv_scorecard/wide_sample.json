@@ -1,0 +1,738 @@
+{
+  "seed": 20261019,
+  "sampled_on": "2026-10-19",
+  "method": "dev_ids_wide.json is not on main or any remote branch. This file is the additional 40. Two papers from each of the 20 scorecard categories, from two distinct years in 2021-2026 (category index mod 6, and that plus 3). The first LaTeXML HTML paper in a seeded shuffle of the year's recent submissions is kept. ids.json, including its edge cases, is excluded. The hidden holdout was not consulted.",
+  "papers": [
+    {
+      "id": "2112.15313",
+      "title": "On Orbifold Gromov-Witten Classes",
+      "published": "2021-12-31",
+      "comment": "v1: 6 pages; v2: 6 pages, minor revison, to appear in Portugaliae Mathematica",
+      "categories": [
+        "math.AG"
+      ],
+      "authors": [
+        "Hsian-Hua Tseng"
+      ],
+      "primary_category": "math.AG",
+      "role": "random",
+      "html_bytes": 155647,
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.20869",
+      "title": "Hypersurface Arrangements with Generic Hypersurfaces Added",
+      "published": "2024-12-30",
+      "comment": "19 pages, 3 figures, 2 tables",
+      "categories": [
+        "math.AG"
+      ],
+      "authors": [
+        "Bernhard Reinke",
+        "Kexin Wang"
+      ],
+      "primary_category": "math.AG",
+      "role": "random",
+      "html_bytes": 522721,
+      "sample_year": 2024
+    },
+    {
+      "id": "2212.11942",
+      "title": "Big mapping class groups with uncountable integral homology",
+      "published": "2022-12-22",
+      "comment": "20 pages, 6 figures. To appear in Documenta Mathematica",
+      "categories": [
+        "math.GT",
+        "math.AT",
+        "math.GR"
+      ],
+      "authors": [
+        "Martin Palmer",
+        "Xiaolei Wu"
+      ],
+      "primary_category": "math.AT",
+      "role": "random",
+      "html_bytes": 642497,
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.20551",
+      "title": "An Arithmetic Topology viewpoint on Descent theory and Equivariant Categories",
+      "published": "2025-12-23",
+      "comment": "55 pages",
+      "categories": [
+        "math.AG",
+        "math.AT",
+        "math.CT",
+        "math.NT"
+      ],
+      "authors": [
+        "Miltiadis Karakikes",
+        "Sotiris Karanikolopoulos",
+        "Aristides Kontogeorgis",
+        "Dimitrios Noulas"
+      ],
+      "primary_category": "math.AT",
+      "role": "random",
+      "html_bytes": 857012,
+      "sample_year": 2025
+    },
+    {
+      "id": "2401.00439",
+      "title": "On the breathing of spectral bands in periodic quantum waveguides with inflating resonators",
+      "published": "2023-12-31",
+      "comment": "",
+      "categories": [
+        "math.AP",
+        "math-ph"
+      ],
+      "authors": [
+        "Lucas Chesnel",
+        "Sergei A. Nazarov"
+      ],
+      "primary_category": "math.AP",
+      "role": "random",
+      "html_bytes": 985269,
+      "sample_year": 2023
+    },
+    {
+      "id": "2610.23753",
+      "title": "Asymptotic stability of a Bloch skyrmion for the Landau-Lifshitz-Gilbert equation",
+      "published": "2026-10-16",
+      "comment": "",
+      "categories": [
+        "math.AP"
+      ],
+      "authors": [
+        "Jordan Berthoumieu",
+        "Rapha\u00ebl C\u00f4te"
+      ],
+      "primary_category": "math.AP",
+      "role": "random",
+      "html_bytes": 1163200,
+      "sample_year": 2026
+    },
+    {
+      "id": "2501.00275",
+      "title": "Further results for classical and universal characters twisted by roots of unity",
+      "published": "2024-12-31",
+      "comment": "28 pages, dedicated to Vyjyanthi Chari on the occasion of her 65th birthday, improved exposition, final version",
+      "categories": [
+        "math.CO",
+        "math.RT"
+      ],
+      "authors": [
+        "Arvind Ayyer",
+        "Nishu Kumari"
+      ],
+      "primary_category": "math.CO",
+      "role": "random",
+      "html_bytes": 892283,
+      "sample_year": 2024
+    },
+    {
+      "id": "2112.15205",
+      "title": "Spaces of polynomials with constrained real divisors, II. (Co)homology & stabilization",
+      "published": "2021-12-30",
+      "comment": "",
+      "categories": [
+        "math.AT",
+        "math.CO"
+      ],
+      "authors": [
+        "Gabriel Katz",
+        "Boris Shapiro",
+        "Volkmar Welker"
+      ],
+      "primary_category": "math.CO",
+      "role": "random",
+      "html_bytes": 1482426,
+      "sample_year": 2021
+    },
+    {
+      "id": "2512.22078",
+      "title": "Notes on some categories related to that of finite totally ordered sets",
+      "published": "2025-12-26",
+      "comment": "19 pages",
+      "categories": [
+        "math.CT"
+      ],
+      "authors": [
+        "Takuo Matsuoka"
+      ],
+      "primary_category": "math.CT",
+      "role": "random",
+      "html_bytes": 701015,
+      "sample_year": 2025
+    },
+    {
+      "id": "2212.12358",
+      "title": "A skew approach to enrichment for Gray-categories",
+      "published": "2022-12-23",
+      "comment": "Extended intro. Added material on presentations of tensor products. Journal version",
+      "categories": [
+        "math.CT"
+      ],
+      "authors": [
+        "John Bourke",
+        "Gabriele Lobbia"
+      ],
+      "primary_category": "math.CT",
+      "role": "random",
+      "html_bytes": 6692557,
+      "sample_year": 2022
+    },
+    {
+      "id": "2610.23441",
+      "title": "Complete harmonic metrics and subharmonic functions on the complex plane",
+      "published": "2026-10-16",
+      "comment": "This paper is a continuation of arXiv:2508.12848 and subsumes all of its uniqueness results. The two papers will be merged into a single manuscript for journal submission. 43 pages",
+      "categories": [
+        "math.DG",
+        "math.AP",
+        "math.CV"
+      ],
+      "authors": [
+        "Natsuo Miyatake"
+      ],
+      "primary_category": "math.DG",
+      "role": "random",
+      "html_bytes": 1623125,
+      "sample_year": 2026
+    },
+    {
+      "id": "2401.00607",
+      "title": "Ricci flows which terminate in cones",
+      "published": "2023-12-31",
+      "comment": "52 pages, no figures",
+      "categories": [
+        "math.DG"
+      ],
+      "authors": [
+        "Brett Kotschwar"
+      ],
+      "primary_category": "math.DG",
+      "role": "random",
+      "html_bytes": 1712536,
+      "sample_year": 2023
+    },
+    {
+      "id": "2112.15073",
+      "title": "$\u03bc$-norm of an operator",
+      "published": "2021-12-30",
+      "comment": "",
+      "categories": [
+        "math.DS",
+        "math.FA"
+      ],
+      "authors": [
+        "Dmitry Treschev"
+      ],
+      "primary_category": "math.DS",
+      "role": "random",
+      "html_bytes": 907301,
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.20958",
+      "title": "The selection problem for a new class of perturbations of Hamilton-Jacobi equations and its applications",
+      "published": "2024-12-30",
+      "comment": "32 pages",
+      "categories": [
+        "math.AP",
+        "math.DS"
+      ],
+      "authors": [
+        "Qinbo Chen"
+      ],
+      "primary_category": "math.DS",
+      "role": "random",
+      "html_bytes": 1006011,
+      "sample_year": 2024
+    },
+    {
+      "id": "2301.00284",
+      "title": "Square Root Normal Fields for Lipschitz surfaces and the Wasserstein Fisher Rao metric",
+      "published": "2022-12-31",
+      "comment": "19 pages",
+      "categories": [
+        "math.DG",
+        "math.FA"
+      ],
+      "authors": [
+        "Emmanuel Hartman",
+        "Martin Bauer",
+        "Eric Klassen"
+      ],
+      "primary_category": "math.FA",
+      "role": "random",
+      "html_bytes": 590367,
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.24348",
+      "title": "An explicit construction of heat kernels and Green's functions in measure spaces",
+      "published": "2025-12-30",
+      "comment": "37 pages",
+      "categories": [
+        "math.CA",
+        "math.FA"
+      ],
+      "authors": [
+        "Palle Jorgensen",
+        "Jay Jorgenson",
+        "Lejla Smajlovic"
+      ],
+      "primary_category": "math.FA",
+      "role": "random",
+      "html_bytes": 1106027,
+      "sample_year": 2025
+    },
+    {
+      "id": "2312.16416",
+      "title": "A proof of {Gross}' conjecture on $2$-automorphic $2$-groups",
+      "published": "2023-12-27",
+      "comment": "12 pages",
+      "categories": [
+        "math.GR"
+      ],
+      "authors": [
+        "Cai Heng Li",
+        "Yan Zhou Zhu"
+      ],
+      "primary_category": "math.GR",
+      "role": "random",
+      "html_bytes": 470795,
+      "sample_year": 2023
+    },
+    {
+      "id": "2610.22719",
+      "title": "The Diophantine Problem in Wreath Products of Groups",
+      "published": "2026-10-15",
+      "comment": "",
+      "categories": [
+        "math.GR"
+      ],
+      "authors": [
+        "Michael Catli",
+        "Alexei Myasnikov"
+      ],
+      "primary_category": "math.GR",
+      "role": "random",
+      "html_bytes": 601372,
+      "sample_year": 2026
+    },
+    {
+      "id": "2412.19764",
+      "title": "Cartesian subgroups in graph products of groups",
+      "published": "2024-12-27",
+      "comment": "26 pages, 6 figures, accepted to J. Pure Appl. Algebra",
+      "categories": [
+        "math.GR",
+        "math.AT",
+        "math.GT"
+      ],
+      "authors": [
+        "Fedor Vylegzhanin"
+      ],
+      "primary_category": "math.GT",
+      "role": "random",
+      "html_bytes": 1071948,
+      "sample_year": 2024
+    },
+    {
+      "id": "2112.14700",
+      "title": "Framed combinatorial topology",
+      "published": "2021-12-29",
+      "comment": "",
+      "categories": [
+        "math.GT",
+        "math.AT",
+        "math.CO",
+        "math.QA"
+      ],
+      "authors": [
+        "Christoph Dorn",
+        "Christopher L. Douglas"
+      ],
+      "primary_category": "math.GT",
+      "role": "random",
+      "html_bytes": 6764746,
+      "sample_year": 2021
+    },
+    {
+      "id": "2601.00118",
+      "title": "The universal logic of repeated experiments",
+      "published": "2025-12-31",
+      "comment": "",
+      "categories": [
+        "math.LO",
+        "math-ph",
+        "math.RA"
+      ],
+      "authors": [
+        "Sergio Daniel Grillo"
+      ],
+      "primary_category": "math.LO",
+      "role": "random",
+      "html_bytes": 983026,
+      "sample_year": 2025
+    },
+    {
+      "id": "2212.14059",
+      "title": "Elekes-Szab\u00f3 for collinearity on cubic surfaces",
+      "published": "2022-12-28",
+      "comment": "v2: misc minor improvements; v3: plug gap in proof of Proposition 4.6; v4: various improvements to presentation and structure -- numbering of statements has changed",
+      "categories": [
+        "math.LO",
+        "math.CO"
+      ],
+      "authors": [
+        "Martin Bays",
+        "Jan Dobrowolski",
+        "Tingxiang Zou"
+      ],
+      "primary_category": "math.LO",
+      "role": "random",
+      "html_bytes": 1611186,
+      "sample_year": 2022
+    },
+    {
+      "id": "2610.23817",
+      "title": "On extremal problems related to the Krzy\u017c conjecture",
+      "published": "2026-10-16",
+      "comment": "",
+      "categories": [
+        "math.CV",
+        "math.CA"
+      ],
+      "authors": [
+        "Sarah May Instanes",
+        "Adri\u00e1n Llinares",
+        "Dragan Vukoti\u0107"
+      ],
+      "primary_category": "math.CA",
+      "role": "random",
+      "html_bytes": 570108,
+      "sample_year": 2026
+    },
+    {
+      "id": "2312.17410",
+      "title": "Fractional Maximal operator in hyperbolic spaces",
+      "published": "2023-12-29",
+      "comment": "13 pages",
+      "categories": [
+        "math.CA"
+      ],
+      "authors": [
+        "Gonzalo Iba\u00f1ez-Firnkorn",
+        "Emanuel Ramadori"
+      ],
+      "primary_category": "math.CA",
+      "role": "random",
+      "html_bytes": 413302,
+      "sample_year": 2023
+    },
+    {
+      "id": "2112.14739",
+      "title": "Extendible Functions and Local Root Numbers Remarks on a paper of R.P. Langlands",
+      "published": "2021-12-29",
+      "comment": "50 pages",
+      "categories": [
+        "math.NT"
+      ],
+      "authors": [
+        "Helmut Koch",
+        "Ernst-Wilhelm Zink"
+      ],
+      "primary_category": "math.NT",
+      "role": "random",
+      "html_bytes": 1627401,
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.21194",
+      "title": "On the clique number of random Cayley graphs and related topics",
+      "published": "2024-12-30",
+      "comment": "",
+      "categories": [
+        "math.CO",
+        "cs.DM",
+        "math.NT",
+        "math.PR"
+      ],
+      "authors": [
+        "David Conlon",
+        "Jacob Fox",
+        "Huy Tuan Pham",
+        "Liana Yepremyan"
+      ],
+      "primary_category": "math.NT",
+      "role": "random",
+      "html_bytes": 1245477,
+      "sample_year": 2024
+    },
+    {
+      "id": "2212.14387",
+      "title": "Well-Posedness and Finite Element Approximation of Mixed Dimensional Partial Differential Equations",
+      "published": "2022-12-29",
+      "comment": "22 pages, 6 figures",
+      "categories": [
+        "math.NA"
+      ],
+      "authors": [
+        "Fredrik Hellman",
+        "Axel M\u00e5lqvist",
+        "Malin Mosquera"
+      ],
+      "primary_category": "math.NA",
+      "role": "random",
+      "html_bytes": 448936,
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.24650",
+      "title": "A unified spatiotemporal formulation with physics-preserving structure for time-dependent convection-diffusion problems",
+      "published": "2025-12-31",
+      "comment": "",
+      "categories": [
+        "math.AP",
+        "math.NA"
+      ],
+      "authors": [
+        "James H. Adler",
+        "Xiaozhe Hu",
+        "Seulip Lee"
+      ],
+      "primary_category": "math.NA",
+      "role": "random",
+      "html_bytes": 747321,
+      "sample_year": 2025
+    },
+    {
+      "id": "2312.13626",
+      "title": "Averaging multipliers on locally compact quantum groups",
+      "published": "2023-12-21",
+      "comment": "39 pages. Revision, correcting an error in Proposition 8.5 of the first version which affects some statements in section 8, and adding some further material",
+      "categories": [
+        "math.OA",
+        "math.FA",
+        "math.QA"
+      ],
+      "authors": [
+        "Matthew Daws",
+        "Jacek Krajczok",
+        "Christian Voigt"
+      ],
+      "primary_category": "math.OA",
+      "role": "random",
+      "html_bytes": 2596041,
+      "sample_year": 2023
+    },
+    {
+      "id": "2610.19590",
+      "title": "On the Isomorphism of Semicircular Algebras",
+      "published": "2026-10-14",
+      "comment": "Based on: OpenAI, An isomorphism of the free group factors, preprint, September 23, 2026, family 287 in the collection at github.com/openai/math",
+      "categories": [
+        "math.OA"
+      ],
+      "authors": [
+        "D. Shlyakhtenko"
+      ],
+      "primary_category": "math.OA",
+      "role": "random",
+      "html_bytes": 851452,
+      "sample_year": 2026
+    },
+    {
+      "id": "2501.00236",
+      "title": "Efficient Algorithm Design of Dynamic Spectrum Access by Whittle Index",
+      "published": "2024-12-31",
+      "comment": "",
+      "categories": [
+        "math.OC"
+      ],
+      "authors": [
+        "Keqin Liu",
+        "Qizhen Jia",
+        "Yiying Zhang",
+        "Zhi Ding"
+      ],
+      "primary_category": "math.OC",
+      "role": "random",
+      "html_bytes": 747133,
+      "sample_year": 2024
+    },
+    {
+      "id": "2112.15316",
+      "title": "Homogeneous Formulation of Convex Quadratic Programs for Infeasibility Detection",
+      "published": "2021-12-31",
+      "comment": "12 pages",
+      "categories": [
+        "math.OC"
+      ],
+      "authors": [
+        "Arvind U Raghunathan"
+      ],
+      "primary_category": "math.OC",
+      "role": "random",
+      "html_bytes": 310749,
+      "sample_year": 2021
+    },
+    {
+      "id": "2512.24714",
+      "title": "Boundary error control for numerical solution of BSDEs by the convolution-FFT method",
+      "published": "2025-12-31",
+      "comment": "15 pages, 3 figures, 1 table",
+      "categories": [
+        "math.NA",
+        "math.PR",
+        "q-fin.CP"
+      ],
+      "authors": [
+        "Xiang Gao",
+        "Cody Hyndman"
+      ],
+      "primary_category": "math.PR",
+      "role": "random",
+      "html_bytes": 396858,
+      "sample_year": 2025
+    },
+    {
+      "id": "2301.00065",
+      "title": "Learning Koopman eigenfunctions of stochastic diffusions with optimal importance sampling and ISOKANN",
+      "published": "2022-12-30",
+      "comment": "",
+      "categories": [
+        "math.DS",
+        "math.PR"
+      ],
+      "authors": [
+        "Alexander Sikorski",
+        "Enric Ribera Borrell",
+        "Marcus Weber"
+      ],
+      "primary_category": "math.PR",
+      "role": "random",
+      "html_bytes": 368840,
+      "sample_year": 2022
+    },
+    {
+      "id": "2610.23321",
+      "title": "Anomalies for compact simple Lie groups via $G$-kernels for loop group nets",
+      "published": "2026-10-16",
+      "comment": "Preliminary draft version, 24 pages. Comments are welcome!",
+      "categories": [
+        "math.OA",
+        "math-ph",
+        "math.FA",
+        "math.QA"
+      ],
+      "authors": [
+        "Marcel Bischoff",
+        "Pradyut Karmakar"
+      ],
+      "primary_category": "math.QA",
+      "role": "random",
+      "html_bytes": 650899,
+      "sample_year": 2026
+    },
+    {
+      "id": "2312.17578",
+      "title": "Noncommutative Hamiltonian structures and quantizations on preprojective algebras",
+      "published": "2023-12-29",
+      "comment": "",
+      "categories": [
+        "math.QA",
+        "math-ph",
+        "math.RA",
+        "math.RT"
+      ],
+      "authors": [
+        "Hu Zhao"
+      ],
+      "primary_category": "math.QA",
+      "role": "random",
+      "html_bytes": 949025,
+      "sample_year": 2023
+    },
+    {
+      "id": "2112.14288",
+      "title": "Towards a categorification of scattering amplitudes",
+      "published": "2021-12-28",
+      "comment": "33 pages, 14 figures, comments are very welcome, v2 fixed Fig. 3",
+      "categories": [
+        "hep-th",
+        "math-ph",
+        "math.RT"
+      ],
+      "authors": [
+        "Severin Barmeier",
+        "Prafulla Oak",
+        "Aritra Pal",
+        "Koushik Ray",
+        "Hipolito Treffinger"
+      ],
+      "primary_category": "math.RT",
+      "role": "random",
+      "html_bytes": 2427335,
+      "sample_year": 2021
+    },
+    {
+      "id": "2412.20673",
+      "title": "Hilbert Series of $S_3$-Quasi-Invariant Polynomials in Characteristics 2, 3",
+      "published": "2024-12-30",
+      "comment": "",
+      "categories": [
+        "math.RT",
+        "math.QA"
+      ],
+      "authors": [
+        "Frank Wang",
+        "Eric Yee"
+      ],
+      "primary_category": "math.RT",
+      "role": "random",
+      "html_bytes": 979668,
+      "sample_year": 2024
+    },
+    {
+      "id": "2212.13806",
+      "title": "Matrix product states, geometry, and invariant theory",
+      "published": "2022-12-28",
+      "comment": "10 pages; comments welcome!",
+      "categories": [
+        "math.RT",
+        "math-ph",
+        "math.AG",
+        "math.RA"
+      ],
+      "authors": [
+        "Tim Seynnaeve"
+      ],
+      "primary_category": "math.RA",
+      "role": "random",
+      "html_bytes": 271093,
+      "sample_year": 2022
+    },
+    {
+      "id": "2512.24783",
+      "title": "On rational orbits in some prehomogeneous vector spaces",
+      "published": "2025-12-31",
+      "comment": "",
+      "categories": [
+        "math.GR",
+        "math.RA",
+        "math.RT"
+      ],
+      "authors": [
+        "Sayan Pal"
+      ],
+      "primary_category": "math.RA",
+      "role": "random",
+      "html_bytes": 1178231,
+      "sample_year": 2025
+    }
+  ]
+}

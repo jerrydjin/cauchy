@@ -177,7 +177,12 @@ def _true_section_page(
     return None
 
 
-def _section_questions(truth: PaperTruth, pages: list[dict], structure: Structure | None) -> dict:
+def _section_questions(
+    truth: PaperTruth,
+    pages: list[dict],
+    structure: Structure | None,
+    truth_outline: list | None = None,
+) -> dict:
     candidates = [section for section in truth.sections if re.fullmatch(r"\d+(?:\.\d+)?", section.number)]
     level1 = [section for section in candidates if section.level == 1] or candidates
     if not level1:
@@ -192,8 +197,14 @@ def _section_questions(truth: PaperTruth, pages: list[dict], structure: Structur
         if section.number in seen:
             continue
         seen.add(section.number)
-        outline = None if structure is None else structure.outline
-        truth_page = _true_section_page(pages, section.number, section.title, outline)
+        if section.page_index is not None:
+            truth_page = section.page_index
+        else:
+            if truth_outline is not None:
+                outline = truth_outline
+            else:
+                outline = None if structure is None else structure.outline
+            truth_page = _true_section_page(pages, section.number, section.title, outline)
         question = f"what is section {section.number} about"
         query = structural_query(question)
         found = None if structure is None or query is None else locate(query, structure)
@@ -248,13 +259,25 @@ def score_profile(
     pages: list[dict],
     profile: str,
     use_structure: bool,
+    statement_index: StatementIndex | None = None,
+    locator: Structure | None = None,
+    truth_outline: list | None = None,
 ) -> dict:
     started = time.perf_counter()
     matches, cites, prepared = _page_maps(pages, profile)
-    index = build_statement_index(prepared, profile)
+    if statement_index is None:
+        index = build_statement_index(prepared, profile)
+    else:
+        # The LaTeX source index is already built. The detector above is unchanged.
+        index = statement_index
     index_seconds = time.perf_counter() - started
 
-    structure = score_profile.structure if use_structure else None
+    if not use_structure:
+        structure = None
+    elif locator is not None:
+        structure = locator
+    else:
+        structure = score_profile.structure
 
     grouped: dict[tuple[str, str], int] = defaultdict(int)
     for mention in truth.mentions:
@@ -267,14 +290,21 @@ def score_profile(
     wrong = 0
     extraction_misses = 0
     examples: dict[str, list] = {"missed": [], "wrong": [], "citation": []}
-    questions = _section_questions(truth, pages, structure)
+    questions = _section_questions(truth, pages, structure, truth_outline)
     section_cache = {item["number"]: item["ok"] for item in questions["probed"]}
     for number in {item[1] for item in grouped if item[0] == "section"}:
         if number in section_cache:
             continue
         title = next((section.title for section in truth.sections if section.number == number), "")
-        outline = None if structure is None else structure.outline
-        truth_page = _true_section_page(pages, number, title, outline)
+        hand = next((section.page_index for section in truth.sections if section.number == number), None)
+        if hand is not None:
+            truth_page = hand
+        else:
+            if truth_outline is not None:
+                outline = truth_outline
+            else:
+                outline = None if structure is None else structure.outline
+            truth_page = _true_section_page(pages, number, title, outline)
         query = None if structure is None else structural_query(f"what is section {number} about")
         found = None if query is None else locate(query, structure)
         section_cache[number] = truth_page is not None and found is not None and found.start_page == truth_page

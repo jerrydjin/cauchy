@@ -1,0 +1,4553 @@
+{
+  "method": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+  "papers": [
+    {
+      "id": "doty-permutation-groups",
+      "title": "Doty, Abstract Algebra, permutation groups",
+      "area": "algebra",
+      "form": "textbook chapter",
+      "license": "CC BY 4.0",
+      "url": "https://doty.math.luc.edu/abstract-alg.pdf",
+      "pdf_pages": [
+        22,
+        35
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "definition",
+          "number": "6.1",
+          "page": 0,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.2",
+          "page": 0,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.3",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.4",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.5",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.6",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.7",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.8",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.9",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.10",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.11",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.12",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.13",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.14",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.15",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "6.16",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.17",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "6.18",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.19",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.20",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "6.21",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "6.22",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.24",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "7.1",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "7.2",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "7.4",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "7.5",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "7.6",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "7.7",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "7.8",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "7.9",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "7.10",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "7.11",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "7.12",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "7.13",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "7.14",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "7.15",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "7.16",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "8.1",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "8.2",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "8.3",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "8.5",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "8.6",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "8.8",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "8.9",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "8.10",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.0,
+        "denominator": 25,
+        "correct": 0,
+        "missed": 2,
+        "extraction_misses": 23,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "resolution 0.0% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "judson-groups",
+      "title": "Judson, Abstract Algebra, groups",
+      "area": "algebra",
+      "form": "textbook chapter",
+      "license": "GFDL 1.2",
+      "url": "https://judsonbooks.org/aata-files/aata-20220728.pdf",
+      "pdf_pages": [
+        40,
+        70
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "3.1",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.2",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.4",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.8",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.9",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.11",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.13",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.14",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.15",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.16",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.17",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.18",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.19",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.20",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.21",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.22",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.23",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.24",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.25",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.26",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.27",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.28",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.30",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.31",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.1",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.2",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "4.3",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "4.4",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.5",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.6",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.7",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "4.9",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "4.10",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "4.11",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "4.12",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "4.13",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "4.14",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.15",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.16",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.19",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "4.20",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.21",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "4.22",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.23",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "4.24",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "4.25",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.26",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.28",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.0,
+        "denominator": 8,
+        "correct": 0,
+        "missed": 8,
+        "extraction_misses": 0,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "resolution 0.0% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "lebl-sequences",
+      "title": "Lebl, Basic Analysis, sequences",
+      "area": "analysis",
+      "form": "textbook chapter",
+      "license": "CC BY-SA 4.0",
+      "url": "https://www.jirka.org/ra/realanal.pdf",
+      "pdf_pages": [
+        51,
+        84
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "definition",
+          "number": "2.1.1",
+          "page": 0,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.1.2",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.1.3",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.1.4",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.1.5",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.6",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.7",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.1.8",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.1.9",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.1.10",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.1.11",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.1.12",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.13",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.1.14",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.15",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.1.16",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.17",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.1.18",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.7",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "2.2.1",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2.2",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "2.2.3",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "2.2.4",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.5",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.6",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.7",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2.8",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2.9",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.10",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.11",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "2.2.12",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2.13",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2.14",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.3.1",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.2",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.3.3",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.3.4",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.5",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.6",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.3.8",
+          "page": 27,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.3.9",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.10",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.3.11",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.3.12",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.13",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.3.14",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.4.1",
+          "page": 33,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.4.2",
+          "page": 33,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.4.3",
+          "page": 33,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.4.4",
+          "page": 33,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [
+        {
+          "number": "2.1",
+          "title": "Sequences and limits",
+          "level": 2,
+          "page": 0,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.2",
+          "title": "Facts about limits of sequences",
+          "level": 2,
+          "page": 10,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.3",
+          "title": "Limit superior, limit inferior, and Bolzano\u2013Weierstrass",
+          "level": 2,
+          "page": 22,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.4",
+          "title": "Cauchy sequences",
+          "level": 2,
+          "page": 33,
+          "how": "The section number is alone on a line and the next line is the heading."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.8947,
+        "denominator": 38,
+        "correct": 34,
+        "missed": 0,
+        "extraction_misses": 4,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "resolution 89.5% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "lebl-holomorphic",
+      "title": "Lebl, Guide to Complex Variables, holomorphic functions",
+      "area": "complex analysis",
+      "form": "textbook chapter",
+      "license": "CC BY-NC-SA 4.0",
+      "url": "https://www.jirka.org/ca/ca.pdf",
+      "pdf_pages": [
+        26,
+        51
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "definition",
+          "number": "2.1.1",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.2",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.3",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.4",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "2.1.5",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.1",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.2",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.3",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.4",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.5",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.6",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.2.7",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.2.8",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.2.9",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "2.2.10",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.1",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.2",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.3",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.3.4",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "2.3.5",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.4.1",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.4.2",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "2.4.3",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "2.4.4",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "2.4.5",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.4.6",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.4.7",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.4.8",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "equation",
+          "number": "2.1",
+          "page": 1,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "2.2",
+          "page": 2,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "2.3",
+          "page": 6,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "2.4",
+          "page": 16,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        }
+      ],
+      "sections": [],
+      "main": {
+        "passes": false,
+        "resolution_rate": 1.0,
+        "denominator": 15,
+        "correct": 15,
+        "missed": 0,
+        "extraction_misses": 0,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "lebl-first-order",
+      "title": "Lebl, Notes on Diffy Qs, first-order equations",
+      "area": "differential equations",
+      "form": "textbook chapter",
+      "license": "CC BY-SA 4.0",
+      "url": "https://www.jirka.org/diffyqs/diffyqs.pdf",
+      "pdf_pages": [
+        21,
+        56
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "1.1.1",
+          "page": 0,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.1.2",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.1.3",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.1.4",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.1.5",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.1.6",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.1",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.2",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.2.1",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.3",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.1",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.2",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.3",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.4",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.4.1",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "1.4.1",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.4.2",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.5.1",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.5.2",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "equation",
+          "number": "1.1",
+          "page": 0,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "1.2",
+          "page": 1,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "1.3",
+          "page": 19,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "1.4",
+          "page": 20,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        }
+      ],
+      "sections": [
+        {
+          "number": "1.1",
+          "title": "Integrals as solutions",
+          "level": 2,
+          "page": 0,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.2",
+          "title": "Slope fields",
+          "level": 2,
+          "page": 6,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.3",
+          "title": "Separable equations",
+          "level": 2,
+          "page": 12,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "0.0",
+          "title": "2.5",
+          "level": 2,
+          "page": 15,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.5",
+          "title": "5.0",
+          "level": 2,
+          "page": 15,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "5.0",
+          "title": "-5.0",
+          "level": 2,
+          "page": 15,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "7.5",
+          "title": "10.0",
+          "level": 2,
+          "page": 17,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "10.0",
+          "title": "12.5",
+          "level": 2,
+          "page": 17,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "12.5",
+          "title": "0.0",
+          "level": 2,
+          "page": 17,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.4",
+          "title": "Linear equations and the integrating factor",
+          "level": 2,
+          "page": 19,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "10.5",
+          "title": "11.0",
+          "level": 2,
+          "page": 22,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "11.0",
+          "title": "11.5",
+          "level": 2,
+          "page": 22,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "11.5",
+          "title": "10.0",
+          "level": 2,
+          "page": 22,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.5",
+          "title": "Substitution",
+          "level": 2,
+          "page": 25,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.6",
+          "title": "Autonomous equations",
+          "level": 2,
+          "page": 30,
+          "how": "The section number is alone on a line and the next line is the heading."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.7353,
+        "denominator": 34,
+        "correct": 25,
+        "missed": 1,
+        "extraction_misses": 8,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "resolution 73.5% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "nicholson-systems",
+      "title": "Nicholson, Linear Algebra with Applications, systems",
+      "area": "linear algebra",
+      "form": "textbook chapter",
+      "license": "CC BY-NC-SA 4.0",
+      "url": "https://math.sci.ccny.cuny.edu/document/Nicholson-Linear+Algebra+with+Applications2018.pdf",
+      "pdf_pages": [
+        21,
+        47
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "1.1.1",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.1.2",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.1.1",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.1.3",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.1",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.2.1",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.2",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.3",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.4",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.5",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.2.2",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2.6",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.1",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.3.1",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.2",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.3",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.4",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.5",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.3.2",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3.6",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "equation",
+          "number": "1.1",
+          "page": 22,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        }
+      ],
+      "sections": [
+        {
+          "number": "1",
+          "title": "Systems of Linear Equations",
+          "level": 1,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "1.1",
+          "title": "Solutions and Elementary Operations",
+          "level": 2,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "1.2",
+          "title": "Gaussian Elimination",
+          "level": 2,
+          "page": 8,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "1.3",
+          "title": "Homogeneous Equations",
+          "level": 2,
+          "page": 20,
+          "how": "PDF outline bookmark whose title starts with this number."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.0476,
+        "denominator": 21,
+        "correct": 1,
+        "missed": 16,
+        "extraction_misses": 4,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": true,
+        "fail_reasons": [
+          "resolution 4.8% is under 90%"
+        ]
+      }
+    },
+    {
+      "id": "kuttler-determinants",
+      "title": "Kuttler, A First Course in Linear Algebra, determinants",
+      "area": "linear algebra",
+      "form": "textbook chapter",
+      "license": "CC BY 4.0",
+      "url": "https://openlab.citytech.cuny.edu/poiriermat2580fall2024/files/2024/01/Kuttler-LinearAlgebra-AFirstCourse.pdf",
+      "pdf_pages": [
+        123,
+        155
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "3.3",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.7",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.9",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.10",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.11",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.13",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.14",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.16",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.17",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.18",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.19",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.20",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.21",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.22",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.23",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.24",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.25",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.26",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.27",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.28",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.29",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.30",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.31",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "3.32",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "3.33",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "3.34",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.35",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.36",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.37",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.38",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.41",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.42",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.43",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.44",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.45",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.47",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.48",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.49",
+          "page": 31,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "equation",
+          "number": "3.1",
+          "page": 16,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "3.2",
+          "page": 19,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "3.3",
+          "page": 26,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        }
+      ],
+      "sections": [
+        {
+          "number": "3.1",
+          "title": "Basic Techniques and Properties",
+          "level": 2,
+          "page": 0,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "33.7",
+          "title": "0",
+          "level": 2,
+          "page": 6,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "3.2",
+          "title": "Applications of the Determinant",
+          "level": 2,
+          "page": 21,
+          "how": "The section number is alone on a line and the next line is the heading."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.806,
+        "denominator": 67,
+        "correct": 54,
+        "missed": 11,
+        "extraction_misses": 2,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "resolution 80.6% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "treil-bases",
+      "title": "Treil, Linear Algebra Done Wrong, bases and matrices",
+      "area": "linear algebra",
+      "form": "textbook chapter",
+      "license": "CC BY-NC-ND 3.0",
+      "url": "https://www.math.brown.edu/~treil/papers/LADW/LADW_2017-09-04.pdf",
+      "pdf_pages": [
+        11,
+        40
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "2.2",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.3",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "2.4",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.6",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.7",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.8",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "5.1",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.1",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "6.2",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.3",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "6.4",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.5",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.6",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.7",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "6.8",
+          "page": 27,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "6.9",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "equation",
+          "number": "1.1",
+          "page": 3,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "2.1",
+          "page": 8,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        }
+      ],
+      "sections": [
+        {
+          "number": "1",
+          "title": "Vector spaces",
+          "level": 1,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "1.1",
+          "title": "Examples",
+          "level": 2,
+          "page": 2,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "1.2",
+          "title": "Matrix notation",
+          "level": 2,
+          "page": 3,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "2",
+          "title": "Linear combinations, bases",
+          "level": 1,
+          "page": 5,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "2.1",
+          "title": "Generating and linearly independent systems",
+          "level": 2,
+          "page": 6,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "3",
+          "title": "Linear Transformations. Matrix\u2013vector multiplication",
+          "level": 1,
+          "page": 11,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "3.1",
+          "title": "Examples",
+          "level": 2,
+          "page": 11,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "3.2",
+          "title": "Linear transformations F**n \u2013> F**m. Matrix\u2013column multiplication",
+          "level": 2,
+          "page": 12,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "3.3",
+          "title": "Linear transformations and generating sets",
+          "level": 2,
+          "page": 14,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "3.4",
+          "title": "Conclusions",
+          "level": 2,
+          "page": 14,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "4",
+          "title": "Linear transformations as a vector space",
+          "level": 1,
+          "page": 16,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "5",
+          "title": "Composition of linear transformations and matrix multiplication",
+          "level": 1,
+          "page": 18,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "5.2",
+          "title": "Motivation: composition of linear transformations",
+          "level": 2,
+          "page": 18,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "5.3",
+          "title": "Properties of matrix multiplication",
+          "level": 2,
+          "page": 20,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "5.4",
+          "title": "Transposed matrices and multiplication",
+          "level": 2,
+          "page": 21,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "5.5",
+          "title": "Trace and matrix multiplication",
+          "level": 2,
+          "page": 22,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6",
+          "title": "Invertible transformations and matrices. Isomorphisms",
+          "level": 1,
+          "page": 23,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6.1",
+          "title": "Identity transformation and identity matrix",
+          "level": 2,
+          "page": 23,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6.2",
+          "title": "Invertible transformations",
+          "level": 2,
+          "page": 23,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6.2.1",
+          "title": "Properties of the inverse transformation",
+          "level": 2,
+          "page": 25,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6.3",
+          "title": "Isomorphism. Isomorphic spaces",
+          "level": 2,
+          "page": 26,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6.4",
+          "title": "Invertibility and equations",
+          "level": 2,
+          "page": 27,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "7",
+          "title": "Subspaces",
+          "level": 1,
+          "page": 29,
+          "how": "PDF outline bookmark whose title starts with this number."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.475,
+        "denominator": 40,
+        "correct": 19,
+        "missed": 0,
+        "extraction_misses": 21,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": true,
+        "fail_reasons": [
+          "resolution 47.5% is under 90%"
+        ]
+      }
+    },
+    {
+      "id": "ntic-division",
+      "title": "Crisman, Number Theory in Context, division",
+      "area": "number theory",
+      "form": "textbook chapter",
+      "license": "CC BY-ND 4.0",
+      "url": "https://math.gordon.edu/ntic/nticoneside.pdf",
+      "pdf_pages": [
+        32,
+        50
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "number": "2.1.1",
+          "page": 0,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.1.4",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.2.1",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2.2",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "remark",
+          "number": "2.2.3",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.2.4",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.3.1",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.4.1",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.4.2",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.4.3",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.4.4",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.4.6",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.4.8",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.4.9",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.4.10",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.1.2",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.1.3",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.1.4",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.2.2",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.2.3",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.0,
+        "denominator": 17,
+        "correct": 0,
+        "missed": 17,
+        "extraction_misses": 0,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "resolution 0.0% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "grinstead-probability",
+      "title": "Grinstead and Snell, Introduction to Probability, discrete distributions",
+      "area": "probability",
+      "form": "textbook chapter",
+      "license": "GFDL",
+      "url": "https://math.dartmouth.edu/~prob/prob/prob.pdf",
+      "pdf_pages": [
+        20,
+        45
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "1.6",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.7",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.8",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.9",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.1",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.2",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.3",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "1.1",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.4",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.10",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.11",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.12",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.13",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "equation",
+          "number": "1.1",
+          "page": 12,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "1.2",
+          "page": 17,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        }
+      ],
+      "sections": [
+        {
+          "number": "1.2",
+          "title": "Discrete Probability Distributions",
+          "level": 2,
+          "page": 6,
+          "how": "The section number is alone on a line and the next line is the heading."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.1538,
+        "denominator": 13,
+        "correct": 2,
+        "missed": 10,
+        "extraction_misses": 1,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "resolution 15.4% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "guichard-derivative",
+      "title": "Guichard, Calculus, rules for derivatives",
+      "area": "calculus",
+      "form": "textbook chapter",
+      "license": "CC BY-NC-SA",
+      "url": "https://www.whitman.edu/mathematics/calculus/calculus.pdf",
+      "pdf_pages": [
+        55,
+        90
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "3.1.1",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.1.2",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.2.1",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.2.2",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.3.1",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.4.1",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.4.2",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5.1",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5.2",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5.3",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5.4",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5.5",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5.6",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "4.3.1",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.4.1",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.4.2",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.6.1",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.7.1",
+          "page": 31,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.7.2",
+          "page": 31,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.7.3",
+          "page": 31,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.7.4",
+          "page": 32,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.8.1",
+          "page": 34,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.8.2",
+          "page": 35,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.8.3",
+          "page": 35,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "4.8.4",
+          "page": 35,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [
+        {
+          "number": "3",
+          "title": "Rules for Finding Derivatives",
+          "level": 1,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "1",
+          "title": "The Power Rule",
+          "level": 1,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "2",
+          "title": "Linearity of the Derivative",
+          "level": 1,
+          "page": 3,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "4",
+          "title": "The Quotient Rule",
+          "level": 1,
+          "page": 7,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "5",
+          "title": "The Chain Rule",
+          "level": 1,
+          "page": 10,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6",
+          "title": "Exponential and Logarithmic functions",
+          "level": 1,
+          "page": 25,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "7",
+          "title": "Derivatives of the exponential and logarithmic functions",
+          "level": 1,
+          "page": 27,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "8",
+          "title": "Implicit Differentiation",
+          "level": 1,
+          "page": 32,
+          "how": "PDF outline bookmark whose title starts with this number."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.2,
+        "denominator": 10,
+        "correct": 2,
+        "missed": 1,
+        "extraction_misses": 7,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": true,
+        "fail_reasons": [
+          "resolution 20.0% is under 90%"
+        ]
+      }
+    },
+    {
+      "id": "levin-counting",
+      "title": "Levin, Discrete Mathematics, counting",
+      "area": "discrete mathematics",
+      "form": "textbook chapter",
+      "license": "CC BY-SA",
+      "url": "https://discrete.openmathbooks.org/pdfs/dmoi-tablet.pdf",
+      "pdf_pages": [
+        17,
+        70
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "0.2.1",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.2",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.3",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.4",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.5",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.6",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.7",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.8",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.2.9",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.1",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.2",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.3",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.4",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.5",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.6",
+          "page": 31,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.7",
+          "page": 31,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.3.8",
+          "page": 32,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.1",
+          "page": 38,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.2",
+          "page": 39,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.3",
+          "page": 41,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.4",
+          "page": 42,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.5",
+          "page": 43,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.6",
+          "page": 44,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.7",
+          "page": 45,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.8",
+          "page": 48,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.9",
+          "page": 48,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "0.4.10",
+          "page": 48,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [
+        {
+          "number": "0.1",
+          "title": "What is Discrete Mathematics?",
+          "level": 2,
+          "page": 0,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "0.2",
+          "title": "Mathematical Statements",
+          "level": 2,
+          "page": 3,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "0.3",
+          "title": "Sets",
+          "level": 2,
+          "page": 23,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "0.4",
+          "title": "Functions",
+          "level": 2,
+          "page": 38,
+          "how": "The section number is alone on a line and the next line is the heading."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.0,
+        "denominator": 4,
+        "correct": 0,
+        "missed": 0,
+        "extraction_misses": 4,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "only 4 in-scope refs (need 8)",
+          "resolution 0.0% is under 90%",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "mcs-number-theory",
+      "title": "Lehman, Leighton, Meyer, Mathematics for Computer Science, number theory",
+      "area": "number theory",
+      "form": "textbook chapter",
+      "license": "CC BY-SA 4.0",
+      "url": "https://courses.csail.mit.edu/6.042/spring18/mcs.pdf",
+      "pdf_pages": [
+        349,
+        390
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "lemma",
+          "number": "9.1.2",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.1.4",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.1.6",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.1.2.2",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.2.1",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.2.2",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "9.2.3",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "9.2.4",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.2.5",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.2.6",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.3.3",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.3.4",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.4.1",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.4.2",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.4.3",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.6.1",
+          "page": 21,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.6.2",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "9.6.3",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.6.4",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.7.1",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.9.1",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.9.2",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.9.4",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.9.5",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.10.3",
+          "page": 34,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.10.4",
+          "page": 34,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.10.6",
+          "page": 34,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "9.10.7",
+          "page": 34,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "9.10.8",
+          "page": 35,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "lemma",
+          "number": "9.10.9",
+          "page": 36,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "9.10.10",
+          "page": 36,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "corollary",
+          "number": "9.10.11",
+          "page": 37,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "equation",
+          "number": "9.1",
+          "page": 2,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.2",
+          "page": 6,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.3",
+          "page": 7,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.4",
+          "page": 7,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.5",
+          "page": 9,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.6",
+          "page": 10,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.7",
+          "page": 23,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.8",
+          "page": 23,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.9",
+          "page": 24,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.10",
+          "page": 24,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.11",
+          "page": 25,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.12",
+          "page": 25,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.13",
+          "page": 27,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.14",
+          "page": 30,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.15",
+          "page": 32,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.16",
+          "page": 34,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        },
+        {
+          "kind": "equation",
+          "number": "9.17",
+          "page": 34,
+          "how": "A line in the chapter ends with this parenthesized number, or is only that number."
+        }
+      ],
+      "sections": [
+        {
+          "number": "9",
+          "title": "Number Theory",
+          "level": 1,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.1",
+          "title": "Divisibility",
+          "level": 2,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.2",
+          "title": "The Greatest Common Divisor",
+          "level": 2,
+          "page": 5,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.3",
+          "title": "Prime Mysteries",
+          "level": 2,
+          "page": 12,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.4",
+          "title": "The Fundamental Theorem of Arithmetic",
+          "level": 2,
+          "page": 15,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.5",
+          "title": "Alan Turing",
+          "level": 2,
+          "page": 17,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.6",
+          "title": "Modular Arithmetic",
+          "level": 2,
+          "page": 21,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.7",
+          "title": "Remainder Arithmetic",
+          "level": 2,
+          "page": 23,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.8",
+          "title": "Turing's Code (Version 2.0)",
+          "level": 2,
+          "page": 26,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.9",
+          "title": "Multiplicative Inverses and Cancelling",
+          "level": 2,
+          "page": 28,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.10",
+          "title": "Euler's Theorem",
+          "level": 2,
+          "page": 32,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.11",
+          "title": "RSA Public Key Encryption",
+          "level": 2,
+          "page": 37,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.12",
+          "title": "What has SAT got to do with it?",
+          "level": 2,
+          "page": 40,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "9.13",
+          "title": "References",
+          "level": 2,
+          "page": 41,
+          "how": "PDF outline bookmark whose title starts with this number."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.6262,
+        "denominator": 107,
+        "correct": 67,
+        "missed": 28,
+        "extraction_misses": 12,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": true,
+        "fail_reasons": [
+          "resolution 62.6% is under 90%"
+        ]
+      }
+    },
+    {
+      "id": "keller-binomial",
+      "title": "Keller and Trotter, Applied Combinatorics, binomial coefficients",
+      "area": "combinatorics",
+      "form": "textbook chapter",
+      "license": "CC BY-SA 4.0",
+      "url": "https://appliedcombinatorics.org/book-pdf/app-comb-2017.pdf",
+      "pdf_pages": [
+        41,
+        70
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "example",
+          "number": "2.1",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.3",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.5",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.6",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.7",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.8",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.9",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.10",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.11",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.12",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.13",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.15",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.17",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.18",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.19",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.20",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.21",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.23",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.24",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.25",
+          "page": 9,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.27",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.28",
+          "page": 10,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.30",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.31",
+          "page": 12,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.32",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "2.33",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.34",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.3",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5",
+          "page": 27,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.6",
+          "page": 27,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.7",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.8",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "3.9",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.10",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [],
+      "main": {
+        "passes": false,
+        "resolution_rate": 1.0,
+        "denominator": 5,
+        "correct": 5,
+        "missed": 0,
+        "extraction_misses": 0,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": false,
+        "fail_reasons": [
+          "only 5 in-scope refs (need 8)",
+          "a section question missed its heading page"
+        ]
+      }
+    },
+    {
+      "id": "open-logic-sets",
+      "title": "Open Logic Project, naive set theory",
+      "area": "logic",
+      "form": "textbook chapter",
+      "license": "CC BY 4.0",
+      "url": "https://builds.openlogicproject.org/open-logic-complete.pdf",
+      "pdf_pages": [
+        26,
+        57
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [
+        {
+          "kind": "definition",
+          "number": "1.1",
+          "page": 0,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.2",
+          "page": 0,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.3",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.4",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.5",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.6",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.7",
+          "page": 1,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "1.8",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.9",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.10",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.11",
+          "page": 2,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.12",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.13",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.14",
+          "page": 3,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.15",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.16",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.17",
+          "page": 4,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.18",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.19",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.20",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.21",
+          "page": 5,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.22",
+          "page": 6,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.23",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "1.24",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.25",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.26",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "1.27",
+          "page": 7,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "1.28",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "theorem",
+          "number": "1.29",
+          "page": 8,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.1",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.2",
+          "page": 11,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.3",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.4",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.5",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.6",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.7",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.8",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.9",
+          "page": 13,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.10",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.11",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.12",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.13",
+          "page": 14,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.14",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.15",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.16",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.17",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.18",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.19",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.20",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.21",
+          "page": 15,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.22",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.23",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.24",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.25",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.26",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.27",
+          "page": 16,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.28",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.29",
+          "page": 17,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.30",
+          "page": 18,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.31",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.32",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.33",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.34",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.35",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.36",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "2.37",
+          "page": 19,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.38",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.39",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "2.40",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "2.41",
+          "page": 20,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.1",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.2",
+          "page": 22,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.3",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.4",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.5",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.6",
+          "page": 23,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.7",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.8",
+          "page": 24,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.9",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.10",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.11",
+          "page": 25,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.12",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.13",
+          "page": 26,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.14",
+          "page": 27,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.15",
+          "page": 27,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.16",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.17",
+          "page": 28,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.18",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.19",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.20",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.21",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.22",
+          "page": 29,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.23",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.24",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "example",
+          "number": "3.25",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "definition",
+          "number": "3.26",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        },
+        {
+          "kind": "proposition",
+          "number": "3.27",
+          "page": 30,
+          "how": "The PDF text layer has a line that begins with this label."
+        }
+      ],
+      "sections": [
+        {
+          "number": "1.1",
+          "title": "Extensionality",
+          "level": 2,
+          "page": 0,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.2",
+          "title": "Subsets and Power Sets",
+          "level": 2,
+          "page": 1,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.3",
+          "title": "Some Important Sets",
+          "level": 2,
+          "page": 3,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.4",
+          "title": "Unions and Intersections",
+          "level": 2,
+          "page": 3,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.5",
+          "title": "Pairs, Tuples, Cartesian Products",
+          "level": 2,
+          "page": 6,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "1.6",
+          "title": "Russell\u2019s Paradox",
+          "level": 2,
+          "page": 8,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.1",
+          "title": "Relations as Sets",
+          "level": 2,
+          "page": 10,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.2",
+          "title": "Philosophical Reflections",
+          "level": 2,
+          "page": 12,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.3",
+          "title": "Special Properties of Relations",
+          "level": 2,
+          "page": 13,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.4",
+          "title": "Equivalence Relations",
+          "level": 2,
+          "page": 14,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.5",
+          "title": "Orders",
+          "level": 2,
+          "page": 15,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.6",
+          "title": "Graphs",
+          "level": 2,
+          "page": 17,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.7",
+          "title": "Trees",
+          "level": 2,
+          "page": 18,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "2.8",
+          "title": "Operations on Relations",
+          "level": 2,
+          "page": 20,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "3.1",
+          "title": "Basics",
+          "level": 2,
+          "page": 22,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "3.2",
+          "title": "Kinds of Functions",
+          "level": 2,
+          "page": 24,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "3.3",
+          "title": "Functions as Relations",
+          "level": 2,
+          "page": 26,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "3.4",
+          "title": "Inverses of Functions",
+          "level": 2,
+          "page": 27,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "3.5",
+          "title": "Composition of Functions",
+          "level": 2,
+          "page": 29,
+          "how": "The section number is alone on a line and the next line is the heading."
+        },
+        {
+          "number": "3.6",
+          "title": "Partial Functions",
+          "level": 2,
+          "page": 30,
+          "how": "The section number is alone on a line and the next line is the heading."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.8286,
+        "denominator": 70,
+        "correct": 58,
+        "missed": 0,
+        "extraction_misses": 12,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": true,
+        "fail_reasons": [
+          "resolution 82.9% is under 90%"
+        ]
+      }
+    },
+    {
+      "id": "forallx-arguments",
+      "title": "forall x Calgary, key notions of logic",
+      "area": "logic",
+      "form": "textbook chapter",
+      "license": "CC BY 4.0",
+      "url": "https://forallx.openlogicproject.org/forallxyyc.pdf",
+      "pdf_pages": [
+        12,
+        78
+      ],
+      "how": "Sixteen chapter slices from freely licensed PDFs that are not arXiv e-prints. Licenses were read from the PDF's opening pages. Each expected declaration is a text-layer line that begins with the label; a following lowercase word is a mention, not a second declaration. Doty prints the number before the label. An equation number either ends a line or is the whole line. Section pages are numbered outline bookmarks when the PDF has them, and otherwise a line that contains only the section number followed by the heading. The source path is off. Journal PDFs from Discrete Analysis responded with an empty body, so this set is books.",
+      "declarations": [],
+      "sections": [
+        {
+          "number": "1",
+          "title": "Arguments",
+          "level": 1,
+          "page": 0,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "2",
+          "title": "The scope of logic",
+          "level": 1,
+          "page": 5,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "3",
+          "title": "Other logical notions",
+          "level": 1,
+          "page": 16,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "4",
+          "title": "First steps to symbolization",
+          "level": 1,
+          "page": 25,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "5",
+          "title": "Connectives",
+          "level": 1,
+          "page": 30,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "6",
+          "title": "Sentences of TFL",
+          "level": 1,
+          "page": 47,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "7",
+          "title": "Ambiguity",
+          "level": 1,
+          "page": 54,
+          "how": "PDF outline bookmark whose title starts with this number."
+        },
+        {
+          "number": "8",
+          "title": "Use and mention",
+          "level": 1,
+          "page": 60,
+          "how": "PDF outline bookmark whose title starts with this number."
+        }
+      ],
+      "main": {
+        "passes": false,
+        "resolution_rate": 0.0,
+        "denominator": 8,
+        "correct": 0,
+        "missed": 0,
+        "extraction_misses": 8,
+        "wrong_links": 0,
+        "citation_detections": 0,
+        "false_declaration_count": 0,
+        "false_declarations": [],
+        "section_questions_ok": true,
+        "fail_reasons": [
+          "resolution 0.0% is under 90%"
+        ]
+      }
+    }
+  ]
+}

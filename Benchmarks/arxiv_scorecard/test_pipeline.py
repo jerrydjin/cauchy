@@ -246,6 +246,38 @@ class PrintedNumberTests(unittest.TestCase):
         self.assertIn(("remark", "2.1"), mentioned)
         self.assertIn(("equation", "1.1"), mentioned)
 
+    def test_lettered_theorem_number_is_kept(self) -> None:
+        html = """
+        <div class="ltx_theorem" id="ThmtheoremA">
+          <span class="ltx_tag ltx_tag_theorem">Theorem A</span>
+        </div>
+        <p>See <a class="ltx_ref" href="#ThmtheoremA" title="Theorem A">A</a>.</p>
+        """
+        truth = parse_html(html)
+        self.assertEqual(
+            [(item.kind, item.number) for item in truth.declarations],
+            [("theorem", "A")],
+        )
+        self.assertEqual(
+            [(item.kind, item.number) for item in truth.mentions],
+            [("theorem", "A")],
+        )
+
+    def test_subequation_letter_is_part_of_the_number(self) -> None:
+        html = """
+        <div id="S2.E24.1"><span class="ltx_tag ltx_tag_equation">(2.24a)</span></div>
+        <div id="S2.E24.2"><span class="ltx_tag ltx_tag_equation">(2.24b)</span></div>
+        <p>See <a class="ltx_ref" href="#S2.E24.1" title="Equation 2.24a">(2.24a)</a>
+        and <a class="ltx_ref" href="#S2.E24" title="Equation 2.24 and 3">2.24 and</a>.</p>
+        """
+        truth = parse_html(html)
+        self.assertEqual(
+            [item.number for item in truth.declarations if item.kind == "equation"],
+            ["2.24a", "2.24b"],
+        )
+        mentioned = [item.number for item in truth.mentions if item.kind == "equation"]
+        self.assertEqual(mentioned, ["2.24a", "2.24"])
+
     def test_bare_equation_tag_stays_when_the_pdf_prints_it(self) -> None:
         html = """
         <div id="S1"><span class="ltx_tag ltx_tag_equation" id="S1.E1">(1)</span></div>

@@ -37,7 +37,7 @@ _TAG = re.compile(
     r"(?i)^(theorems|lemmas|propositions|corollaries|definitions|remarks|examples|exercises|proofs|"
     r"theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof|"
     r"conjecture|claim|hypothesis|assumption|notation|question)\s+"
-    r"([A-Z]?(?:\d+(?:\.\d+)*|\d+)|[A-Z](?:\.\d+)+)\b\.?\s*(?:\(([^)]{1,80})\))?"
+    r"([A-Z]?(?:\d+(?:\.\d+)*|\d+)|[A-Z](?:\.\d+)+|[A-Z])\b\.?\s*(?:\(([^)]{1,80})\))?"
 )
 _TAG_PLURAL = {
     "theorems": "theorem",
@@ -59,10 +59,12 @@ _NAMED_PAREN = re.compile(
     r"(?i)(theorems|lemmas|propositions|corollaries|definitions|theorem|thm\.?|lemma|lem\.?|"
     r"proposition|prop\.?|corollary|cor\.?|definition|def\.?|remark|section|sec\.?|appendix)\s*\(\s*$"
 )
-_NUMBER = re.compile(r"[A-Z]?(?:\d+(?:\.\d+)*|\d+)|[A-Z](?:\.\d+)+")
+# A subequation tag is (2.24a). The letter counts only when it is not the
+# start of the next word, so "2.24 and" stays 2.24.
+_NUMBER = re.compile(r"[A-Z]?(?:\d+(?:\.\d+)*|\d+)(?:[a-z](?![a-z]))?|[A-Z](?:\.\d+)+")
 _TITLE_KIND = re.compile(
     r"(?i)^(theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof|"
-    r"conjecture|claim)\s+([A-Z]?(?:\d+(?:\.\d+)*))"
+    r"conjecture|claim)\s+([A-Z]?(?:\d+(?:\.\d+)*|\d+)|[A-Z](?:\.\d+)+|[A-Z])\b"
 )
 
 
@@ -92,6 +94,9 @@ class SectionInfo:
     number: str
     title: str
     level: int
+    # Set only by a hand-checked scorecard. arXiv HTML leaves this empty and
+    # the heading page is read from the PDF outline instead.
+    page_index: int | None = None
 
 
 @dataclass

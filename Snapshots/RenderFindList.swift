@@ -38,6 +38,18 @@ enum RenderFindList {
         guard labels == ["Lemma 2.1", "Lemma 2.2", "Lemma 2.3", "Lemma 2.4"] else {
             throw SnapshotError("unexpected rows: \(labels)")
         }
+        let previews = outcome.hits.map(\.firstLine)
+        guard previews == [
+            "A finite group of odd order is solvable.",
+            "The product of two nilpotent ideals is nilpotent, and this…",
+            "Every artinian module M∈ N has a finite composition series.",
+            "The assignment f ↦ g gives a bijection of the sample set.",
+        ] else {
+            throw SnapshotError("unexpected previews: \(previews)")
+        }
+        guard previews.contains(where: { $0.hasSuffix("…") }) else {
+            throw SnapshotError("a truncated preview must end with …")
+        }
         guard !outcome.jumpsImmediately else {
             throw SnapshotError("several lemmas must stay listed")
         }

@@ -28,10 +28,14 @@ final class PDFFindModel: NSObject {
 
     var query = "" {
         didSet {
-            guard query != oldValue else { return }
+            guard query != oldValue, !suppressSearch else { return }
             scheduleSearch()
         }
     }
+
+    /// Set while `showSnapshotResults` assigns `query`, so the assignment does
+    /// not start a document search.
+    private var suppressSearch = false
 
     /// Supplies the page currently on screen so a fresh search starts from
     /// there rather than page 1, matching Preview's behavior.
@@ -69,6 +73,22 @@ final class PDFFindModel: NSObject {
         if !query.isEmpty && matches.isEmpty {
             runSearch()
         }
+    }
+
+    /// Shows a finished named-result list without opening a PDF. The designer
+    /// snapshot draws FindBarView from this; typing in the field still searches.
+    func showSnapshotResults(query snapshotQuery: String, hits: [DocumentFind.Hit]) {
+        searchTask?.cancel()
+        cancelInFlightSearch()
+        isVisible = true
+        isSearching = false
+        namedMissMessage = nil
+        matches = []
+        currentIndex = nil
+        namedHits = hits
+        suppressSearch = true
+        query = snapshotQuery
+        suppressSearch = false
     }
 
     func dismiss() {

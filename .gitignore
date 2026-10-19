@@ -17,6 +17,7 @@ xcuserdata/
 /find_methods.swift
 # Local benchmark reports and rendered inspection pages
 /tmp/
+Snapshots/out/
 
 # Claude Code local state
 .claude/worktrees/

@@ -250,14 +250,16 @@ enum LLMReferenceIndexSupport {
 
     /// Deterministic declaration candidates used as a guardrail around the
     /// model. A model may format a statement, but it may not promote an ordinary
-    /// citation into the index. Named declarations require heading punctuation;
-    /// equations require equation-like content on the numbered line, or in the
-    /// preceding display when the PDF extractor puts the number on its own line.
+    /// citation into the index. A named declaration starts a line: punctuation,
+    /// a capitalised statement, or the statement on the next line. A number-first
+    /// heading such as "6.1 Definition." is the same shape. Equations require
+    /// equation-like content on the numbered line, a short formula on the line
+    /// above a dotted tag, or a display when the number sits on its own line.
     static func declarationMatches(
         in sourceText: String,
         equationLabelX: [Int: Double] = [:]
     ) -> [DetectedReferenceMatch] {
-        ReferenceDetector.allReferences(in: sourceText).filter { match in
+        let detected = ReferenceDetector.allReferences(in: sourceText).filter { match in
             let afterEnd = sourceText.index(
                 match.range.upperBound,
                 offsetBy: 180,
@@ -270,7 +272,6 @@ enum LLMReferenceIndexSupport {
             ) ?? sourceText.startIndex
             let after = sourceText[match.range.upperBound..<afterEnd]
             let before = sourceText[beforeStart..<match.range.lowerBound]
-            let nextCharacter = after.first(where: { !$0.isWhitespace })
             let lineStart = before.lastIndex(of: "\n").map { before.index(after: $0) }
                 ?? before.startIndex
             let prefix = before[lineStart...].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -292,7 +293,7 @@ enum LLMReferenceIndexSupport {
 
             if match.reference.kind != .equation {
                 guard prefix.isEmpty else { return false }
-                return nextCharacter == "." || nextCharacter == ":" || nextCharacter == "("
+                return isLineStartStatement(after)
             }
 
             let lineEnd = after.firstIndex(of: "\n") ?? after.endIndex
@@ -363,6 +364,14 @@ enum LLMReferenceIndexSupport {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard fullLine == matchedText else { return false }
 
+            // A dotted tag alone on the line, with the formula on the line
+            // above. The operator is often a glyph rather than "=". A long
+            // sentence above the tag is a citation.
+            if match.reference.number.contains("."),
+               isShortFormulaLine(previousNonemptyLine(in: sourceText, before: fullLineStart)) {
+                return true
+            }
+
             let displayStart = sourceText.index(
                 match.range.lowerBound,
                 offsetBy: -600,
@@ -371,6 +380,77 @@ enum LLMReferenceIndexSupport {
             let precedingDisplay = sourceText[displayStart..<match.range.lowerBound]
             return mathSignals.contains(where: precedingDisplay.contains)
         }
+        return (detected + numberFirstDeclarations(in: sourceText))
+            .sorted { $0.range.lowerBound < $1.range.lowerBound }
+    }
+
+    /// "6.1 Definition." and "6.13 Theorem (Name)." Number-first headings use
+    /// the same line-start test as "Definition 6.1."
+    private static let numberFirstPattern = try! NSRegularExpression(
+        pattern: #"(?im)^[ \t]*(\d+(?:\.\d+)+)\.?\s+(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\b"#
+    )
+
+    private static func numberFirstDeclarations(in sourceText: String) -> [DetectedReferenceMatch] {
+        let nsRange = NSRange(sourceText.startIndex..<sourceText.endIndex, in: sourceText)
+        return numberFirstPattern.matches(in: sourceText, range: nsRange).compactMap { match in
+            guard let numberRange = Range(match.range(at: 1), in: sourceText),
+                  let kindRange = Range(match.range(at: 2), in: sourceText),
+                  let whole = Range(match.range, in: sourceText),
+                  let kind = ReferenceKind.fromKeyword(String(sourceText[kindRange])) else {
+                return nil
+            }
+            let after = sourceText[whole.upperBound...]
+            guard isLineStartStatement(after) else { return nil }
+            return DetectedReferenceMatch(
+                reference: DetectedReference(kind: kind, number: String(sourceText[numberRange])),
+                range: whole
+            )
+        }
+    }
+
+    /// A declaration starts the line. "Theorem 1.1 shows" and "Lemma 2.2, so"
+    /// are mentions. Dot leaders ("Theorem 1.1 .... 12") are a contents entry.
+    private static func isLineStartStatement(_ after: Substring) -> Bool {
+        let lineEnd = after.firstIndex(of: "\n") ?? after.endIndex
+        let rest = after[..<lineEnd].trimmingCharacters(in: .whitespaces)
+        if rest.isEmpty {
+            let remainder = after[lineEnd...]
+            let following = remainder.split(whereSeparator: \.isNewline).first {
+                !$0.trimmingCharacters(in: .whitespaces).isEmpty
+            }.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+            guard let first = following.first else { return false }
+            return !first.isLowercase
+        }
+        let first = rest[rest.startIndex]
+        if first == "," || first == ";" { return false }
+        if first == "." {
+            let next = rest.index(after: rest.startIndex)
+            if next < rest.endIndex, rest[next] == "." { return false }
+            return true
+        }
+        if first == ":" || first == "(" { return true }
+        return first.isUppercase
+    }
+
+    private static func previousNonemptyLine(in text: String, before index: String.Index) -> String {
+        let trimmed = text[..<index].dropLast(while: { $0 == "\n" || $0 == "\r" })
+        guard let newline = trimmed.lastIndex(of: "\n") else {
+            return trimmed.trimmingCharacters(in: .whitespaces)
+        }
+        return trimmed[trimmed.index(after: newline)...].trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func isShortFormulaLine(_ line: String) -> Bool {
+        let stripped = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !stripped.isEmpty, !stripped.hasSuffix(".") else { return false }
+        let mathSignals = ["=", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
+        let words = stripped.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
+        if mathSignals.contains(where: stripped.contains) {
+            return words.count <= 8
+        }
+        let operators = CharacterSet(charactersIn: "0123456789=<>+-*/^_|")
+        let hasDigitOrOperator = stripped.unicodeScalars.contains { operators.contains($0) }
+        return words.count <= 6 && hasDigitOrOperator
     }
 
     static func isLikelyDeclaration(

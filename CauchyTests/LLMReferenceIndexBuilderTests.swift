@@ -496,6 +496,55 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .remark, number: "A.0.5")))
     }
 
+    func testLineStartStatementIsADeclarationAndAMentionIsNot() {
+        let page = """
+        Theorem 1.1.1
+        Suppose the sequence of steps is elementary.
+        Theorem 1.2 shows that the same bound is sharp.
+        Lemma 2.2, so the order divides the exponent.
+        Theorem 3.4 The probabilities assigned to the events sum to one.
+        Theorem 4.1 .... 12
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .theorem, number: "1.1.1")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .theorem, number: "3.4")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .theorem, number: "1.2")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .lemma, number: "2.2")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .theorem, number: "4.1")))
+    }
+
+    func testDottedEquationTagUsesTheShortFormulaAboveIt() {
+        let page = """
+        n D q times d plus r AND 0
+        (1.2)
+        This paragraph explains why the bound in the display is strict and cannot be improved further.
+        (1.3)
+        See below
+        (1.4)
+        """
+        let numbers = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference.number)
+
+        XCTAssertTrue(numbers.contains("1.2"))
+        XCTAssertFalse(numbers.contains("1.3"))
+        XCTAssertFalse(numbers.contains("1.4"))
+    }
+
+    func testNumberFirstHeadingIsADeclaration() {
+        let page = """
+        6.1 Definition. A permutation of a set is a bijection onto itself.
+        Later, 6.1 Definition appears inside a sentence and is not a second heading.
+        6.13 Theorem (properties of multiplication). Let alpha be a permutation.
+        8.2 Definition shows the same idea in prose.
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .definition, number: "6.1")))
+        XCTAssertEqual(declarations.filter { $0 == DetectedReference(kind: .definition, number: "6.1") }.count, 1)
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .theorem, number: "6.13")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .definition, number: "8.2")))
+    }
+
     func testDeclarationGuardAcceptsEquationNumberOnOwnLine() {
         let page = """
         We minimize the joint loss

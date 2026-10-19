@@ -420,6 +420,20 @@ final class DocumentReferenceIndex {
         entries[reference.key]
     }
 
+    func searchEntries() -> [DocumentFind.Entry] {
+        entries.values.map { entry in
+            DocumentFind.Entry(
+                kind: entry.reference.kind,
+                number: entry.reference.number,
+                name: entry.name,
+                body: entry.formattedBody,
+                pageIndex: entry.pageIndex,
+                anchor: entry.evidence?.matchedText
+                    ?? "\(entry.reference.kind.displayName) \(entry.reference.number)"
+            )
+        }
+    }
+
     var isEmpty: Bool { entries.isEmpty }
 
     var count: Int { entries.count }
@@ -499,10 +513,18 @@ final class DocumentReferenceIndex {
         var results: [IndexedReference] = []
         for text in texts {
             for match in ReferenceDetector.allReferences(in: text) {
-                let key = match.reference.key
-                guard !seen.contains(key), let entry = entries[key] else { continue }
-                seen.insert(key)
-                results.append(entry)
+                let matched = entries.values.filter { entry in
+                    entry.reference.kind == match.reference.kind
+                        && DocumentFind.number(entry.reference.number, extends: match.reference.number)
+                }.sorted {
+                    $0.reference.number.localizedStandardCompare($1.reference.number) == .orderedAscending
+                }
+                for entry in matched {
+                    let key = entry.reference.key
+                    guard !seen.contains(key) else { continue }
+                    seen.insert(key)
+                    results.append(entry)
+                }
             }
         }
         return results

@@ -30,7 +30,22 @@ enum ReferenceKind: String, CaseIterable, Equatable, Sendable, Codable {
     }
 
     static func fromKeyword(_ keyword: String) -> ReferenceKind? {
-        ReferenceKind(rawValue: keyword.lowercased())
+        let normalized = keyword.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        if let kind = ReferenceKind(rawValue: normalized) {
+            return kind
+        }
+        switch normalized {
+        case "theorems": return .theorem
+        case "lemmas": return .lemma
+        case "propositions": return .proposition
+        case "corollaries": return .corollary
+        case "definitions": return .definition
+        case "exercises": return .exercise
+        case "examples": return .example
+        case "remarks": return .remark
+        case "proofs": return .proof
+        default: return nil
+        }
     }
 }
 

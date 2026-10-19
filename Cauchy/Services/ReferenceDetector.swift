@@ -28,30 +28,136 @@ enum ReferenceDetector {
     private static let equationCiteRegex = try! NSRegularExpression(pattern: ReferenceParsing.equationCitePattern)
     private static let figureRegex = try! NSRegularExpression(pattern: ReferenceParsing.figurePattern)
     private static let pairedFiguresRegex = try! NSRegularExpression(pattern: ReferenceParsing.pairedFiguresPattern)
+    private static let bracketCitationRegex = try! NSRegularExpression(pattern: ReferenceParsing.bracketCitationBody)
+    private static let authorYearParentheticalRegex = try! NSRegularExpression(pattern: ReferenceParsing.authorYearParenthetical)
+    private static let authorYearBracketRegex = try! NSRegularExpression(pattern: ReferenceParsing.authorYearBracket)
+    private static let bracketKeyRegex = try! NSRegularExpression(
+        pattern: #"^(?:see\s+)?(\#(ReferenceParsing.bibliographyKey))(?:\s*[-–—]\s*\d+)?(?:\s*,\s*(.+))?$"#
+    )
+    private static let pluralBlockRegex = try! NSRegularExpression(pattern: ReferenceParsing.pluralBlockPattern)
+    private static let pluralNumberRegex = try! NSRegularExpression(pattern: ReferenceParsing.referenceNumberPattern)
 
     static func allReferences(in text: String) -> [DetectedReferenceMatch] {
-        var matches: [DetectedReferenceMatch] = []
-        matches.append(contentsOf: namedBlockMatches(in: text))
-        matches.append(contentsOf: equationCiteMatches(in: text))
-        matches.append(contentsOf: figureMatches(in: text))
-        matches.append(contentsOf: pairedFigureMatches(in: text))
-        return matches.sorted { $0.range.lowerBound < $1.range.lowerBound }
+        detection(in: text).local
     }
 
     static func bestReference(in text: String, cursorOffset: Int) -> DetectedReference? {
-        let matches = allReferences(in: text)
-        guard !matches.isEmpty else { return nil }
+        let found = detection(in: text)
+        guard !found.local.isEmpty else { return nil }
+        let cursorIndex = cursorIndex(in: text, offset: cursorOffset)
 
-        let clampedOffset = max(0, min(cursorOffset, text.count))
-        let cursorIndex = text.index(text.startIndex, offsetBy: clampedOffset)
+        // "[IK99, Lemma 1.15]" names a result in the cited paper.
+        if found.citations.contains(where: { $0.range.contains(cursorIndex) }) {
+            return nil
+        }
 
-        if let containing = matches.first(where: { $0.range.contains(cursorIndex) }) {
+        if let containing = found.local.first(where: { $0.range.contains(cursorIndex) }) {
             return containing.reference
         }
 
-        return matches.min(by: {
+        return found.local.min(by: {
             distance(from: cursorIndex, to: $0.range, in: text) < distance(from: cursorIndex, to: $1.range, in: text)
         })?.reference
+    }
+
+    /// The citation under the cursor, if the pointer is inside one.
+    static func externalCitation(in text: String, cursorOffset: Int) -> ExternalCitation? {
+        let cursorIndex = cursorIndex(in: text, offset: cursorOffset)
+        return detection(in: text).citations.first { $0.range.contains(cursorIndex) }
+    }
+
+    private static func cursorIndex(in text: String, offset: Int) -> String.Index {
+        let clamped = max(0, min(offset, text.count))
+        return text.index(text.startIndex, offsetBy: clamped)
+    }
+
+    private struct Detection {
+        var local: [DetectedReferenceMatch]
+        var citations: [ExternalCitation]
+    }
+
+    private static func detection(in text: String) -> Detection {
+        let raw = namedBlockMatches(in: text)
+            + pluralBlockMatches(in: text)
+            + equationCiteMatches(in: text)
+            + figureMatches(in: text)
+            + pairedFigureMatches(in: text)
+        let citations = externalCitations(in: text)
+        let local = raw.filter { match in
+            !citations.contains { citation in
+                citation.range.lowerBound <= match.range.lowerBound
+                    && match.range.upperBound <= citation.range.upperBound
+            }
+        }.sorted { $0.range.lowerBound < $1.range.lowerBound }
+        return Detection(local: local, citations: citations)
+    }
+
+    private static func externalCitations(in text: String) -> [ExternalCitation] {
+        var citations: [ExternalCitation] = []
+        let full = NSRange(text.startIndex..., in: text)
+
+        for match in authorYearParentheticalRegex.matches(in: text, range: full) {
+            guard let range = Range(match.range, in: text),
+                  let authorRange = Range(match.range(at: 1), in: text),
+                  let yearRange = Range(match.range(at: 2), in: text) else { continue }
+            citations.append(ExternalCitation(
+                key: nil,
+                author: String(text[authorRange]),
+                year: String(text[yearRange]),
+                qualifier: nil,
+                range: range
+            ))
+        }
+
+        for match in authorYearBracketRegex.matches(in: text, range: full) {
+            guard let range = Range(match.range, in: text),
+                  let authorRange = Range(match.range(at: 1), in: text),
+                  let yearRange = Range(match.range(at: 2), in: text),
+                  !citations.contains(where: { $0.range.overlaps(range) }) else { continue }
+            citations.append(ExternalCitation(
+                key: nil,
+                author: String(text[authorRange]),
+                year: String(text[yearRange]),
+                qualifier: nil,
+                range: range
+            ))
+        }
+
+        for match in bracketCitationRegex.matches(in: text, range: full) {
+            guard let range = Range(match.range, in: text),
+                  let bodyRange = Range(match.range(at: 1), in: text),
+                  !citations.contains(where: { $0.range.overlaps(range) }),
+                  let citation = bracketCitation(body: String(text[bodyRange]), range: range) else { continue }
+            citations.append(citation)
+        }
+        return citations
+    }
+
+    /// A bracket is a citation when it is a bare key, or a key plus a named
+    /// result. An interval such as "[0, 1]" is not one.
+    private static func bracketCitation(body: String, range: Range<String.Index>) -> ExternalCitation? {
+        let trimmed = body
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let nsRange = NSRange(trimmed.startIndex..., in: trimmed)
+        guard let match = bracketKeyRegex.firstMatch(in: trimmed, range: nsRange),
+              match.range.location == 0,
+              let keyRange = Range(match.range(at: 1), in: trimmed) else { return nil }
+        let key = String(trimmed[keyRange])
+        let qualifier: String?
+        if match.range(at: 2).location != NSNotFound, let qualifierRange = Range(match.range(at: 2), in: trimmed) {
+            let text = String(trimmed[qualifierRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            // "[0, 1]" is an interval. "[3, (1.3)]" and "[12, Theorem 3.2]" are citations.
+            guard text.contains(where: \.isLetter) || text.contains("(") else { return nil }
+            qualifier = text
+        } else if key.count == 4, key.hasPrefix("19") || key.hasPrefix("20") {
+            // "[2019]" is a year, not bibliography entry 2019.
+            return ExternalCitation(key: nil, author: nil, year: key, qualifier: nil, range: range)
+        } else {
+            qualifier = nil
+        }
+        return ExternalCitation(key: key, author: nil, year: nil, qualifier: qualifier, range: range)
     }
 
     static func firstReference(in text: String) -> DetectedReference? {
@@ -71,6 +177,29 @@ enum ReferenceDetector {
                 reference: DetectedReference(kind: kind, number: number),
                 range: range
             )
+        }
+    }
+
+    private static func pluralBlockMatches(in text: String) -> [DetectedReferenceMatch] {
+        let full = NSRange(text.startIndex..., in: text)
+        return pluralBlockRegex.matches(in: text, range: full).flatMap { match -> [DetectedReferenceMatch] in
+            guard let kindRange = Range(match.range(at: 1), in: text),
+                  let kind = ReferenceKind.fromKeyword(String(text[kindRange])),
+                  let phrase = Range(match.range, in: text) else { return [] }
+            let list = String(text[Range(match.range(at: 2), in: text)!])
+            let numbers = pluralNumberRegex.matches(in: list, range: NSRange(list.startIndex..., in: list))
+            return numbers.compactMap { numberMatch in
+                let absolute = NSRange(
+                    location: match.range(at: 2).location + numberMatch.range.location,
+                    length: numberMatch.range.length
+                )
+                guard let numberRange = Range(absolute, in: text) else { return nil }
+                let start = numberMatch.range.location == 0 ? phrase.lowerBound : numberRange.lowerBound
+                return DetectedReferenceMatch(
+                    reference: DetectedReference(kind: kind, number: String(text[numberRange])),
+                    range: start..<numberRange.upperBound
+                )
+            }
         }
     }
 

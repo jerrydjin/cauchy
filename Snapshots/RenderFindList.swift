@@ -2,8 +2,8 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// Renders Cmd-F for "Lemma 2" on arXiv:2610.04096. The four lemmas are the
-/// printed statements on pages 3 and 4; DocumentFind builds the rows.
+/// Renders Cmd-F for "Lemma 2" from four synthetic lemmas on pages 3 and 4.
+/// DocumentFind builds the rows.
 @main
 enum RenderFindList {
     @MainActor
@@ -20,7 +20,7 @@ enum RenderFindList {
     private static func render() throws {
         let root = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[1] : FileManager.default.currentDirectoryPath)
         let output = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "Snapshots/out")
-        let fixture = root.appendingPathComponent("Snapshots/Fixtures/2610.04096-lemmas.json")
+        let fixture = root.appendingPathComponent("Snapshots/Fixtures/synthetic-lemmas.json")
         let data = try Data(contentsOf: fixture)
         let lemmas = try JSONDecoder().decode([LemmaFixture].self, from: data)
         let entries = lemmas.map { lemma in
@@ -47,7 +47,7 @@ enum RenderFindList {
 
         NSApplication.shared.setActivationPolicy(.prohibited)
         let view = SnapshotChrome(
-            caption: "arXiv:2610.04096  ·  Cmd-F “Lemma 2”",
+            caption: "Cmd-F “Lemma 2”",
             content: FindBarView(find: find)
         )
         try writePNG(view, to: output.appendingPathComponent("find-lemma-2.png"), minimumBytes: 3_000)

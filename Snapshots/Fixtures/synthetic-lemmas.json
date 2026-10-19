@@ -1,0 +1,22 @@
+[
+  {
+    "number": "2.1",
+    "pageIndex": 2,
+    "body": "A finite group of odd order is solvable."
+  },
+  {
+    "number": "2.2",
+    "pageIndex": 2,
+    "body": "The product of two nilpotent ideals is nilpotent."
+  },
+  {
+    "number": "2.3",
+    "pageIndex": 3,
+    "body": "Every artinian module has a finite composition series."
+  },
+  {
+    "number": "2.4",
+    "pageIndex": 3,
+    "body": "A field extension of prime degree is simple."
+  }
+]

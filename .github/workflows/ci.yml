@@ -6,7 +6,11 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # The preview-line follow-up is stacked on the named-search branch, which
+    # is not main. The snapshot job still has to run for that pull request.
+    branches:
+      - main
+      - cursor/jerry-73-named-search-2149
   workflow_dispatch:
 
 concurrency:

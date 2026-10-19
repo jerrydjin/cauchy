@@ -75,6 +75,28 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertTrue(missing.hits.isEmpty)
     }
 
+    func testTruncatedPreviewEndsWithAnEllipsis() {
+        let body = "A finite group of odd order is solvable when every proper sample subgroup is already known to be solvable."
+        let line = DocumentFind.firstLine(of: body)
+        XCTAssertTrue(line.hasSuffix("…"))
+        XCTAssertFalse(line.hasSuffix("..."))
+        XCTAssertLessThanOrEqual(line.count, DocumentFind.previewCharacterLimit)
+        XCTAssertGreaterThan(body.count, DocumentFind.previewCharacterLimit)
+    }
+
+    func testTextLayerRepairTable() {
+        XCTAssertEqual(TextLayerRepairs.table.map(\.broken), ["7→", #"∈(?=\S)"#])
+        XCTAssertEqual(TextLayerRepairs.apply("7→"), "↦")
+        XCTAssertEqual(TextLayerRepairs.apply("keep 7→ here"), "keep ↦ here")
+        XCTAssertEqual(TextLayerRepairs.apply("x∈Y"), "x∈ Y")
+        XCTAssertEqual(TextLayerRepairs.apply("x∈ Y"), "x∈ Y")
+        XCTAssertEqual(TextLayerRepairs.apply("a∈b and c∈d"), "a∈ b and c∈ d")
+        XCTAssertEqual(
+            DocumentFind.firstLine(of: "The assignment f 7→ g stays inside x∈Y."),
+            "The assignment f ↦ g stays inside x∈ Y."
+        )
+    }
+
     @MainActor
     func testCitedLookupReturnsTheFullNumberForAShortQuery() {
         let index = DocumentReferenceIndex()

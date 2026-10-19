@@ -7,16 +7,16 @@
   {
     "number": "2.2",
     "pageIndex": 2,
-    "body": "The product of two nilpotent ideals is nilpotent."
+    "body": "The product of two nilpotent ideals is nilpotent, and this remains true for a longer sample chain."
   },
   {
     "number": "2.3",
     "pageIndex": 3,
-    "body": "Every artinian module has a finite composition series."
+    "body": "Every artinian module M∈N has a finite composition series."
   },
   {
     "number": "2.4",
     "pageIndex": 3,
-    "body": "A field extension of prime degree is simple."
+    "body": "The assignment f 7→ g gives a bijection of the sample set."
   }
 ]

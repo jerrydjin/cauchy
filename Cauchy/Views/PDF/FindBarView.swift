@@ -84,6 +84,7 @@ struct FindBarView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
+                                    .truncationMode(.tail)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

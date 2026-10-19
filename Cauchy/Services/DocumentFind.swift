@@ -99,11 +99,22 @@ enum DocumentFind {
         return Outcome(hits: sort(named), message: nil, suppressesTextSearch: false)
     }
 
+    /// One caption line in the find-results list, including the ellipsis when cut.
+    static let previewCharacterLimit = 64
+
     static func firstLine(of body: String) -> String {
         let line = body.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
         let collapsed = line.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        guard collapsed.count > 90 else { return collapsed }
-        return String(collapsed.prefix(89)) + "…"
+        let repaired = TextLayerRepairs.apply(collapsed)
+        guard repaired.count > previewCharacterLimit else { return repaired }
+        let budget = previewCharacterLimit - 1
+        var end = repaired.index(repaired.startIndex, offsetBy: budget)
+        let head = repaired[..<end]
+        if let space = head.lastIndex(of: " "),
+           repaired.distance(from: repaired.startIndex, to: space) >= budget / 2 {
+            end = space
+        }
+        return repaired[..<end].trimmingCharacters(in: .whitespaces) + "…"
     }
 
     // MARK: - Private
@@ -161,7 +172,7 @@ enum DocumentFind {
                     id: "section-\(section.number)-\(section.pageIndex)",
                     group: "Sections",
                     label: "Section \(section.number)",
-                    firstLine: section.title,
+                    firstLine: firstLine(of: section.title),
                     pageIndex: section.pageIndex,
                     anchor: section.anchor
                 )
@@ -224,5 +235,39 @@ enum DocumentFind {
         guard token.count >= 2 else { return false }
         let pattern = "\\b\(NSRegularExpression.escapedPattern(for: token))\\b"
         return name.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+}
+
+/// Broken sequences the PDF text layer emits for ordinary math glyphs.
+/// Literal rows run before regular expressions, longest literal first.
+enum TextLayerRepairs {
+    struct Substitution: Equatable {
+        var broken: String
+        var repaired: String
+        var regularExpression: Bool = false
+    }
+
+    static let table: [Substitution] = [
+        Substitution(broken: "7→", repaired: "↦"),
+        Substitution(broken: #"∈(?=\S)"#, repaired: "∈ ", regularExpression: true),
+    ]
+
+    static func apply(_ text: String) -> String {
+        let literals = table
+            .filter { !$0.regularExpression }
+            .sorted { $0.broken.count > $1.broken.count }
+        let patterns = table.filter(\.regularExpression)
+        var result = text
+        for row in literals {
+            result = result.replacingOccurrences(of: row.broken, with: row.repaired)
+        }
+        for row in patterns {
+            result = result.replacingOccurrences(
+                of: row.broken,
+                with: row.repaired,
+                options: .regularExpression
+            )
+        }
+        return result
     }
 }

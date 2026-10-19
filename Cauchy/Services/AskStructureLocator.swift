@@ -268,13 +268,13 @@ enum AskStructureLocator {
         var found: [AskHeading] = []
         for page in pages where !LLMReferenceIndexSupport.isLikelyTableOfContents(page.text) {
             for raw in page.text.split(separator: "\n", omittingEmptySubsequences: false) {
-                let line = raw.trimmingCharacters(in: .whitespaces)
-                guard (3...120).contains(line.count), line.split(separator: " ").count <= 14 else { continue }
-                guard matchesHeadingLine(line) else { continue }
+                // A run-in heading keeps its title and drops the paragraph
+                // that follows the title period.
+                guard let heading = headingLine(String(raw)), (3...160).contains(heading.count) else { continue }
                 found.append(AskHeading(
-                    title: line,
+                    title: heading,
                     pageIndex: page.pageIndex,
-                    label: displayLabel(line) ?? line
+                    label: displayLabel(heading) ?? heading
                 ))
             }
         }
@@ -490,7 +490,12 @@ enum AskStructureLocator {
     /// is a math fragment ("4 be the", "1 + z") or a prose sentence
     /// ("Section 4 constructs the metric.").
     private static func matchesHeadingLine(_ line: String) -> Bool {
-        guard isTitleLine(line), !line.lowercased().hasPrefix("part") else { return false }
+        guard isTitleLine(line) else { return false }
+        return opensWithSectionTitle(line)
+    }
+
+    private static func opensWithSectionTitle(_ line: String) -> Bool {
+        guard !line.lowercased().hasPrefix("part") else { return false }
         if number(in: line, pattern: chapterKeyword) != nil { return true }
         if number(in: line, pattern: partKeyword) != nil { return true }
         if number(in: line, pattern: sectionKeyword) != nil { return true }
@@ -503,6 +508,69 @@ enum AskStructureLocator {
             return titleTextFollows(line, number: arabic)
         }
         return leadingRoman(in: line) != nil
+    }
+
+    private static let sentenceOpener = #"(?i)^(let|if|we|suppose|assume|since|then|clearly|hence|thus|therefore|now|next|indeed|moreover|however|where|when|because|it|this|note|recall|consequently|furthermore|also)\b"#
+    private static let nameThenComma = #"^[A-Z]\w+\s+[A-Z]\w+,"#
+
+    /// "2.4. Small cases. Let G be a graph" is the heading "2.4. Small cases".
+    /// "2.4. Let us check the axiom. For any x" is a numbered sentence.
+    private static func runInTitle(_ line: String) -> String? {
+        let pattern = #"^\s*(\d+(?:\.\d+)+)\.\s+([A-Z][^.=]{1,80}?)\.\s+\S"#
+        guard let match = firstMatch(line, pattern: pattern), match.count == 3 else { return nil }
+        let title = match[2]
+        let words = title.split(whereSeparator: \.isWhitespace)
+        guard (1...12).contains(words.count), lineMatches(title, pattern: sentenceOpener) == false else { return nil }
+        return "\(match[1]). \(title)"
+    }
+
+    /// A heading that is only a title and runs past eight words.
+    /// A bibliography line opening "Ada Lovelace," is not one.
+    private static func longBareTitle(_ line: String) -> String? {
+        let stripped = line.trimmingCharacters(in: .whitespaces)
+        let words = stripped.split(whereSeparator: \.isWhitespace)
+        guard (9...16).contains(words.count) else { return nil }
+        guard lineMatches(stripped, pattern: #"^\s*\d+(?:\.\d+)*\.\s+[A-Z]"#) else { return nil }
+        guard lineMatches(stripped, pattern: #"[;:?!=()\[\]]"#) == false else { return nil }
+        guard let restRange = stripped.range(of: #"^\s*\d+(?:\.\d+)*\.\s+"#, options: .regularExpression) else { return nil }
+        let rest = String(stripped[restRange.upperBound...])
+        guard lineMatches(rest, pattern: sentenceOpener) == false else { return nil }
+        guard lineMatches(rest, pattern: nameThenComma) == false else { return nil }
+        guard stripped.hasSuffix(".") == false else { return nil }
+        return stripped
+    }
+
+    private static func headingLine(_ line: String) -> String? {
+        let stripped = line.trimmingCharacters(in: .whitespaces)
+        guard !stripped.isEmpty else { return nil }
+        if let peeled = runInTitle(stripped), matchesHeadingLine(peeled) {
+            return peeled
+        }
+        if let longTitle = longBareTitle(stripped), opensWithSectionTitle(longTitle) {
+            return longTitle
+        }
+        if matchesHeadingLine(stripped) {
+            return stripped
+        }
+        return nil
+    }
+
+    private static func lineMatches(_ text: String, pattern: String) -> Bool {
+        text.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    /// Captures from the first match, including the whole match at index 0.
+    private static func firstMatch(_ text: String, pattern: String) -> [String]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let ns = text as NSString
+        guard let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)) else { return nil }
+        var groups: [String] = []
+        for index in 0..<match.numberOfRanges {
+            let range = match.range(at: index)
+            guard range.location != NSNotFound, let swift = Range(range, in: text) else { return nil }
+            groups.append(String(text[swift]))
+        }
+        return groups
     }
 
     /// The text after the number has to open with a capital. "4. Clique-sum"

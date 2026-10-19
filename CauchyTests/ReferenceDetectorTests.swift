@@ -168,14 +168,14 @@ final class ReferenceDetectorTests: XCTestCase {
         let citation = ReferenceDetector.externalCitation(in: paper, cursorOffset: lemmaOffset)!
         XCTAssertEqual(
             BibliographyIndex.hoverText(for: citation, in: entries),
-            "I. Khasin and K. Author, Sums of powers, 1999\nLemma 1.15 in the cited paper"
+            "Sums of powers\nI. Khasin and K. Author, 1999\nLemma 1.15 in the cited paper"
         )
 
         let plain = paper.distance(from: paper.startIndex, to: paper.range(of: "See [12]")!.lowerBound) + 5
         let numbered = ReferenceDetector.externalCitation(in: paper, cursorOffset: plain)!
         XCTAssertEqual(
             BibliographyIndex.hoverText(for: numbered, in: entries),
-            "A. Baker, Another paper, 2010"
+            "Another paper\nA. Baker, 2010"
         )
 
         let smithOffset = paper.distance(from: paper.startIndex, to: paper.range(of: "Smith 2019")!.lowerBound)
@@ -184,5 +184,34 @@ final class ReferenceDetectorTests: XCTestCase {
 
         let missing = ExternalCitation(key: "ZZ99", author: nil, year: nil, qualifier: "Lemma 1", range: paper.startIndex..<paper.startIndex)
         XCTAssertNil(BibliographyIndex.hoverText(for: missing, in: entries))
+    }
+
+    func testQuotedBibliographyTitleLeadsTheHover() {
+        let paper = """
+        See [QR23, Lemma 2.1] and [AB19, Theorem 1].
+
+        References
+        [QR23]
+        Q. Quinn, R. Rivera, and S. Santos. “Synthetic tensor categories
+        in a sample ring”. In: Example Math. 4 (2023), pp. 10–20.
+        [AB19] A. Abel, B. Baker, and C. Chen. A short note on sample rings. Sample J. 1 (2019), 1–10.
+        """
+        let entries = BibliographyIndex.entries(in: paper)
+        let quoted = entries.first { $0.key == "QR23" }
+        XCTAssertEqual(quoted?.authors, "Q. Quinn, R. Rivera, and S. Santos")
+        XCTAssertEqual(quoted?.title, "Synthetic tensor categories in a sample ring")
+        XCTAssertEqual(quoted?.year, "2023")
+
+        let lemmaOffset = paper.distance(from: paper.startIndex, to: paper.range(of: "Lemma 2.1")!.lowerBound)
+        let citation = ReferenceDetector.externalCitation(in: paper, cursorOffset: lemmaOffset)!
+        XCTAssertEqual(
+            BibliographyIndex.hoverText(for: citation, in: entries),
+            "Synthetic tensor categories in a sample ring\nQ. Quinn, R. Rivera, and S. Santos, 2023\nLemma 2.1 in the cited paper"
+        )
+
+        let oxford = entries.first { $0.key == "AB19" }
+        XCTAssertEqual(oxford?.authors, "A. Abel, B. Baker, and C. Chen")
+        XCTAssertEqual(oxford?.title, "A short note on sample rings")
+        XCTAssertEqual(oxford?.year, "2019")
     }
 }

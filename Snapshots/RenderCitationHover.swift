@@ -33,7 +33,12 @@ enum RenderCitationHover {
         guard let hover = BibliographyIndex.hoverText(for: citation, in: entries) else {
             throw SnapshotError("BibliographyIndex returned no hover for [QR23, Lemma 2.1]")
         }
-        guard hover.contains("Quinn"), hover.contains("2023"), hover.contains("Lemma 2.1 in the cited paper") else {
+        let lines = hover.components(separatedBy: "\n")
+        guard lines == [
+            "Synthetic tensor categories",
+            "Q. Quinn, R. Rivera, and S. Santos, 2023",
+            "Lemma 2.1 in the cited paper",
+        ] else {
             throw SnapshotError("unexpected hover text: \(hover)")
         }
 

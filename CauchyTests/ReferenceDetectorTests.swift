@@ -64,6 +64,21 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertEqual(ReferenceDetector.bestReference(in: text, cursorOffset: equationOffset)?.kind, .equation)
     }
 
+    func testPluralListsResolveEachNumber() {
+        let single = ReferenceDetector.allReferences(in: "Lemmas 4.6 and the rest.")
+        XCTAssertEqual(single.map(\.reference), [DetectedReference(kind: .lemma, number: "4.6")])
+
+        let definitions = ReferenceDetector.allReferences(in: "Definitions 2.5 follow.")
+        XCTAssertEqual(definitions.map(\.reference), [DetectedReference(kind: .definition, number: "2.5")])
+
+        let text = "Lemmas 3.1, 3.2 and 3.4"
+        let matches = ReferenceDetector.allReferences(in: text)
+        XCTAssertEqual(matches.map(\.reference.number), ["3.1", "3.2", "3.4"])
+        XCTAssertEqual(matches.map { String(text[$0.range]) }, ["Lemmas 3.1", "3.2", "3.4"])
+
+        XCTAssertNil(ReferenceDetector.firstReference(in: "Thm. 3.2 is abbreviated."))
+    }
+
     func testNoReferenceInPlainText() {
         XCTAssertNil(ReferenceDetector.firstReference(in: "This is ordinary text."))
     }

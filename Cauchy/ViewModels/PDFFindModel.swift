@@ -16,13 +16,26 @@ final class PDFFindModel: NSObject {
     private(set) var revision = UUID()
     /// Bumped when the find field should grab keyboard focus again.
     private(set) var focusRequest = UUID()
+    /// Printed statements and sections for the current query. Plain text
+    /// matches, when the query is not a kind-and-number lookup, stay in `matches`.
+    private(set) var namedHits: [DocumentFind.Hit] = []
+    /// Set when a kind-and-number query matches nothing, for example
+    /// `No "Lemma 9" in this document`.
+    private(set) var namedMissMessage: String?
+
+    /// Live index entries and page text. Nil keeps ordinary text search.
+    var findSource: (() -> DocumentFind.Source?)?
 
     var query = "" {
         didSet {
-            guard query != oldValue else { return }
+            guard query != oldValue, !suppressSearch else { return }
             scheduleSearch()
         }
     }
+
+    /// Set while `showSnapshotResults` assigns `query`, so the assignment does
+    /// not start a document search.
+    private var suppressSearch = false
 
     /// Supplies the page currently on screen so a fresh search starts from
     /// there rather than page 1, matching Preview's behavior.
@@ -62,6 +75,22 @@ final class PDFFindModel: NSObject {
         }
     }
 
+    /// Shows a finished named-result list without opening a PDF. The designer
+    /// snapshot draws FindBarView from this; typing in the field still searches.
+    func showSnapshotResults(query snapshotQuery: String, hits: [DocumentFind.Hit]) {
+        searchTask?.cancel()
+        cancelInFlightSearch()
+        isVisible = true
+        isSearching = false
+        namedMissMessage = nil
+        matches = []
+        currentIndex = nil
+        namedHits = hits
+        suppressSearch = true
+        query = snapshotQuery
+        suppressSearch = false
+    }
+
     func dismiss() {
         searchTask?.cancel()
         cancelInFlightSearch()
@@ -96,16 +125,69 @@ final class PDFFindModel: NSObject {
     /// Kicks off PDFKit's asynchronous find, which walks the document on a
     /// background thread and reports matches through the delegate — so typing
     /// in the find bar never blocks the UI, even on very large documents.
+    func activate(_ hit: DocumentFind.Hit) {
+        guard let selection = selection(onPage: hit.pageIndex, matching: hit.anchor) else { return }
+        matches = [selection]
+        select(index: 0)
+    }
+
     private func runSearch() {
         guard let document, !query.isEmpty else {
             clearMatches()
             return
         }
 
+        let outcome = currentOutcome()
+        namedHits = outcome.hits
+        namedMissMessage = outcome.message
+        if outcome.suppressesTextSearch {
+            cancelInFlightSearch()
+            pendingMatches = []
+            isSearching = false
+            if outcome.jumpsImmediately, let hit = outcome.hits.first {
+                matches = []
+                currentIndex = nil
+                activate(hit)
+                if currentIndex == nil { revision = UUID() }
+            } else {
+                matches = []
+                currentIndex = nil
+                revision = UUID()
+            }
+            return
+        }
+
         cancelInFlightSearch()
         pendingMatches = []
+        if !outcome.hits.isEmpty {
+            matches = []
+            currentIndex = nil
+            revision = UUID()
+        }
         isSearching = true
         document.beginFindString(query, withOptions: [.caseInsensitive, .diacriticInsensitive])
+    }
+
+    private func currentOutcome() -> DocumentFind.Outcome {
+        guard let source = findSource?() else {
+            return DocumentFind.Outcome(hits: [], message: nil, suppressesTextSearch: false)
+        }
+        return DocumentFind.search(
+            query: query,
+            entries: source.entries,
+            sections: DocumentFind.sections(in: source.pages)
+        )
+    }
+
+    private func selection(onPage pageIndex: Int, matching anchor: String) -> PDFSelection? {
+        guard let document, let page = document.page(at: pageIndex), let text = page.string else { return nil }
+        let source = text as NSString
+        guard source.length > 0 else { return nil }
+        let found = source.range(of: anchor, options: [.caseInsensitive])
+        let range = found.location == NSNotFound
+            ? NSRange(location: 0, length: 1)
+            : found
+        return page.selection(for: range)
     }
 
     private func cancelInFlightSearch() {
@@ -118,9 +200,21 @@ final class PDFFindModel: NSObject {
     private func finishSearch() {
         guard isSearching else { return }
         isSearching = false
-        matches = pendingMatches
+        let textMatches = pendingMatches
         pendingMatches = []
 
+        if namedHits.count == 1, textMatches.isEmpty, let hit = namedHits.first {
+            activate(hit)
+            return
+        }
+        if !namedHits.isEmpty {
+            matches = textMatches
+            currentIndex = nil
+            revision = UUID()
+            return
+        }
+
+        matches = textMatches
         if matches.isEmpty {
             currentIndex = nil
             revision = UUID()
@@ -154,6 +248,8 @@ final class PDFFindModel: NSObject {
     private func clearMatches() {
         matches = []
         currentIndex = nil
+        namedHits = []
+        namedMissMessage = nil
         revision = UUID()
     }
 }

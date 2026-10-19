@@ -9,6 +9,11 @@ enum ReferenceParsing {
     // scoped to dotted labels so an ordinary word after "Remark" is not a number.
     static let namedBlockPattern = #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\s*(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"#
 
+    static let referenceNumberPattern = #"\d+(?:\.\d+)*|[A-Z](?:\.\d+)+"#
+
+    /// "Lemmas 4.6" and "Lemmas 3.1, 3.2 and 3.4". Abbreviations stay out.
+    static let pluralBlockPattern = #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
+
     static let equationCitePattern = #"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)\s*\)"#
 
     // The optional panel suffix belongs to the mention, not the figure's

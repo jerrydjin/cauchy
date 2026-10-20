@@ -25,6 +25,7 @@ extension FocusedValues {
 struct ReaderCommands: Commands {
     @FocusedValue(\.readerWorkspace) private var workspace
     @FocusedValue(\.learningLibrary) private var learningLibrary
+    @FocusedValue(\.planLearningSession) private var planLearningSession
     @Environment(\.openWindow) private var openWindow
 
     private var hasDocument: Bool { workspace?.pdfDocument != nil }
@@ -123,6 +124,44 @@ struct ReaderCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(learningLibrary?.selectedDocument == nil || learningLibrary?.selectedDocument?.isBusy == true)
+
+            Divider()
+
+            Button("Show Learning Path") { showLearningPath() }
+                .keyboardShortcut("l", modifiers: [.command, .option])
+                .disabled(learningLibrary?.selectedDocument == nil || learningLibrary?.selectedDocument?.isBusy == true)
+
+            Button("Plan a Study Session…") { planLearningSession?() }
+                .keyboardShortcut("p", modifiers: [.command, .shift])
+                .disabled(planLearningSession == nil)
+
+            Button(learningLibrary?.selectedDocument?.studyMap.currentStudyRun?.state == .paused ? "Resume Study Session" : "Pause Study Session") {
+                guard let document = learningLibrary?.selectedDocument else { return }
+                if document.studyMap.currentStudyRun?.state == .paused {
+                    document.continueStudyRun()
+                } else {
+                    document.pauseStudyRun()
+                    showLearningPath()
+                }
+            }
+            .keyboardShortcut("u", modifiers: [.command, .shift])
+            .disabled(!canToggleStudySession)
+
+            Button("Finish Study Session Here") {
+                learningLibrary?.selectedDocument?.finishStudyRun()
+                showLearningPath()
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+            .disabled(!hasStudySession || learningLibrary?.selectedDocument?.studyMap.isBusy == true)
+
+            Divider()
+
+            Button(learningLibrary?.selectedDocument?.notesVisible == true ? "Hide Source Notes" : "Show Source Notes") {
+                guard let document = learningLibrary?.selectedDocument else { return }
+                if document.notesVisible { document.notesVisible = false } else { document.showNotes() }
+            }
+            .keyboardShortcut("i", modifiers: [.command, .option])
+            .disabled(learningLibrary?.selectedDocument == nil)
         }
 
         CommandMenu("Reading") {
@@ -220,6 +259,23 @@ struct ReaderCommands: Commands {
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(workspace?.ocrResult == nil)
         }
+    }
+
+    private var hasStudySession: Bool {
+        guard let run = learningLibrary?.selectedDocument?.studyMap.currentStudyRun else { return false }
+        return run.state != .finished
+    }
+
+    private var canToggleStudySession: Bool {
+        guard let document = learningLibrary?.selectedDocument,
+              let run = document.studyMap.currentStudyRun, run.state != .finished else { return false }
+        // Pause retains the toolbar's ability to cancel an in-flight tutor.
+        return run.state == .paused ? !document.isBusy : !document.studyMap.isBusy
+    }
+
+    private func showLearningPath() {
+        guard let library = learningLibrary, let document = library.selectedDocument else { return }
+        Task { await library.navigate(to: .studyMap(document.id)) }
     }
 
     private func showLearning(newSection: Bool = false) {

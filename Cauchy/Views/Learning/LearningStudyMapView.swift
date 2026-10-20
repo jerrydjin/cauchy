@@ -3,6 +3,7 @@ import SwiftUI
 struct LearningStudyMapView: View {
     @Bindable var document: LearningDocument
     var onStudyPassage: () -> Void = {}
+    var onPlanStudySession: () -> Void = {}
     @State private var assistantPreferenceRevision = 0
     private var assistantPresentation: AskPresentation {
         _ = assistantPreferenceRevision
@@ -19,7 +20,6 @@ struct LearningStudyMapView: View {
     @State private var syllabusProvenance = ""
     @State private var syllabusKinds: Set<LearningStudyKind> = [.concept, .proof, .application]
     @State private var syllabusMapping: LearningSyllabusSelection?
-    @State private var showingStudyPlan = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var planner: LearningStudyMapViewModel { document.studyMap }
     private var nextStudy: LearningStudyRecommendation? {
@@ -46,7 +46,6 @@ struct LearningStudyMapView: View {
         .sheet(item: $syllabusMapping) { selection in
             LearningSyllabusMappingEditor(document: document, requirement: selection.requirement, kind: selection.kind)
         }
-        .sheet(isPresented: $showingStudyPlan) { LearningStudyRunPlanView(document: document) }
     }
 
     private var preparation: some View {
@@ -231,7 +230,7 @@ struct LearningStudyMapView: View {
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 if planner.currentStudyRun == nil || (planner.currentStudyRun?.state == .finished && planner.currentStudyRun?.summaryAcknowledgedAt != nil) {
-                    Button("Plan a study session…", systemImage: "list.bullet.clipboard") { showingStudyPlan = true }
+                    Button("Plan a study session…", systemImage: "list.bullet.clipboard", action: onPlanStudySession)
                         .buttonStyle(.borderless).disabled(document.isBusy || !assistantAvailable)
                 }
                 Divider()
@@ -461,12 +460,16 @@ struct LearningStudyMapView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(next.label).font(.subheadline).foregroundStyle(.secondary)
                     Text(next.unit.title).font(.title2.weight(.semibold))
+                        .lineLimit(2).accessibilityLabel(next.unit.title)
                     Text(module.map { "\($0.title) · \(next.target.kind.label)" } ?? next.target.kind.label)
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
             DisclosureGroup("Lesson goal") {
-                MessageContentView(content: next.target.objective).padding(.top, 8)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(next.unit.title).font(.headline).textSelection(.enabled)
+                    MessageContentView(content: next.target.objective)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
             }
             if let session = next.session {
                 Text(next.requiresRevisedLesson ? "Your earlier lesson and answers remain saved." : "\(session.phase.label) · your saved work is ready")

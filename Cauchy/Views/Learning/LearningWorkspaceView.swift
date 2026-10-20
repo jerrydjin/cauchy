@@ -2,9 +2,21 @@ import PDFKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+private struct LearningPlanActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var planLearningSession: (() -> Void)? {
+        get { self[LearningPlanActionKey.self] }
+        set { self[LearningPlanActionKey.self] = newValue }
+    }
+}
+
 struct LearningWorkspaceView: View {
     @Bindable var library: LearningLibraryStore
     @State private var assistantPreferenceRevision = 0
+    @State private var showingStudyPlan = false
     @AppStorage("library.hiddenRecents") private var hiddenRecents = ""
     // Learn has one window. Keep its last working location across window
     // closure and app termination, when scene storage may be discarded.
@@ -12,6 +24,15 @@ struct LearningWorkspaceView: View {
     @AppStorage("learning.workspace.session") private var restoredSession = ""
     @AppStorage("learning.workspace.studyMap") private var restoredStudyMap = false
     @AppStorage("learning.workspace.passage") private var restoredPassage = false
+
+    private var canPlanStudySession: Bool {
+        _ = assistantPreferenceRevision
+        guard let document = library.selectedDocument, !document.isBusy,
+              document.studyMap.map?.course != nil else { return false }
+        let run = document.studyMap.currentStudyRun
+        guard run == nil || (run?.state == .finished && run?.summaryAcknowledgedAt != nil) else { return false }
+        return document.isVerificationFixture || AskPresentation.current().canAsk
+    }
 
     private var sidebarSelection: Binding<LearningDestination?> {
         Binding(get: {
@@ -68,9 +89,9 @@ struct LearningWorkspaceView: View {
                 } else if let document = library.selectedDocument {
                     Group {
                         if library.destination == .studyMap(document.id) || library.destination == .document(document.id) {
-                            LearningStudyMapView(document: document) {
+                            LearningStudyMapView(document: document, onStudyPassage: {
                                 Task { await library.navigate(to: .passage(document.id)) }
-                            }
+                            }, onPlanStudySession: { showingStudyPlan = true })
                         } else {
                             LearningSessionView(document: document) {
                                 Task { await library.navigate(to: .studyMap(document.id)) }
@@ -144,6 +165,10 @@ struct LearningWorkspaceView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .focusedSceneValue(\.learningLibrary, library)
+        .focusedSceneValue(\.planLearningSession, canPlanStudySession ? { showingStudyPlan = true } : nil)
+        .sheet(isPresented: $showingStudyPlan) {
+            if let document = library.selectedDocument { LearningStudyRunPlanView(document: document) }
+        }
         .frame(minWidth: 1000, minHeight: 720)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             guard !library.isVerificationFixture else { return false }

@@ -284,10 +284,15 @@ struct LearningSessionView: View {
 
     private func chapterContent(_ session: LearningSession, chapter: LearningChapterState) -> some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Chapter challenge · \(chapter.request.title)").font(.subheadline).foregroundStyle(.secondary)
+            Text("Chapter challenge").font(.subheadline).foregroundStyle(.secondary)
             Text(chapter.challenge.title).font(.title.weight(.semibold))
-            MessageContentView(content: chapter.challenge.connection)
-            DisclosureGroup("The two ideas and their sources") {
+                .lineLimit(2).accessibilityLabel(chapter.challenge.title)
+            DisclosureGroup("Challenge details") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(chapter.request.title).font(.headline).textSelection(.enabled)
+                    Text(chapter.challenge.title).font(.headline).textSelection(.enabled)
+                    MessageContentView(content: chapter.challenge.connection)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
                 ForEach(chapter.challenge.ideas, id: \.unitID) { idea in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(idea.title).font(.headline)
@@ -317,14 +322,18 @@ struct LearningSessionView: View {
             } else {
                 questionContent(session)
                 if session.feedback == nil {
-                    Button("Refresh a prerequisite", systemImage: "arrow.uturn.backward") {
-                        answerFocused = false
-                        learning.openPrerequisiteRescue()
-                    }.buttonStyle(.glass).disabled(learning.isBusy)
-                    Text(chapter.assistanceUsed
-                         ? "Refresher used · this response will record help. A fresh check can later provide independent evidence."
-                         : "Your argument stays here while you revisit one relevant idea. Using the refresher records help on this response.")
-                        .font(.caption).foregroundStyle(.secondary)
+                    DisclosureGroup(chapter.assistanceUsed ? "Help with this argument · refresher used" : "Help with this argument") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(chapter.assistanceUsed
+                                 ? "This response records help. A fresh check can later provide independent evidence."
+                                 : "Your argument stays here while you revisit one relevant idea. Using the refresher records help on this response.")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Button("Refresh a prerequisite", systemImage: "arrow.uturn.backward") {
+                                answerFocused = false
+                                learning.openPrerequisiteRescue()
+                            }.buttonStyle(.glass).disabled(learning.isBusy)
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
+                    }
                 }
             }
         }.accessibilityElement(children: .contain)
@@ -531,10 +540,6 @@ struct LearningSessionView: View {
     private func questionContent(_ session: LearningSession) -> some View {
         if let question = session.question {
             VStack(alignment: .leading, spacing: 16) {
-                if session.phase == .exitCheck {
-                    Text("Try without notes or hints. Record any help beside your submission.")
-                        .font(.callout).foregroundStyle(.secondary)
-                }
                 MessageContentView(content: question.prompt)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -765,6 +770,7 @@ struct LearningSessionView: View {
                             get: { learning.outsideHelpUsed }, set: { learning.outsideHelpUsed = $0 }
                         ))
                         .toggleStyle(.checkbox)
+                        .help("Try without notes or hints, and record any help used for this response.")
                     }
                     primaryAction("Check my reasoning") { answerFocused = false; learning.submitAnswer() }
                         .disabled(session.answerDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

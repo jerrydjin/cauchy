@@ -187,12 +187,16 @@ struct LearningStudyMapView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(review.activeSessionID == nil ? "Revisit an earlier idea" : "Continue your delayed check")
                             .font(.title2.weight(.semibold))
-                        Text(review.unit.title).font(.headline)
+                        Text(review.unit.title).font(.headline).lineLimit(2).accessibilityLabel(review.unit.title)
                         Text("\(review.target.kind.label) · due \(review.dueAt.formatted(date: .abbreviated, time: .omitted))")
                             .font(.caption).foregroundStyle(.secondary)
                         DisclosureGroup("About this check") {
-                            Text("A different question for the same requirement. Immediate and delayed evidence are recorded separately.")
-                                .font(.callout).foregroundStyle(.secondary).padding(.top, 8)
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text(review.unit.title).font(.headline).textSelection(.enabled)
+                                MessageContentView(content: review.target.objective)
+                                Text("A different question for the same requirement. Immediate and delayed evidence are recorded separately.")
+                                    .font(.callout).foregroundStyle(.secondary)
+                            }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                         }
                         Button(review.activeSessionID == nil ? "Try a delayed check" : "Continue delayed check", systemImage: "clock.arrow.circlepath") {
                             document.learning.startDelayedReview(review)
@@ -203,7 +207,14 @@ struct LearningStudyMapView: View {
                     }
                 } else if let openChapter = document.learning.sessions.first(where: { $0.chapter != nil && $0.phase != .complete }) {
                     Text("Continue your chapter argument").font(.title2.weight(.semibold))
-                    Text(openChapter.chapter?.challenge.title ?? openChapter.lesson.title)
+                    let title = openChapter.chapter?.challenge.title ?? openChapter.lesson.title
+                    Text(title).font(.headline).lineLimit(2).accessibilityLabel(title)
+                    DisclosureGroup("Challenge details") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(title).font(.headline).textSelection(.enabled)
+                            MessageContentView(content: openChapter.chapter?.challenge.connection ?? openChapter.lesson.objective)
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                    }
                     Button("Continue challenge", systemImage: "arrow.right") { document.learning.select(openChapter.id) }
                         .buttonStyle(.glassProminent).controlSize(.large)
                         .keyboardShortcut(.return, modifiers: .command).disabled(document.isBusy)
@@ -213,9 +224,16 @@ struct LearningStudyMapView: View {
                     return request.units.allSatisfy { $0.hasEvidenceForEveryTarget(sessions: document.learning.sessions) }
                 }), let request = map.chapterRequest(for: ready) {
                     Text("Bring the chapter together").font(.title2.weight(.semibold))
-                    Text(request.units.map(\.title).joined(separator: " + ")).font(.headline)
-                    Text("Use both ideas in one argument. A short refresher is available if you get stuck.")
-                        .foregroundStyle(.secondary)
+                    Text(ready.title).font(.headline).lineLimit(2).accessibilityLabel(ready.title)
+                    DisclosureGroup("Challenge details") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(ready.title).font(.headline).textSelection(.enabled)
+                            MessageContentView(content: request.connection)
+                            ForEach(request.units) { unit in
+                                Text(unit.title).font(.subheadline).textSelection(.enabled)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                    }
                     Button("Try the chapter challenge", systemImage: "point.3.connected.trianglepath.dotted") { startChapter(request) }
                         .buttonStyle(.glassProminent).controlSize(.large)
                         .keyboardShortcut(.return, modifiers: .command)

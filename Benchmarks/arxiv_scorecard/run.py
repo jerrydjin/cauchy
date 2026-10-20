@@ -4,9 +4,12 @@ Usage, from the repo root:
 
     python3 Benchmarks/arxiv_scorecard/run.py
     python3 Benchmarks/arxiv_scorecard/run.py --sample
+    python3 Benchmarks/arxiv_scorecard/run.py --scanned
 
 The default command scores Benchmarks/arxiv_scorecard/ids.json. --sample
 draws a fresh stratified set (seed 20261018) and is what produced that file.
+--scanned scores Benchmarks/arxiv_scorecard/scanned_ids.json, a separate
+set of older scanned mathematics. That score is not a release gate.
 PDFs and HTML are cached under Benchmarks/arxiv_scorecard/cache/ and are not
 committed. The scorecard uses the Python port of Cauchy's detector, source
 fallback statement index, and section locator; it does not launch the macOS
@@ -885,7 +888,17 @@ def main() -> None:
     parser.add_argument("--json-out", default="", help="write the scorecard JSON here")
     parser.add_argument("--markdown", default="", help="write the scorecard markdown here")
     parser.add_argument("--limit", type=int, default=0, help="score only the first N random papers")
+    parser.add_argument(
+        "--scanned",
+        action="store_true",
+        help="score the scanned set only and write its own report; it is not a release gate",
+    )
     args = parser.parse_args()
+    if args.scanned:
+        from scanned import run_scanned
+
+        run_scanned()
+        return
     if args.sample_wide:
         payload = sample_wide(_load_ids())
         WIDE_PATH.write_text(json.dumps(payload, indent=2) + "\n")

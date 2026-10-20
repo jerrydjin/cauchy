@@ -1,0 +1,64 @@
+{
+  "set": "scanned",
+  "counts_toward_release_gate": false,
+  "note": "Older scanned mathematics with a poor or missing text layer. Scored only by run.py --scanned. The PDFs are cached locally and are not committed. This score is not a release gate.",
+  "papers": [
+    {
+      "id": "lasley-flecnode-1922",
+      "title": "Some special cases of the flecnode transformation of ruled surfaces",
+      "author": "John Wayne Lasley",
+      "year": "1922",
+      "source_url": "https://archive.org/download/somespecialcase00laslgoog/somespecialcase00laslgoog.pdf",
+      "source_page": "https://archive.org/details/somespecialcase00laslgoog",
+      "license": "Public domain in the United States (published 1922). Internet Archive marks the scan NOT_IN_COPYRIGHT.",
+      "sections": []
+    },
+    {
+      "id": "lovitt-singular-points-1915",
+      "title": "A type of singular points for a transformation of three variables",
+      "author": "William Vernon Lovitt",
+      "year": "1915",
+      "source_url": "https://archive.org/download/atypesingularpo00lovigoog/atypesingularpo00lovigoog.pdf",
+      "source_page": "https://archive.org/details/atypesingularpo00lovigoog",
+      "license": "Public domain in the United States (published 1915). Internet Archive marks the scan NOT_IN_COPYRIGHT.",
+      "sections": []
+    },
+    {
+      "id": "pearson-clapeyron-1889",
+      "title": "Note on Clapeyron's theorem of the three moments",
+      "author": "Karl Pearson",
+      "year": "1889",
+      "source_url": "https://archive.org/download/rcin.org.pl.WA35_87300_cz294-1890-t19_Art1_105938/WA35_87300_cz294-1890-t19_Art1.pdf",
+      "source_page": "https://archive.org/details/rcin.org.pl.WA35_87300_cz294-1890-t19_Art1_105938",
+      "license": "Public domain. Internet Archive records the rights as Public Domain. The article was printed in 1889.",
+      "sections": []
+    },
+    {
+      "id": "hall-graphical-algebra-1907",
+      "title": "A short introduction to graphical algebra",
+      "author": "H. S. Hall",
+      "year": "1907",
+      "source_url": "https://archive.org/download/shortintroductio029519mbp/shortintroductio029519mbp.pdf",
+      "source_page": "https://archive.org/details/shortintroductio029519mbp",
+      "license": "Public domain. Fourth edition, Macmillan, 1907. Henry Sinclair Hall died in 1934.",
+      "sections": [
+        {"number": "1", "title": "Definition", "page": 9},
+        {"number": "2", "title": "The symbol f(x)", "page": 9}
+      ]
+    },
+    {
+      "id": "boole-philosophy-algebra-1909",
+      "title": "Philosophy and fun of algebra",
+      "author": "Mary Everest Boole",
+      "year": "1909",
+      "source_url": "https://archive.org/download/philosophyandfun030851mbp/philosophyandfun030851mbp.pdf",
+      "source_page": "https://archive.org/details/philosophyandfun030851mbp",
+      "license": "Public domain. C. W. Daniel, 1909. Mary Everest Boole died in 1916.",
+      "sections": [
+        {"number": "1", "title": "From arithmetic to algebra", "page": 13},
+        {"number": "2", "title": "The making of algebras", "page": 19},
+        {"number": "7", "title": "How to choose our hypotheses", "page": 41}
+      ]
+    }
+  ]
+}

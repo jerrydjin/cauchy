@@ -1,0 +1,246 @@
+{
+  "set": "scanned",
+  "counts_toward_release_gate": false,
+  "passes": 0,
+  "total": 5,
+  "papers": [
+    {
+      "id": "lasley-flecnode-1922",
+      "title": "Some special cases of the flecnode transformation of ruled surfaces",
+      "author": "John Wayne Lasley",
+      "year": "1922",
+      "source_url": "https://archive.org/download/somespecialcase00laslgoog/somespecialcase00laslgoog.pdf",
+      "source_page": "https://archive.org/details/somespecialcase00laslgoog",
+      "license": "Public domain in the United States (published 1922). Internet Archive marks the scan NOT_IN_COPYRIGHT.",
+      "page_count": 22,
+      "passes": false,
+      "failure_modes": [
+        "no text layer"
+      ],
+      "text_layer": {
+        "pages": 22,
+        "blank_pages": 21,
+        "median_letters": 0,
+        "missing": true,
+        "cover_note_only": true
+      },
+      "references": {
+        "ok": false,
+        "in_scope": 0,
+        "resolved": 0,
+        "resolution_rate": 1.0,
+        "indexed": 0,
+        "citation_detections": 0,
+        "samples": []
+      },
+      "sections": {
+        "probed": [],
+        "ok": false,
+        "reason": "no numbered section heading located"
+      }
+    },
+    {
+      "id": "lovitt-singular-points-1915",
+      "title": "A type of singular points for a transformation of three variables",
+      "author": "William Vernon Lovitt",
+      "year": "1915",
+      "source_url": "https://archive.org/download/atypesingularpo00lovigoog/atypesingularpo00lovigoog.pdf",
+      "source_page": "https://archive.org/details/atypesingularpo00lovigoog",
+      "license": "Public domain in the United States (published 1915). Internet Archive marks the scan NOT_IN_COPYRIGHT.",
+      "page_count": 18,
+      "passes": false,
+      "failure_modes": [
+        "no text layer"
+      ],
+      "text_layer": {
+        "pages": 18,
+        "blank_pages": 17,
+        "median_letters": 0,
+        "missing": true,
+        "cover_note_only": true
+      },
+      "references": {
+        "ok": false,
+        "in_scope": 0,
+        "resolved": 0,
+        "resolution_rate": 1.0,
+        "indexed": 0,
+        "citation_detections": 0,
+        "samples": []
+      },
+      "sections": {
+        "probed": [],
+        "ok": false,
+        "reason": "no numbered section heading located"
+      }
+    },
+    {
+      "id": "pearson-clapeyron-1889",
+      "title": "Note on Clapeyron's theorem of the three moments",
+      "author": "Karl Pearson",
+      "year": "1889",
+      "source_url": "https://archive.org/download/rcin.org.pl.WA35_87300_cz294-1890-t19_Art1_105938/WA35_87300_cz294-1890-t19_Art1.pdf",
+      "source_page": "https://archive.org/details/rcin.org.pl.WA35_87300_cz294-1890-t19_Art1_105938",
+      "license": "Public domain. Internet Archive records the rights as Public Domain. The article was printed in 1889.",
+      "page_count": 7,
+      "passes": false,
+      "failure_modes": [
+        "broken reference detection",
+        "wrong section resolution"
+      ],
+      "text_layer": {
+        "pages": 7,
+        "blank_pages": 0,
+        "median_letters": 1110,
+        "missing": false,
+        "cover_note_only": false
+      },
+      "references": {
+        "ok": false,
+        "in_scope": 9,
+        "resolved": 0,
+        "resolution_rate": 0.0,
+        "indexed": 0,
+        "citation_detections": 0,
+        "samples": [
+          "p.1 equation (129)",
+          "p.1 equation (1)",
+          "p.2 equation (2)",
+          "p.2 equation (1857)",
+          "p.3 equation (3)",
+          "p.3 equation (4)",
+          "p.4 equation (5)",
+          "p.5 equation (6)"
+        ]
+      },
+      "sections": {
+        "probed": [],
+        "ok": false,
+        "reason": "no numbered section heading located"
+      }
+    },
+    {
+      "id": "hall-graphical-algebra-1907",
+      "title": "A short introduction to graphical algebra",
+      "author": "H. S. Hall",
+      "year": "1907",
+      "source_url": "https://archive.org/download/shortintroductio029519mbp/shortintroductio029519mbp.pdf",
+      "source_page": "https://archive.org/details/shortintroductio029519mbp",
+      "license": "Public domain. Fourth edition, Macmillan, 1907. Henry Sinclair Hall died in 1934.",
+      "page_count": 88,
+      "passes": false,
+      "failure_modes": [
+        "broken reference detection",
+        "wrong section resolution"
+      ],
+      "text_layer": {
+        "pages": 88,
+        "blank_pages": 17,
+        "median_letters": 892,
+        "missing": false,
+        "cover_note_only": false
+      },
+      "references": {
+        "ok": false,
+        "in_scope": 8,
+        "resolved": 5,
+        "resolution_rate": 0.625,
+        "indexed": 6,
+        "citation_detections": 0,
+        "samples": [
+          "p.25 equation (1)",
+          "p.26 equation (2)",
+          "p.26 equation (1)",
+          "p.27 equation (2)",
+          "p.50 equation (200)",
+          "p.65 equation (1)",
+          "p.67 equation (120)",
+          "p.67 equation (30)"
+        ]
+      },
+      "sections": {
+        "probed": [
+          {
+            "number": "1",
+            "title": "Definition",
+            "expected_page": 9,
+            "predicted_page": 40,
+            "label": "\u00a71 Ore- 2 tan Sx+ 1",
+            "ok": false
+          },
+          {
+            "number": "2",
+            "title": "The symbol f(x)",
+            "expected_page": 9,
+            "predicted_page": 48,
+            "label": "\u00a72. Draw a graph shewing the relation between equal weights in",
+            "ok": false
+          }
+        ],
+        "ok": false,
+        "reason": "a section question missed its heading page"
+      }
+    },
+    {
+      "id": "boole-philosophy-algebra-1909",
+      "title": "Philosophy and fun of algebra",
+      "author": "Mary Everest Boole",
+      "year": "1909",
+      "source_url": "https://archive.org/download/philosophyandfun030851mbp/philosophyandfun030851mbp.pdf",
+      "source_page": "https://archive.org/details/philosophyandfun030851mbp",
+      "license": "Public domain. C. W. Daniel, 1909. Mary Everest Boole died in 1916.",
+      "page_count": 102,
+      "passes": false,
+      "failure_modes": [
+        "broken reference detection",
+        "wrong section resolution"
+      ],
+      "text_layer": {
+        "pages": 102,
+        "blank_pages": 15,
+        "median_letters": 750,
+        "missing": false,
+        "cover_note_only": false
+      },
+      "references": {
+        "ok": false,
+        "in_scope": 0,
+        "resolved": 0,
+        "resolution_rate": 1.0,
+        "indexed": 0,
+        "citation_detections": 0,
+        "samples": []
+      },
+      "sections": {
+        "probed": [
+          {
+            "number": "1",
+            "title": "From arithmetic to algebra",
+            "expected_page": 13,
+            "predicted_page": 37,
+            "label": "\u00a71 D. Marks bases the Seventh Commandment on",
+            "ok": false
+          },
+          {
+            "number": "2",
+            "title": "The making of algebras",
+            "expected_page": 19,
+            "predicted_page": null,
+            "label": null,
+            "ok": false
+          },
+          {
+            "number": "7",
+            "title": "How to choose our hypotheses",
+            "expected_page": 41,
+            "predicted_page": null,
+            "label": null,
+            "ok": false
+          }
+        ],
+        "ok": false,
+        "reason": "a section question missed its heading page"
+      }
+    }
+  ]
+}

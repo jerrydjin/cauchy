@@ -1,0 +1,25 @@
+# Focused lesson history
+
+Tracked by [JERRY-78](https://linear.app/jerryjin/issue/JERRY-78), preserving [JERRY-57](https://linear.app/jerryjin/issue/JERRY-57)'s attempt distinctions.
+
+History rows now show the title and one compact activity/status line instead of repeating category, kind, status and a full Started line separately. Ordinary lessons show their study kind; delayed checks and chapter challenges retain their explicit category. Full category, kind, status and original start timing remain in the row's accessibility/hover text and in Lesson details. The selected lesson's toolbar control opens that read-only panel; ⇧⌘D opens it and Escape dismisses it. The panel uses Status for in-progress phases as well as completed results. Delayed timing still comes from its saved `startedAt`, rather than selection/update time. Missing legacy kinds are not invented.
+
+Ordinary lesson headings also use two lines with their complete accessibility label. The complete selectable title remains in Lesson details and the full-lesson view. Teaching, full proofs, questions and answers are unchanged. Planning is disabled while its own preview or Lesson details is open, preventing competing sheets.
+
+## Verification
+
+The final history action and metadata code passes **74 targeted macOS tests, zero failures or skips**: LearningWorkspaceTests, LearningFlowTests, LearningStudyMapTests and LearningUIFixtureTests (`/tmp/cauchy-learn-history-invocation-tests.xcresult`). The subsequent heading-only adjustment builds successfully (`/tmp/cauchy-learn-history-heading-build.log`) and was inspected natively. No test was added that mirrors the display projection.
+
+Native checks used the existing separate Debug verification bundle, the 1000-point window and authored offline storage at `/tmp/cauchy-ui-fixture-history78`. Its 15 sessions include an unchanged same-title ordinary/delayed pair, an unsent delayed draft, a long title and additional earlier authored entries. The initial seed mixed numeric sidecar dates with the workspace's ISO dates; this was corrected in temporary storage before the retained 15-session check. It is not an app persistence regression. Normal notes and the installed app were not replaced.
+
+- Inspected the compact sidebar with the same-title entries visible together. Their text distinguishes Delayed check/Exit check from Application/Passed exit check; color and icons are supplementary. Full accessible names retain category, kind, status and original timing.
+- Selected each same-title entry and recovered its original question/draft or completed result. Opened the ordinary lesson through the toolbar control and both types through ⇧⌘D. Details shows their different categories and original dates. Escape restores the delayed answer editor and its exact unsent draft.
+- A native switching check caught a stale captured lesson in the toolbar shortcut. The final action resolves the current library selection at invocation. Rechecked long-title lesson → delayed check → ordinary completed lesson in sequence: each shortcut opens the newly selected record's complete title, category, focus, status and original timing.
+- Read the complete long title and all metadata in the panel. The final two-line main heading keeps the worked-example part and its controls visible. Scrolled to the bottom of history, selected the final entry and inspected its own metadata with the toolbar control.
+- Confirmed the plan shortcut does not present another sheet while Lesson details is open. Quit and cold-reopened the delayed attempt: its exact question, draft, selected row, start timing and answer focus restore. Details remains accurate after that restart; Escape returns to the original editor.
+- Compared all 15 complete session records by ID and the complete study map before and after navigation, details inspection and restart: every field is equal, including drafts, attempts, help, source/proof content, timing and scheduling. This is a semantic JSON comparison, not a claim about serialized ordering.
+- On the final build, inspected the existing long saved chapter through Lesson details. It reports Chapter challenge, Proof, Exit check and the original start time. Escape restores the exact saved argument/editor. All chapter/lesson/source/question/draft/help/assessment/map fields remain unchanged; only its normal navigation timestamp changes on restoration.
+
+Artifacts: `learn_compact_history.png`, `learn_history_full_details.png` and `learn_history_long_heading.png` in the chat directory. The sidebar/details captures use the final metadata/action code; the heading capture includes the subsequent heading-only change. These show authored fixture data, not new mathematical grading or live model evaluation.
+
+The Mac initially required the user to unlock it manually. Later capture errors recovered by observing the same running app; they did not cause a restart. Native checks resumed after the user's unlock. System settings remained unchanged. Actual VoiceOver speech, alternate appearance/display settings and exhaustive keyboard navigation of all historical tools remain unexercised.

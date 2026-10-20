@@ -17,6 +17,7 @@ struct LearningWorkspaceView: View {
     @Bindable var library: LearningLibraryStore
     @State private var assistantPreferenceRevision = 0
     @State private var showingStudyPlan = false
+    @State private var lessonDetails: LearningSession?
     @AppStorage("library.hiddenRecents") private var hiddenRecents = ""
     // Learn has one window. Keep its last working location across window
     // closure and app termination, when scene storage may be discarded.
@@ -27,7 +28,8 @@ struct LearningWorkspaceView: View {
 
     private var canPlanStudySession: Bool {
         _ = assistantPreferenceRevision
-        guard let document = library.selectedDocument, !document.isBusy,
+        guard lessonDetails == nil, !showingStudyPlan,
+              let document = library.selectedDocument, !document.isBusy,
               document.studyMap.map?.course != nil else { return false }
         let run = document.studyMap.currentStudyRun
         guard run == nil || (run?.state == .finished && run?.summaryAcknowledgedAt != nil) else { return false }
@@ -143,6 +145,18 @@ struct LearningWorkspaceView: View {
                     }
                 }
                 ToolbarItem {
+                    if let document = library.selectedDocument, document.learning.session != nil {
+                        Button("Lesson details", systemImage: "info.circle") {
+                            // Resolve at invocation: toolbar shortcuts can retain
+                            // their action across selection changes.
+                            lessonDetails = library.selectedDocument?.learning.session
+                        }
+                            .help("Lesson details (⇧⌘D)")
+                            .keyboardShortcut("d", modifiers: [.command, .shift])
+                            .disabled(document.isBusy)
+                    }
+                }
+                ToolbarItem {
                     if library.isVerificationFixture {
                         Label("Offline fixture", systemImage: "testtube.2")
                     } else {
@@ -169,6 +183,7 @@ struct LearningWorkspaceView: View {
         .sheet(isPresented: $showingStudyPlan) {
             if let document = library.selectedDocument { LearningStudyRunPlanView(document: document) }
         }
+        .sheet(item: $lessonDetails) { session in LearningHistoryDetailsView(session: session) }
         .frame(minWidth: 1000, minHeight: 720)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             guard !library.isVerificationFixture else { return false }
@@ -242,36 +257,77 @@ struct LearningWorkspaceView: View {
     }
 }
 
-private struct LearningHistoryRow: View {
+private struct LearningHistoryMetadata {
     let session: LearningSession
 
-    private var context: String {
-        let category = session.delayedReview != nil ? "Delayed check" : session.chapter != nil ? "Chapter challenge" : "Lesson"
+    var category: String {
+        session.delayedReview != nil ? "Delayed check" : session.chapter != nil ? "Chapter challenge" : "Lesson"
+    }
+
+    var kind: String? {
         let kind = session.studyTarget?.kind ?? session.lesson.exitCheck.kind
-        let kindLabel: String? = switch kind {
+        return switch kind {
         case .concept: "Concept"
         case .proof: "Proof"
         case .application: "Application"
         case nil: nil
         }
-        return kindLabel.map { "\(category) · \($0)" } ?? category
     }
 
-    private var startedAt: Date { session.delayedReview?.startedAt ?? session.createdAt }
+    var context: String { kind.map { "\(category) · \($0)" } ?? category }
+    var sidebarContext: String { category == "Lesson" ? kind ?? category : category }
+    var startedAt: Date { session.delayedReview?.startedAt ?? session.createdAt }
+    var startedLabel: String { startedAt.formatted(date: .abbreviated, time: .shortened) }
+    var summary: String { "\(context) · \(session.progressLabel)\nStarted \(startedLabel)" }
+}
+
+private struct LearningHistoryRow: View {
+    let session: LearningSession
+    private var metadata: LearningHistoryMetadata { .init(session: session) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(session.lesson.title, systemImage: session.delayedReview != nil ? "clock.arrow.circlepath" : session.passedExitCheck ? "checkmark.circle" : "book")
                 .lineLimit(2)
-            Text(context).font(.caption).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(session.progressLabel).font(.caption).foregroundStyle(.secondary)
-            Text("Started \(startedAt.formatted(date: .abbreviated, time: .shortened))")
-                .font(.caption2).foregroundStyle(.secondary)
+            Text("\(metadata.sidebarContext) · \(session.progressLabel)")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        .help("\(session.lesson.title)\n\(metadata.summary)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(session.lesson.title), \(metadata.summary)")
+    }
+}
+
+private struct LearningHistoryDetailsView: View {
+    let session: LearningSession
+    @Environment(\.dismiss) private var dismiss
+    private var metadata: LearningHistoryMetadata { .init(session: session) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Lesson details").font(.title2.weight(.semibold))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(session.lesson.title).font(.headline).textSelection(.enabled)
+                    Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 12) {
+                        GridRow { Text("Activity").foregroundStyle(.secondary); Text(metadata.category) }
+                        if let kind = metadata.kind {
+                            GridRow { Text("Focus").foregroundStyle(.secondary); Text(kind) }
+                        }
+                        GridRow { Text("Status").foregroundStyle(.secondary); Text(session.progressLabel) }
+                        GridRow { Text("Started").foregroundStyle(.secondary); Text(metadata.startedLabel) }
+                    }.font(.callout).textSelection(.enabled)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 8)
+            }.frame(maxHeight: 360)
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }.buttonStyle(.glassProminent).keyboardShortcut(.cancelAction)
+            }
+        }.padding(24).frame(width: 460)
     }
 }
 

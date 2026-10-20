@@ -259,6 +259,7 @@ struct LearningSessionView: View {
 
         VStack(alignment: .leading, spacing: 10) {
             Text(session.lesson.title).font(.title.weight(.semibold))
+                .lineLimit(2).accessibilityLabel(session.lesson.title)
             if session.phase != .diagnostic && (session.phase != .lesson || session.currentLessonPartIndex > 0) {
                 DisclosureGroup("Learning goal") {
                     Text(session.lesson.objective).font(.body)

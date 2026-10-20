@@ -37,22 +37,27 @@ final class ConnectorSetupService {
                 } else {
                     loginArguments = id == .codex ? ["login"] : []
                 }
-                if id == .codex,
-                   (try? await run(binary, ["login", "status"], timeout: 15)) != nil {
+                // `codex login status` can exit 0 without a ChatGPT login. Ready
+                // means a tiny request to the selected model actually answered.
+                phase = .checking
+                let modelID = AssistantPreferences.modelChoice(for: id).modelID
+                let failure = await ProviderReadinessStore.shared.probe(
+                    connectorID: id,
+                    modelID: modelID,
+                    force: true
+                )
+                try Task.checkCancellation()
+                switch failure {
+                case nil:
                     authenticated.insert(id)
                     phase = .ready
-                } else if id == .claudeCode, !loginArguments.isEmpty,
-                          let output = try? await run(binary, ["auth", "status"], timeout: 15),
-                          Self.claudeIsSignedIn(output) {
-                    authenticated.insert(id)
-                    phase = .ready
-                } else if id == .antigravity, authenticated.contains(id) {
-                    phase = .ready
-                } else {
+                case .notSignedIn, .notInstalled, .cancelled:
                     authenticated.remove(id)
                     phase = .signIn
+                default:
+                    authenticated.remove(id)
+                    phase = .failed(failure?.errorDescription ?? "Could not connect.")
                 }
-                try Task.checkCancellation()
             } catch is CancellationError {
                 phase = .idle
             } catch {
@@ -69,35 +74,26 @@ final class ConnectorSetupService {
 
     func check() {
         guard operation == nil, let id = connectorID,
-              let binary = id.connector.resolvedBinaryURL else { return }
+              id.connector.resolvedBinaryURL != nil else { return }
         phase = .checking
         operation = Task {
-            do {
-                switch id {
-                case .codex:
-                    _ = try await run(binary, ["login", "status"], timeout: 20)
-                case .claudeCode where !loginArguments.isEmpty:
-                    let output = try await run(binary, ["auth", "status"], timeout: 20)
-                    guard Self.claudeIsSignedIn(output) else {
-                        throw SetupError.message("Claude has not confirmed sign-in yet. Finish signing in, then check again.")
-                    }
-                default:
-                    // agy and older Claude have no status endpoint. No document is sent.
-                    let args = id == .antigravity
-                        ? ["-p", "Reply with only CAUCHY_CONNECTED. Do not use tools.", "--sandbox"]
-                        : ["-p", "Reply with only CAUCHY_CONNECTED.", "--tools", "", "--no-session-persistence"]
-                    let output = try await run(binary, args, timeout: 60)
-                    guard output.trimmingCharacters(in: .whitespacesAndNewlines) == "CAUCHY_CONNECTED" else {
-                        throw SetupError.message("The connection check did not return the expected response. Finish sign-in and try again.")
-                    }
-                }
+            let modelID = AssistantPreferences.modelChoice(for: id).modelID
+            let failure = await ProviderReadinessStore.shared.probe(
+                connectorID: id,
+                modelID: modelID,
+                force: true
+            )
+            if Task.isCancelled {
+                phase = .signIn
+            } else if failure == nil {
                 authenticated.insert(id)
                 phase = .ready
-            } catch is CancellationError {
-                phase = .signIn
-            } catch {
+            } else if case .notSignedIn = failure {
                 authenticated.remove(id)
-                phase = .failed(error.localizedDescription)
+                phase = .signIn
+            } else {
+                authenticated.remove(id)
+                phase = .failed(failure?.errorDescription ?? "Could not connect.")
             }
             operation = nil
         }

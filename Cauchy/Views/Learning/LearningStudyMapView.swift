@@ -3,8 +3,12 @@ import SwiftUI
 struct LearningStudyMapView: View {
     @Bindable var document: LearningDocument
     var onStudyPassage: () -> Void = {}
-    @State private var availability = ReadingAssistantFactory.availability
-    private var assistantAvailable: Bool { document.isVerificationFixture || availability.isAvailable }
+    @State private var assistantPreferenceRevision = 0
+    private var assistantPresentation: AskPresentation {
+        _ = assistantPreferenceRevision
+        return AskPresentation.current()
+    }
+    private var assistantAvailable: Bool { document.isVerificationFixture || assistantPresentation.canAsk }
     @State private var expandedUnitID: UUID?
     @State private var localOCR: [Int: String] = [:]
     @State private var recognizingPage: Int?
@@ -35,7 +39,7 @@ struct LearningStudyMapView: View {
             if planner.map?.course != nil, document.isBusy { actionBar }
         }
         .onReceive(NotificationCenter.default.publisher(for: .assistantPreferencesChanged)) { _ in
-            availability = ReadingAssistantFactory.availability
+            assistantPreferenceRevision += 1
         }
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { reviewClock = $0 }
         .onAppear { reviewClock = Date() }

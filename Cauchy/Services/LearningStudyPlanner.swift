@@ -89,7 +89,7 @@ final class LearningStudyPlannerService: LearningStudyPlannerProtocol {
         let prompt = "Map ALL study material on these core PDF pages: \(corePages.map { $0 + 1 }). Adjacent pages are context only.\n\n"
             + source.prompt + "\n\n" + Self.schema
             + (repairNote.map { "\nThe previous response could not be used: \($0)\nCorrect that issue. Copy quotes verbatim from the source, without adding math delimiters or repairing formulas inside quotes. Inventory only the requested core PDF pages; neighbours are context. Use actual PDF page numbers, not printed page labels. Preserve all proof obligations.\n" } ?? "")
-        let response = try await session.respond(to: prompt)
+        let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt) }
         return try LearningResponseParser.decode(response.content)
     }
 
@@ -98,7 +98,7 @@ final class LearningStudyPlannerService: LearningStudyPlannerProtocol {
         let capacity = resolved.connector.id == .onDevice ? 2_000 : 64_000
         return try await LearningCourseComposer.build(units: units, capacity: capacity) { inventory in
             let session = LanguageModelSession(model: model, instructions: Self.courseInstructions)
-            let response = try await session.respond(to: inventory)
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: inventory) }
             return try LearningResponseParser.decode(response.content)
         }
     }

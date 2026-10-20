@@ -1171,3 +1171,51 @@ final class LearningChapterChallengeTests: XCTestCase {
         XCTAssertEqual(legacy, old)
     }
 }
+
+@MainActor
+final class LearningProviderReadinessTests: XCTestCase {
+    func testLearnRequestsRecordSuccessAndFailureForTheirCapturedModelOnly() async throws {
+        let suite = "LearningProviderReadinessTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ProviderReadinessStore(defaults: defaults,
+            binaryIsInstalled: { _ in true }, apiKeyIsStored: { _ in true })
+        let resolved = ResolvedAssistant(connector: AssistantConnectorID.codex.connector,
+            choice: .model("captured-model"), viaAutomatic: false)
+        XCTAssertEqual(store.state(for: .codex, modelID: resolved.modelID), .unknown)
+        let result = try await LearningTutorService.providerRequest(resolved: resolved, readiness: store) { "OK" }
+        XCTAssertEqual(result, "OK")
+        XCTAssertEqual(store.state(for: .codex, modelID: resolved.modelID), .ready)
+        XCTAssertEqual(store.state(for: .codex, modelID: "different-model"), .unknown)
+        do {
+            let _: String = try await LearningTutorService.providerRequest(resolved: resolved, readiness: store) {
+                throw AssistantFailure.notSignedIn(.codex)
+            }
+            XCTFail("Expected provider failure")
+        } catch {
+            XCTAssertEqual(error as? AssistantFailure, .notSignedIn(.codex))
+        }
+        XCTAssertEqual(store.state(for: .codex, modelID: resolved.modelID), .blocked(.notSignedIn(.codex)))
+        XCTAssertEqual(store.state(for: .codex, modelID: "different-model"), .unknown)
+    }
+
+    func testCancelledLearnRequestDoesNotMarkUnknownProviderReadyOrBlockCachedSuccess() async throws {
+        let suite = "LearningProviderReadinessTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = ProviderReadinessStore(defaults: defaults,
+            binaryIsInstalled: { _ in true }, apiKeyIsStored: { _ in true })
+        let resolved = ResolvedAssistant(connector: AssistantConnectorID.codex.connector,
+            choice: .model("captured-model"), viaAutomatic: false)
+        for ready in [false, true] {
+            if ready { store.markReady(connectorID: .codex, modelID: resolved.modelID) }
+            do {
+                let _: String = try await LearningTutorService.providerRequest(resolved: resolved, readiness: store) {
+                    throw CancellationError()
+                }
+                XCTFail("Expected cancellation")
+            } catch { XCTAssertTrue(error is CancellationError) }
+            XCTAssertEqual(store.state(for: .codex, modelID: resolved.modelID), ready ? .ready : .unknown)
+        }
+    }
+}

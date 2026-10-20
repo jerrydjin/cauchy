@@ -115,7 +115,7 @@ final class LearningSourceReconciler: LearningSourceReconcilerProtocol {
         All pageNumber and requestedPages values are ONE-based PDF page numbers; gapIndex is zero-based.
         \(repairNote.map { "The previous response failed validation: \($0). Fix that specific issue. Copy a continuous prose quote verbatim, preserving every character except whitespace; do not add LaTeX delimiters or repair mathematical text. Use the actual PDF page number on its source header." } ?? "")
         """
-        let response = try await session.respond(to: prompt)
+        let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt) }
         return try LearningResponseParser.decode(response.content)
     }
 

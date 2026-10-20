@@ -196,6 +196,7 @@ final class SelectionThreadViewModel {
 
         thread.messages.append(ThreadMessage(role: .user, content: trimmed))
         thread.streamingAssistantText = ""
+        thread.failureNotice = nil
         commit(thread)
 
         // Freeze answer provenance before the async call. A model-picker
@@ -307,8 +308,17 @@ final class SelectionThreadViewModel {
             thread.isPersisted = true
         }
         thread.streamingAssistantText = nil
+        thread.failureNotice = nil
         commit(thread)
+        ProviderReadinessStore.shared.markReady(connectorID: answerProvider, modelID: answerModelID)
         onPersist(thread)
+    }
+
+    func noteFailure(_ message: String) {
+        guard var thread = activeThread else { return }
+        thread.failureNotice = message
+        thread.streamingAssistantText = nil
+        commit(thread)
     }
 
     func currentMessagesForSave() -> [ThreadMessage] {

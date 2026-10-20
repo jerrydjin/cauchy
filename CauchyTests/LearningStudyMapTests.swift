@@ -68,6 +68,7 @@ private final class StudyPlannerStub: LearningStudyPlannerProtocol {
     var failCall: Int?
     var rejectBatches = false
     var timeOutBatches = false
+    var structuredTimeout = false
     var needsRepair = false
     var repairNotes: [String] = []
     var rejectedPages: Set<Int> = []
@@ -104,7 +105,10 @@ private final class StudyPlannerStub: LearningStudyPlannerProtocol {
 
     func plan(source: LearningSource, corePages: [Int]) async throws -> LearningStudyPlanResponse {
         calls += 1
-        if timeOutBatches && corePages.count > 1 { throw CLIAgentError.timedOut }
+        if timeOutBatches && corePages.count > 1 {
+            if structuredTimeout { throw AssistantFailure.timedOut(.codex) }
+            throw CLIAgentError.timedOut
+        }
         if failCall == calls { throw ReadingAssistantError.api("Fixture transport failure") }
         if (rejectBatches && corePages.count > 1) || !rejectedPages.isDisjoint(with: corePages) {
             throw LearningError.invalidStudyMap
@@ -460,6 +464,19 @@ final class LearningStudyMapTests: XCTestCase {
     func testSlowBatchReducesScopeInsteadOfRestartingOrTimingOutEveryPage() async throws {
         let planner = StudyPlannerStub()
         planner.timeOutBatches = true
+        let vm = LearningStudyMapViewModel { planner }
+        vm.build(document: try studyPDF(pages: 4))
+        await vm.waitForOperation()
+        XCTAssertEqual(vm.map?.resolvedPageCount, 4)
+        XCTAssertNotNil(vm.map?.course)
+        XCTAssertEqual(planner.calls, 5)
+        XCTAssertNil(vm.errorMessage)
+    }
+
+    func testStructuredProviderTimeoutPreservesWholeDocumentFallback() async throws {
+        let planner = StudyPlannerStub()
+        planner.timeOutBatches = true
+        planner.structuredTimeout = true
         let vm = LearningStudyMapViewModel { planner }
         vm.build(document: try studyPDF(pages: 4))
         await vm.waitForOperation()

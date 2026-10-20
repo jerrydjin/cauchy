@@ -19,16 +19,16 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
     private var context: ReadingContext?
     private var history: [ThreadMessage] = []
     private(set) var isResponding = false
+    /// Set by tests so a fake binary is launched without searching the machine.
+    private let explicitBinaryURL: URL?
 
-    init(connector id: AssistantConnectorID, modelID: String?) {
+    init(connector id: AssistantConnectorID, modelID: String?, binaryURL: URL? = nil) {
         let connector = id.connector
-        guard let binary = connector.binaryName else {
-            preconditionFailure("\(connector.name) is not a CLI connector")
-        }
         self.provider = id
         self.connector = connector
-        self.binary = binary
+        self.binary = connector.binaryName ?? ""
         self.modelID = modelID
+        self.explicitBinaryURL = binaryURL
     }
 
     var availability: ReadingAssistantAvailability {
@@ -45,6 +45,10 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         history = messages
     }
 
+    /// Tests shorten this so a sleeping fake CLI fails as a timeout instead of
+    /// waiting out a real answer.
+    var requestTimeout = CLIInvocation.chatTimeout
+
     func ask(
         question: String,
         retrieval: AskRetrieval,
@@ -53,8 +57,8 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         guard !isResponding else {
             throw ReadingAssistantError.sessionBusy
         }
-        guard let binaryURL = CLIAgentRunner.locateBinary(named: binary) else {
-            throw ReadingAssistantError.notAvailable(availability)
+        guard let binaryURL = explicitBinaryURL ?? CLIAgentRunner.locateBinary(named: binary) else {
+            throw AssistantFailure.notInstalled(provider)
         }
 
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -64,38 +68,31 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         defer { isResponding = false }
 
         let arguments = makeArguments(question: trimmed, retrieval: retrieval)
-        var parser: any CLIAgentStreamParsing = switch provider {
-        case .codex: CodexStreamParser()
-        case .antigravity: AntigravityStreamParser()
-        default: ClaudeCodeStreamParser()
-        }
-
-        do {
-            let lines = CLIAgentRunner.streamLines(
-                binary: binaryURL,
-                arguments: arguments,
-                workingDirectory: FileManager.default.temporaryDirectory
-            )
-            for try await line in lines {
-                if let partial = parser.consume(line: line) {
-                    onPartial?(AssistantResponseNormalizer.normalize(partial))
-                }
+        let output = await CLIInvocation.execute(
+            binary: binaryURL,
+            provider: provider,
+            arguments: arguments,
+            timeout: requestTimeout,
+            onPartial: { partial in
+                onPartial?(AssistantResponseNormalizer.normalize(partial))
             }
-        } catch let error as CLIAgentError {
-            throw ReadingAssistantError.api(friendlyMessage(parser.errorMessage ?? error.localizedDescription))
+        )
+        if output.cancelled || Task.isCancelled {
+            throw AssistantFailure.cancelled
         }
-
-        if let message = parser.errorMessage {
-            throw ReadingAssistantError.api(friendlyMessage(message))
+        if let failure = AssistantFailure.classify(
+            connectorID: provider,
+            modelID: modelID,
+            parserError: output.parserError,
+            parserText: output.text,
+            rawOutput: output.raw,
+            processError: output.processError
+        ) {
+            throw failure
         }
-        guard let finalText = parser.finalText,
+        guard let finalText = output.text,
               !finalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            // agy exits 0 with empty stdout when the backend call fails
-            // (e.g. quota exhausted), so give that case a pointer.
-            if provider == .antigravity {
-                throw ReadingAssistantError.api("Antigravity produced no response. This usually means its quota is exhausted or sign-in expired — run `agy` in Terminal to check.")
-            }
-            throw ReadingAssistantError.api("\(connector.name) produced no response.")
+            throw AssistantFailure.emptyOutput(provider)
         }
 
         let normalized = AssistantResponseNormalizer.normalize(finalText)
@@ -142,45 +139,21 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
             // is shared with the ChatGPT desktop app, which rewrites it — the
             // user's in-app choice must win. Omitting the flag is itself a
             // choice ("Match my CLI") and then that config wins instead.
-            return [
-                "exec", instructions + "\n\n" + transcript,
-                "--json",
-                "--skip-git-repo-check",
-                "--sandbox", "read-only",
-                "-c", "model_reasoning_effort=\"medium\"",
-            ] + modelArguments(flag: "--model")
+            return CLIInvocation.codexArguments(prompt: instructions + "\n\n" + transcript, modelID: modelID)
         case .antigravity:
             // agy has neither a system-prompt nor a model flag (the model is
             // whatever the user set with /model in the agy TUI), so
             // instructions ride the prompt. --sandbox keeps the run inside the
             // OS sandbox; headless mode also soft-denies any tool that would
             // need approval, and the working directory is the temp dir.
-            return [
-                "-p", instructions + "\n\n" + transcript,
-                "--sandbox",
-            ]
+            return CLIInvocation.antigravityArguments(prompt: instructions + "\n\n" + transcript)
         default:
             // Tools are disabled: this is a chat provider, so the agent must
             // never run commands or edit files on the user's machine. The model
             // is passed explicitly so answers don't silently depend on the
             // user's CLI-side default.
-            return [
-                "-p", transcript,
-                "--output-format", "stream-json",
-                "--include-partial-messages",
-                "--verbose",
-                "--tools", "",
-                "--no-session-persistence",
-                "--append-system-prompt", instructions,
-            ] + modelArguments(flag: "--model")
+            return CLIInvocation.claudeArguments(prompt: transcript, instructions: instructions, modelID: modelID)
         }
-    }
-
-    /// `--model <id>`, or nothing when the user asked to follow the CLI's own
-    /// configuration.
-    private func modelArguments(flag: String) -> [String] {
-        guard let modelID else { return [] }
-        return [flag, modelID]
     }
 
     private func instructionsText() -> String {
@@ -205,12 +178,113 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
         return lines.joined(separator: "\n")
     }
 
-    private func friendlyMessage(_ raw: String) -> String {
-        let lowered = raw.lowercased()
-        if lowered.contains("login") || lowered.contains("authentication") || lowered.contains("unauthorized") || lowered.contains("401") {
-            return "\(connector.name) is not signed in. \(connector.signInHint)"
+}
+
+/// How a one-shot CLI request is spelled, and the one place its stdout is read.
+/// Ask, the readiness probe, and reference indexing all go through `execute`,
+/// which turns process failures into data instead of letting them escape.
+enum CLIInvocation {
+    /// A stuck chat becomes an error in the transcript. Long enough that a
+    /// reasoning model can finish a proof.
+    static let chatTimeout: TimeInterval = 600
+    static let probeTimeout: TimeInterval = 90
+
+    struct Output: Sendable {
+        var text: String?
+        var parserError: String?
+        var raw: String
+        var processError: CLIAgentError?
+        var cancelled: Bool
+    }
+
+    static func codexArguments(prompt: String, modelID: String?) -> [String] {
+        [
+            "exec", prompt,
+            "--json",
+            "--skip-git-repo-check",
+            "--sandbox", "read-only",
+            "-c", "model_reasoning_effort=\"medium\"",
+        ] + modelArguments(modelID, flag: "--model")
+    }
+
+    static func claudeArguments(prompt: String, instructions: String, modelID: String?) -> [String] {
+        [
+            "-p", prompt,
+            "--output-format", "stream-json",
+            "--include-partial-messages",
+            "--verbose",
+            "--tools", "",
+            "--no-session-persistence",
+            "--append-system-prompt", instructions,
+        ] + modelArguments(modelID, flag: "--model")
+    }
+
+    static func antigravityArguments(prompt: String) -> [String] {
+        ["-p", prompt, "--sandbox"]
+    }
+
+    static func modelArguments(_ modelID: String?, flag: String) -> [String] {
+        guard let modelID, !modelID.isEmpty else { return [] }
+        return [flag, modelID]
+    }
+
+    static func makeParser(for provider: AssistantConnectorID) -> any CLIAgentStreamParsing {
+        switch provider {
+        case .codex: CodexStreamParser()
+        case .antigravity: AntigravityStreamParser()
+        default: ClaudeCodeStreamParser()
         }
-        return raw
+    }
+
+    @MainActor
+    static func execute(
+        binary: URL,
+        provider: AssistantConnectorID,
+        arguments: [String],
+        timeout: TimeInterval?,
+        onPartial: ((String) -> Void)?
+    ) async -> Output {
+        var parser = makeParser(for: provider)
+        var raw = ""
+        let lines = CLIAgentRunner.streamLines(
+            binary: binary,
+            arguments: arguments,
+            workingDirectory: FileManager.default.temporaryDirectory,
+            timeout: timeout
+        )
+        do {
+            for try await line in lines {
+                if raw.utf8.count < 32_000 {
+                    raw += line
+                    raw += "\n"
+                }
+                if let partial = parser.consume(line: line) {
+                    onPartial?(partial)
+                }
+            }
+        } catch is CancellationError {
+            return Output(text: parser.finalText, parserError: parser.errorMessage, raw: raw, processError: nil, cancelled: true)
+        } catch let error as CLIAgentError {
+            return Output(
+                text: parser.finalText,
+                parserError: parser.errorMessage,
+                raw: raw,
+                processError: error,
+                cancelled: Task.isCancelled
+            )
+        } catch {
+            if Task.isCancelled {
+                return Output(text: parser.finalText, parserError: parser.errorMessage, raw: raw, processError: nil, cancelled: true)
+            }
+            return Output(
+                text: parser.finalText,
+                parserError: parser.errorMessage,
+                raw: raw,
+                processError: .launchFailed(error.localizedDescription),
+                cancelled: false
+            )
+        }
+        return Output(text: parser.finalText, parserError: parser.errorMessage, raw: raw, processError: nil, cancelled: false)
     }
 }
 
@@ -259,47 +333,36 @@ struct CLIIndexLanguageModelExecutor: LanguageModelExecutor {
         let prompt = CloudPrompt(transcript: request.transcript)
         let question = prompt.sendableTurns.last?.text ?? ""
         let instructions = prompt.instructions ?? ""
-        let fullPrompt = instructions + "\n\n" + question
-        let modelArguments = configuration.modelID.map { ["--model", $0] } ?? []
         let arguments: [String]
-        var parser: any CLIAgentStreamParsing
         switch configuration.connectorID {
         case .codex:
-            arguments = ["exec", fullPrompt, "--json", "--skip-git-repo-check",
-                         "--sandbox", "read-only", "-c", "model_reasoning_effort=\"medium\""]
-                + modelArguments
-            parser = CodexStreamParser()
+            arguments = CLIInvocation.codexArguments(prompt: instructions + "\n\n" + question, modelID: configuration.modelID)
         case .antigravity:
-            arguments = ["-p", fullPrompt, "--sandbox"]
-            parser = AntigravityStreamParser()
+            arguments = CLIInvocation.antigravityArguments(prompt: instructions + "\n\n" + question)
         default:
-            arguments = ["-p", question, "--output-format", "stream-json",
-                         "--verbose", "--tools", "", "--no-session-persistence",
-                         "--append-system-prompt", instructions] + modelArguments
-            parser = ClaudeCodeStreamParser()
+            arguments = CLIInvocation.claudeArguments(prompt: question, instructions: instructions, modelID: configuration.modelID)
         }
 
-        let lines = CLIAgentRunner.streamLines(
+        let output = await CLIInvocation.execute(
             binary: binaryURL,
+            provider: configuration.connectorID,
             arguments: arguments,
-            workingDirectory: FileManager.default.temporaryDirectory,
-            timeout: 180
+            timeout: 180,
+            onPartial: nil
         )
-        do {
-            for try await line in lines {
-                _ = parser.consume(line: line)
-            }
-        } catch let error as CLIAgentError {
-            if case .timedOut = error { throw error }
-            // Structured failures carry the useful API message; stderr may
-            // contain a much larger diagnostic dump, including the request.
-            throw ReadingAssistantError.api(parser.errorMessage ?? error.localizedDescription)
+        if output.cancelled { throw CancellationError() }
+        if let failure = AssistantFailure.classify(
+            connectorID: configuration.connectorID,
+            modelID: configuration.modelID,
+            parserError: output.parserError,
+            parserText: output.text,
+            rawOutput: output.raw,
+            processError: output.processError
+        ) {
+            throw failure
         }
-        if let error = parser.errorMessage {
-            throw ReadingAssistantError.api(error)
-        }
-        guard let answer = parser.finalText, !answer.isEmpty else {
-            throw ReadingAssistantError.api("\(connector.name) produced no index response.")
+        guard let answer = output.text, !answer.isEmpty else {
+            throw AssistantFailure.emptyOutput(configuration.connectorID)
         }
         await channel.send(.response(
             entryID: UUID().uuidString,

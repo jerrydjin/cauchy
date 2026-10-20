@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -7,9 +8,14 @@ struct HighlightThreadDetailView: View {
     var onBack: () -> Void
 
     @State private var question = ""
+    @State private var setupConnector: AssistantConnectorID?
 
     private var thread: SelectionThread? {
         workspace.selectionThread.activeThread
+    }
+
+    private var ask: AskPresentation {
+        AskPresentation.current()
     }
 
     var body: some View {
@@ -19,8 +25,10 @@ struct HighlightThreadDetailView: View {
                 messages: thread?.messages ?? [],
                 streamingText: thread?.streamingAssistantText,
                 isResponding: workspace.selectionThread.isResponding,
-                isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
-                unavailabilityMessage: unavailabilityMessage,
+                canAsk: ask.canAsk,
+                unavailableMessage: ask.canAsk ? nil : ask.message,
+                recoveryTitle: ask.canAsk ? nil : ask.buttonTitle,
+                failureMessage: thread?.failureNotice,
                 panelWidth: geometry.size.width,
                 question: $question,
                 onSend: { sendQuestion() },
@@ -30,6 +38,7 @@ struct HighlightThreadDetailView: View {
                     }
                 },
                 onModelChange: { workspace.refreshReadingAssistant() },
+                onRecovery: { performRecovery(ask.recovery) },
                 onOpenSource: { workspace.goToAnswerSource($0) },
                 highlightTag: workspace.attachedHighlight?.tagTitle,
                 sheetTag: workspace.problemSheet?.tagTitle,
@@ -55,6 +64,30 @@ struct HighlightThreadDetailView: View {
                     workspace.attachProblemSheet(at: url)
                 }
             }
+        }
+        .task(id: ask.probeToken) {
+            await ProviderReadinessStore.shared.probeIfNeededCurrentSelection()
+        }
+        .sheet(item: $setupConnector) { id in
+            ConnectorSetupView(connector: id.connector) {
+                workspace.refreshReadingAssistant()
+            }
+        }
+    }
+
+    private func performRecovery(_ recovery: AskRecovery?) {
+        switch recovery {
+        case .setup(let id):
+            setupConnector = id
+        case .settings:
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        case .retry(let id):
+            let modelID = AssistantPreferences.modelChoice(for: id).modelID
+            Task {
+                await ProviderReadinessStore.shared.probe(connectorID: id, modelID: modelID, force: true)
+            }
+        case nil:
+            break
         }
     }
 
@@ -164,9 +197,6 @@ struct HighlightThreadDetailView: View {
         return Highlight.title(from: thread.selectedText)
     }
 
-    private var unavailabilityMessage: String? {
-        AskAvailabilityMessage.text(for: workspace.readingAssistantAvailability)
-    }
 
     private func sendQuestion() {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -181,6 +211,8 @@ struct HighlightThreadDetailView: View {
 struct DocumentConversationView: View {
     @Bindable var workspace: WorkspaceViewModel
     @State private var question = ""
+    @State private var setupConnector: AssistantConnectorID?
+    private var ask: AskPresentation { AskPresentation.current() }
 
     private var thread: SelectionThread? {
         workspace.selectionThread.activeThread
@@ -193,8 +225,10 @@ struct DocumentConversationView: View {
                 messages: thread?.messages ?? [],
                 streamingText: thread?.streamingAssistantText,
                 isResponding: workspace.selectionThread.isResponding,
-                isAskAvailable: workspace.readingAssistantAvailability.isAvailable,
-                unavailabilityMessage: AskAvailabilityMessage.text(for: workspace.readingAssistantAvailability),
+                canAsk: ask.canAsk,
+                unavailableMessage: ask.canAsk ? nil : ask.message,
+                recoveryTitle: ask.canAsk ? nil : ask.buttonTitle,
+                failureMessage: thread?.failureNotice,
                 panelWidth: geometry.size.width,
                 question: $question,
                 onSend: send,
@@ -204,6 +238,7 @@ struct DocumentConversationView: View {
                     }
                 },
                 onModelChange: { workspace.refreshReadingAssistant() },
+                onRecovery: { performRecovery(ask.recovery) },
                 onOpenSource: { workspace.goToAnswerSource($0) },
                 highlightTag: workspace.attachedHighlight?.tagTitle,
                 sheetTag: workspace.problemSheet?.tagTitle,
@@ -218,6 +253,14 @@ struct DocumentConversationView: View {
                 emptyPrompt: "Ask a question about this document",
                 header: { header }
             )
+        }
+        .task(id: ask.probeToken) {
+            await ProviderReadinessStore.shared.probeIfNeededCurrentSelection()
+        }
+        .sheet(item: $setupConnector) { id in
+            ConnectorSetupView(connector: id.connector) {
+                workspace.refreshReadingAssistant()
+            }
         }
         .fileImporter(
             isPresented: $workspace.showsAttachmentImporter,
@@ -252,6 +295,22 @@ struct DocumentConversationView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)
+    }
+
+    private func performRecovery(_ recovery: AskRecovery?) {
+        switch recovery {
+        case .setup(let id):
+            setupConnector = id
+        case .settings:
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        case .retry(let id):
+            let modelID = AssistantPreferences.modelChoice(for: id).modelID
+            Task {
+                await ProviderReadinessStore.shared.probe(connectorID: id, modelID: modelID, force: true)
+            }
+        case nil:
+            break
+        }
     }
 
     private func send() {

@@ -17,13 +17,16 @@ struct ConversationPanel<Header: View>: View {
     let messages: [ThreadMessage]
     var streamingText: String?
     var isResponding: Bool
-    var isAskAvailable: Bool
-    var unavailabilityMessage: String?
+    var canAsk: Bool
+    var unavailableMessage: String?
+    var recoveryTitle: String?
+    var failureMessage: String?
     var panelWidth: CGFloat
     @Binding var question: String
     var onSend: () -> Void
     var onStop: () -> Void = {}
     var onModelChange: () -> Void = {}
+    var onRecovery: () -> Void = {}
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var highlightTag: String? = nil
     var sheetTag: String? = nil
@@ -85,6 +88,18 @@ struct ConversationPanel<Header: View>: View {
                         .id("streaming")
                     }
 
+                    if let failureMessage, !failureMessage.isEmpty, !isResponding {
+                        Text(failureMessage)
+                            .font(.callout)
+                            .foregroundStyle(.primary)
+                            .textSelection(.enabled)
+                            .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
+                            .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
+                            .background(Color.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius))
+                            .frame(maxWidth: bubbleWidth, alignment: .leading)
+                            .id("failure")
+                    }
+
                     if isResponding,
                        streamingText == nil || streamingText?.isEmpty == true {
                         ProgressView()
@@ -142,16 +157,22 @@ struct ConversationPanel<Header: View>: View {
 
     private var composerBar: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if !isAskAvailable, let unavailabilityMessage {
-                Text(unavailabilityMessage)
+            if let unavailableMessage {
+                Text(unavailableMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let recoveryTitle {
+                Button(recoveryTitle, action: onRecovery)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
             }
 
             ConversationComposer(
                 question: $question,
                 isResponding: isResponding,
-                isEnabled: isAskAvailable,
+                isEnabled: canAsk,
                 highlightTag: highlightTag,
                 sheetTag: sheetTag,
                 onSend: onSend,

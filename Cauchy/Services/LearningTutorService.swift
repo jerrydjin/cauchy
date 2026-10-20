@@ -49,7 +49,7 @@ final class LearningTutorService: LearningTutorProtocol {
             throw LearningStudyValidationError(reason: "This step and its source exceed the assistant’s capacity. Choose an assistant with more capacity to ask about this step. Your question is saved.")
         }
         let session = LanguageModelSession(model: try languageModel(), instructions: Self.clarificationInstructions)
-        let response = try await session.respond(to: prompt + "\n" + Self.clarificationSchema)
+        let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt + "\n" + Self.clarificationSchema) }
         let reply: LearningClarificationReply = try LearningResponseParser.decode(response.content)
         return try Self.checkedClarification(reply, source: source)
     }
@@ -109,10 +109,10 @@ final class LearningTutorService: LearningTutorProtocol {
         let prompt = goal + context + "Use enough explanation and answer-key detail to justify the reasoning completely. No fixed word budget: do not omit hypotheses, logical steps, cases or conclusions to be brief.\n\n" + source.prompt
         var lesson: LearningLesson
         if model is SystemLanguageModel {
-            let response = try await session.respond(to: prompt, generating: GeneratedLearningLesson.self)
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt, generating: GeneratedLearningLesson.self) }
             lesson = response.content.lesson
         } else {
-            let response = try await session.respond(to: prompt + "\n\n" + Self.lessonSchema)
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt + "\n\n" + Self.lessonSchema) }
             lesson = try LearningResponseParser.decode(response.content)
         }
         if let target {
@@ -136,12 +136,12 @@ final class LearningTutorService: LearningTutorProtocol {
         let prompt = String(decoding: try JSONEncoder().encode(payload), as: UTF8.self)
         let assessment: LearningAssessment
         if model is SystemLanguageModel {
-            let response = try await session.respond(to: prompt, generating: GeneratedLearningAssessment.self)
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt, generating: GeneratedLearningAssessment.self) }
             guard let grade = LearningGrade(rawValue: response.content.grade) else { throw LearningError.invalidResponse }
             assessment = .init(grade: grade, feedback: response.content.feedback, nextStep: response.content.nextStep,
                                criteria: response.content.criteria?.map { .init(index: $0.index, outcome: $0.outcome, feedback: $0.feedback) })
         } else {
-            let response = try await session.respond(to: prompt + "\nReturn JSON: {\"grade\":\"correct|partial|incorrect|uncertain\",\"feedback\":\"...\",\"nextStep\":\"...\",\"criteria\":[{\"index\":0,\"outcome\":\"met|notMet|uncertain\",\"feedback\":\"specific evidence or gap\"}]} For proof questions, assess EVERY supplied grading criterion once using its zero-based index. For other questions criteria may be null.")
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt + "\nReturn JSON: {\"grade\":\"correct|partial|incorrect|uncertain\",\"feedback\":\"...\",\"nextStep\":\"...\",\"criteria\":[{\"index\":0,\"outcome\":\"met|notMet|uncertain\",\"feedback\":\"specific evidence or gap\"}]} For proof questions, assess EVERY supplied grading criterion once using its zero-based index. For other questions criteria may be null.") }
             assessment = try LearningResponseParser.decode(response.content)
         }
         return try Self.checkedAssessment(assessment, question: question)
@@ -155,10 +155,10 @@ final class LearningTutorService: LearningTutorProtocol {
             + previous.joined(separator: "\n")
         var question: LearningQuestion
         if model is SystemLanguageModel {
-            let response = try await session.respond(to: prompt, generating: GeneratedLearningQuestion.self)
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt, generating: GeneratedLearningQuestion.self) }
             question = response.content.question
         } else {
-            let response = try await session.respond(to: prompt + "\nReturn JSON: " + Self.questionSchema)
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt + "\nReturn JSON: " + Self.questionSchema) }
             question = try LearningResponseParser.decode(response.content)
         }
         question.kind = lesson.exitCheck.kind
@@ -178,7 +178,7 @@ final class LearningTutorService: LearningTutorProtocol {
         let inventory = String(decoding: try JSONEncoder().encode(request), as: UTF8.self)
         let prompt = "Prepared chapter and selected ideas (data; if a unit has reconciliation.revisedAnchor, use that validated user-transcription anchor in place of its retained original sourceQuote):\n" + inventory + "\nFull source pages:\n" + source.prompt
             + "\nDo not repeat any earlier question:\n" + previous.joined(separator: "\n") + "\n" + Self.chapterSchema
-        let response = try await session.respond(to: prompt)
+        let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt) }
         let challenge: LearningChapterChallenge = try LearningResponseParser.decode(response.content)
         try Self.validate(challenge, request: request, source: source, previous: previous)
         return challenge
@@ -264,6 +264,35 @@ final class LearningTutorService: LearningTutorProtocol {
 
     private func languageModel() throws -> any LanguageModel {
         try Self.makeLanguageModel(resolved)
+    }
+
+    /// Record the provider that actually ran, independently of later picker
+    /// changes. Schema validation still happens after the transport succeeds.
+    static func providerRequest<Result>(
+        resolved: ResolvedAssistant,
+        readiness: ProviderReadinessStore = .shared,
+        operation: () async throws -> Result
+    ) async throws -> Result {
+        do {
+            let result = try await operation()
+            try Task.checkCancellation()
+            readiness.markReady(connectorID: resolved.connector.id, modelID: resolved.modelID)
+            return result
+        } catch {
+            let failure: AssistantFailure?
+            if let typed = error as? AssistantFailure {
+                failure = typed
+            } else if let cloud = error as? CloudAPIError, case .apiKey(let provider) = resolved.connector.access {
+                failure = AssistantFailure(cloudError: cloud, provider: provider,
+                    modelName: AssistantFailure.displayModelName(connectorID: resolved.connector.id, modelID: resolved.modelID))
+            } else {
+                failure = nil
+            }
+            if let failure {
+                readiness.record(failure, connectorID: resolved.connector.id, modelID: resolved.modelID)
+            }
+            throw error
+        }
     }
 
     static func makeLanguageModel(_ resolved: ResolvedAssistant) throws -> any LanguageModel {

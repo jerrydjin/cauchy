@@ -143,13 +143,27 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
             }
 
             let normalized = AssistantResponseNormalizer.normalize(accumulated)
+            if normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw AssistantFailure.emptyOutput(provider)
+            }
             let final = try await ensureDisplayReady(normalized, onPartial: onPartial)
             onPartial?(final)
             return final
         } catch let error as CloudAPIError {
+            let modelName = (model as? CloudLanguageModel)?.modelName
+                ?? provider.connector.apiProvider?.defaultModelID
+                ?? provider.connector.name
+            if let apiProvider = provider.connector.apiProvider {
+                throw AssistantFailure(cloudError: error, provider: apiProvider, modelName: modelName)
+            }
             throw Self.mapCloudError(error)
         } catch let error as LanguageModelError {
             throw ReadingAssistantError.languageModel(error)
+        } catch is CancellationError {
+            throw AssistantFailure.cancelled
+        } catch {
+            if Task.isCancelled { throw AssistantFailure.cancelled }
+            throw error
         }
     }
 
@@ -185,6 +199,8 @@ final class FoundationModelsReadingAssistantService: ReadingAssistantProtocol {
             return .rateLimited(provider)
         case .network(let message):
             return .network(message)
+        case .modelUnavailable(_, let message):
+            return .api(message)
         case .api(let message):
             return .api(message)
         }

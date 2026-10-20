@@ -11,9 +11,9 @@ struct ConnectorSetupView: View {
     private var step: Int {
         switch setup.phase {
         case .idle, .installing: 0
-        case .signIn: 1
+        case .signIn, .checking: 1
         case .failed: connector.resolvedBinaryURL == nil ? 0 : 1
-        case .checking, .ready: 2
+        case .ready: 2
         }
     }
 
@@ -25,7 +25,9 @@ struct ConnectorSetupView: View {
                     .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Connect \(connector.name)").font(.title2.weight(.semibold))
-                    Text("Your account. Ready to use in Cauchy.")
+                    Text(setup.phase == .ready
+                         ? "Your account is ready to use in Cauchy."
+                         : "Connect your \(connector.vendor) account. Cauchy checks with a tiny request before it says ready.")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -41,11 +43,11 @@ struct ConnectorSetupView: View {
 
             Group {
                 switch setup.phase {
-                case .idle, .installing:
+                case .idle, .installing, .checking:
                     VStack(spacing: 14) {
                         ProgressView()
-                        Text(setup.phase == .installing ? "Installing \(connector.name)…" : "Getting \(connector.name) ready…").font(.headline)
-                        Text(setup.phase == .installing ? "Downloading the official installer. This may take a few minutes." : "Checking your existing installation and sign-in.")
+                        Text(setup.phase == .installing ? "Installing \(connector.name)…" : setup.phase == .checking ? "Checking \(connector.name)…" : "Getting \(connector.name) ready…").font(.headline)
+                        Text(setup.phase == .installing ? "Downloading the official installer. This may take a few minutes." : setup.phase == .checking ? "Sending a tiny request with the model you picked. No document is shared." : "Checking your existing installation.")
                             .foregroundStyle(.secondary)
                     }.frame(maxWidth: .infinity, minHeight: 280)
                 case .ready:

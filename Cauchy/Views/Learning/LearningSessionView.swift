@@ -7,8 +7,12 @@ struct LearningSessionView: View {
     @State private var firstPage = "1"
     @State private var lastPage = "1"
     @FocusState private var answerFocused: Bool
-    @State private var availability = ReadingAssistantFactory.availability
-    private var assistantAvailable: Bool { document.isVerificationFixture || availability.isAvailable }
+    @State private var assistantPreferenceRevision = 0
+    private var assistantPresentation: AskPresentation {
+        _ = assistantPreferenceRevision
+        return AskPresentation.current()
+    }
+    private var assistantAvailable: Bool { document.isVerificationFixture || assistantPresentation.canAsk }
     @State private var showingFullLesson = false
     @State private var showingCriteria = false
     @State private var showingPracticeHelp = false
@@ -87,9 +91,9 @@ struct LearningSessionView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { actionBar }
-        .onAppear { availability = ReadingAssistantFactory.availability; resetSource(); focusAnswerIfNeeded() }
+        .onAppear { assistantPreferenceRevision += 1; resetSource(); focusAnswerIfNeeded() }
         .onReceive(NotificationCenter.default.publisher(for: .assistantPreferencesChanged)) { _ in
-            availability = ReadingAssistantFactory.availability
+            assistantPreferenceRevision += 1
         }
         .onChange(of: document.sourceRequestID) { resetSource() }
         .onChange(of: learning.selectedSessionID) {
@@ -196,7 +200,7 @@ struct LearningSessionView: View {
             .font(.callout).foregroundStyle(.secondary)
 
             if !assistantAvailable {
-                Text(ReadingAssistantError.notAvailable(availability).localizedDescription)
+                Text(assistantPresentation.message ?? "Choose an assistant in Settings.")
                     .font(.callout).foregroundStyle(.secondary)
                 SettingsLink { Text("Set up an assistant") }
             }

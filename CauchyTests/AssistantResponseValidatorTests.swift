@@ -133,6 +133,19 @@ final class AssistantResponseValidatorTests: XCTestCase {
     }
 
     @MainActor
+    func testWholeDocumentFailureAndRecoveryKeepTheSavedConversationInSync() async throws {
+        let viewModel = SelectionThreadViewModel(assistant: EvidenceBoundaryAssistantStub())
+        viewModel.activateDocumentConversation(documentTitle: "Notes")
+        viewModel.noteFailure("Sign in again")
+        XCTAssertEqual(viewModel.documentThread.failureNotice, "Sign in again")
+        try await viewModel.sendMessage("Why?", documentTitle: "Notes") { _ in }
+        XCTAssertNil(viewModel.documentThread.failureNotice)
+        XCTAssertNil(viewModel.documentThread.streamingAssistantText)
+        XCTAssertEqual(viewModel.documentThread.messages, viewModel.activeThread?.messages)
+        XCTAssertEqual(viewModel.documentThread.messages.map(\.role), [.user, .assistant])
+    }
+
+    @MainActor
     func testThreadPersistsCleanAnswerAndAuditableBasis() async throws {
         let viewModel = SelectionThreadViewModel(assistant: EvidenceBoundaryAssistantStub())
         viewModel.updateSelection(

@@ -97,11 +97,16 @@ enum CLIAgentRunner {
         let diagnostics = Mutex(Data())
         let finished = Mutex(false)
 
+        /// `Process.terminate()` raises an NSException if the child has already
+        /// exited. Auth failures and unknown models exit immediately, so that
+        /// call is what took the app down. Signal the pid instead.
         func terminateIfRunning() {
-            guard process.isRunning else { return }
-            process.terminate()
+            let pid = process.processIdentifier
+            guard pid > 0, process.isRunning else { return }
+            _ = Darwin.kill(pid, SIGTERM)
             queue.asyncAfter(deadline: .now() + 2) { [process] in
-                if process.isRunning { _ = Darwin.kill(process.processIdentifier, SIGKILL) }
+                guard process.isRunning, process.processIdentifier == pid else { return }
+                _ = Darwin.kill(pid, SIGKILL)
             }
         }
 
@@ -115,10 +120,19 @@ enum CLIAgentRunner {
         func readAvailable(_ handle: FileHandle, receive: (Data) -> Void) -> Bool {
             var bytes = [UInt8](repeating: 0, count: 16_384)
             while true {
-                let count = bytes.withUnsafeMutableBytes { Darwin.read(handle.fileDescriptor, $0.baseAddress, $0.count) }
-                if count > 0 { receive(Data(bytes.prefix(count))) }
-                else if count < 0 && errno == EINTR { continue }
-                else { return count == 0 }
+                let count = bytes.withUnsafeMutableBytes { buffer -> Int in
+                    guard let base = buffer.baseAddress else { return 0 }
+                    return Darwin.read(handle.fileDescriptor, base, buffer.count)
+                }
+                if count > 0 {
+                    receive(Data(bytes.prefix(count)))
+                    continue
+                }
+                if count < 0 && errno == EINTR { continue }
+                // A closed pipe must end the read. Treating EBADF as "try again"
+                // spins the readability handler after the child has gone.
+                if count < 0 && (errno == EBADF || errno == EINVAL) { return true }
+                return count == 0
             }
         }
 
@@ -157,11 +171,20 @@ enum CLIAgentRunner {
             process.terminationHandler = nil
             try? stdout.fileHandleForReading.close()
             try? stderr.fileHandleForReading.close()
-            if let error { continuation.finish(throwing: error) }
-            else if process.terminationStatus != 0 {
+            if let error {
+                continuation.finish(throwing: error)
+            } else if process.isRunning {
+                // `terminationStatus` raises unless the process has actually exited.
+                continuation.finish(throwing: CLIAgentError.processFailed(
+                    exitCode: -1,
+                    stderr: "The CLI ended before its status was available."
+                ))
+            } else if process.terminationStatus != 0 {
                 let message = diagnostics.withLock { String(decoding: $0, as: UTF8.self) }
                 continuation.finish(throwing: CLIAgentError.processFailed(exitCode: process.terminationStatus, stderr: message))
-            } else { continuation.finish() }
+            } else {
+                continuation.finish()
+            }
         }
     }
 

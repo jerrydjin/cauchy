@@ -405,7 +405,11 @@ final class LearningStudyMapViewModel {
         } catch {
             try Task.checkCancellation()
             guard requestID == request else { return }
-            let deadline = (error as? CLIAgentError).map { if case .timedOut = $0 { return true }; return false } ?? false
+            let deadline: Bool
+            switch error {
+            case CLIAgentError.timedOut, AssistantFailure.timedOut: deadline = true
+            default: deadline = false
+            }
             guard Self.canRetryPage(error) || (deadline && core.count > 1) else { throw error }
             if core.count > 1 {
                 for page in core {

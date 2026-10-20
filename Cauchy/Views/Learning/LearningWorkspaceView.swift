@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct LearningWorkspaceView: View {
     @Bindable var library: LearningLibraryStore
+    @State private var assistantPreferenceRevision = 0
     @AppStorage("library.hiddenRecents") private var hiddenRecents = ""
     // Learn has one window. Keep its last working location across window
     // closure and app termination, when scene storage may be discarded.
@@ -172,6 +173,15 @@ struct LearningWorkspaceView: View {
         }
         .onChange(of: library.destination) {
             if let document = library.selectedDocument { rememberLocation(document) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .assistantPreferencesChanged)) { _ in
+            assistantPreferenceRevision += 1
+        }
+        .task(id: assistantPreferenceRevision) {
+            // Verification fixtures remain entirely offline. Normal Learn opens
+            // must initiate readiness without requiring a visit to the reader.
+            guard !library.isVerificationFixture else { return }
+            await ProviderReadinessStore.shared.probeIfNeededCurrentSelection()
         }
         .task {
             await library.refreshLibrary()

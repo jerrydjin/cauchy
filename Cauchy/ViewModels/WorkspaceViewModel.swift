@@ -143,6 +143,7 @@ final class WorkspaceViewModel: Equatable {
 
     func refreshReadingAssistant() {
         selectionThread.reloadAssistant(documentTitle: documentTitle)
+        Task { await ProviderReadinessStore.shared.probeIfNeededCurrentSelection() }
     }
 
     var contextPanelWidth: CGFloat {
@@ -742,11 +743,21 @@ final class WorkspaceViewModel: Equatable {
                     self.nameThreadIfNeeded(highlight)
                 }
             } catch {
-                // A stopped ask is a deliberate user action, not a failure —
-                // the provider may surface it as CancellationError or as its
-                // own "process terminated" error, so check the task too.
-                guard !Task.isCancelled, !(error is CancellationError) else { return }
-                self.errorMessage = error.localizedDescription
+                // A stopped ask is a deliberate user action. The stop button
+                // already left a note; don't replace it with a signal exit.
+                let cancelled = Task.isCancelled || error is CancellationError || (error as? AssistantFailure) == .cancelled
+                if cancelled {
+                    if self.selectionThread.activeThread?.failureNotice == nil {
+                        self.selectionThread.noteFailure(AssistantFailure.cancelled.statusLine)
+                    }
+                    return
+                }
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                self.selectionThread.noteFailure(message)
+                if let failure = error as? AssistantFailure, let provider = failure.connectorID {
+                    let modelID = AssistantPreferences.modelChoice(for: provider).modelID
+                    ProviderReadinessStore.shared.record(failure, connectorID: provider, modelID: modelID)
+                }
             }
         }
     }
@@ -759,6 +770,7 @@ final class WorkspaceViewModel: Equatable {
         guard askTask != nil else { return nil }
         askTask?.cancel()
         askTask = nil
+        selectionThread.noteFailure(AssistantFailure.cancelled.statusLine)
         return selectionThread.discardUnansweredQuestion()
     }
 

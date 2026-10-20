@@ -11,12 +11,17 @@ enum CloudStreamingClient {
         apiKey: String,
         modelName: String,
         prompt: CloudPrompt,
+        session: URLSession = .shared,
+        requestTimeout: TimeInterval? = nil,
         onDelta: (String) async -> Void
     ) async throws {
         let wire = provider.wire
-        let request = try wire.urlRequest(apiKey: apiKey, modelName: modelName, prompt: prompt)
+        var request = try wire.urlRequest(apiKey: apiKey, modelName: modelName, prompt: prompt)
+        if let requestTimeout {
+            request.timeoutInterval = requestTimeout
+        }
 
-        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let (bytes, response) = try await session.bytes(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw CloudAPIError.network("Invalid response.")
         }
@@ -31,10 +36,19 @@ enum CloudStreamingClient {
         }
         if httpResponse.statusCode >= 400 {
             var errorData = Data()
-            for try await byte in bytes {
-                errorData.append(byte)
+            do {
+                for try await byte in bytes {
+                    errorData.append(byte)
+                    if errorData.count >= 8_000 { break }
+                }
+            } catch {
+                // Keep whatever body arrived. A truncated error is still more
+                // useful than crashing the ask.
             }
             let message = wire.errorMessage(from: errorData) ?? "HTTP \(httpResponse.statusCode)"
+            if httpResponse.statusCode == 404 || AssistantFailure.isModelFailure(message) {
+                throw CloudAPIError.modelUnavailable(provider, message)
+            }
             throw CloudAPIError.api(message)
         }
 
@@ -53,14 +67,18 @@ enum CloudStreamingClient {
         provider: CloudAPIProvider,
         apiKey: String,
         modelName: String,
-        prompt: CloudPrompt
+        prompt: CloudPrompt,
+        session: URLSession = .shared,
+        requestTimeout: TimeInterval? = nil
     ) async throws -> String {
         var accumulated = ""
         try await stream(
             provider: provider,
             apiKey: apiKey,
             modelName: modelName,
-            prompt: prompt
+            prompt: prompt,
+            session: session,
+            requestTimeout: requestTimeout
         ) { delta in
             accumulated += delta
         }

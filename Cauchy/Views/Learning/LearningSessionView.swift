@@ -19,6 +19,7 @@ struct LearningSessionView: View {
     @State private var clarificationContext: LearningClarificationContext?
     @FocusState private var clarificationActionFocused: Bool
     @State private var chapterScroll = ScrollPosition()
+    @State private var answerEditRequest = 0
 
     private enum SourceMode: Hashable { case currentPage, selection, pages }
     private var learning: LearningViewModel { document.learning }
@@ -81,6 +82,13 @@ struct LearningSessionView: View {
             }
             .onChange(of: learning.session?.currentLessonPartIndex) {
                 proxy.scrollTo("learningTop", anchor: .top)
+            }
+            .onChange(of: answerEditRequest) {
+                // Keep the question visible on arrival, but never leave the
+                // learner typing into an editor below the visible viewport.
+                if answerFocused, learning.session?.chapter == nil {
+                    proxy.scrollTo("chapter-reasoning", anchor: .top)
+                }
             }
             .onChange(of: learning.selectedSessionID) {
                 if let offset = learning.session?.chapter?.scrollOffset {
@@ -531,7 +539,11 @@ struct LearningSessionView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Your reasoning").font(.headline).id("chapter-reasoning")
-                    TextEditor(text: Binding(get: { learning.answerDraft }, set: { learning.answerDraft = $0 }))
+                    TextEditor(text: Binding(get: { learning.answerDraft }, set: {
+                        guard $0 != learning.answerDraft else { return }
+                        learning.answerDraft = $0
+                        answerEditRequest += 1
+                    }))
                         .font(.body)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 140, maxHeight: 240)
@@ -730,18 +742,15 @@ struct LearningSessionView: View {
             } else {
             switch session.phase {
             case .lesson:
-                HStack(spacing: 16) {
-                    if session.currentLessonPartIndex > 0 {
-                        Button("Back", systemImage: "chevron.left") {
-                            learning.selectLessonPart(session.currentLessonPartIndex - 1)
-                        }.buttonStyle(.glass)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 16) {
+                        lessonStepActions(session)
+                        Spacer(minLength: 16)
+                        if session.currentLessonPart != .example { goToPractice }
                     }
-                    primaryAction(session.currentLessonPart == .example ? "Practise this idea" : "Continue") {
-                        learning.continueLesson()
-                    }
-                    Spacer()
-                    if session.currentLessonPart != .example {
-                        Button("Go to practice") { learning.advance() }.buttonStyle(.borderless)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 16) { lessonStepActions(session) }
+                        if session.currentLessonPart != .example { goToPractice }
                     }
                 }
             case .diagnostic, .practice, .exitCheck:
@@ -799,6 +808,21 @@ struct LearningSessionView: View {
             }
             }
         }
+    }
+
+    @ViewBuilder private func lessonStepActions(_ session: LearningSession) -> some View {
+        if session.currentLessonPartIndex > 0 {
+            Button("Back", systemImage: "chevron.left") {
+                learning.selectLessonPart(session.currentLessonPartIndex - 1)
+            }.buttonStyle(.glass).fixedSize()
+        }
+        primaryAction(session.currentLessonPart == .example ? "Practise this idea" : "Continue") {
+            learning.continueLesson()
+        }.fixedSize()
+    }
+
+    private var goToPractice: some View {
+        Button("Go to practice") { learning.advance() }.buttonStyle(.borderless).fixedSize()
     }
 
     private func primaryAction(_ title: String, action: @escaping () -> Void) -> some View {

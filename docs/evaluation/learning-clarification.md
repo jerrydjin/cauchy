@@ -1,5 +1,7 @@
 # Contextual Learn questions — 18 October 2026
 
+The [20 October saved-feedback extension](learning-feedback.md) adds a distinct discussion for an assessed attempt while preserving its submitted evidence. The original pre-answer context and help rules below remain in effect; historical question explanations remain read-only after assessment.
+
 JERRY-62 adds **Ask about this step** to teaching and a contextual question action to assessment help. The course page remains focused on its next action. The panel starts compact, with the current step visible, one question field and an explicit return action. After a reply, its context and source details collapse; earlier exchanges are disclosed rather than shown as a growing transcript.
 
 ## State and evidence boundaries

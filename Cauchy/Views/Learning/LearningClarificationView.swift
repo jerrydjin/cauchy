@@ -11,7 +11,8 @@ struct LearningClarificationView: View {
     private var exchanges: [LearningClarification] {
         (learning.session?.clarifications ?? []).filter { $0.context.id == context.id }
     }
-    private var isCurrent: Bool { learning.session?.clarificationContext?.id == context.id && learning.session?.feedback == nil }
+    private var isCurrent: Bool { learning.session?.canAskClarification(for: context) == true }
+    private var subject: String { context.attemptID != nil ? "feedback" : context.phase == .lesson ? "step" : "question" }
     private var draft: Binding<String> {
         Binding(get: { learning.clarificationDraft(for: context) },
                 set: { learning.setClarificationDraft($0, for: context) })
@@ -21,11 +22,11 @@ struct LearningClarificationView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Ask about this \(context.phase == .lesson ? "step" : "question")").font(.headline)
+                    Text("Ask about this \(subject)").font(.headline)
                     Text(context.title).font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Return to \(context.phase == .lesson ? "lesson" : "my answer")") {
+                Button("Return to \(context.attemptID != nil ? "feedback" : context.phase == .lesson ? "lesson" : "my answer")") {
                     learning.cancelClarification()
                     dismiss()
                 }.keyboardShortcut(.cancelAction)
@@ -34,7 +35,7 @@ struct LearningClarificationView: View {
             ScrollViewReader { scroll in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        DisclosureGroup("Current \(context.phase == .lesson ? "step" : "question")", isExpanded: $showingContext) {
+                        DisclosureGroup(context.attemptID != nil ? "Assessed answer and feedback" : "Current \(subject)", isExpanded: $showingContext) {
                             MessageContentView(content: context.content).padding(.top, 8)
                         }
                         if let latest = exchanges.last {
@@ -69,9 +70,12 @@ struct LearningClarificationView: View {
                         .frame(minHeight: 72, maxHeight: 120).padding(8)
                         .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
                         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
-                        .accessibilityLabel("Question about this \(context.phase == .lesson ? "lesson step" : "problem")")
+                        .accessibilityLabel("Question about this \(context.attemptID != nil ? "feedback" : context.phase == .lesson ? "lesson step" : "problem")")
                         .focused($questionFocused).disabled(learning.isBusy)
-                    if context.phase != .lesson {
+                    if context.attemptID != nil {
+                        Text("This discussion keeps your saved answer and assessment unchanged.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else if context.phase != .lesson {
                         Text("Tutor replies here are recorded as help on this answer.")
                             .font(.caption).foregroundStyle(.secondary)
                     }

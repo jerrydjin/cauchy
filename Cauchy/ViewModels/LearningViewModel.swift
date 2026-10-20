@@ -49,7 +49,7 @@ final class LearningViewModel {
     }
 
     func setClarificationDraft(_ text: String, for context: LearningClarificationContext) {
-        guard !isBusy, session?.feedback == nil, session?.clarificationContext?.id == context.id else { return }
+        guard !isBusy, session?.canAskClarification(for: context) == true else { return }
         update { current in
             var drafts = current.clarificationDrafts ?? [:]
             let draft = String(text.prefix(2_000))
@@ -67,7 +67,7 @@ final class LearningViewModel {
     }
 
     func askClarification(for context: LearningClarificationContext) {
-        guard !isBusy, let session, session.feedback == nil, session.clarificationContext?.id == context.id else { return }
+        guard !isBusy, let session, session.canAskClarification(for: context) else { return }
         guard checkClarificationSource(session.source) else { return }
         let question = clarificationDraft(for: context).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty else { return }
@@ -77,7 +77,7 @@ final class LearningViewModel {
             return try LearningTutorService.checkedClarification(reply, source: session.source)
         } apply: { [weak self] reply, tutor in
             guard let self, self.selectedSessionID == session.id,
-                  self.session?.clarificationContext?.id == context.id, self.checkClarificationSource(session.source) else { return }
+                  self.session?.canAskClarification(for: context) == true, self.checkClarificationSource(session.source) else { return }
             self.update { current in
                 let exchange = LearningClarification(context: context, question: question, reply: reply,
                     suppliedPageIndices: Array(Set(session.source.passages.map(\.pageIndex))).sorted(),
@@ -85,7 +85,7 @@ final class LearningViewModel {
                     createdAt: self.now())
                 current.clarifications = (current.clarifications ?? []) + [exchange]
                 current.clarificationDrafts?.removeValue(forKey: context.id)
-                if current.question != nil {
+                if current.question != nil && current.feedback == nil {
                     current.clarificationHelpUsed = true
                     current.delayedReview?.helpUsed = true
                 }

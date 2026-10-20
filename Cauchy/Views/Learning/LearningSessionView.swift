@@ -18,6 +18,8 @@ struct LearningSessionView: View {
     @State private var showingPracticeHelp = false
     @State private var clarificationContext: LearningClarificationContext?
     @FocusState private var clarificationActionFocused: Bool
+    @FocusState private var feedbackActionFocused: Bool
+    @State private var returningToFeedback = false
     @State private var chapterScroll = ScrollPosition()
     @State private var answerEditRequest = 0
 
@@ -133,7 +135,8 @@ struct LearningSessionView: View {
         }
         .sheet(item: $clarificationContext, onDismiss: {
             focusAnswerIfNeeded()
-            if learning.session?.phase == .lesson { clarificationActionFocused = true }
+            if returningToFeedback { feedbackActionFocused = true }
+            else if learning.session?.phase == .lesson { clarificationActionFocused = true }
         }) { context in
             LearningClarificationView(document: document, context: context)
         }
@@ -598,6 +601,7 @@ struct LearningSessionView: View {
                                 }
                             }
                         }
+                        feedbackClarificationAction(session)
                     }
                 }
 
@@ -651,7 +655,7 @@ struct LearningSessionView: View {
                 .font(.headline)
             Text(resultExplanation(session)).font(.body).foregroundStyle(.secondary)
             if let exchanges = session.clarifications, !exchanges.isEmpty {
-                DisclosureGroup("Lesson questions (\(exchanges.count))") {
+                DisclosureGroup("Saved explanations (\(exchanges.count))") {
                     ForEach(exchanges) { exchange in
                         Button(exchange.question) { openClarification(exchange.context) }
                             .buttonStyle(.borderless).padding(.top, 8)
@@ -662,6 +666,7 @@ struct LearningSessionView: View {
                 Text("Your latest check").font(.headline)
                 MessageContentView(content: attempt.question.prompt)
                 MessageContentView(content: attempt.assessment.feedback)
+                feedbackClarificationAction(session)
                 Text(attempt.assistanceUsed ? "Help was used on this answer." : "No help was reported or requested in this check.")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -880,8 +885,23 @@ struct LearningSessionView: View {
         guard !learning.isBusy else { return }
         answerFocused = false
         clarificationActionFocused = false
+        feedbackActionFocused = false
+        returningToFeedback = context.attemptID != nil
         learning.openedClarifications(for: context)
         clarificationContext = context
+    }
+
+    @ViewBuilder private func feedbackClarificationAction(_ session: LearningSession) -> some View {
+        if let context = session.feedbackClarificationContext {
+            Button("Ask about this feedback", systemImage: "bubble.left") { openClarification(context) }
+                .buttonStyle(.borderless).focusable().focused($feedbackActionFocused)
+                .onKeyPress(keys: [.space, .return], phases: .down) { key in
+                    guard key.modifiers.isEmpty else { return .ignored }
+                    openClarification(context)
+                    return .handled
+                }
+                .disabled(learning.isBusy || (!assistantAvailable && !(session.clarifications ?? []).contains { $0.context.id == context.id }))
+        }
     }
 
     private func startLearning() {

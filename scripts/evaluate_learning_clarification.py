@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parent.parent
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--output", default="docs/evaluation/learning-clarification-results.json")
+    parser.add_argument("--feedback", action="store_true", help="Check saved-assessment explanations instead of teaching steps")
+    parser.add_argument("--output", help="Result JSON path (defaults to a separate file for each check suite)")
     args = parser.parse_args()
     swift = (ROOT / "Cauchy/Services/LearningTutorService.swift").read_text()
     cases = [
@@ -32,13 +33,28 @@ def main():
              teaching="Every continuous function is linear because preserving limits means preserving sums and scalar multiples.",
              question="Is the claim in this generated teaching step actually correct?", expectedBasis=["suppliedNotes"]),
     ]
+    if args.feedback:
+        cases = [
+            dict(name="challenge_faulty_assessment", source="A map T between real vector spaces is linear when T(u+v)=T(u)+T(v) and T(cu)=cT(u) for all vectors u,v and real scalars c. In particular T(0)=T(0+0)=T(0)+T(0). Subtracting T(0) from both sides gives T(0)=0. Injectivity is not required.",
+                 teaching="Assessed question: Prove that a linear map sends zero to zero.\nLearner answer: T(0)=T(0+0)=T(0)+T(0). Subtract T(0) from both sides to obtain T(0)=0.\nTutor assessment: Needs another look\nThis proof fails because T must be injective.\nSuggested next step: Add injectivity as a hypothesis.\nCriterion 1: Justify zero preservation.\nnotMet: Injectivity is missing.",
+                 question="Why does this feedback require injectivity? Is that actually needed?", expectedBasis=["suppliedNotes"],
+                 reviewExpectation="Recognize that the submitted cancellation proof is valid and the feedback's injectivity demand is wrong, without claiming to change the stored grade."),
+            dict(name="explain_missing_closedness", source="A metric space X is sequentially compact if every sequence in X has a subsequence converging to a point of X. A closed subset K of X contains the limits in X of its convergent sequences. A continuous map sends a convergent sequence to a sequence converging to the image of its limit.",
+                 teaching="Assessed question: If K is a closed subset of sequentially compact X and f is continuous, prove f(K) is sequentially compact.\nLearner answer: Choose preimages x_n in K of a sequence in f(K). Sequential compactness of X gives x_nk converging to a in X. Continuity gives f(x_nk) converging to f(a). Thus f(K) is sequentially compact.\nTutor assessment: Partly correct\nYou have not justified that f(a) belongs to f(K).\nSuggested next step: Locate the limit using closedness.\nCriterion 1: Justify the limit location.\nnotMet: Membership of a in K is missing.",
+                 question="I already have convergence. What is still missing in my answer?", expectedBasis=["suppliedNotes"],
+                 reviewExpectation="Distinguish convergence in the ambient space from a limit in f(K); explain the use of closedness to place a in K."),
+        ]
     output = dict(model=args.model, evaluatedAt=datetime.now(timezone.utc).isoformat(),
                   dataScope="Authored synthetic source only; no learner data or real notes", results=[])
-    path = ROOT / args.output
+    path = ROOT / (args.output or ("docs/evaluation/learning-feedback-results.json" if args.feedback
+                                  else "docs/evaluation/learning-clarification-results.json"))
     for case in cases:
         payload = dict(source="PDF page 1:\n" + case["source"],
                        context=dict(phase="lesson", partIndex=0, title="Current idea", content=case["teaching"]),
                        question=case["question"], previous=[])
+        if args.feedback:
+            payload["context"].update(phase="exitCheck", partIndex=None, title="Tutor feedback",
+                                      attemptID="70000000-0000-4000-8000-000000000080")
         reply = invoke(instruction(swift, "clarificationInstructions") + "\n" + json.dumps(payload)
                        + "\n" + instruction(swift, "clarificationSchema"), args.model)
         citations = reply.get("citations", [])

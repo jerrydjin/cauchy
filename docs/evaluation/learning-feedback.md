@@ -1,0 +1,28 @@
+# Questions about saved tutor feedback
+
+Tracked by [JERRY-80](https://linear.app/jerryjin/issue/JERRY-80). Ordinary and delayed lessons now offer **Ask about this feedback** beside an assessment and its completed result. This extends [contextual clarification](learning-clarification.md) to the learner's actual submitted reasoning.
+
+The discussion snapshots the exact question, answer, grade, feedback, next step and criterion assessments. Its optional attempt ID distinguishes separate attempts even when their text is identical; the same discussion remains attached when moving from feedback to the completed result. No private answer key is supplied. Existing teaching/question context IDs remain unchanged, and older saved contexts decode without an attempt ID.
+
+Feedback questions and drafts use the existing source-validated clarification path and learning sidecar. A post-assessment reply cannot change the answer, grade, assistance, review timing or progress. Prior question/lesson explanations remain saved. Historical discussions are read-only once another phase/attempt becomes current; deliberately reopening a saved explanation during a later unanswered assessment records help under the existing policy. Source changes reject new and late replies while retaining drafts. The provider instructions explicitly allow identifying an incorrect assessment rather than defending it, without claiming to change the saved grade.
+
+## Checks — 20 October 2026
+
+**105 targeted macOS tests passed, zero failures or skips**, across LearningClarificationTests, LearningFlowTests, LearningStudyRunTests, LearningStudyMapTests and LearningUIFixtureTests. Result: `/tmp/cauchy-feedback80-final.xcresult`; log: `/tmp/cauchy-feedback80-final.log`. Five new regressions exercise exact context/criterion snapshots without answer keys, attempt identity and legacy context decoding, every grade with ordinary/delayed evidence preserved, historical read-only/help behavior, source invalidation during a held request, and real persistence/restart of a reply plus unsent follow-up. The final Saved explanations label change then passed a Debug build (`/tmp/cauchy-feedback80-label-build.log`) and native inspection. Python compilation and `git diff --check` pass for the evaluator extension and final files.
+
+Native verification used `/tmp/CauchyLearnFeedback80.app`, a separately identified Debug copy, with authored offline responses and isolated storage `/tmp/cauchy-ui-fixture-feedback80-native`. The window was 1000 points wide in the existing dark appearance. The first app binding encountered a screen-capture failure; observation recovered by selecting that same running process, without restarting it to recover.
+
+- Selected the fixture's completed ordinary application result. Its feedback action opened the exact submitted answer and all three saved criterion outcomes; one question field and Return to feedback remained available.
+- Submitted a feedback question with ⌘Return, wrote an unsent follow-up, and returned with Escape. The result retained its original correct/no-help labels. Escape restored focus to the feedback action.
+- Quit and cold-reopened the isolated app. The same result, exchange and exact unsent follow-up restored.
+- Started the due application check and submitted the fixture's uncertain token. Asked about its feedback before leaving the graded-question view. Escape returned to that feedback; ⌘Return then showed the original inconclusive result, still reporting no recorded help on that submitted answer. Reopening feedback from the result recovered the same discussion.
+- Compared saved data after quitting: both original sessions were equal to their pre-check records apart from clarification exchanges/drafts and normal update time. The delayed question's complete attempts, lesson, source, delayed-review metadata, due date and help record were equal to its pre-discussion snapshot. The complete study map was unchanged.
+- On the final label build, confirmed Saved explanations appears on the result. Escape focused Ask about this feedback and Space reopened the same panel. The earlier screenshot `learn_feedback_discussion.png` shows the native completed-result discussion and its unsent follow-up; it does not contain the later history-label change.
+
+These checks establish local behavior and persistence with authored responses. They do not establish the mathematical quality of live feedback explanations, VoiceOver speech or alternate appearance/accessibility variants. Reader behavior and system settings were unchanged.
+
+## Prepared live checks — not run
+
+`scripts/evaluate_learning_clarification.py --feedback --model gpt-6.1-sol` prepares two authored cases: a valid zero-preservation proof rejected by incorrect feedback demanding injectivity, and an image-compactness answer missing the closedness step. The evaluator reuses production instructions/schema and quote/basis checks. It defaults to a separate `learning-feedback-results.json` file, preserving the existing teaching results. Actual answers require review as well as structural validation.
+
+Automatic approval review rejected execution because it would transmit these repository-authored sources and assessment examples to an external model without specific authorization for that payload/destination. No live request or feedback-results artifact was produced. The cases are ready for user review in the evaluator; explicit approval to send them to the Codex CLI's `gpt-6.1-sol` model is still required. Local implementation, automated regressions and native verification are complete independently of this optional live evaluation.

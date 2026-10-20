@@ -8,9 +8,14 @@ struct LearningClarificationContext: Codable, Equatable, Sendable, Identifiable 
     let partIndex: Int?
     let title: String
     let content: String
+    /// Absent for legacy teaching/question contexts. Feedback discussions bind
+    /// to a saved attempt without including its private answer key.
+    var attemptID: UUID? = nil
 
     var id: String {
-        let text = [phase.rawValue, partIndex.map(String.init) ?? "", title, content].joined(separator: "\n")
+        var fields = [phase.rawValue, partIndex.map(String.init) ?? "", title, content]
+        if let attemptID { fields.append(attemptID.uuidString) }
+        let text = fields.joined(separator: "\n")
         return SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
@@ -50,6 +55,34 @@ struct LearningClarification: Codable, Equatable, Sendable, Identifiable {
 }
 
 extension LearningSession {
+    var feedbackClarificationContext: LearningClarificationContext? {
+        guard chapter == nil else { return nil }
+        let attempt: LearningAttempt?
+        if phase == .complete { attempt = latestExitAttempt }
+        else if let feedback, let question {
+            attempt = attempts.last { $0.phase == phase && $0.question == question && $0.assessment == feedback }
+        } else { attempt = nil }
+        guard let attempt else { return nil }
+        var content = ["Assessed question: \(attempt.question.prompt)", "Learner answer: \(attempt.answer)",
+                       "Tutor assessment: \(attempt.assessment.grade.label)", attempt.assessment.feedback,
+                       "Suggested next step: \(attempt.assessment.nextStep)"]
+        if let rubric = attempt.question.gradingCriteria {
+            for (index, criterion) in rubric.enumerated() {
+                content.append("Criterion \(index + 1): \(criterion)")
+                if let result = attempt.assessment.criteria?.first(where: { $0.index == index }) {
+                    content.append("\(result.outcome.rawValue): \(result.feedback)")
+                }
+            }
+        }
+        return .init(phase: attempt.phase, partIndex: nil, title: "Tutor feedback",
+                     content: content.joined(separator: "\n"), attemptID: attempt.id)
+    }
+
+    func canAskClarification(for context: LearningClarificationContext) -> Bool {
+        if context.attemptID != nil { return feedbackClarificationContext?.id == context.id }
+        return feedback == nil && clarificationContext?.id == context.id
+    }
+
     var clarificationContext: LearningClarificationContext? {
         guard chapter == nil else { return nil }
         if let question {

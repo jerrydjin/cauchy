@@ -53,6 +53,117 @@ final class LearningClarificationTests: XCTestCase {
         return vm
     }
 
+    private func assessed(grade: LearningGrade = .partial, delayed: Bool = false) -> LearningSession {
+        var session = saved(phase: .exitCheck)
+        session.lesson.exitCheck.gradingCriteria = ["Justify the limit location."]
+        let assessment = LearningAssessment(grade: grade, feedback: "The hypothesis needs justification.", nextStep: "Explain where the limit belongs.",
+            criteria: [.init(index: 0, outcome: grade == .correct ? .met : .uncertain, feedback: "Connect the limit to the stated hypothesis.")])
+        session.attempts = [.init(phase: .exitCheck, question: session.lesson.exitCheck, answer: "My assessed argument.",
+            assessment: assessment, assistanceUsed: false, providerID: "original", modelID: "original-model")]
+        session.feedback = assessment
+        session.answerDraft = session.attempts[0].answer
+        if delayed {
+            session.delayedReview = .init(previousSessionID: UUID(), scheduledFor: Date(), startedAt: Date(), round: 1)
+            session.reviewDueAt = Date().addingTimeInterval(86_400)
+        }
+        return session
+    }
+
+    func testFeedbackContextBindsExactAttemptAndOmitsKeysAcrossResultNavigation() throws {
+        var session = assessed()
+        let context = try XCTUnwrap(session.feedbackClarificationContext)
+        XCTAssertEqual(context.attemptID, session.attempts[0].id)
+        XCTAssertTrue(context.content.contains(session.attempts[0].question.prompt))
+        XCTAssertTrue(context.content.contains(session.attempts[0].answer))
+        XCTAssertTrue(context.content.contains(session.attempts[0].assessment.feedback))
+        XCTAssertTrue(context.content.contains(session.attempts[0].assessment.nextStep))
+        XCTAssertTrue(context.content.contains("Justify the limit location."))
+        XCTAssertTrue(context.content.contains("Connect the limit to the stated hypothesis."))
+        XCTAssertFalse(context.content.contains("ANSWER KEY"))
+        XCTAssertNotEqual(context.id, session.clarificationContext?.id)
+        session.move(to: .complete)
+        XCTAssertEqual(session.feedbackClarificationContext, context)
+        session.attempts[0].id = UUID()
+        XCTAssertNotEqual(session.feedbackClarificationContext?.id, context.id)
+        let originalQuestion = try XCTUnwrap(saved(phase: .practice).clarificationContext)
+        let legacy = try JSONDecoder().decode(LearningClarificationContext.self, from: JSONEncoder().encode(originalQuestion))
+        XCTAssertNil(legacy.attemptID)
+        XCTAssertEqual(legacy.id, originalQuestion.id)
+    }
+
+    func testFeedbackDiscussionPreservesEveryGradeAndAssistanceIncludingDelayedEvidence() async throws {
+        for grade in [LearningGrade.correct, .partial, .incorrect, .uncertain] {
+            for delayed in [false, true] {
+                let tutor = ClarificationTutor()
+                let original = assessed(grade: grade, delayed: delayed)
+                let vm = model(original, tutor: tutor)
+                let context = try XCTUnwrap(vm.session?.feedbackClarificationContext)
+                vm.setClarificationDraft("Why this feedback?", for: context)
+                vm.askClarification(for: context); await vm.waitForOperation()
+                vm.openedClarifications(for: context)
+                let result = try XCTUnwrap(vm.session)
+                XCTAssertEqual(result.attempts, original.attempts)
+                XCTAssertEqual(result.feedback, original.feedback)
+                XCTAssertEqual(result.answerDraft, original.answerDraft)
+                XCTAssertEqual(result.assistanceUsed, original.assistanceUsed)
+                XCTAssertEqual(result.delayedReview, original.delayedReview)
+                XCTAssertEqual(result.reviewDueAt, original.reviewDueAt)
+                XCTAssertEqual(result.passedExitCheck, original.passedExitCheck)
+                XCTAssertEqual(result.lesson, original.lesson)
+                XCTAssertEqual(result.clarifications?.last?.context, context)
+                XCTAssertEqual(result.clarifications?.last?.question, "Why this feedback?")
+                XCTAssertFalse(vm.isBusy)
+            }
+        }
+    }
+
+    func testHistoricalFeedbackStaysReadOnlyAndViewingItDuringAnotherAnswerRecordsHelp() async throws {
+        let tutor = ClarificationTutor()
+        var original = assessed()
+        original.phase = .practice
+        original.lesson.practice = original.attempts[0].question
+        let old = original.attempts[0]
+        original.attempts = [.init(phase: .practice, question: old.question, answer: old.answer, assessment: old.assessment,
+            assistanceUsed: false, providerID: old.providerID, modelID: old.modelID)]
+        let vm = model(original, tutor: tutor)
+        let context = try XCTUnwrap(vm.session?.feedbackClarificationContext)
+        vm.setClarificationDraft("Explain the missing step.", for: context)
+        vm.askClarification(for: context); await vm.waitForOperation()
+        vm.tryAgain()
+        XCTAssertFalse(vm.session!.canAskClarification(for: context))
+        XCTAssertFalse(vm.session!.assistanceUsed)
+        vm.setClarificationDraft("Cannot change an earlier discussion now.", for: context)
+        vm.askClarification(for: context)
+        XCTAssertEqual(tutor.calls, 1)
+        XCTAssertEqual(vm.clarificationDraft(for: context), "")
+        vm.openedClarifications(for: context)
+        XCTAssertTrue(vm.session!.assistanceUsed)
+        XCTAssertEqual(vm.session?.attempts, original.attempts)
+    }
+
+    func testFeedbackSourceChangeRejectsLateReplyAndKeepsDraftAndAssessment() async throws {
+        let tutor = ClarificationTutor(); tutor.hold = true
+        let original = assessed(delayed: true)
+        let vm = model(original, tutor: tutor)
+        let context = try XCTUnwrap(vm.session?.feedbackClarificationContext)
+        vm.setClarificationDraft("Keep my feedback question.", for: context)
+        vm.askClarification(for: context)
+        for _ in 0..<1_000 {
+            if tutor.continuation != nil { break }
+            await Task.yield()
+        }
+        _ = try XCTUnwrap(tutor.continuation)
+        vm.sourceIsCurrent = { _ in false }
+        tutor.continuation?.resume(returning: tutor.reply); tutor.continuation = nil
+        await vm.waitForOperation()
+        XCTAssertNil(vm.session?.clarifications)
+        XCTAssertEqual(vm.clarificationDraft(for: context), "Keep my feedback question.")
+        XCTAssertEqual(vm.session?.attempts, original.attempts)
+        XCTAssertEqual(vm.session?.delayedReview, original.delayedReview)
+        XCTAssertFalse(vm.session!.assistanceUsed)
+        XCTAssertNotNil(vm.clarificationErrorMessage)
+    }
+
     func testContextContainsOnlyCurrentTeachingOrQuestionWithoutAnswerKeys() throws {
         var session = saved()
         let idea = try XCTUnwrap(session.clarificationContext)
@@ -300,6 +411,33 @@ final class LearningClarificationTests: XCTestCase {
     }
 
 #if DEBUG
+    func testFeedbackDiscussionAndFollowupSurviveRealFixturePersistence() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-feedback-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let original = try XCTUnwrap(document.learning.sessions.first { $0.phase == .complete })
+        document.learning.select(original.id)
+        let context = try XCTUnwrap(document.learning.session?.feedbackClarificationContext)
+        document.learning.setClarificationDraft("What justified this assessment?", for: context)
+        document.learning.askClarification(for: context); await document.learning.waitForOperation()
+        document.learning.setClarificationDraft("A saved feedback follow-up", for: context)
+        let expected = try XCTUnwrap(document.learning.session)
+        try await controller.flush()
+        let restart = LearningUIFixtureController(rootPath: root.path)
+        await restart.load()
+        let restored = try XCTUnwrap(restart.library?.selectedDocument)
+        restored.learning.select(original.id)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(try encoder.encode(restored.learning.session), try encoder.encode(expected))
+        XCTAssertEqual(restored.learning.session?.feedbackClarificationContext, context)
+        XCTAssertEqual(restored.learning.clarificationDraft(for: context), "A saved feedback follow-up")
+        XCTAssertEqual(expected.attempts, original.attempts)
+        XCTAssertEqual(expected.reviewDueAt, original.reviewDueAt)
+        XCTAssertFalse(expected.assistanceUsed)
+    }
+
     func testClarificationAndUnsentFollowupSurviveRealFixturePersistenceRestart() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }

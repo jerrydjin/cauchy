@@ -4,13 +4,14 @@ struct LearningStudyRunPlanView: View {
     @Bindable var document: LearningDocument
     @Environment(\.dismiss) private var dismiss
     @State private var count = 2
+    @State private var focus = LearningStudyRun.Focus.mixed
     @State private var selectedRequirement: (index: Int, item: LearningStudyRun.Item)?
     @FocusState private var focusedRequirementID: UUID?
     @FocusState private var requirementDetailsFocused: Bool
     @State private var requirementScroll = ScrollPosition()
     @State private var requirementScrollOffset: CGFloat = 0
     private var plan: LearningStudyRun? {
-        document.studyMap.map.flatMap { LearningStudyRun.plan(map: $0, sessions: document.learning.sessions, count: count, now: Date()) }
+        document.studyMap.map.flatMap { LearningStudyRun.plan(map: $0, sessions: document.learning.sessions, count: count, focus: focus, now: Date()) }
     }
 
     var body: some View {
@@ -26,6 +27,10 @@ struct LearningStudyRunPlanView: View {
     private var preview: some View {
         VStack(alignment: .leading, spacing: 22) {
             Text("Plan a study session").font(.title2.weight(.semibold))
+            Picker("Study focus", selection: $focus) {
+                Text("Review and learn").tag(LearningStudyRun.Focus.mixed)
+                Text("Review only").tag(LearningStudyRun.Focus.reviewOnly)
+            }.pickerStyle(.segmented)
             Picker("Requirements", selection: $count) {
                 Text("Up to 2").tag(2)
                 Text("Up to 3").tag(3)
@@ -59,12 +64,15 @@ struct LearningStudyRunPlanView: View {
                     .font(.callout).foregroundStyle(.secondary)
                 DisclosureGroup("Why this order?") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("A due check comes first. New work follows your learning path: concept, proof, then application. Each requirement keeps its complete lesson and argument.")
+                        Text(focus == .reviewOnly
+                             ? "Saved delayed checks come first, then checks in due-date order. This session only revisits earlier requirements; it adds no new lessons."
+                             : "A due check comes first. New work follows your learning path: concept, proof, then application. Each requirement keeps its complete lesson and argument.")
                         Text("Open source issues and earlier requirements stay in the path. Unfinished work remains open when you stop.")
                     }.font(.callout).foregroundStyle(.secondary).padding(.top, 8)
                 }
             } else {
-                Text("No requirements are available to plan right now.").foregroundStyle(.secondary)
+                Text(focus == .reviewOnly ? "No delayed checks are due right now." : "No requirements are available to plan right now.")
+                    .foregroundStyle(.secondary)
             }
             HStack {
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)

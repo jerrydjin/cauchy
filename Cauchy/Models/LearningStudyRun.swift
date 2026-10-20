@@ -4,6 +4,7 @@ import Foundation
 /// record never grants learning credit or changes an assessment.
 struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
     enum State: String, Codable, Sendable { case active, paused, finished }
+    enum Focus: Hashable { case mixed, reviewOnly }
     struct Item: Identifiable, Codable, Equatable, Sendable {
         enum Mode: String, Codable, Sendable { case lesson, delayedReview }
         var id = UUID()
@@ -68,16 +69,20 @@ struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
     var currentItem: Item? { currentIndex.map { items[$0] } }
     var attemptedCount: Int { items.filter { $0.outcome != nil }.count }
 
-    static func plan(map: LearningStudyMap, sessions: [LearningSession], count: Int = 3, now: Date) -> Self? {
+    static func plan(map: LearningStudyMap, sessions: [LearningSession], count: Int = 3, focus: Focus = .mixed, now: Date) -> Self? {
         guard map.course != nil else { return nil }
         let limit = min(3, max(1, count))
         var items: [Item] = []
         var targets = Set<UUID>()
-        if let review = map.nextDelayedReview(sessions: sessions, now: now) {
+        let reviews = map.delayedReviews(sessions: sessions, now: now)
+        for review in reviews.prefix(focus == .reviewOnly ? limit : 1) where !targets.contains(review.target.id) {
             let existing = review.activeSessionID.flatMap { id in sessions.first { $0.id == id } }
             items.append(.init(unitID: review.unit.id, title: review.unit.title, target: review.target,
                 mode: .delayedReview, existingSessionID: existing?.id, earlierAttemptIDs: existing?.attempts.map(\.id) ?? []))
             targets.insert(review.target.id)
+        }
+        if focus == .reviewOnly {
+            return items.isEmpty ? nil : .init(pageSignatures: map.pageSignatures, items: items, startedAt: now)
         }
         for unit in map.studyRunUnits {
             for target in unit.studyRunTargets where items.count < limit && !targets.contains(target.id) {

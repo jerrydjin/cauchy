@@ -106,6 +106,61 @@ final class LearningStudyRunTests: XCTestCase {
         XCTAssertNil(map.nextDelayedReview(sessions: originals, now: now, targetID: UUID()))
     }
 
+    func testReviewOnlyPlanOrdersSavedDraftBeforeDueChecksAndKeepsKindsDistinct() throws {
+        let map = map()
+        let targets = map.units[0].targets
+        var originals = targets.map { session(target: $0, date: now.addingTimeInterval(-4 * 86_400)) }
+        for index in originals.indices {
+            originals[index].reviewDueAt = now.addingTimeInterval(TimeInterval(index - 3) * 86_400)
+        }
+        var draft = session(target: targets[2], delayed: true)
+        draft.phase = .exitCheck
+        draft.attempts = []
+        draft.answerDraft = "My unfinished application argument"
+        let sessions = originals + [draft]
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: sessions, count: 100, focus: .reviewOnly, now: now))
+        XCTAssertEqual(run.items.map(\.target.id), [targets[2].id, targets[0].id, targets[1].id])
+        XCTAssertEqual(run.items.map(\.target.kind), [.application, .concept, .proof])
+        XCTAssertTrue(run.items.allSatisfy { $0.mode == .delayedReview })
+        XCTAssertEqual(run.items[0].session(in: sessions), draft)
+        XCTAssertEqual(run.items[0].existingSessionID, draft.id)
+        XCTAssertEqual(LearningStudyRun.plan(map: map, sessions: sessions, count: 2, focus: .reviewOnly, now: now)?.items.count, 2)
+        let restored = try JSONDecoder().decode(LearningStudyRun.self, from: JSONEncoder().encode(run))
+        XCTAssertEqual(restored, run)
+        XCTAssertEqual(restored.currentItem?.session(in: sessions)?.answerDraft, draft.answerDraft)
+    }
+
+    func testReviewOnlyPlanDoesNotFillWithNewOrFutureOrBlockedRequirements() throws {
+        var map = map()
+        var due = session(target: map.units[0].targets[0])
+        due.reviewDueAt = now
+        var future = session(target: map.units[0].targets[1])
+        future.reviewDueAt = now.addingTimeInterval(1)
+        var blocked = session(target: map.units[1].targets[0])
+        blocked.reviewDueAt = now.addingTimeInterval(-86_400)
+        map.units[1].pendingSourceCorrection = true
+        let sessions = [due, future, blocked]
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: sessions, focus: .reviewOnly, now: now))
+        XCTAssertEqual(run.items.map(\.target.id), [due.studyTarget!.id])
+        XCTAssertNil(LearningStudyRun.plan(map: map, sessions: [future, blocked], focus: .reviewOnly, now: now))
+        XCTAssertNil(LearningStudyRun.plan(map: map, sessions: [], focus: .reviewOnly, now: now))
+        XCTAssertNotNil(LearningStudyRun.plan(map: map, sessions: [], now: now))
+        let mixed = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: sessions, now: now))
+        XCTAssertEqual(mixed.items.filter { $0.mode == .delayedReview }.count, 1)
+        XCTAssertTrue(mixed.items.contains { $0.mode == .lesson })
+    }
+
+    func testReviewOnlyKeepsSavedSourceBlockerActionable() throws {
+        var map = map()
+        var draft = session(target: map.units[0].targets[0], delayed: true)
+        draft.phase = .exitCheck; draft.attempts = []; draft.answerDraft = "Keep this draft"
+        map.units[0].pendingSourceCorrection = true
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: [draft], focus: .reviewOnly, now: now))
+        XCTAssertEqual(run.blocker(in: map, sessions: [draft]),
+                       .sourceReview(unitID: map.units[0].id, title: map.units[0].title, pageIndex: 0))
+        XCTAssertEqual(run.currentItem?.session(in: [draft]), draft)
+    }
+
     func testBlockedSourceRemainsFirstAndCannotBeSkippedByThePlan() throws {
         var map = map()
         let unit = map.units[0]
@@ -264,6 +319,51 @@ final class LearningStudyRunTests: XCTestCase {
     }
 
 #if DEBUG
+    func testReviewOnlyCoordinatorStopsWithoutOpeningNewWorkAndPersistsItsRecord() async throws {
+        // Match the learning sidecar's numeric date encoding precision.
+        func persisted<Value: Codable>(_ value: Value) throws -> Value {
+            let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970
+            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .secondsSince1970
+            return try decoder.decode(Value.self, from: encoder.encode(value))
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-review-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let originalLesson = try XCTUnwrap(document.learning.sessions.first { $0.phase == .practice })
+        let map = try XCTUnwrap(document.studyMap.map)
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: document.learning.sessions, focus: .reviewOnly, now: Date()))
+        XCTAssertEqual(run.items.count, 1)
+        document.beginStudyRun(run)
+        await document.learning.waitForOperation()
+        document.learning.answerDraft = "Unsent review-only reasoning"
+        document.pauseStudyRun()
+        try await controller.flush()
+
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        restored.continueStudyRun()
+        XCTAssertEqual(restored.learning.answerDraft, "Unsent review-only reasoning")
+        XCTAssertEqual(restored.selectedStudyRun?.id, run.id)
+        restored.learning.answerDraft = "fixture correct"
+        restored.learning.submitAnswer()
+        await restored.learning.waitForOperation()
+        restored.learning.advance()
+        XCTAssertTrue(restored.advanceStudyRun())
+        XCTAssertEqual(restored.studyMap.currentStudyRun?.state, .finished)
+        XCTAssertEqual(restored.studyMap.currentStudyRun?.attemptedCount, 1)
+        XCTAssertEqual(restored.learning.sessions.first { $0.id == originalLesson.id }, try persisted(originalLesson))
+        XCTAssertEqual(restored.learning.session?.studyTarget?.id, run.items[0].target.id)
+        XCTAssertEqual(restored.learning.sessions.count, 3)
+        XCTAssertNil(LearningStudyRun.plan(map: map, sessions: restored.learning.sessions, focus: .reviewOnly, now: Date()))
+        try await restarted.flush()
+        let finished = LearningUIFixtureController(rootPath: root.path)
+        await finished.load()
+        XCTAssertEqual(finished.library?.selectedDocument?.studyMap.currentStudyRun, try persisted(restored.studyMap.currentStudyRun))
+    }
+
     func testCoordinatorStopsAfterTheLastPlannedRequirementWithoutStartingAnotherLesson() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-run-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }

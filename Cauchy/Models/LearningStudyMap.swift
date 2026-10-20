@@ -166,6 +166,11 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
     }
 
     func nextDelayedReview(sessions: [LearningSession], now: Date, targetID: UUID? = nil) -> LearningReviewRecommendation? {
+        delayedReviews(sessions: sessions, now: now, targetID: targetID).first
+    }
+
+    /// Saved checks lead the due queue so an unfinished answer keeps its place.
+    func delayedReviews(sessions: [LearningSession], now: Date, targetID: UUID? = nil) -> [LearningReviewRecommendation] {
         var candidates: [LearningReviewRecommendation] = []
         for unit in units {
             for target in unit.learningTargets where targetID == nil || target.id == targetID {
@@ -190,7 +195,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
             if ($0.activeSessionID != nil) != ($1.activeSessionID != nil) { return $0.activeSessionID != nil }
             if $0.dueAt != $1.dueAt { return $0.dueAt < $1.dueAt }
             return $0.target.id.uuidString < $1.target.id.uuidString
-        }.first
+        }
     }
 
     func delayedEvidence(for target: LearningStudyTarget, sessions: [LearningSession]) -> [LearningAttempt] {

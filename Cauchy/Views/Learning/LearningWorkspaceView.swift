@@ -1,3 +1,4 @@
+import AppKit
 import PDFKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -6,7 +7,15 @@ private struct LearningPlanActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+private struct LearningHistorySearchActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
+    var findSavedLearningLesson: (() -> Void)? {
+        get { self[LearningHistorySearchActionKey.self] }
+        set { self[LearningHistorySearchActionKey.self] = newValue }
+    }
     var planLearningSession: (() -> Void)? {
         get { self[LearningPlanActionKey.self] }
         set { self[LearningPlanActionKey.self] = newValue }
@@ -18,6 +27,7 @@ struct LearningWorkspaceView: View {
     @State private var assistantPreferenceRevision = 0
     @State private var showingStudyPlan = false
     @State private var lessonDetails: LearningSession?
+    @State private var showingHistorySearch = false
     @AppStorage("library.hiddenRecents") private var hiddenRecents = ""
     // Learn has one window. Keep its last working location across window
     // closure and app termination, when scene storage may be discarded.
@@ -28,12 +38,18 @@ struct LearningWorkspaceView: View {
 
     private var canPlanStudySession: Bool {
         _ = assistantPreferenceRevision
-        guard lessonDetails == nil, !showingStudyPlan,
+        guard lessonDetails == nil, !showingStudyPlan, !showingHistorySearch,
               let document = library.selectedDocument, !document.isBusy,
               document.studyMap.map?.course != nil else { return false }
         let run = document.studyMap.currentStudyRun
         guard run == nil || (run?.state == .finished && run?.summaryAcknowledgedAt != nil) else { return false }
         return document.isVerificationFixture || AskPresentation.current().canAsk
+    }
+
+    private var canFindSavedLesson: Bool {
+        guard lessonDetails == nil, !showingStudyPlan, !showingHistorySearch,
+              let document = library.selectedDocument else { return false }
+        return !document.isBusy && !document.learning.sessions.isEmpty
     }
 
     private var sidebarSelection: Binding<LearningDestination?> {
@@ -145,6 +161,11 @@ struct LearningWorkspaceView: View {
                     }
                 }
                 ToolbarItem {
+                    Button("Find a saved lesson", systemImage: "magnifyingglass") { showingHistorySearch = true }
+                        .help("Find a saved lesson (⇧⌘F)")
+                        .disabled(!canFindSavedLesson)
+                }
+                ToolbarItem {
                     if let document = library.selectedDocument, document.learning.session != nil {
                         Button("Lesson details", systemImage: "info.circle") {
                             // Resolve at invocation: toolbar shortcuts can retain
@@ -180,6 +201,15 @@ struct LearningWorkspaceView: View {
         .navigationSplitViewStyle(.balanced)
         .focusedSceneValue(\.learningLibrary, library)
         .focusedSceneValue(\.planLearningSession, canPlanStudySession ? { showingStudyPlan = true } : nil)
+        .focusedSceneValue(\.findSavedLearningLesson, canFindSavedLesson ? { showingHistorySearch = true } : nil)
+        .sheet(isPresented: $showingHistorySearch) {
+            if let document = library.selectedDocument {
+                LearningHistorySearchView(document: document) { id in
+                    guard library.selectedDocument?.id == document.id else { return }
+                    Task { await library.navigate(to: .session(document: document.id, session: id)) }
+                }
+            }
+        }
         .sheet(isPresented: $showingStudyPlan) {
             if let document = library.selectedDocument { LearningStudyRunPlanView(document: document) }
         }
@@ -297,6 +327,134 @@ private struct LearningHistoryRow: View {
         .help("\(session.lesson.title)\n\(metadata.summary)")
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(session.lesson.title), \(metadata.summary)")
+    }
+}
+
+private struct LearningHistorySearchView: View {
+    @Bindable var document: LearningDocument
+    let onOpen: (UUID) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var selection: UUID?
+    private var results: [LearningHistorySearch.Match] {
+        LearningHistorySearch.results(in: document.learning.sessions, query: query)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Find a saved lesson").font(.title2.weight(.semibold))
+            Text(document.title).font(.callout).foregroundStyle(.secondary).lineLimit(1).help(document.title)
+            LearningHistorySearchField(text: $query, onMove: moveSelection, onOpen: {
+                if let selection { open(selection) }
+            }, onCancel: { dismiss() }).frame(height: 24)
+            if results.isEmpty {
+                ContentUnavailableView(query.isEmpty ? "No saved lessons" : "No matching lessons", systemImage: "magnifyingglass",
+                    description: Text("Try a title, a question, or part of your own answer."))
+                    .frame(maxWidth: .infinity).frame(height: 320)
+            } else {
+                ScrollViewReader { scroll in
+                    List(selection: $selection) {
+                        ForEach(results) { result in
+                            VStack(alignment: .leading, spacing: 5) {
+                                LearningHistoryRow(session: result.session)
+                                if let snippet = result.snippet { Text(snippet).font(.callout).lineLimit(2) }
+                                Text("Started \(LearningHistoryMetadata(session: result.session).startedLabel)")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            .contentShape(Rectangle()).tag(result.id).id(result.id)
+                            .onTapGesture(count: 2) { open(result.id) }
+                        }
+                    }
+                    .accessibilityLabel("Matching saved lessons")
+                    .onChange(of: selection) {
+                        if let selection { scroll.scrollTo(selection) }
+                    }
+                }.frame(height: 320)
+            }
+            HStack {
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Text("\(results.count) \(results.count == 1 ? "lesson" : "lessons")")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Open lesson") { if let selection { open(selection) } }
+                    .buttonStyle(.glassProminent).keyboardShortcut(.defaultAction)
+                    .disabled(document.isBusy || !results.contains { $0.id == selection })
+            }
+        }
+        .padding(24).frame(width: 560)
+        .onAppear { selection = document.learning.selectedSessionID ?? results.first?.id }
+        .onChange(of: query) {
+            if !results.contains(where: { $0.id == selection }) { selection = results.first?.id }
+        }
+    }
+
+    private func moveSelection(backwards: Bool) {
+        guard !results.isEmpty else { return }
+        guard let index = results.firstIndex(where: { $0.id == selection }) else { selection = results.first?.id; return }
+        selection = results[min(max(index + (backwards ? -1 : 1), 0), results.count - 1)].id
+    }
+
+    private func open(_ id: UUID) {
+        guard !document.isBusy, results.contains(where: { $0.id == id }) else { return }
+        onOpen(id)
+        dismiss()
+    }
+}
+
+/// NSTextField's editor consumes arrow keys before SwiftUI's key handler.
+/// Handle its native movement commands while preserving ordinary text editing.
+private struct LearningHistorySearchField: NSViewRepresentable {
+    @Binding var text: String
+    let onMove: (Bool) -> Void
+    let onOpen: () -> Void
+    let onCancel: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let field = InitiallyFocusedSearchField()
+        field.placeholderString = "Titles, questions and your work"
+        field.maximumRecents = 0
+        field.sendsSearchStringImmediately = true
+        field.delegate = context.coordinator
+        field.setAccessibilityLabel("Search saved lessons in these notes")
+        return field
+    }
+
+    func updateNSView(_ field: NSSearchField, context: Context) {
+        context.coordinator.parent = self
+        if field.stringValue != text { field.stringValue = text }
+    }
+
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        var parent: LearningHistorySearchField
+        init(_ parent: LearningHistorySearchField) { self.parent = parent }
+        func controlTextDidChange(_ notification: Notification) {
+            if let field = notification.object as? NSSearchField { parent.text = field.stringValue }
+        }
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            switch commandSelector {
+            case #selector(NSResponder.moveDown(_:)): parent.onMove(false)
+            case #selector(NSResponder.moveUp(_:)): parent.onMove(true)
+            case #selector(NSResponder.insertNewline(_:)): parent.onOpen()
+            case #selector(NSResponder.cancelOperation(_:)): parent.onCancel()
+            default: return false
+            }
+            return true
+        }
+    }
+
+    private final class InitiallyFocusedSearchField: NSSearchField {
+        private var needsInitialFocus = true
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard window != nil, needsInitialFocus else { return }
+            needsInitialFocus = false
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.window?.makeFirstResponder(self)
+            }
+        }
     }
 }
 

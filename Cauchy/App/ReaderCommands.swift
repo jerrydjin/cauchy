@@ -26,6 +26,7 @@ struct ReaderCommands: Commands {
     @FocusedValue(\.readerWorkspace) private var workspace
     @FocusedValue(\.learningLibrary) private var learningLibrary
     @FocusedValue(\.planLearningSession) private var planLearningSession
+    @FocusedValue(\.findSavedLearningLesson) private var findSavedLearningLesson
     @Environment(\.openWindow) private var openWindow
 
     private var hasDocument: Bool { workspace?.pdfDocument != nil }
@@ -134,6 +135,10 @@ struct ReaderCommands: Commands {
             Button("Plan a Study Session…") { planLearningSession?() }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
                 .disabled(planLearningSession == nil)
+
+            Button("Find a Saved Lesson…") { findSavedLearningLesson?() }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(findSavedLearningLesson == nil)
 
             Button(learningLibrary?.selectedDocument?.studyMap.currentStudyRun?.state == .paused ? "Resume Study Session" : "Pause Study Session") {
                 guard let document = learningLibrary?.selectedDocument else { return }

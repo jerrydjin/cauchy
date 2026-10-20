@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [20 October history search](evaluation/learning-history-search.md) adds a local on-demand route to saved questions, drafts and feedback in the selected notes. It preserves the current task until a result is opened and excludes hidden keys, hints and future assessment prompts. The full suite passes 372 tests; native checks cover a 15-lesson history, keyboard selection, cancellation, same-title attempts and restart preservation.
+
 The [20 October fresh-check refinement](evaluation/learning-fresh-checks.md) checks ordinary and delayed questions against saved work for the same requirement. Distinct first exits remain immediate; repeated questions require a validated replacement. The complete 365-test macOS suite passes. Exact repetition checks do not establish semantic novelty or transfer quality.
 
 The [20 October source-validity check](evaluation/learning-source-validity.md) closes a late-response gap: every tutor operation rechecks its source immediately before saving returned teaching or assessment, and chapter generation rechecks current source obligations. Rejected responses preserve drafts and evidence; 359 macOS tests pass, including suspended-response regressions and delayed-review recovery.

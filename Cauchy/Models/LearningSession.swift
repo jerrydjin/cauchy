@@ -255,6 +255,80 @@ struct LearningDelayedReview: Codable, Equatable, Sendable {
     var helpUsed: Bool? = nil
 }
 
+/// A local read-only projection. Hidden keys, hints and future assessment
+/// prompts are deliberately absent from the searchable fields.
+enum LearningHistorySearch {
+    struct Match: Identifiable {
+        let session: LearningSession
+        let snippet: String?
+        var id: UUID { session.id }
+    }
+
+    static func results(in sessions: [LearningSession], query: String) -> [Match] {
+        let terms = query.split(whereSeparator: \.isWhitespace).map(String.init)
+        return sessions.sorted {
+            $0.updatedAt == $1.updatedAt ? $0.id.uuidString < $1.id.uuidString : $0.updatedAt > $1.updatedAt
+        }.compactMap { session in
+            if terms.isEmpty { return Match(session: session, snippet: nil) }
+            let fields = fields(in: session)
+            guard terms.allSatisfy({ term in fields.contains { range(of: term, in: $0.text) != nil } }) else { return nil }
+            let matching = fields.filter { $0.label != nil }.max { lhs, rhs in
+                terms.filter { range(of: $0, in: lhs.text) != nil }.count
+                    < terms.filter { range(of: $0, in: rhs.text) != nil }.count
+            }
+            let snippet = matching.flatMap { field -> String? in
+                guard let label = field.label, terms.contains(where: { range(of: $0, in: field.text) != nil }) else { return nil }
+                return "\(label): \(excerpt(field.text, terms: terms))"
+            }
+            return Match(session: session, snippet: snippet)
+        }
+    }
+
+    private struct Field {
+        let label: String?
+        let text: String
+    }
+
+    private static func fields(in session: LearningSession) -> [Field] {
+        var fields: [Field] = [.init(label: nil, text: session.lesson.title),
+            .init(label: nil, text: session.delayedReview != nil ? "Delayed check" : session.chapter != nil ? "Chapter challenge" : "Lesson"),
+            .init(label: nil, text: session.progressLabel),
+            .init(label: nil, text: (session.studyTarget?.kind ?? session.lesson.exitCheck.kind)?.label ?? ""),
+            .init(label: "Learning goal", text: session.studyTarget?.objective ?? session.lesson.objective),
+            .init(label: "Your draft", text: session.answerDraft)]
+        if let question = session.question { fields.append(.init(label: "Question", text: question.prompt)) }
+        if let feedback = session.feedback {
+            fields += [.init(label: "Feedback", text: feedback.feedback), .init(label: "Next step", text: feedback.nextStep)]
+        }
+        for attempt in session.attempts + (session.chapter?.rescueAttempts ?? []) {
+            fields += [.init(label: "Question", text: attempt.question.prompt), .init(label: "Your answer", text: attempt.answer),
+                       .init(label: "Feedback", text: attempt.assessment.feedback), .init(label: "Next step", text: attempt.assessment.nextStep)]
+            fields += (attempt.assessment.criteria ?? []).map { .init(label: "Feedback", text: $0.feedback) }
+        }
+        if let chapter = session.chapter {
+            fields.append(.init(label: "Your refresher draft", text: chapter.rescueDraft))
+            if chapter.rescueVisible { fields.append(.init(label: "Refresher question", text: chapter.challenge.refresher.check.prompt)) }
+        }
+        for exchange in session.clarifications ?? [] {
+            fields += [.init(label: "Your question", text: exchange.question), .init(label: "Explanation", text: exchange.reply.answer)]
+        }
+        fields += (session.clarificationDrafts ?? [:]).sorted { $0.key < $1.key }.map { .init(label: "Your question draft", text: $0.value) }
+        return fields
+    }
+
+    private static func range(of term: String, in text: String) -> Range<String.Index>? {
+        text.range(of: term, options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+
+    private static func excerpt(_ text: String, terms: [String]) -> String {
+        let text = LearningSource.normalized(text)
+        let match = terms.compactMap { range(of: $0, in: text) }.min { $0.lowerBound < $1.lowerBound }
+        let start = match.flatMap { text.index($0.lowerBound, offsetBy: -60, limitedBy: text.startIndex) } ?? text.startIndex
+        let end = text.index(start, offsetBy: 200, limitedBy: text.endIndex) ?? text.endIndex
+        return (start > text.startIndex ? "…" : "") + String(text[start..<end]) + (end < text.endIndex ? "…" : "")
+    }
+}
+
 /// A cumulative argument owns its evidence. It never inherits a topic target ID.
 struct LearningChapterChallenge: Codable, Equatable, Sendable {
     struct Idea: Codable, Equatable, Sendable {

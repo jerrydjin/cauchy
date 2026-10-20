@@ -127,8 +127,131 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertNil(controller.library)
         XCTAssertNotNil(controller.error)
     }
+
+    func testLocalHistorySearchAndOpeningResultPreserveRecordsAcrossRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let sessions = try encoder.encode(document.learning.sessions)
+        let map = try encoder.encode(document.studyMap.map)
+        for query in ["closedness", "application", "no matching lesson"] {
+            _ = LearningHistorySearch.results(in: document.learning.sessions, query: query)
+        }
+        let result = try XCTUnwrap(LearningHistorySearch.results(in: document.learning.sessions, query: "continuous").first)
+        await library.navigate(to: .session(document: document.id, session: result.id))
+        XCTAssertEqual(document.learning.selectedSessionID, result.id)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), sessions)
+        XCTAssertEqual(try encoder.encode(document.studyMap.map), map)
+        try await controller.flush()
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions), sessions)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), map)
+        XCTAssertEqual(LearningHistorySearch.results(in: restored.learning.sessions, query: "continuous").first?.id, result.id)
+    }
+
+    func testHistorySearchKeepsRefresherWorkAttachedToItsChapterChallenge() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let module = try XCTUnwrap(map.course?.modules.first)
+        let request = try XCTUnwrap(map.chapterRequest(for: module))
+        document.learning.startChapter(request: request, source: try LearningSourceBuilder.pages(1...1, in: document.pdfDocument))
+        await document.learning.waitForOperation()
+        document.learning.openPrerequisiteRescue()
+        document.learning.rescueDraft = "Silver refresher draft: closedness locates the limit."
+        let original = try XCTUnwrap(document.learning.session)
+        let result = try XCTUnwrap(LearningHistorySearch.results(in: document.learning.sessions, query: "chapter silver").first)
+        XCTAssertEqual(result.id, original.id)
+        XCTAssertTrue(result.snippet?.contains("Silver") == true)
+        XCTAssertEqual(document.learning.session, original)
+        try await controller.flush()
+    }
 }
 #endif
+
+final class LearningHistorySearchTests: XCTestCase {
+    private func session(phase: LearningPhase = .diagnostic) -> LearningSession {
+        func question(_ prompt: String) -> LearningQuestion {
+            .init(prompt: prompt, expectedAnswer: "HIDDEN_ANSWER_KEY", hints: ["UNREVEALED_HINT"])
+        }
+        let lesson = LearningLesson(title: "Café vector spaces", objective: "Explain linearity.", sourceQuote: learningSource.passages[0].text,
+            explanation: "Teaching text", workedExample: "Example text", diagnostic: question("Current diagnostic question"),
+            practice: question("FUTURE_PRACTICE_PROMPT"), exitCheck: question("FUTURE_EXIT_PROMPT"))
+        var saved = LearningSession(source: learningSource, lesson: lesson, phase: phase, providerID: "fixture", modelID: nil)
+        saved.answerDraft = "My eigenbasis argument."
+        return saved
+    }
+
+    func testCaseDiacriticsAndTermsAcrossVisibleFieldsFindExactSavedRecord() {
+        let saved = session()
+        XCTAssertEqual(LearningHistorySearch.results(in: [saved], query: "  CAFE\nEIGENBASIS ").map(\.id), [saved.id])
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "cafe nonexistent").isEmpty)
+        XCTAssertEqual(LearningHistorySearch.results(in: [saved], query: "current diagnostic").first?.snippet, "Question: Current diagnostic question")
+    }
+
+    func testKeysHintsAndFutureAssessmentPromptsAreNotSearchable() {
+        var saved = session()
+        for query in ["HIDDEN_ANSWER_KEY", "UNREVEALED_HINT", "FUTURE_PRACTICE_PROMPT", "FUTURE_EXIT_PROMPT"] {
+            XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: query).isEmpty)
+        }
+        saved.phase = .practice
+        saved.hintsRevealed = 1; saved.solutionRevealed = true
+        XCTAssertEqual(LearningHistorySearch.results(in: [saved], query: "FUTURE_PRACTICE_PROMPT").count, 1)
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "HIDDEN_ANSWER_KEY").isEmpty)
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "UNREVEALED_HINT").isEmpty)
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "FUTURE_EXIT_PROMPT").isEmpty)
+    }
+
+    func testHistoricalAnswersFeedbackAndClarificationDraftsRemainFindable() {
+        var saved = session(phase: .complete)
+        saved.attempts = [.init(phase: .exitCheck, question: saved.lesson.exitCheck, answer: "My quotient-space answer.",
+            assessment: .init(grade: .uncertain, feedback: "Check the quantifier.", nextStep: "Compare the hypothesis.",
+                criteria: [.init(index: 0, outcome: .uncertain, feedback: "Explain the coset representative.")]),
+            assistanceUsed: false, providerID: "fixture", modelID: nil)]
+        saved.clarifications = [.init(context: .init(phase: .lesson, partIndex: 0, title: "Step", content: "Visible context"),
+            question: "Why is closedness needed?", reply: .init(answer: "It keeps the subsequence limit in the subset.", basis: .additionalExplanation, citations: []),
+            suppliedPageIndices: [0], previousExchangeIDs: [], providerID: "fixture", modelID: nil)]
+        saved.clarificationDrafts = ["context": "Unsent question about continuity."]
+        for query in ["quotient-space", "quantifier", "hypothesis", "coset", "closedness", "subsequence", "unsent continuity", "FUTURE_EXIT_PROMPT"] {
+            XCTAssertEqual(LearningHistorySearch.results(in: [saved], query: query).map(\.id), [saved.id])
+        }
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "HIDDEN_ANSWER_KEY").isEmpty)
+    }
+
+    func testSameTitleAttemptsStayDistinctAndRecentOrderIsDeterministic() {
+        var ordinary = session()
+        var delayed = ordinary; delayed.id = UUID()
+        delayed.delayedReview = .init(previousSessionID: ordinary.id, scheduledFor: Date(), startedAt: Date(), round: 1)
+        ordinary.updatedAt = Date(timeIntervalSince1970: 100)
+        delayed.updatedAt = Date(timeIntervalSince1970: 200)
+        XCTAssertEqual(LearningHistorySearch.results(in: [ordinary, delayed], query: "").map(\.id), [delayed.id, ordinary.id])
+        XCTAssertEqual(LearningHistorySearch.results(in: [ordinary, delayed], query: "delayed").map(\.id), [delayed.id])
+        delayed.updatedAt = ordinary.updatedAt
+        XCTAssertEqual(LearningHistorySearch.results(in: [ordinary, delayed], query: "").map(\.id),
+                       LearningHistorySearch.results(in: [delayed, ordinary], query: "").map(\.id))
+        XCTAssertTrue(LearningHistorySearch.results(in: [], query: "anything").isEmpty)
+    }
+
+    func testLongUnicodeDraftShowsBoundedExcerptAroundMatchWithoutMutatingWork() {
+        var saved = session()
+        saved.answerDraft = String(repeating: "🔹", count: 250) + "needle" + String(repeating: "α", count: 300)
+        let original = saved
+        let result = LearningHistorySearch.results(in: [saved], query: "needle").first
+        XCTAssertTrue(result?.snippet?.contains("needle") == true)
+        XCTAssertTrue(result?.snippet?.contains("…") == true)
+        XCTAssertLessThan(result?.snippet?.count ?? 1_000, 240)
+        XCTAssertEqual(result?.session, original)
+    }
+}
 
 private struct RecordedProofRun: Decodable {
     struct Case: Decodable {

@@ -194,19 +194,12 @@ final class LearningViewModel {
         guard recommendation.dueAt <= startedAt, !recommendation.unit.needsSourceReview,
               previous.studyTarget?.id == target.id, previous.chapter == nil,
               check(previous.source), previous.source.contains(quote: previous.lesson.sourceQuote) else { return }
-        let seen = sessions.filter { $0.studyTarget?.id == target.id }.flatMap { session in
-            [session.lesson.diagnostic.prompt, session.lesson.practice.prompt, session.lesson.exitCheck.prompt]
-                + session.attempts.map(\.question.prompt)
-        }
+        let seen = questionHistory(for: previous, includeExitCheck: true)
         perform(.exitQuestion, source: previous.source) { tutor in
-            var question = try await tutor.newExitQuestion(lesson: previous.lesson, source: previous.source, previous: seen)
-            question.kind = target.kind
-            try LearningTutorService.validate(question)
-            guard question.hints.isEmpty,
-                  !seen.contains(where: { LearningSource.normalized($0) == LearningSource.normalized(question.prompt) }) else {
-                throw LearningError.repeatedQuestion
-            }
-            return question
+            var lesson = previous.lesson
+            lesson.exitCheck.kind = target.kind
+            let question = try await tutor.newExitQuestion(lesson: lesson, source: previous.source, previous: seen)
+            return try LearningTutorService.checkedExitQuestion(question, kind: target.kind, previous: seen)
         } apply: { [weak self] question, tutor in
             guard let self else { return }
             var lesson = previous.lesson
@@ -397,7 +390,7 @@ final class LearningViewModel {
         case .diagnostic:
             guard let feedback = session.feedback else { return }
             if feedback.grade == .correct {
-                update { $0.move(to: .exitCheck) }
+                prepareExitCheck(session)
             } else {
                 update { $0.move(to: .lesson) }
             }
@@ -406,22 +399,7 @@ final class LearningViewModel {
         case .practice:
             // Feedback alone is not evidence of readiness for an independent check.
             guard session.feedback?.grade == .correct else { return }
-            if session.latestExitAttempt == nil {
-                update { $0.move(to: .exitCheck) }
-            } else {
-                // A failed exit item has been seen. A subsequent check needs a
-                // fresh question; repeating the same item is practice evidence.
-                let previous = [session.lesson.diagnostic.prompt, session.lesson.practice.prompt]
-                    + session.attempts.filter { $0.phase == .exitCheck }.map { $0.question.prompt }
-                perform(.exitQuestion, source: session.source) { tutor in
-                    try await tutor.newExitQuestion(lesson: session.lesson, source: session.source, previous: previous)
-                } apply: { [weak self] question, _ in
-                    self?.update {
-                        $0.lesson.exitCheck = question
-                        $0.move(to: .exitCheck)
-                    }
-                }
-            }
+            prepareExitCheck(session)
         case .exitCheck:
             guard session.feedback != nil else { return }
             update { $0.move(to: .complete) }
@@ -432,6 +410,47 @@ final class LearningViewModel {
     func practiseAgain() {
         guard !isBusy, let session, session.chapter == nil, session.phase == .complete, check(session.source) else { return }
         update { $0.move(to: .lesson); $0.delayedReview?.helpUsed = true }
+    }
+
+    private func prepareExitCheck(_ session: LearningSession) {
+        let previous = questionHistory(for: session, includeExitCheck: false)
+        let candidate = LearningSource.normalized(session.lesson.exitCheck.prompt)
+        if !previous.contains(where: { LearningSource.normalized($0) == candidate }) {
+            update { $0.move(to: .exitCheck) }
+            return
+        }
+        let kind = session.studyTarget?.kind ?? session.lesson.exitCheck.kind
+        var lesson = session.lesson
+        lesson.exitCheck.kind = kind
+        perform(.exitQuestion, source: session.source) { tutor in
+            let question = try await tutor.newExitQuestion(lesson: lesson, source: session.source, previous: previous)
+            return try LearningTutorService.checkedExitQuestion(question, kind: kind, previous: previous)
+        } apply: { [weak self] question, _ in
+            self?.update {
+                $0.lesson.exitCheck = question
+                $0.move(to: .exitCheck)
+            }
+        }
+    }
+
+    /// Exact-repeat prevention, not a semantic novelty or transfer judgement.
+    /// Include saved generated questions conservatively, even if unattempted.
+    private func questionHistory(for session: LearningSession, includeExitCheck: Bool) -> [String] {
+        let related = sessions.filter { other in
+            guard other.id != session.id, other.chapter == nil else { return false }
+            if let target = session.studyTarget { return other.studyTarget?.id == target.id }
+            return other.studyTarget == nil && other.source == session.source
+        }
+        let prompts = [session.lesson.diagnostic.prompt, session.lesson.practice.prompt]
+            + (includeExitCheck ? [session.lesson.exitCheck.prompt] : [])
+            + session.attempts.map(\.question.prompt)
+            + related.flatMap { [$0.lesson.diagnostic.prompt, $0.lesson.practice.prompt, $0.lesson.exitCheck.prompt]
+                + $0.attempts.map(\.question.prompt) }
+        var seen = Set<String>()
+        return prompts.filter {
+            let normalized = LearningSource.normalized($0)
+            return !normalized.isEmpty && seen.insert(normalized).inserted
+        }
     }
 
     func cancel() {

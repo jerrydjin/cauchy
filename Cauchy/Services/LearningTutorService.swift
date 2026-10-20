@@ -151,9 +151,9 @@ final class LearningTutorService: LearningTutorProtocol {
         try validateBudget(source)
         let model = try languageModel()
         let session = LanguageModelSession(model: model, instructions: Self.questionInstructions)
-        let prompt = "Objective: \(lesson.objective)\nRequired reasoning type: \(lesson.exitCheck.kind?.rawValue ?? "application")\nKeep the same depth; a proof target requires a proof/argument, not numerical examples.\n\n\(source.prompt)\n\nDo not repeat these earlier questions:\n"
-            + previous.joined(separator: "\n")
-        var question: LearningQuestion
+        let prompt = try Self.exitQuestionPrompt(lesson: lesson, source: source, previous: previous,
+                                                 onDevice: resolved.connector.id == .onDevice)
+        let question: LearningQuestion
         if model is SystemLanguageModel {
             let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt, generating: GeneratedLearningQuestion.self) }
             question = response.content.question
@@ -161,13 +161,27 @@ final class LearningTutorService: LearningTutorProtocol {
             let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt + "\nReturn JSON: " + Self.questionSchema) }
             question = try LearningResponseParser.decode(response.content)
         }
-        question.kind = lesson.exitCheck.kind
-        try Self.validate(question)
-        guard question.hints.isEmpty else { throw LearningError.invalidResponse }
-        guard !previous.contains(where: { LearningSource.normalized($0) == LearningSource.normalized(question.prompt) }) else {
+        return try Self.checkedExitQuestion(question, kind: lesson.exitCheck.kind, previous: previous)
+    }
+
+    static func exitQuestionPrompt(lesson: LearningLesson, source: LearningSource, previous: [String], onDevice: Bool) throws -> String {
+        let prompt = "Objective: \(lesson.objective)\nRequired reasoning type: \(lesson.exitCheck.kind?.rawValue ?? "application")\nKeep the same depth; a proof target requires a proof/argument, not numerical examples.\n\n\(source.prompt)\n\nDo not repeat these earlier questions:\n"
+            + previous.joined(separator: "\n")
+        guard prompt.count + questionSchema.count + "\nReturn JSON: ".count <= (onDevice ? 6_000 : 64_000) else {
+            throw LearningStudyValidationError(reason: "Your earlier questions and source exceed this assistant’s capacity for a fresh check. Your saved work is unchanged.")
+        }
+        return prompt
+    }
+
+    static func checkedExitQuestion(_ question: LearningQuestion, kind: LearningStudyKind?, previous: [String]) throws -> LearningQuestion {
+        var checked = question
+        checked.kind = kind
+        try validate(checked)
+        guard checked.hints.isEmpty else { throw LearningError.invalidResponse }
+        guard !previous.contains(where: { LearningSource.normalized($0) == LearningSource.normalized(checked.prompt) }) else {
             throw LearningError.repeatedQuestion
         }
-        return question
+        return checked
     }
 
     func makeChapterChallenge(request: LearningChapterRequest, source: LearningSource, previous: [String]) async throws -> LearningChapterChallenge {

@@ -488,6 +488,8 @@ private final class TestLearningTutor: LearningTutorProtocol {
     var assessmentCount = 0
     var freshQuestionCount = 0
     var excludedQuestions: [String] = []
+    var exitQuestionOverride: LearningQuestion?
+    var requestedExitKind: LearningStudyKind?
 
     func makeLesson(source: LearningSource) async throws -> LearningLesson {
         if shouldFail { throw LearningError.invalidResponse }
@@ -503,8 +505,9 @@ private final class TestLearningTutor: LearningTutorProtocol {
     func newExitQuestion(lesson: LearningLesson, source: LearningSource, previous: [String]) async throws -> LearningQuestion {
         freshQuestionCount += 1
         excludedQuestions = previous
+        requestedExitKind = lesson.exitCheck.kind
         if shouldFail { throw LearningError.invalidResponse }
-        return learningQuestion("Is translation by a nonzero vector linear? Explain.")
+        return exitQuestionOverride ?? learningQuestion("Is translation by a nonzero vector linear? Explain.")
     }
 }
 
@@ -646,6 +649,122 @@ final class LearningFlowTests: XCTestCase {
         XCTAssertNotEqual(vm.session?.question?.prompt, firstExit)
         XCTAssertTrue(tutor.excludedQuestions.contains(firstExit))
         XCTAssertEqual(vm.session?.attempts.filter { $0.phase == .exitCheck }.count, 1)
+    }
+
+    private func exitReadySession(target: LearningStudyTarget? = nil, phase: LearningPhase = .practice, retry: Bool = false) -> LearningSession {
+        var lesson = learningLesson()
+        lesson.diagnostic.kind = target?.kind; lesson.practice.kind = target?.kind; lesson.exitCheck.kind = target?.kind
+        if target?.kind == .proof {
+            let rubric = ["Use linearity.", "Justify zero preservation.", "Conclude the required property."]
+            lesson.diagnostic.gradingCriteria = rubric; lesson.practice.gradingCriteria = rubric; lesson.exitCheck.gradingCriteria = rubric
+            lesson.proof = .init(statement: "Every linear map preserves zero.", assumptions: ["The map is linear."],
+                strategy: "Apply scalar preservation.", steps: [.init(claim: "T(0v)=0T(v)=0.", justification: "Scalar preservation.")],
+                conclusion: "T(0)=0.", sourceQuote: lesson.sourceQuote)
+        }
+        var saved = LearningSession(source: learningSource, lesson: lesson, phase: phase, providerID: "original", modelID: nil)
+        saved.studyTarget = target
+        saved.feedback = assessment(.correct)
+        saved.answerDraft = "My successful practice reasoning."
+        saved.hintsRevealed = 1
+        if retry {
+            saved.attempts = [.init(phase: .exitCheck, question: lesson.exitCheck, answer: "My earlier exit answer.",
+                assessment: assessment(.incorrect), assistanceUsed: false, providerID: "original", modelID: nil)]
+        }
+        return saved
+    }
+
+    func testFirstExitAvoidsOtherSavedQuestionsForTheSameTargetIncludingDelayedWork() async throws {
+        for phase in [LearningPhase.diagnostic, .practice] {
+            for delayed in [false, true] {
+                let target = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "Justify zero preservation.")
+                let current = exitReadySession(target: target, phase: phase)
+                var earlier = exitReadySession(target: target, retry: true)
+                earlier.phase = .complete
+                earlier.attempts.append(.init(phase: .practice, question: learningQuestion("An archived practice question for this requirement."),
+                    answer: "Earlier reasoning.", assessment: assessment(.partial), assistanceUsed: true, providerID: "original", modelID: nil))
+                if delayed { earlier.delayedReview = .init(previousSessionID: UUID(), scheduledFor: Date(), startedAt: Date(), round: 1) }
+                let tutor = TestLearningTutor()
+                let vm = LearningViewModel { tutor }; vm.restore([current, earlier]); vm.select(current.id)
+                vm.advance(); await vm.waitForOperation()
+                XCTAssertNil(vm.errorMessage)
+                XCTAssertEqual(tutor.freshQuestionCount, 1)
+                XCTAssertTrue(tutor.excludedQuestions.contains(current.lesson.exitCheck.prompt))
+                XCTAssertTrue(tutor.excludedQuestions.contains(earlier.attempts.last!.question.prompt))
+                XCTAssertEqual(vm.session?.phase, .exitCheck)
+                XCTAssertEqual(vm.session?.question?.kind, .concept)
+                XCTAssertNotEqual(vm.session?.question?.prompt, current.lesson.exitCheck.prompt)
+                XCTAssertEqual(vm.sessions.first { $0.id == earlier.id }, earlier)
+            }
+        }
+    }
+
+    func testDistinctFirstExitDoesNotUseAnUnrelatedRequirementsQuestionHistory() async throws {
+        let target = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "Justify zero preservation.")
+        let other = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "A different requirement.")
+        let current = exitReadySession(target: target)
+        let unrelated = exitReadySession(target: other, retry: true)
+        let tutor = TestLearningTutor()
+        let vm = LearningViewModel { tutor }; vm.restore([current, unrelated]); vm.select(current.id)
+        vm.advance(); await vm.waitForOperation()
+        XCTAssertEqual(tutor.freshQuestionCount, 0)
+        XCTAssertEqual(vm.session?.question, current.lesson.exitCheck)
+        XCTAssertEqual(vm.sessions.first { $0.id == unrelated.id }, unrelated)
+    }
+
+    func testStandaloneFirstExitUsesOnlyTheSameSourceSnapshotHistory() async {
+        for sameSource in [false, true] {
+            let current = exitReadySession()
+            let earlier = LearningSession(source: sameSource ? learningSource : .init(passages: [.init(pageIndex: 2, text: "A different source passage about another idea.")]),
+                lesson: current.lesson, phase: .complete, providerID: "original", modelID: nil)
+            let tutor = TestLearningTutor()
+            let vm = LearningViewModel { tutor }; vm.restore([current, earlier]); vm.select(current.id)
+            vm.advance(); await vm.waitForOperation()
+            XCTAssertEqual(tutor.freshQuestionCount, sameSource ? 1 : 0)
+            XCTAssertEqual(vm.session?.phase, .exitCheck)
+            XCTAssertEqual(vm.sessions.first { $0.id == earlier.id }, earlier)
+        }
+    }
+
+    func testRepeatedOrHintedRetryLeavesPracticeIntactAndValidRetryCanRecover() async {
+        let target = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "Justify zero preservation.")
+        let current = exitReadySession(target: target, retry: true)
+        var earlier = exitReadySession(target: target)
+        earlier.lesson.exitCheck = learningQuestion("A question from an earlier saved lesson.")
+        for invalid in [learningQuestion("  \(current.lesson.diagnostic.prompt) \n"),
+                        earlier.lesson.exitCheck,
+                        learningQuestion("A new question containing help", hints: ["Use the zero scalar."])] {
+            let tutor = TestLearningTutor(); tutor.exitQuestionOverride = invalid
+            let vm = LearningViewModel { tutor }; vm.restore([current, earlier]); vm.select(current.id)
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.advance(); await vm.waitForOperation()
+            XCTAssertEqual(vm.session, current)
+            XCTAssertEqual(writes, 0)
+            XCTAssertNotNil(vm.errorMessage)
+            XCTAssertFalse(vm.isBusy)
+            tutor.exitQuestionOverride = nil
+            vm.advance(); await vm.waitForOperation()
+            XCTAssertNil(vm.errorMessage)
+            XCTAssertEqual(vm.session?.phase, .exitCheck)
+            XCTAssertEqual(vm.session?.attempts, current.attempts)
+        }
+    }
+
+    func testFreshProofCheckRequiresItsRubricAndKeepsTheRequiredKind() async {
+        let target = LearningStudyTarget(unitID: UUID(), kind: .proof, objective: "Prove zero preservation.")
+        let current = exitReadySession(target: target, retry: true)
+        let tutor = TestLearningTutor()
+        tutor.exitQuestionOverride = .init(prompt: "A different argument about linear maps.", expectedAnswer: "Justify the consequence with scalar preservation.", hints: [], kind: .application)
+        let vm = LearningViewModel { tutor }; vm.restore([current]); vm.select(current.id)
+        vm.advance(); await vm.waitForOperation()
+        XCTAssertEqual(vm.session, current)
+        XCTAssertNotNil(vm.errorMessage)
+        tutor.exitQuestionOverride?.gradingCriteria = current.lesson.exitCheck.gradingCriteria
+        vm.advance(); await vm.waitForOperation()
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertEqual(tutor.requestedExitKind, .proof)
+        XCTAssertEqual(vm.session?.question?.kind, .proof)
+        XCTAssertEqual(vm.session?.lesson.proof, current.lesson.proof)
+        XCTAssertEqual(vm.session?.attempts, current.attempts)
     }
 
     func testFailedAssessmentKeepsDraftAndAddsNoEvidence() async {
@@ -911,6 +1030,21 @@ private final class SuspendedLearningTutor: LearningTutorProtocol {
 
 @MainActor
 final class LearningValidationTests: XCTestCase {
+    func testFreshQuestionInputIncludesCompleteHistoryOrReportsCapacity() throws {
+        let earlier = ["First earlier question about a linear map.", "Another earlier question about its zero vector."]
+        let input = try LearningTutorService.exitQuestionPrompt(lesson: learningLesson(), source: learningSource,
+            previous: earlier, onDevice: false)
+        XCTAssertTrue(input.contains(learningSource.prompt))
+        XCTAssertTrue(earlier.allSatisfy { input.contains($0) })
+        let largeHistory = (0..<40).map { "Question \($0): " + String(repeating: "x", count: 2_000) }
+        XCTAssertThrowsError(try LearningTutorService.exitQuestionPrompt(lesson: learningLesson(), source: learningSource,
+            previous: largeHistory, onDevice: false))
+        XCTAssertThrowsError(try LearningTutorService.exitQuestionPrompt(lesson: learningLesson(), source: learningSource,
+            previous: Array(largeHistory.prefix(4)), onDevice: true))
+        XCTAssertNoThrow(try LearningTutorService.exitQuestionPrompt(lesson: learningLesson(), source: learningSource,
+            previous: earlier, onDevice: true))
+    }
+
     func testPageRangeRejectsInvalidTextInsteadOfReusingAnOldValue() throws {
         XCTAssertEqual(try LearningSourceBuilder.pageRange(first: " 2 ", last: "7", pageCount: 20), 2...7)
         for (first, last) in [("", "2"), ("x", "2"), ("2", "1"), ("0", "1"), ("1", "7"), ("2", "21")] {

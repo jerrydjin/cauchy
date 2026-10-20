@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [20 October fresh-check refinement](evaluation/learning-fresh-checks.md) checks ordinary and delayed questions against saved work for the same requirement. Distinct first exits remain immediate; repeated questions require a validated replacement. The complete 365-test macOS suite passes. Exact repetition checks do not establish semantic novelty or transfer quality.
+
 The [20 October source-validity check](evaluation/learning-source-validity.md) closes a late-response gap: every tutor operation rechecks its source immediately before saving returned teaching or assessment, and chapter generation rechecks current source obligations. Rejected responses preserve drafts and evidence; 359 macOS tests pass, including suspended-response regressions and delayed-review recovery.
 
 This document includes dated observations from the combined development working

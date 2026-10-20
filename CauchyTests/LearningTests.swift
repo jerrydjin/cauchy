@@ -746,6 +746,113 @@ final class LearningFlowTests: XCTestCase {
         XCTAssertNotNil(vm.errorMessage)
     }
 
+    func testSourceChangeDuringLessonGenerationRejectsLateTeachingWithoutSaving() async throws {
+        let tutor = SuspendedLearningTutor()
+        let vm = LearningViewModel { tutor }
+        var writes = 0
+        vm.onChange = { _ in writes += 1 }
+        vm.start(source: learningSource)
+        for _ in 0..<1_000 where tutor.continuation == nil { await Task.yield() }
+        let pending = try XCTUnwrap(tutor.continuation)
+        vm.sourceIsCurrent = { _ in false }
+        pending.resume(returning: learningLesson())
+        await vm.waitForOperation()
+        XCTAssertTrue(vm.sessions.isEmpty)
+        XCTAssertNil(vm.selectedSessionID)
+        XCTAssertEqual(writes, 0)
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertFalse(vm.isBusy)
+    }
+
+    func testSourceChangeDuringAssessmentPreservesDraftHelpHistoryAndSchedule() async throws {
+        for phase in [LearningPhase.diagnostic, .practice, .exitCheck] {
+            for delayed in [false, true] where !delayed || phase == .exitCheck {
+                let tutor = SuspendedLearningTutor(); tutor.holdAssessment = true
+                var original = LearningSession(source: learningSource, lesson: learningLesson(), phase: phase,
+                    providerID: "original", modelID: nil)
+                original.answerDraft = "Keep my unsent reasoning."
+                original.sourceOpened = true
+                original.attempts = [.init(phase: .diagnostic, question: original.lesson.diagnostic, answer: "An earlier answer",
+                    assessment: assessment(.partial), assistanceUsed: true, providerID: "original", modelID: nil)]
+                if delayed {
+                    original.delayedReview = .init(previousSessionID: UUID(), scheduledFor: Date(), startedAt: Date(), round: 2, helpUsed: true)
+                    original.reviewDueAt = Date().addingTimeInterval(86_400)
+                }
+                let vm = LearningViewModel { tutor }; vm.restore([original]); vm.select(original.id)
+                var writes = 0; vm.onChange = { _ in writes += 1 }
+                vm.submitAnswer()
+                for _ in 0..<1_000 where tutor.assessmentContinuation == nil { await Task.yield() }
+                let pending = try XCTUnwrap(tutor.assessmentContinuation)
+                vm.sourceIsCurrent = { _ in false }
+                pending.resume(returning: assessment(.correct))
+                await vm.waitForOperation()
+                XCTAssertEqual(vm.session, original)
+                XCTAssertEqual(writes, 0)
+                XCTAssertNotNil(vm.errorMessage)
+                XCTAssertFalse(vm.isBusy)
+            }
+        }
+    }
+
+    func testSourceChangeWhilePreparingRetryKeepsOriginalQuestionAndPracticeFeedback() async throws {
+        let tutor = SuspendedLearningTutor(); tutor.holdExitQuestion = true
+        var original = LearningSession(source: learningSource, lesson: learningLesson(), phase: .practice,
+            providerID: "original", modelID: nil)
+        original.answerDraft = "A successful practice revision."
+        original.feedback = assessment(.correct)
+        original.hintsRevealed = 1
+        original.attempts = [.init(phase: .exitCheck, question: original.lesson.exitCheck, answer: "Earlier exit reasoning",
+            assessment: assessment(.incorrect), assistanceUsed: false, providerID: "original", modelID: nil)]
+        let vm = LearningViewModel { tutor }; vm.restore([original]); vm.select(original.id)
+        vm.advance()
+        for _ in 0..<1_000 where tutor.questionContinuation == nil { await Task.yield() }
+        let pending = try XCTUnwrap(tutor.questionContinuation)
+        vm.sourceIsCurrent = { _ in false }
+        pending.resume(returning: learningQuestion("A different independent problem"))
+        await vm.waitForOperation()
+        XCTAssertEqual(vm.session, original)
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertFalse(vm.isBusy)
+    }
+
+    func testDelayedQuestionSourceChangeKeepsPriorEvidenceAndCanRecover() async throws {
+        let tutor = SuspendedLearningTutor(); tutor.holdExitQuestion = true
+        let unitID = UUID()
+        let target = LearningStudyTarget(unitID: unitID, kind: .concept, objective: "Justify zero preservation.")
+        let unit = LearningStudyUnit(id: unitID, title: "Linear maps", anchorPage: 0,
+            sourceQuote: learningLesson().sourceQuote, pageIndices: [0], prerequisites: [],
+            proofRequired: false, proofQuote: nil, gaps: [], targets: [target])
+        var original = LearningSession(source: learningSource, lesson: learningLesson(), phase: .complete,
+            providerID: "original", modelID: nil)
+        original.studyTarget = target
+        original.reviewDueAt = Date().addingTimeInterval(-86_400)
+        var question = original.lesson.exitCheck; question.kind = .concept
+        original.attempts = [.init(phase: .exitCheck, question: question, answer: "Earlier independent reasoning.",
+            assessment: assessment(.correct), assistanceUsed: false, providerID: "original", modelID: nil)]
+        let recommendation = LearningReviewRecommendation(unit: unit, target: target, previous: original,
+            dueAt: original.reviewDueAt!, activeSessionID: nil)
+        let vm = LearningViewModel { tutor }; vm.restore([original]); vm.select(original.id)
+        var writes = 0; vm.onChange = { _ in writes += 1 }
+        vm.startDelayedReview(recommendation)
+        for _ in 0..<1_000 where tutor.questionContinuation == nil { await Task.yield() }
+        let pending = try XCTUnwrap(tutor.questionContinuation)
+        vm.sourceIsCurrent = { _ in false }
+        pending.resume(returning: learningQuestion("A different delayed check: explain which linearity property preserves zero."))
+        await vm.waitForOperation()
+        XCTAssertEqual(vm.sessions, [original])
+        XCTAssertEqual(writes, 0)
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertFalse(vm.isBusy)
+        // Returning to the current source can retry normally after rejection.
+        vm.sourceIsCurrent = { _ in true }
+        tutor.holdExitQuestion = false
+        vm.startDelayedReview(recommendation); await vm.waitForOperation()
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertEqual(vm.sessions.count, 2)
+        XCTAssertEqual(vm.session?.delayedReview?.previousSessionID, original.id)
+        XCTAssertEqual(vm.sessions.first { $0.id == original.id }, original)
+    }
+
     func testDraftAndAssistanceArePersistedBeforeSubmitting() async {
         let tutor = TestLearningTutor()
         let vm = await start(tutor)
@@ -785,14 +892,20 @@ private final class SuspendedLearningTutor: LearningTutorProtocol {
     let providerID = "suspended"
     let modelID: String? = nil
     var continuation: CheckedContinuation<LearningLesson, Never>?
+    var holdAssessment = false
+    var assessmentContinuation: CheckedContinuation<LearningAssessment, Never>?
+    var holdExitQuestion = false
+    var questionContinuation: CheckedContinuation<LearningQuestion, Never>?
     func makeLesson(source: LearningSource) async throws -> LearningLesson {
         await withCheckedContinuation { continuation = $0 }
     }
     func assess(question: LearningQuestion, answer: String, source: LearningSource) async throws -> LearningAssessment {
-        assessment(.uncertain)
+        if holdAssessment { return await withCheckedContinuation { assessmentContinuation = $0 } }
+        return assessment(.uncertain)
     }
     func newExitQuestion(lesson: LearningLesson, source: LearningSource, previous: [String]) async throws -> LearningQuestion {
-        learningQuestion("Fresh question")
+        if holdExitQuestion { return await withCheckedContinuation { questionContinuation = $0 } }
+        return learningQuestion("Fresh question")
     }
 }
 
@@ -924,10 +1037,13 @@ private final class ChapterTutorFixture: LearningTutorProtocol {
     var delayAssessment = false
     var continuation: CheckedContinuation<LearningAssessment, Never>?
     var generationCalls = 0
+    var delayGeneration = false
+    var generationContinuation: CheckedContinuation<LearningChapterChallenge, Never>?
     init(_ challenge: LearningChapterChallenge) { self.challenge = challenge }
     func makeLesson(source: LearningSource) async throws -> LearningLesson { throw LearningError.invalidResponse }
     func makeChapterChallenge(request: LearningChapterRequest, source: LearningSource, previous: [String]) async throws -> LearningChapterChallenge {
         generationCalls += 1
+        if delayGeneration { return await withCheckedContinuation { generationContinuation = $0 } }
         return challenge
     }
     func assess(question: LearningQuestion, answer: String, source: LearningSource) async throws -> LearningAssessment {
@@ -977,6 +1093,66 @@ final class LearningChapterChallengeTests: XCTestCase {
                 check: .init(prompt: "Why must the limit of a convergent sequence in the closed subset K belong to K?",
                     expectedAnswer: "Closed subsets contain the limits in X of their convergent sequences.", hints: [], kind: .concept)))
         return (request, source, challenge)
+    }
+
+    func testSourceOrObligationChangesDuringChapterGenerationPreserveSavedWork() async throws {
+        for fresh in [false, true] {
+            for changedSource in [false, true] {
+                let (request, source, challenge) = fixture()
+                let tutor = ChapterTutorFixture(challenge)
+                let vm = LearningViewModel { tutor }
+                if fresh {
+                    vm.startChapter(request: request, source: source); await vm.waitForOperation()
+                    vm.answerDraft = "My original chapter reasoning."
+                    vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+                    tutor.challenge.question = .init(prompt: challenge.assumptions[0] + " Additionally Y is the real line. Prove that f(K) is closed and bounded.",
+                        expectedAnswer: "Use the supplied image theorem and the closedness and boundedness consequence.",
+                        hints: [], kind: .proof, gradingCriteria: challenge.question.gradingCriteria)
+                }
+                let original = vm.sessions
+                var writes = 0; vm.onChange = { _ in writes += 1 }
+                tutor.delayGeneration = true
+                if fresh { vm.freshChapterCheck() } else { vm.startChapter(request: request, source: source) }
+                for _ in 0..<1_000 where tutor.generationContinuation == nil { await Task.yield() }
+                let pending = try XCTUnwrap(tutor.generationContinuation)
+                if changedSource { vm.sourceIsCurrent = { _ in false } }
+                else { vm.chapterRequestIsCurrent = { _ in false } }
+                pending.resume(returning: tutor.challenge)
+                await vm.waitForOperation()
+                XCTAssertEqual(vm.sessions, original)
+                XCTAssertEqual(writes, 0)
+                XCTAssertNotNil(vm.errorMessage)
+                XCTAssertFalse(vm.isBusy)
+            }
+        }
+    }
+
+    func testLateChapterAndRefresherGradesCannotApplyAfterSourceChange() async throws {
+        for rescue in [false, true] {
+            let (request, source, challenge) = fixture()
+            let tutor = ChapterTutorFixture(challenge)
+            let vm = LearningViewModel { tutor }
+            vm.startChapter(request: request, source: source); await vm.waitForOperation()
+            if rescue {
+                vm.openPrerequisiteRescue()
+                vm.rescueDraft = "Keep my refresher reasoning."
+            } else { vm.answerDraft = "Keep my chapter reasoning." }
+            let original = vm.session
+            tutor.delayAssessment = true
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.submitAnswer()
+            for _ in 0..<1_000 where tutor.continuation == nil { await Task.yield() }
+            let pending = try XCTUnwrap(tutor.continuation)
+            let question = rescue ? challenge.refresher.check : challenge.question
+            vm.sourceIsCurrent = { _ in false }
+            pending.resume(returning: .init(grade: .correct, feedback: "A late result", nextStep: "Continue",
+                criteria: question.gradingCriteria?.indices.map { .init(index: $0, outcome: .met, feedback: "An authored check") }))
+            await vm.waitForOperation()
+            XCTAssertEqual(vm.session, original)
+            XCTAssertEqual(writes, 0)
+            XCTAssertNotNil(vm.errorMessage)
+            XCTAssertFalse(vm.isBusy)
+        }
     }
 
     func testRescueReturnsToExactArgumentAndPersistsWithoutCredit() async throws {

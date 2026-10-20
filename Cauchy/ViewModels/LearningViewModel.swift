@@ -72,12 +72,12 @@ final class LearningViewModel {
         let question = clarificationDraft(for: context).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty else { return }
         let previous = Array((session.clarifications ?? []).filter { $0.context.id == context.id }.suffix(2))
-        perform(.clarification) { tutor in
+        perform(.clarification, source: session.source) { tutor in
             let reply = try await tutor.clarify(question: question, context: context, source: session.source, previous: previous)
             return try LearningTutorService.checkedClarification(reply, source: session.source)
         } apply: { [weak self] reply, tutor in
             guard let self, self.selectedSessionID == session.id,
-                  self.session?.canAskClarification(for: context) == true, self.checkClarificationSource(session.source) else { return }
+                  self.session?.canAskClarification(for: context) == true else { return }
             self.update { current in
                 let exchange = LearningClarification(context: context, question: question, reply: reply,
                     suppliedPageIndices: Array(Set(session.source.passages.map(\.pageIndex))).sorted(),
@@ -163,7 +163,7 @@ final class LearningViewModel {
 
     func start(source: LearningSource, target: LearningStudyTarget? = nil, studyRunItemID: UUID? = nil) {
         guard !isBusy, check(source) else { return }
-        perform(.lesson) { tutor in
+        perform(.lesson, source: source) { tutor in
             var lesson: LearningLesson
             if let target { lesson = try await tutor.makeLesson(source: source, target: target) }
             else { lesson = try await tutor.makeLesson(source: source) }
@@ -198,7 +198,7 @@ final class LearningViewModel {
             [session.lesson.diagnostic.prompt, session.lesson.practice.prompt, session.lesson.exitCheck.prompt]
                 + session.attempts.map(\.question.prompt)
         }
-        perform(.exitQuestion) { tutor in
+        perform(.exitQuestion, source: previous.source) { tutor in
             var question = try await tutor.newExitQuestion(lesson: previous.lesson, source: previous.source, previous: seen)
             question.kind = target.kind
             try LearningTutorService.validate(question)
@@ -208,7 +208,7 @@ final class LearningViewModel {
             }
             return question
         } apply: { [weak self] question, tutor in
-            guard let self, check(previous.source) else { return }
+            guard let self else { return }
             var lesson = previous.lesson
             lesson.exitCheck = question
             var review = LearningSession(source: previous.source, lesson: lesson, providerID: tutor.providerID, modelID: tutor.modelID,
@@ -230,9 +230,10 @@ final class LearningViewModel {
             select(saved.id)
             return
         }
+        guard checkChapterRequest(request) else { return }
         do { try LearningTutorService.validateChapterRequest(request, source: source) }
         catch { errorMessage = error.localizedDescription; return }
-        perform(.chapter) { tutor in
+        perform(.chapter, source: source, chapterRequest: request) { tutor in
             let challenge = try await tutor.makeChapterChallenge(request: request, source: source, previous: [])
             try LearningTutorService.validate(challenge, request: request, source: source)
             return challenge
@@ -277,12 +278,9 @@ final class LearningViewModel {
     func freshChapterCheck() {
         guard !isBusy, let session, let chapter = session.chapter, session.phase == .complete,
               check(session.source) else { return }
-        guard chapterRequestIsCurrent?(chapter.request) != false else {
-            errorMessage = "The selected ideas now have open source obligations. Review the source before preparing a fresh challenge. Your saved argument is still here."
-            return
-        }
+        guard checkChapterRequest(chapter.request) else { return }
         let previous = session.attempts.map { $0.question.prompt } + [chapter.challenge.question.prompt]
-        perform(.chapter) { tutor in
+        perform(.chapter, source: session.source, chapterRequest: chapter.request) { tutor in
             let challenge = try await tutor.makeChapterChallenge(request: chapter.request, source: session.source, previous: previous)
             try LearningTutorService.validate(challenge, request: chapter.request, source: session.source, previous: previous)
             return challenge
@@ -307,7 +305,7 @@ final class LearningViewModel {
         let answer = chapter.rescueDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !answer.isEmpty else { return }
         let question = chapter.challenge.refresher.check
-        perform(.assessment) { tutor in
+        perform(.assessment, source: session.source) { tutor in
             try LearningTutorService.checkedAssessment(
                 await tutor.assess(question: question, answer: answer, source: session.source), question: question)
         } apply: { [weak self] assessment, tutor in
@@ -325,7 +323,7 @@ final class LearningViewModel {
               check(session.source) else { return }
         let answer = session.answerDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !answer.isEmpty else { return }
-        perform(.assessment) { tutor in
+        perform(.assessment, source: session.source) { tutor in
             let assessment = try await tutor.assess(question: question, answer: answer, source: session.source)
             return try LearningTutorService.checkedAssessment(assessment, question: question)
         } apply: { [weak self] assessment, tutor in
@@ -415,7 +413,7 @@ final class LearningViewModel {
                 // fresh question; repeating the same item is practice evidence.
                 let previous = [session.lesson.diagnostic.prompt, session.lesson.practice.prompt]
                     + session.attempts.filter { $0.phase == .exitCheck }.map { $0.question.prompt }
-                perform(.exitQuestion) { tutor in
+                perform(.exitQuestion, source: session.source) { tutor in
                     try await tutor.newExitQuestion(lesson: session.lesson, source: session.source, previous: previous)
                 } apply: { [weak self] question, _ in
                     self?.update {
@@ -453,6 +451,14 @@ final class LearningViewModel {
         return true
     }
 
+    private func checkChapterRequest(_ request: LearningChapterRequest) -> Bool {
+        guard chapterRequestIsCurrent?(request) != false else {
+            errorMessage = "The selected ideas now have open source obligations. Review the source before preparing a challenge. Your saved work is still here."
+            return false
+        }
+        return true
+    }
+
     private func update(_ change: (inout LearningSession) -> Void) {
         guard let index = sessions.firstIndex(where: { $0.id == selectedSessionID }) else { return }
         change(&sessions[index])
@@ -464,6 +470,8 @@ final class LearningViewModel {
 
     private func perform<Result>(
         _ kind: Operation,
+        source: LearningSource,
+        chapterRequest: LearningChapterRequest? = nil,
         _ operation: @escaping @MainActor (any LearningTutorProtocol) async throws -> Result,
         apply: @escaping @MainActor (Result, any LearningTutorProtocol) -> Void
     ) {
@@ -479,7 +487,12 @@ final class LearningViewModel {
                 let result = try await operation(tutor)
                 try Task.checkCancellation()
                 guard self.operationID == id else { return }
-                apply(result, tutor)
+                // Source checks before a request cannot authorize a response
+                // against notes or chapter obligations that changed while it ran.
+                let currentSource = kind == .clarification ? self.checkClarificationSource(source) : self.check(source)
+                if currentSource, chapterRequest.map({ self.checkChapterRequest($0) }) ?? true {
+                    apply(result, tutor)
+                }
             } catch {
                 guard self.operationID == id else { return }
                 if !(error is CancellationError) {

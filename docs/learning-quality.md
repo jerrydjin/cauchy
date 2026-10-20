@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [20 October source-validity check](evaluation/learning-source-validity.md) closes a late-response gap: every tutor operation rechecks its source immediately before saving returned teaching or assessment, and chapter generation rechecks current source obligations. Rejected responses preserve drafts and evidence; 359 macOS tests pass, including suspended-response regressions and delayed-review recovery.
+
 This document includes dated observations from the combined development working
 tree. The local Learn checkpoint and its isolated checks are recorded in
 [work tracking](work-tracking.md). Separately owned reader styling, model-catalog

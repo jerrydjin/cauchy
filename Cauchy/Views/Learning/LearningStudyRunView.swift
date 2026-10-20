@@ -149,8 +149,14 @@ struct LearningStudyRunCard: View {
                     .font(.title2.weight(.semibold))
                 Text("\((run.currentIndex ?? 0) + 1) of \(run.items.count) · \(item.target.kind.label)")
                     .font(.caption).foregroundStyle(.secondary)
-                Text(item.title).font(.headline)
-                Text(item.target.objective).font(.body)
+                Text(item.title).font(.headline).lineLimit(2).accessibilityLabel(item.title)
+                DisclosureGroup("Requirement details") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(item.title).font(.subheadline.weight(.medium))
+                        Text(item.target.objective).font(.body)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                }
                 if let blocker = run.blocker(in: map, sessions: document.learning.sessions) {
                     Text(blocker.message).font(.callout).foregroundStyle(.secondary)
                     switch blocker {

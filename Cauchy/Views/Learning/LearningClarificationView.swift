@@ -12,6 +12,7 @@ struct LearningClarificationView: View {
         (learning.session?.clarifications ?? []).filter { $0.context.id == context.id }
     }
     private var isCurrent: Bool { learning.session?.canAskClarification(for: context) == true }
+    private var sourceNeedsReview: Bool { document.selectedSourceReviewPage != nil }
     private var subject: String { context.attemptID != nil ? "feedback" : context.phase == .lesson ? "step" : "question" }
     private var draft: Binding<String> {
         Binding(get: { learning.clarificationDraft(for: context) },
@@ -58,21 +59,28 @@ struct LearningClarificationView: View {
                 .onChange(of: exchanges.last?.id) {
                     if let id = exchanges.last?.id { scroll.scrollTo(id, anchor: .top) }
                     showingContext = exchanges.isEmpty
-                    questionFocused = true
+                    questionFocused = !sourceNeedsReview
                 }
             }
             if isCurrent {
                 Divider()
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Your question").font(.subheadline.weight(.medium))
-                    TextEditor(text: draft)
-                        .font(.body).scrollContentBackground(.hidden)
-                        .frame(minHeight: 72, maxHeight: 120).padding(8)
-                        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
-                        .accessibilityLabel("Question about this \(context.attemptID != nil ? "feedback" : context.phase == .lesson ? "lesson step" : "problem")")
-                        .focused($questionFocused).disabled(learning.isBusy)
-                    if context.attemptID != nil {
+                    if sourceNeedsReview {
+                        MessageContentView(content: draft.wrappedValue.isEmpty ? "No question draft was saved." : draft.wrappedValue)
+                    } else {
+                        TextEditor(text: draft)
+                            .font(.body).scrollContentBackground(.hidden)
+                            .frame(minHeight: 72, maxHeight: 120).padding(8)
+                            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
+                            .accessibilityLabel("Question about this \(context.attemptID != nil ? "feedback" : context.phase == .lesson ? "lesson step" : "problem")")
+                            .focused($questionFocused).disabled(learning.isBusy)
+                    }
+                    if sourceNeedsReview {
+                        Text("This lesson’s source changed. Return to the lesson to review the current notes.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else if context.attemptID != nil {
                         Text("This discussion keeps your saved answer and assessment unchanged.")
                             .font(.caption).foregroundStyle(.secondary)
                     } else if context.phase != .lesson {
@@ -91,9 +99,9 @@ struct LearningClarificationView: View {
                                 learning.askClarification(for: context)
                             }
                             .buttonStyle(.glassProminent).keyboardShortcut(.return, modifiers: .command)
-                            .disabled(learning.isBusy || (!document.isVerificationFixture && !availability.isAvailable)
+                            .disabled(learning.isBusy || sourceNeedsReview || (!document.isVerificationFixture && !availability.isAvailable)
                                       || draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            if !document.isVerificationFixture && !availability.isAvailable {
+                            if !sourceNeedsReview && !document.isVerificationFixture && !availability.isAvailable {
                                 SettingsLink { Text("Choose an assistant") }
                             }
                             Spacer()
@@ -107,9 +115,9 @@ struct LearningClarificationView: View {
             }
         }
         .frame(minWidth: 560, idealWidth: 680, minHeight: 480, idealHeight: exchanges.isEmpty ? 480 : 560)
-        .onAppear { questionFocused = isCurrent; showingContext = exchanges.isEmpty }
+        .onAppear { questionFocused = isCurrent && !sourceNeedsReview; showingContext = exchanges.isEmpty }
         .onChange(of: learning.clarificationErrorMessage) {
-            if learning.clarificationErrorMessage != nil { questionFocused = isCurrent }
+            if learning.clarificationErrorMessage != nil { questionFocused = isCurrent && !sourceNeedsReview }
         }
         .onReceive(NotificationCenter.default.publisher(for: .assistantPreferencesChanged)) { _ in
             availability = ReadingAssistantFactory.availability

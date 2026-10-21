@@ -28,6 +28,21 @@ final class LearningDocument: Identifiable {
     let learning: LearningViewModel
     let studyMap: LearningStudyMapViewModel
     var isBusy: Bool { learning.isBusy || studyMap.isBusy }
+    /// Locate recovery from actual page/transcription provenance. A removed
+    /// page falls back to the nearest page that still exists in this PDF.
+    var selectedSourceReviewPage: Int? {
+        learning.session.flatMap { sourceReviewPage(for: $0) }
+    }
+
+    func sourceReviewPage(for session: LearningSession) -> Int? {
+        let source = session.source
+        func availablePage(_ index: Int) -> Int { min(max(0, index), max(0, pageCount - 1)) }
+        guard !source.passages.isEmpty else { return availablePage(sourcePageIndex) }
+        guard let changed = source.passages.first(where: {
+            !LearningSourceBuilder.matches(.init(passages: [$0]), document: pdfDocument, map: studyMap.map)
+        }) else { return nil }
+        return availablePage(changed.pageIndex)
+    }
     var sourcePageIndex = 0
     var selectedPassage: LearningSourcePassage?
     var sourceRequestID = UUID()

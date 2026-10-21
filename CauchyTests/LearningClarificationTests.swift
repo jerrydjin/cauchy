@@ -355,6 +355,29 @@ final class LearningClarificationTests: XCTestCase {
         XCTAssertEqual(vm.session?.clarifications?.count, 1)
     }
 
+    func testInspectingCurrentNotesAndSavedHelpDoesNotRewriteObsoleteSourceEvidence() throws {
+        for delayed in [false, true] {
+            let tutor = ClarificationTutor()
+            var original = saved(phase: .exitCheck)
+            if delayed { original.delayedReview = .init(previousSessionID: UUID(), scheduledFor: Date(), startedAt: Date(), round: 1) }
+            let context = try XCTUnwrap(original.clarificationContext)
+            original.clarifications = [.init(context: context, question: "A saved question", reply: tutor.reply,
+                suppliedPageIndices: [0], previousExchangeIDs: [], providerID: "authored", modelID: nil)]
+            let vm = model(original, tutor: tutor)
+            vm.sourceIsCurrent = { _ in false }
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.openedSource(); vm.openedClarifications(for: context)
+            XCTAssertEqual(vm.session, original)
+            XCTAssertEqual(writes, 0)
+            // Valid current-source access retains the existing help policy.
+            vm.sourceIsCurrent = { _ in true }
+            vm.openedSource(); vm.openedClarifications(for: context)
+            XCTAssertTrue(vm.session?.sourceOpened == true)
+            XCTAssertTrue(vm.session?.clarificationHelpUsed == true)
+            if delayed { XCTAssertTrue(vm.session?.delayedReview?.helpUsed == true) }
+        }
+    }
+
     func testInvalidProviderCitationPreservesQuestionWithoutExposingNewHelp() async throws {
         let tutor = ClarificationTutor()
         tutor.reply.citations = [.init(pageIndex: 900, quote: "An invented quotation with a false page reference.")]

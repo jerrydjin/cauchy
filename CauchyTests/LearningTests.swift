@@ -175,6 +175,73 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertEqual(document.learning.session, original)
         try await controller.flush()
     }
+
+    func testChangedSourceRecoveryFindsAffectedPageAndPreservesWorkAcrossRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let previous = try XCTUnwrap(document.learning.sessions.first { $0.phase == .complete })
+        var saved = LearningSession(source: try LearningSourceBuilder.pages(1...2, in: document.pdfDocument),
+            lesson: previous.lesson, phase: .exitCheck, providerID: "authored", modelID: "offline")
+        saved.studyTarget = previous.studyTarget
+        saved.answerDraft = "My unchanged delayed reasoning."
+        saved.delayedReview = .init(previousSessionID: previous.id, scheduledFor: Date(), startedAt: Date(), round: 1)
+        saved.reviewDueAt = Date().addingTimeInterval(86_400)
+        document.learning.restore(document.learning.sessions + [saved]); document.learning.select(saved.id)
+        // Seed the injected fixture through the normal save callback; restore
+        // alone intentionally loads state without writing a workspace snapshot.
+        document.learning.answerDraft = saved.answerDraft
+        saved = try XCTUnwrap(document.learning.session)
+        XCTAssertNil(document.selectedSourceReviewPage)
+        let original = try XCTUnwrap(document.pdfDocument.page(at: 1)?.string)
+        try document.studyMap.saveCorrection(pageIndex: 1, originalText: original,
+            correctedText: original + "\nA user-verified amendment to the visible notation.", note: "Compared with the PDF", confirmed: true)
+        XCTAssertEqual(document.selectedSourceReviewPage, 1)
+        XCTAssertNil(document.learning.errorMessage) // Detection does not parse or require an error string.
+        let map = document.studyMap.map
+        document.showNotes(at: document.selectedSourceReviewPage)
+        XCTAssertEqual(document.notesPageIndex, 1)
+        XCTAssertTrue(document.notesVisible)
+        XCTAssertEqual(document.learning.session, saved)
+        XCTAssertEqual(document.studyMap.map, map)
+        document.learning.showSections()
+        XCTAssertEqual(document.sourceReviewPage(for: saved), 1)
+        XCTAssertNil(document.selectedSourceReviewPage)
+        try await controller.flush()
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        restored.learning.select(saved.id)
+        XCTAssertEqual(restored.selectedSourceReviewPage, 1)
+        restored.showNotes(at: restored.selectedSourceReviewPage)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(try encoder.encode(restored.learning.session), try encoder.encode(saved))
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(map))
+    }
+
+    func testSourceRecoverySafelyLocatesMissingPagesAndEmptyLegacySource() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let lesson = try XCTUnwrap(document.learning.sessions.first?.lesson)
+        for (passages, expectedPage) in [
+            ([LearningSourcePassage(pageIndex: 99, text: "A page removed from the current PDF.")], 1),
+            ([LearningSourcePassage(pageIndex: -4, text: "An invalid legacy page reference.")], 0),
+            ([], 1)
+        ] {
+            document.sourcePageIndex = 99
+            let saved = LearningSession(source: .init(passages: passages), lesson: lesson, providerID: "legacy", modelID: nil)
+            document.learning.restore([saved]); document.learning.select(saved.id)
+            XCTAssertEqual(document.selectedSourceReviewPage, expectedPage)
+            document.showNotes(at: document.selectedSourceReviewPage)
+            XCTAssertEqual(document.notesPageIndex, expectedPage)
+            XCTAssertEqual(document.learning.session, saved)
+        }
+    }
 }
 #endif
 

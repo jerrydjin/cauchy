@@ -62,6 +62,7 @@ final class LearningViewModel {
         guard !isBusy else { return }
         clarificationErrorMessage = nil
         guard session?.question != nil, session?.feedback == nil,
+              let source = session?.source, sourceIsCurrent?(source) != false,
               session?.clarifications?.contains(where: { $0.context.id == context.id }) == true else { return }
         update { $0.clarificationHelpUsed = true; $0.delayedReview?.helpUsed = true }
     }
@@ -350,7 +351,7 @@ final class LearningViewModel {
     }
 
     func openedSource() {
-        guard !isBusy, session?.question != nil else { return }
+        guard !isBusy, let session, session.question != nil, sourceIsCurrent?(session.source) != false else { return }
         update { $0.sourceOpened = true; $0.delayedReview?.helpUsed = true }
     }
 

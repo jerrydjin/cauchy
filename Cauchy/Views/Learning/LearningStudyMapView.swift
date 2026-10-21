@@ -184,8 +184,9 @@ struct LearningStudyMapView: View {
                 if let run = planner.currentStudyRun, run.state != .finished || run.summaryAcknowledgedAt == nil {
                     LearningStudyRunCard(document: document, run: run, map: map, assistantAvailable: assistantAvailable)
                 } else if let review = map.nextDelayedReview(sessions: document.learning.sessions, now: reviewClock) {
+                    let sourcePage = document.sourceReviewPage(for: review.previous)
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(review.activeSessionID == nil ? "Revisit an earlier idea" : "Continue your delayed check")
+                        Text(sourcePage != nil ? "Review this check’s source" : review.activeSessionID == nil ? "Revisit an earlier idea" : "Continue your delayed check")
                             .font(.title2.weight(.semibold))
                         Text(review.unit.title).font(.headline).lineLimit(2).accessibilityLabel(review.unit.title)
                         Text("\(review.target.kind.label) · due \(review.dueAt.formatted(date: .abbreviated, time: .omitted))")
@@ -198,15 +199,20 @@ struct LearningStudyMapView: View {
                                     .font(.callout).foregroundStyle(.secondary)
                             }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                         }
-                        Button(review.activeSessionID == nil ? "Try a delayed check" : "Continue delayed check", systemImage: "clock.arrow.circlepath") {
-                            document.learning.startDelayedReview(review)
+                        if let sourcePage {
+                            savedSourceRecovery(review.previous, page: sourcePage)
+                        } else {
+                            Button(review.activeSessionID == nil ? "Try a delayed check" : "Continue delayed check", systemImage: "clock.arrow.circlepath") {
+                                document.learning.startDelayedReview(review)
+                            }
+                            .buttonStyle(.glassProminent).controlSize(.large)
+                            .keyboardShortcut(.return, modifiers: .command)
+                            .disabled(document.isBusy || (review.activeSessionID == nil && !assistantAvailable))
                         }
-                        .buttonStyle(.glassProminent).controlSize(.large)
-                        .keyboardShortcut(.return, modifiers: .command)
-                        .disabled(document.isBusy || (review.activeSessionID == nil && !assistantAvailable))
                     }
                 } else if let openChapter = document.learning.sessions.first(where: { $0.chapter != nil && $0.phase != .complete }) {
-                    Text("Continue your chapter argument").font(.title2.weight(.semibold))
+                    let sourcePage = document.sourceReviewPage(for: openChapter)
+                    Text(sourcePage != nil ? "Review this challenge’s source" : "Continue your chapter argument").font(.title2.weight(.semibold))
                     let title = openChapter.chapter?.challenge.title ?? openChapter.lesson.title
                     Text(title).font(.headline).lineLimit(2).accessibilityLabel(title)
                     DisclosureGroup("Challenge details") {
@@ -215,9 +221,13 @@ struct LearningStudyMapView: View {
                             MessageContentView(content: openChapter.chapter?.challenge.connection ?? openChapter.lesson.objective)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                     }
-                    Button("Continue challenge", systemImage: "arrow.right") { document.learning.select(openChapter.id) }
-                        .buttonStyle(.glassProminent).controlSize(.large)
-                        .keyboardShortcut(.return, modifiers: .command).disabled(document.isBusy)
+                    if let sourcePage {
+                        savedSourceRecovery(openChapter, page: sourcePage)
+                    } else {
+                        Button("Continue challenge", systemImage: "arrow.right") { document.learning.select(openChapter.id) }
+                            .buttonStyle(.glassProminent).controlSize(.large)
+                            .keyboardShortcut(.return, modifiers: .command).disabled(document.isBusy)
+                    }
                 } else if let ready = course.modules.first(where: { module in
                     guard let request = map.chapterRequest(for: module),
                           !document.learning.sessions.contains(where: { $0.chapter?.request.moduleID == module.id }) else { return false }
@@ -320,6 +330,18 @@ struct LearningStudyMapView: View {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { scroll.scrollTo(id, anchor: .top) }
             }
         }
+        }
+    }
+
+    private func savedSourceRecovery(_ session: LearningSession, page: Int) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Your saved work is retained. Review the current notes on PDF page \(page + 1).")
+                .font(.callout).foregroundStyle(.secondary)
+            Button("Review current source", systemImage: "doc.text.magnifyingglass") { document.showNotes(at: page) }
+                .buttonStyle(.glassProminent).controlSize(.large)
+                .keyboardShortcut(.return, modifiers: .command).disabled(document.isBusy)
+            Button("Inspect saved work") { document.learning.select(session.id) }
+                .buttonStyle(.borderless).disabled(document.isBusy)
         }
     }
 

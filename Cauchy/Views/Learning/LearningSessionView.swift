@@ -25,6 +25,7 @@ struct LearningSessionView: View {
 
     private enum SourceMode: Hashable { case currentPage, selection, pages }
     private var learning: LearningViewModel { document.learning }
+    private var sourceNeedsReview: Bool { document.selectedSourceReviewPage != nil }
     private var selectedPassage: String? {
         guard let text = document.selectedPassage?.text, !text.isEmpty else { return nil }
         return text
@@ -46,7 +47,8 @@ struct LearningSessionView: View {
                         Label(error, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.secondary).textSelection(.enabled)
                     }
-                    if let error = learning.errorMessage { errorContent(error) }
+                    if let page = document.selectedSourceReviewPage { changedSourceContent(page: page) }
+                    else if let error = learning.errorMessage { errorContent(error) }
                     if let session = learning.session {
                         if let run = document.selectedStudyRun {
                             Text("Study session · \((run.currentIndex ?? 0) + 1) of \(run.items.count)")
@@ -65,7 +67,7 @@ struct LearningSessionView: View {
             }
             .scrollPosition($chapterScroll)
             .onScrollPhaseChange { _, phase, context in
-                if phase == .idle {
+                if phase == .idle && !sourceNeedsReview {
                     learning.setChapterScrollOffset(Double(max(0, context.geometry.contentOffset.y)))
                 }
             }
@@ -155,6 +157,16 @@ struct LearningSessionView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func changedSourceContent(page: Int) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("This lesson’s source changed", systemImage: "doc.text.magnifyingglass").font(.headline)
+            Text("Your saved lesson and answers are retained. Review the current notes on PDF page \(page + 1) before preparing new teaching or assessment.")
+                .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
     }
 
@@ -335,7 +347,7 @@ struct LearningSessionView: View {
                             Button("Refresh a prerequisite", systemImage: "arrow.uturn.backward") {
                                 answerFocused = false
                                 learning.openPrerequisiteRescue()
-                            }.buttonStyle(.glass).disabled(learning.isBusy)
+                            }.buttonStyle(.glass).disabled(learning.isBusy || sourceNeedsReview)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
                     }
                 }
@@ -365,17 +377,24 @@ struct LearningSessionView: View {
                             document.showNotes(at: refresher.pageIndex)
                         }.buttonStyle(.borderless)
                     }
-                    if let message = learning.errorMessage {
+                    if sourceNeedsReview {
+                        Text("This saved refresher uses earlier source text. Return to your argument to review the current notes.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    } else if let message = learning.errorMessage {
                         Label(message, systemImage: "exclamationmark.circle").font(.callout).textSelection(.enabled)
                     }
                     Text("Quick check").font(.headline)
                     MessageContentView(content: refresher.check.prompt)
-                    TextEditor(text: Binding(get: { learning.rescueDraft }, set: { learning.rescueDraft = $0 }))
-                        .font(.body).frame(minHeight: 120).padding(8)
-                        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
-                        .accessibilityLabel("Prerequisite reasoning")
-                        .disabled(learning.isBusy || chapter.rescueFeedback != nil)
+                    if sourceNeedsReview {
+                        MessageContentView(content: chapter.rescueDraft.isEmpty ? "No refresher answer was saved." : chapter.rescueDraft)
+                    } else {
+                        TextEditor(text: Binding(get: { learning.rescueDraft }, set: { learning.rescueDraft = $0 }))
+                            .font(.body).frame(minHeight: 120).padding(8)
+                            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
+                            .accessibilityLabel("Prerequisite reasoning")
+                            .disabled(learning.isBusy || chapter.rescueFeedback != nil)
+                    }
                     if let feedback = chapter.rescueFeedback {
                         Label(feedback.grade.label, systemImage: "text.bubble").font(.headline)
                         MessageContentView(content: feedback.feedback)
@@ -392,6 +411,8 @@ struct LearningSessionView: View {
                     Text("Checking the prerequisite…").font(.callout)
                     Spacer()
                     Button("Cancel check") { learning.cancel() }
+                } else if sourceNeedsReview {
+                    primaryAction("Return to my argument") { learning.returnToChapter() }
                 } else if chapter.rescueFeedback == nil {
                     primaryAction("Check this step") { learning.submitAnswer() }
                         .disabled(chapter.rescueDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -548,27 +569,31 @@ struct LearningSessionView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Your reasoning").font(.headline).id("chapter-reasoning")
-                    TextEditor(text: Binding(get: { learning.answerDraft }, set: {
-                        guard $0 != learning.answerDraft else { return }
-                        learning.answerDraft = $0
-                        answerEditRequest += 1
-                    }))
-                        .font(.body)
-                        .scrollContentBackground(.hidden)
-                        .frame(minHeight: 140, maxHeight: 240)
-                        .padding(8)
-                        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
-                        .overlay(alignment: .topLeading) {
-                            if session.answerDraft.isEmpty {
-                                Text("Start with what you know, then explain each step…")
-                                    .font(.body).foregroundStyle(.secondary)
-                                    .padding(12).allowsHitTesting(false).accessibilityHidden(true)
+                    if sourceNeedsReview {
+                        MessageContentView(content: session.answerDraft.isEmpty ? "No answer draft was saved." : session.answerDraft)
+                    } else {
+                        TextEditor(text: Binding(get: { learning.answerDraft }, set: {
+                            guard $0 != learning.answerDraft else { return }
+                            learning.answerDraft = $0
+                            answerEditRequest += 1
+                        }))
+                            .font(.body)
+                            .scrollContentBackground(.hidden)
+                            .frame(minHeight: 140, maxHeight: 240)
+                            .padding(8)
+                            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
+                            .overlay(alignment: .topLeading) {
+                                if session.answerDraft.isEmpty {
+                                    Text("Start with what you know, then explain each step…")
+                                        .font(.body).foregroundStyle(.secondary)
+                                        .padding(12).allowsHitTesting(false).accessibilityHidden(true)
+                                }
                             }
-                        }
-                        .focused($answerFocused)
-                        .accessibilityLabel("Your answer and reasoning")
-                        .disabled(learning.isBusy || session.feedback != nil)
+                            .focused($answerFocused)
+                            .accessibilityLabel("Your answer and reasoning")
+                            .disabled(learning.isBusy || session.feedback != nil)
+                    }
                     if session.answerDraft.count >= 10_000 {
                         Text("\(session.answerDraft.count.formatted()) / 12,000 characters")
                             .font(.caption).foregroundStyle(.secondary)
@@ -622,14 +647,14 @@ struct LearningSessionView: View {
                 }
                 if session.hintsRevealed < question.hints.count && session.feedback == nil {
                     Button("Give me a hint", systemImage: "lightbulb") { learning.revealHint() }
-                        .disabled(learning.isBusy)
+                        .disabled(learning.isBusy || sourceNeedsReview)
                 }
                 if session.solutionRevealed {
                     Text("Tutor’s worked solution").font(.headline)
                     MessageContentView(content: question.expectedAnswer)
                 } else if session.feedback != nil {
                     Button("Show worked solution") { learning.revealSolution() }
-                        .disabled(learning.isBusy)
+                        .disabled(learning.isBusy || sourceNeedsReview)
                 }
                 clarificationAction(session)
             }
@@ -724,6 +749,11 @@ struct LearningSessionView: View {
                         Spacer(minLength: 0)
                         Button("Cancel") { learning.cancel() }
                             .keyboardShortcut(.cancelAction)
+                    }
+                } else if let page = document.selectedSourceReviewPage {
+                    VStack(alignment: .leading, spacing: 10) {
+                        primaryAction("Review current source") { document.showNotes(at: page) }
+                        Button("Back to learning path", action: onShowStudyMap).buttonStyle(.borderless)
                     }
                 } else if let session = learning.session {
                     sessionActions(session)
@@ -861,12 +891,12 @@ struct LearningSessionView: View {
 
     private func focusAnswerIfNeeded() {
         answerFocused = learning.session?.question != nil && learning.session?.feedback == nil && !learning.isBusy
-            && learning.session?.chapter?.rescueVisible != true && clarificationContext == nil
+            && learning.session?.chapter?.rescueVisible != true && clarificationContext == nil && !sourceNeedsReview
     }
 
     @ViewBuilder private func clarificationAction(_ session: LearningSession) -> some View {
         if let context = session.clarificationContext,
-           session.feedback == nil || (session.clarifications ?? []).contains(where: { $0.context.id == context.id }) {
+           session.feedback == nil || hasSavedClarification(for: context) {
             Button(session.clarificationHelpUsed == true ? "Review tutor help"
                    : context.phase == .lesson ? "Ask about this step" : "Ask about this question", systemImage: "bubble.left") {
                 openClarification(context)
@@ -877,8 +907,13 @@ struct LearningSessionView: View {
                 openClarification(context)
                 return .handled
             }
-            .disabled(learning.isBusy || (!assistantAvailable && !(session.clarifications ?? []).contains { $0.context.id == context.id }))
+            .disabled(learning.isBusy || ((sourceNeedsReview || !assistantAvailable) && !hasSavedClarification(for: context)))
         }
+    }
+
+    private func hasSavedClarification(for context: LearningClarificationContext) -> Bool {
+        (learning.session?.clarifications ?? []).contains { $0.context.id == context.id }
+            || !learning.clarificationDraft(for: context).isEmpty
     }
 
     private func openClarification(_ context: LearningClarificationContext) {
@@ -900,7 +935,7 @@ struct LearningSessionView: View {
                     openClarification(context)
                     return .handled
                 }
-                .disabled(learning.isBusy || (!assistantAvailable && !(session.clarifications ?? []).contains { $0.context.id == context.id }))
+                .disabled(learning.isBusy || ((sourceNeedsReview || !assistantAvailable) && !hasSavedClarification(for: context)))
         }
     }
 

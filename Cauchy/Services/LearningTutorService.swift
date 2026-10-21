@@ -141,7 +141,7 @@ final class LearningTutorService: LearningTutorProtocol {
             assessment = .init(grade: grade, feedback: response.content.feedback, nextStep: response.content.nextStep,
                                criteria: response.content.criteria?.map { .init(index: $0.index, outcome: $0.outcome, feedback: $0.feedback) })
         } else {
-            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt + "\nReturn JSON: {\"grade\":\"correct|partial|incorrect|uncertain\",\"feedback\":\"...\",\"nextStep\":\"...\",\"criteria\":[{\"index\":0,\"outcome\":\"met|notMet|uncertain\",\"feedback\":\"specific evidence or gap\"}]} For proof questions, assess EVERY supplied grading criterion once using its zero-based index. For other questions criteria may be null.") }
+            let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt + "\nReturn JSON: {\"grade\":\"correct|partial|incorrect|uncertain\",\"feedback\":\"...\",\"nextStep\":\"...\",\"criteria\":[{\"index\":0,\"outcome\":\"met|notMet|uncertain\",\"feedback\":\"specific evidence or gap\"}]} Assess EVERY supplied grading criterion once using its zero-based index, for every question kind. When no criteria are supplied, criteria may be null.") }
             assessment = try LearningResponseParser.decode(response.content)
         }
         return try Self.checkedAssessment(assessment, question: question)
@@ -363,17 +363,7 @@ final class LearningTutorService: LearningTutorProtocol {
     }
 
     static func checkedAssessment(_ assessment: LearningAssessment, question: LearningQuestion) throws -> LearningAssessment {
-        guard validText(assessment.feedback), validText(assessment.nextStep) else { throw LearningError.invalidResponse }
-        guard question.kind == .proof else { return assessment }
-        guard let rubric = question.gradingCriteria, (3...8).contains(rubric.count),
-              let criteria = assessment.criteria, criteria.count == rubric.count,
-              Set(criteria.map(\.index)) == Set(rubric.indices),
-              criteria.allSatisfy({ validText($0.feedback) }) else { throw LearningError.invalidResponse }
-        let grade: LearningGrade
-        if criteria.contains(where: { $0.outcome == .uncertain }) { grade = .uncertain }
-        else if assessment.grade == .correct, criteria.contains(where: { $0.outcome == .notMet }) { grade = .partial }
-        else { grade = assessment.grade }
-        return .init(grade: grade, feedback: assessment.feedback, nextStep: assessment.nextStep, criteria: criteria.sorted { $0.index < $1.index })
+        try LearningAssessmentPolicy.checked(assessment, question: question)
     }
 
     private static func validText(_ text: String) -> Bool {
@@ -412,7 +402,7 @@ final class LearningTutorService: LearningTutorProtocol {
     The expectedAnswer is generated and may be wrong: check it against the source. Accept mathematically equivalent correct answers. A bare unsupported assertion to a reasoning question is at most partial. Use uncertain if the question, source notation, answer key, or reasoning cannot be reliably checked; never guess a grade.
     For proof questions, assess the stated assumptions and quantifiers, logical validity of every essential step, justification of cited results, all required cases/directions, and the conclusion. A few examples, a memorized statement, circular reasoning, or a correct conclusion with a substantive missing justification is not a correct proof. Identify the first logical gap without writing the rest of the proof for the learner. Accept valid alternative arguments; do not demand verbatim matching. If a requested proof is absent from the source and cannot be checked reliably, use uncertain.
     Audit the generated answer key AND rubric against what the question actually asks. Problem hypotheses are givens: the student need not restate them to use them. Conventional algebra/vector-space identities can be implicit when their use is valid and unambiguous; do not mistake that for an essential logical gap. Judge criteria by mathematical substance, not keywords or step order. A complete iff proof already implies the negative cases; do not demand a redundant separate case discussion unless the question explicitly requests it. A valid inference need not reproduce the answer key's particular method. Treat a criterion satisfied by the givens or an equivalent argument as met and explain why. If the rubric cannot be reconciled with a reliable question, use uncertain rather than penalizing the learner.
-    For EVERY supplied grading criterion return an indexed criteria assessment: met, notMet or uncertain, with specific evidence from the student's answer or the missing justification. A proof is correct only if ALL essential criteria are met. Criteria feedback must not give away the missing solution.
+    For EVERY supplied grading criterion return an indexed criteria assessment: met, notMet or uncertain, with specific evidence from the student's answer or the missing justification. An answer is correct only if ALL supplied essential criteria are met, for every question kind. Criteria feedback must not give away the missing solution.
     In feedback, identify a specific valid step or the first gap in THIS answer. In nextStep, give one small action that addresses the gap. Do not disclose the full worked solution, especially on an incorrect answer; preserve the learner's opportunity to reason. If uncertain, explain what cannot be established rather than attributing a mistake to the student. Keep each field under 80 words.
     Give concise specific feedback identifying the first misconception or missing step, and a nextStep. Do not reveal the full solution in feedback. Do not claim verified mastery. Use $...$ or $$...$$ for math. Each feedback field is under 80 words.
     """

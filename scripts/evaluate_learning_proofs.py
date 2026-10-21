@@ -28,7 +28,8 @@ def effective_grade(assessment, rubric):
     if not valid_text(assessment.get("feedback")) or not valid_text(assessment.get("nextStep")):
         return "invalid_response"
     criteria = assessment.get("criteria")
-    if not isinstance(rubric, list) or not 3 <= len(rubric) <= 8 or not isinstance(criteria, list):
+    if (not isinstance(rubric, list) or not 3 <= len(rubric) <= 8
+            or not all(valid_text(item) for item in rubric) or not isinstance(criteria, list)):
         return "invalid_response"
     if len(criteria) != len(rubric) or any(not isinstance(c, dict) for c in criteria):
         return "invalid_response"

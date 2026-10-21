@@ -800,6 +800,124 @@ final class LearningStudyMapTests: XCTestCase {
         XCTAssertEqual(try LearningTutorService.checkedAssessment(proofAssessment(outcomes: [.met, .met, .met]), question: question).grade, .correct)
     }
 
+    func testCriteriaConsistencyAppliesToEveryQuestionKindWithoutPromotingGrades() throws {
+        for kind in LearningStudyKind.allCases {
+            var question = proofQuestion(); question.kind = kind
+            XCTAssertEqual(try LearningTutorService.checkedAssessment(proofAssessment(outcomes: [.met, .notMet, .met]), question: question).grade, .partial)
+            XCTAssertEqual(try LearningTutorService.checkedAssessment(proofAssessment(outcomes: [.met, .uncertain, .met]), question: question).grade, .uncertain)
+            for grade in [LearningGrade.partial, .incorrect, .uncertain] {
+                let original = LearningAssessment(grade: grade, feedback: "Keep this judgement", nextStep: "Review the original gap",
+                    criteria: proofAssessment(outcomes: [.met, .met, .met]).criteria)
+                XCTAssertEqual(try LearningTutorService.checkedAssessment(original, question: question).grade, grade)
+            }
+        }
+        let holistic = LearningQuestion(prompt: "Explain a concept", expectedAnswer: "A valid explanation", hints: [], kind: .concept)
+        XCTAssertEqual(try LearningTutorService.checkedAssessment(.init(grade: .correct, feedback: "A specific valid step", nextStep: "Try another case"), question: holistic).grade, .correct)
+        XCTAssertEqual(try LearningTutorService.checkedAssessment(proofAssessment(outcomes: [.uncertain]), question: holistic).grade, .uncertain)
+        var short = holistic; short.gradingCriteria = ["Justify the inference"]
+        XCTAssertNoThrow(try LearningTutorService.checkedAssessment(proofAssessment(outcomes: [.met]), question: short))
+        short.kind = .proof
+        XCTAssertThrowsError(try LearningTutorService.checkedAssessment(proofAssessment(outcomes: [.met]), question: short))
+    }
+
+    func testSuppliedNonProofRubricsRequireCompleteUniqueUsableCriteria() {
+        for kind in [LearningStudyKind.concept, .application] {
+            var question = proofQuestion(); question.kind = kind
+            let invalid = [
+                LearningAssessment(grade: .correct, feedback: "Specific feedback", nextStep: "Review"),
+                proofAssessment(outcomes: [.met, .met]),
+                LearningAssessment(grade: .correct, feedback: "Specific feedback", nextStep: "Review",
+                    criteria: [0, 0, 2].map { .init(index: $0, outcome: .met, feedback: "Specific criterion") }),
+                LearningAssessment(grade: .correct, feedback: "Specific feedback", nextStep: "Review",
+                    criteria: [0, 1, 99].map { .init(index: $0, outcome: .met, feedback: "Specific criterion") }),
+                LearningAssessment(grade: .correct, feedback: "Specific feedback", nextStep: "Review",
+                    criteria: [0, 1, 2].map { .init(index: $0, outcome: .met, feedback: " ") })
+            ]
+            for assessment in invalid { XCTAssertThrowsError(try LearningTutorService.checkedAssessment(assessment, question: question)) }
+            question.gradingCriteria = ["", "Reason", "Conclude"]
+            XCTAssertThrowsError(try LearningTutorService.checkedAssessment(proofAssessment(outcomes: [.met, .met, .met]), question: question))
+        }
+    }
+
+    func testContradictorySavedConceptAndApplicationEvidenceRemainsIntactButOpen() throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        for target in unit.targets where target.kind != .proof {
+            var saved = passedSession(target: target)
+            saved.attempts = [.init(phase: .exitCheck, question: saved.attempts[0].question, answer: "Retain this exact old reasoning",
+                assessment: proofAssessment(outcomes: [.met, .notMet, .met]), assistanceUsed: false, providerID: "legacy", modelID: nil)]
+            let original = saved
+            XCTAssertFalse(saved.passedExitCheck)
+            XCTAssertEqual(saved.progressLabel, "Assessment needs checking")
+            XCTAssertEqual(unit.checkedTargetCount(sessions: [saved]), 0)
+            XCTAssertEqual(unit.evidence(for: target, sessions: [saved])?.assessment.grade, .correct)
+            let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: [saved]).first)
+            XCTAssertEqual(entry.status, "Assessment needs checking")
+            XCTAssertTrue(entry.incompleteCriteriaAssessment)
+            XCTAssertEqual(entry.assessment?.grade, .correct)
+            XCTAssertEqual(saved, original)
+            let restored = try JSONDecoder().decode(LearningSession.self, from: JSONEncoder().encode(saved))
+            XCTAssertFalse(restored.passedExitCheck)
+            XCTAssertEqual(restored.attempts[0].answer, original.attempts[0].answer)
+            XCTAssertEqual(restored.attempts[0].assessment, original.attempts[0].assessment)
+            var practice = restored
+            practice.phase = .practice
+            practice.lesson.practice = restored.attempts[0].question
+            practice.feedback = restored.attempts[0].assessment
+            let vm = LearningViewModel { ProofTutorStub(lesson: practice.lesson, assessment: practice.feedback!) }
+            vm.restore([practice]); vm.select(practice.id); vm.advance()
+            XCTAssertEqual(vm.session, practice) // A saved optimistic grade cannot bypass the gate on resume.
+        }
+    }
+
+    func testConceptAndApplicationPracticeCriteriaCannotUnlockExitOnAnOptimisticGrade() async {
+        for kind in [LearningStudyKind.concept, .application] {
+            for outcome in [LearningCriterionAssessment.Outcome.notMet, .uncertain] {
+                let tutor = ProofTutorStub(lesson: fixtureLesson(), assessment: proofAssessment(outcomes: [.met, outcome, .met]))
+                let vm = LearningViewModel { tutor }
+                vm.start(source: source, target: .init(unitID: UUID(), kind: kind, objective: "Explain the zero condition"))
+                await vm.waitForOperation()
+                vm.studyInstead(); vm.advance()
+                vm.answerDraft = "A partly justified argument"
+                vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+                XCTAssertEqual(vm.session?.phase, .practice)
+                XCTAssertEqual(vm.session?.feedback?.grade, outcome == .uncertain ? .uncertain : .partial)
+                XCTAssertEqual(vm.session?.attempts.count, 1)
+                XCTAssertFalse(vm.session?.attempts[0].hasIndependentCorrectResult == true)
+                XCTAssertNil(vm.session?.reviewDueAt)
+            }
+        }
+    }
+
+    func testContradictoryDelayedCriteriaCannotAdvanceAPlanOrEarnSuccessfulReviewSpacing() async throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let clock = Date(timeIntervalSince1970: 1_700_100_000)
+        for target in unit.targets where target.kind != .proof {
+            for outcome in [LearningCriterionAssessment.Outcome.notMet, .uncertain] {
+                var immediate = passedSession(target: target); immediate.reviewDueAt = clock
+                let map = LearningStudyMap(pageSignatures: [], pages: [.init(pageIndex: 0, status: .mapped)], units: [unit])
+                let tutor = ProofTutorStub(lesson: fixtureLesson(), assessment: proofAssessment(outcomes: [.met, outcome, .met]))
+                tutor.freshQuestion = .init(prompt: "Revisit the zero condition using a different representation.",
+                    expectedAnswer: "Use scalar preservation with zero.", hints: [], kind: target.kind, gradingCriteria: proofRubric)
+                let vm = LearningViewModel(now: { clock }, makeTutor: { tutor })
+                vm.restore([immediate])
+                vm.startDelayedReview(try XCTUnwrap(map.nextDelayedReview(sessions: vm.sessions, now: clock)))
+                await vm.waitForOperation()
+                vm.answerDraft = "An incomplete delayed argument"
+                vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+                let result = try XCTUnwrap(vm.session)
+                XCTAssertFalse(result.passedExitCheck)
+                XCTAssertEqual(result.reviewDueAt, clock.addingTimeInterval(86_400))
+                XCTAssertEqual(result.latestExitAttempt?.assessment.grade, outcome == .uncertain ? .uncertain : .partial)
+                var run = LearningStudyRun(pageSignatures: map.pageSignatures,
+                    items: [.init(unitID: unit.id, title: unit.title, target: target, mode: .delayedReview,
+                        existingSessionID: result.id, earlierAttemptIDs: [])], startedAt: clock)
+                XCTAssertFalse(run.advance(map: map, sessions: vm.sessions, at: clock))
+                XCTAssertEqual(run.attemptedCount, 0)
+                XCTAssertEqual(vm.sessions.first { $0.id == immediate.id }, immediate)
+            }
+        }
+    }
+
     func testFailedProofEvidenceRemainsVisibleWithoutClosingRequirement() throws {
         let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
         let target = try XCTUnwrap(unit.targets.first { $0.kind == .proof })

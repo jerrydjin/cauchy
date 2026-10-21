@@ -113,8 +113,8 @@ struct LearningRequirementHistoryView: View {
             }
             if let assessment = entry.assessment {
                 Text("Tutor feedback").font(.subheadline.weight(.semibold))
-                if entry.incompleteProofAssessment {
-                    Text("Recorded tutor grade: \(assessment.grade.label). The proof criteria are incomplete.")
+                if entry.incompleteCriteriaAssessment {
+                    Text("Recorded tutor grade: \(assessment.grade.label). The reasoning checks do not support a complete assessment.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 MessageContentView(content: assessment.feedback)
@@ -127,7 +127,7 @@ struct LearningRequirementHistoryView: View {
                                 if entry.rubric.indices.contains(criterion.index) {
                                     Text(entry.rubric[criterion.index]).font(.subheadline.weight(.medium))
                                 } else {
-                                    Text("Check \(criterion.index + 1)").font(.subheadline.weight(.medium))
+                                    Text("Recorded check index: \(criterion.index)").font(.subheadline.weight(.medium))
                                 }
                                 Text(criterion.outcome == .met ? "Met" : criterion.outcome == .notMet ? "Not met" : "Uncertain")
                                     .font(.caption).foregroundStyle(.secondary)

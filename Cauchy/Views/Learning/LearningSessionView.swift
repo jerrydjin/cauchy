@@ -603,8 +603,13 @@ struct LearningSessionView: View {
                 if let feedback = session.feedback {
                     Divider()
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Tutor feedback · \(feedback.grade.label)", systemImage: feedback.grade == .correct ? "checkmark.circle" : "text.bubble")
+                        Label("\(feedback.grade == .correct && !session.feedbackSupportsProgress ? "Saved tutor grade" : "Tutor feedback") · \(feedback.grade.label)",
+                              systemImage: feedback.grade == .correct && session.feedbackSupportsProgress ? "checkmark.circle" : "text.bubble")
                             .font(.headline)
+                        if feedback.grade == .correct && !session.feedbackSupportsProgress {
+                            Text("This saved grade and its reasoning checks need checking. Your original answer and feedback are retained.")
+                                .font(.callout).foregroundStyle(.secondary)
+                        }
                         MessageContentView(content: feedback.feedback)
                         Text("Next step").font(.subheadline)
                         MessageContentView(content: feedback.nextStep)
@@ -720,8 +725,10 @@ struct LearningSessionView: View {
 
     private func resultExplanation(_ session: LearningSession) -> String {
         guard let attempt = session.latestExitAttempt else { return "There isn’t an exit result for this section yet." }
-        if attempt.assessment.grade == .correct, !attempt.proofCriteriaSatisfied {
-            return "This proof assessment is incomplete. It does not establish that the essential steps were justified; the proof check remains open."
+        if attempt.assessment.grade == .correct, !attempt.assessmentCriteriaSatisfied {
+            return attempt.question.kind == .proof
+                ? "This proof assessment is incomplete. It does not establish that the essential steps were justified; the proof check remains open."
+                : "The saved grade and reasoning checks do not establish a complete assessment. Your answer and feedback are retained; this requirement remains open."
         }
         switch attempt.assessment.grade {
         case .correct where attempt.assistanceUsed:
@@ -813,7 +820,7 @@ struct LearningSessionView: View {
                     if session.phase == .diagnostic {
                         Button("Study the idea first") { learning.studyInstead() }
                     }
-                } else if session.phase == .practice && session.feedback?.grade != .correct {
+                } else if session.phase == .practice && !session.feedbackSupportsProgress {
                     primaryAction("Revise my answer") { learning.tryAgain() }
                     Button("Review the idea") { learning.reviewIdea() }
                 } else {
@@ -876,7 +883,7 @@ struct LearningSessionView: View {
 
     private func advanceLabel(_ session: LearningSession) -> String {
         switch session.phase {
-        case .diagnostic: session.feedback?.grade == .correct ? "Try the exit check" : "Study the idea"
+        case .diagnostic: session.feedbackSupportsProgress ? "Try the exit check" : "Study the idea"
         case .practice: "Try the exit check"
         case .exitCheck: "See your result"
         default: "Continue"

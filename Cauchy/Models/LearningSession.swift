@@ -147,16 +147,13 @@ struct LearningAttempt: Identifiable, Codable, Equatable, Sendable {
     let modelID: String?
     var createdAt = Date()
 
-    var proofCriteriaSatisfied: Bool {
-        guard question.kind == .proof else { return true }
-        guard let rubric = question.gradingCriteria, (3...8).contains(rubric.count),
-              let criteria = assessment.criteria, criteria.count == rubric.count,
-              Set(criteria.map(\.index)) == Set(rubric.indices) else { return false }
-        return criteria.allSatisfy { $0.outcome == .met }
+    var assessmentCriteriaSatisfied: Bool {
+        guard let checked = try? LearningAssessmentPolicy.checked(assessment, question: question) else { return false }
+        return checked.criteria?.allSatisfy { $0.outcome == .met } ?? true
     }
 
     var hasIndependentCorrectResult: Bool {
-        assessment.grade == .correct && !assistanceUsed && proofCriteriaSatisfied
+        assessment.grade == .correct && !assistanceUsed && assessmentCriteriaSatisfied
     }
 }
 
@@ -206,6 +203,11 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
 
     var latestExitAttempt: LearningAttempt? { attempts.last { $0.phase == .exitCheck } }
 
+    var feedbackSupportsProgress: Bool {
+        guard let feedback, let question else { return false }
+        return (try? LearningAssessmentPolicy.checked(feedback, question: question).grade) == .correct
+    }
+
     var passedExitCheck: Bool {
         guard let attempt = latestExitAttempt else { return false }
         return attempt.hasIndependentCorrectResult
@@ -222,7 +224,9 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
             guard let attempt = latestExitAttempt else { return "No exit result yet" }
             switch attempt.assessment.grade {
             case .correct:
-                guard attempt.proofCriteriaSatisfied else { return "Proof assessment incomplete" }
+                guard attempt.assessmentCriteriaSatisfied else {
+                    return attempt.question.kind == .proof ? "Proof assessment incomplete" : "Assessment needs checking"
+                }
                 return attempt.assistanceUsed ? "Correct with help" : "Passed exit check"
             case .uncertain: return "Assessment inconclusive"
             case .partial, .incorrect: return "More practice needed"

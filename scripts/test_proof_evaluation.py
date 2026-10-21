@@ -60,6 +60,14 @@ class ProofEvaluationTests(unittest.TestCase):
         assessment["criteria"][1]["outcome"] = "uncertain"
         self.assertEqual(effective_grade(assessment, rubric), "uncertain")
 
+    def test_unusable_rubric_text_cannot_earn_a_correct_result(self):
+        result = next(r for r in self.previous if r["effectiveGrade"] == "correct")
+        rubric = next(c for c in self.cases if c["name"] == result["name"])["input"]["gradingCriteria"]
+        for text in ["", " ", "x" * 6001, None]:
+            invalid = list(rubric)
+            invalid[0] = text
+            self.assertEqual(effective_grade(result["assessment"], invalid), "invalid_response")
+
     def test_fixture_has_explicit_reasons_for_each_required_failure_class(self):
         categories = {c["category"] for c in self.cases}
         self.assertTrue({"valid_alternative", "missing_hypothesis", "circular_reasoning", "quantifier_error",

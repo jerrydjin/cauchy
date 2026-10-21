@@ -699,8 +699,8 @@ struct LearningStudyMapView: View {
         }
         switch attempt.assessment.grade {
         case .correct:
-            if target.kind == .proof, (try? LearningTutorService.checkedAssessment(attempt.assessment, question: attempt.question).grade) != .correct {
-                return "Proof assessment incomplete — check remains open"
+            if !attempt.assessmentCriteriaSatisfied {
+                return target.kind == .proof ? "Proof assessment incomplete — check remains open" : "Assessment needs checking — requirement remains open"
             }
             return attempt.assistanceUsed ? "Correct with help — independent check still open" : "Correct on one unassisted check — retention not yet established"
         case .partial, .incorrect: return "More practice needed"

@@ -18,14 +18,14 @@ enum LearningRequirementHistory {
         let rubric: [String]
         let recordedKind: LearningStudyKind?
         let assistanceUsed: Bool
-        let incompleteProofAssessment: Bool
+        let incompleteCriteriaAssessment: Bool
         let providerID: String
         let modelID: String?
 
         var activity: String { "\(isDelayed ? "Delayed check" : "Lesson") · \(phase.label)" }
         var status: String {
             if isDraft { return phase == .lesson ? "Teaching in progress" : "Unsubmitted answer" }
-            if incompleteProofAssessment { return "Proof assessment incomplete" }
+            if incompleteCriteriaAssessment { return recordedKind == .proof ? "Proof assessment incomplete" : "Assessment needs checking" }
             return assessment?.grade.label ?? "No assessment recorded"
         }
     }
@@ -46,7 +46,7 @@ enum LearningRequirementHistory {
                     question: attempt.question.prompt, answer: attempt.answer, assessment: attempt.assessment,
                     rubric: attempt.question.gradingCriteria ?? [], recordedKind: attempt.question.kind,
                     assistanceUsed: attempt.assistanceUsed,
-                    incompleteProofAssessment: attempt.assessment.grade == .correct && !attempt.proofCriteriaSatisfied,
+                    incompleteCriteriaAssessment: attempt.assessment.grade == .correct && !attempt.assessmentCriteriaSatisfied,
                     providerID: attempt.providerID, modelID: attempt.modelID)
             }
             if session.feedback == nil && session.phase != .complete {
@@ -55,7 +55,7 @@ enum LearningRequirementHistory {
                     phase: session.phase, isDelayed: session.delayedReview != nil, isDraft: true, date: session.updatedAt,
                     question: session.question?.prompt ?? session.lesson.objective, answer: session.answerDraft,
                     assessment: nil, rubric: [], recordedKind: session.question?.kind, assistanceUsed: session.assistanceUsed,
-                    incompleteProofAssessment: false, providerID: session.providerID, modelID: session.modelID))
+                    incompleteCriteriaAssessment: false, providerID: session.providerID, modelID: session.modelID))
             }
             return entries
         }.sorted { $0.date == $1.date ? $0.id < $1.id : $0.date > $1.date }

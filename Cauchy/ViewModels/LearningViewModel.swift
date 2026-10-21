@@ -389,8 +389,8 @@ final class LearningViewModel {
         guard !isBusy, let session, check(session.source) else { return }
         switch session.phase {
         case .diagnostic:
-            guard let feedback = session.feedback else { return }
-            if feedback.grade == .correct {
+            guard session.feedback != nil else { return }
+            if session.feedbackSupportsProgress {
                 prepareExitCheck(session)
             } else {
                 update { $0.move(to: .lesson) }
@@ -399,7 +399,7 @@ final class LearningViewModel {
             update { $0.move(to: .practice) }
         case .practice:
             // Feedback alone is not evidence of readiness for an independent check.
-            guard session.feedback?.grade == .correct else { return }
+            guard session.feedbackSupportsProgress else { return }
             prepareExitCheck(session)
         case .exitCheck:
             guard session.feedback != nil else { return }

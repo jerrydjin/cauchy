@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [21 October assessment-consistency check](evaluation/learning-assessment-consistency.md) applies essential criterion coverage and uncertainty handling to concept/application answers as well as proofs. A shared policy gates new replies, saved evidence and practice advancement without rewriting history. All 389 macOS tests and six offline evaluator checks pass; native inspection confirms inconsistent legacy grades remain visible but earn no independent credit.
+
 The [21 October requirement-history view](evaluation/learning-requirement-history.md) lets learners review earlier reasoning, feedback and delayed checks for one concept, proof or application without losing the current path. It retains complete answers, original grades/help and pending drafts while excluding hidden keys and future questions. All 384 tests pass; native checks cover keyboard reading of long reasoning, exact lesson opening, cancellation and restart preservation.
 
 The [21 October planned-session recovery](evaluation/learning-study-run-recovery.md) keeps paused plans unchanged while reviewing changed notes or inspecting their saved work. Recovery stays available while the course is rebuilding, and changed PDFs block plan advancement before the inventory catches up. All 378 tests pass; native checks cover source review, exact drafts, restart, rebuilding and truthful finishing.

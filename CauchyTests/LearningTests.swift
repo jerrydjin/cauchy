@@ -361,7 +361,7 @@ final class LearningRequirementHistoryTests: XCTestCase {
         saved.attempts = [.init(phase: .exitCheck, question: question, answer: "My proof", assessment: .init(grade: .correct,
             feedback: "Legacy assessment", nextStep: "Review"), assistanceUsed: false, providerID: "legacy", modelID: nil)]
         let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: [saved]).first)
-        XCTAssertTrue(entry.incompleteProofAssessment)
+        XCTAssertTrue(entry.incompleteCriteriaAssessment)
         XCTAssertEqual(entry.status, "Proof assessment incomplete")
         XCTAssertEqual(entry.recordedKind, .proof) // Do not relabel a mismatched historic question as a concept.
         XCTAssertFalse(entry.isDraft)
@@ -978,6 +978,12 @@ final class LearningFlowTests: XCTestCase {
         var saved = LearningSession(source: learningSource, lesson: lesson, phase: phase, providerID: "original", modelID: nil)
         saved.studyTarget = target
         saved.feedback = assessment(.correct)
+        if let rubric = lesson.practice.gradingCriteria {
+            // An exit-ready fixture must include the criterion evidence that
+            // justified its successful practice, just like a tutor response.
+            saved.feedback = .init(grade: .correct, feedback: "The essential reasoning is justified.", nextStep: "Try a fresh problem.",
+                criteria: rubric.indices.map { .init(index: $0, outcome: .met, feedback: "This essential step is justified.") })
+        }
         saved.answerDraft = "My successful practice reasoning."
         saved.hintsRevealed = 1
         if retry {

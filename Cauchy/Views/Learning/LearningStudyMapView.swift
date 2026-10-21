@@ -26,17 +26,30 @@ struct LearningStudyMapView: View {
         guard planner.map?.course != nil else { return nil }
         return planner.map?.nextStudy(sessions: document.learning.sessions)
     }
+    private var visibleStudyRun: LearningStudyRun? {
+        guard let run = planner.currentStudyRun, run.state != .finished || run.summaryAcknowledgedAt == nil else { return nil }
+        return run
+    }
 
     var body: some View {
         Group {
             if let map = planner.map, let course = map.course {
                 courseContent(course, map: map)
+            } else if let map = planner.map, let run = visibleStudyRun {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 28) {
+                        Text(document.title.replacingOccurrences(of: "_", with: " ")).font(.largeTitle.weight(.semibold))
+                        errors
+                        LearningStudyRunCard(document: document, run: run, map: map, assistantAvailable: assistantAvailable)
+                    }
+                    .padding(32).frame(maxWidth: 824, alignment: .leading).frame(maxWidth: .infinity)
+                }
             } else {
                 preparation
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if planner.map?.course != nil, document.isBusy { actionBar }
+            if document.isBusy, planner.map?.course != nil || visibleStudyRun != nil { actionBar }
         }
         .onReceive(NotificationCenter.default.publisher(for: .assistantPreferencesChanged)) { _ in
             assistantPreferenceRevision += 1
@@ -181,7 +194,7 @@ struct LearningStudyMapView: View {
                 }
                 errors
                 Divider()
-                if let run = planner.currentStudyRun, run.state != .finished || run.summaryAcknowledgedAt == nil {
+                if let run = visibleStudyRun {
                     LearningStudyRunCard(document: document, run: run, map: map, assistantAvailable: assistantAvailable)
                 } else if let review = map.nextDelayedReview(sessions: document.learning.sessions, now: reviewClock) {
                     let sourcePage = document.sourceReviewPage(for: review.previous)

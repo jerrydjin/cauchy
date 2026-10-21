@@ -1,4 +1,5 @@
 import XCTest
+import PDFKit
 @testable import Cauchy
 
 @MainActor
@@ -319,6 +320,138 @@ final class LearningStudyRunTests: XCTestCase {
     }
 
 #if DEBUG
+    func testChangedTranscriptionRecoveryPreservesActiveAndPausedPlansAcrossRestart() async throws {
+        for paused in [false, true] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-run-recovery-\(UUID())")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let controller = LearningUIFixtureController(rootPath: root.path)
+            await controller.load()
+            let document = try XCTUnwrap(controller.library?.selectedDocument)
+            let run = try XCTUnwrap(LearningStudyRun.plan(map: try XCTUnwrap(document.studyMap.map),
+                sessions: document.learning.sessions, count: 2, now: Date()))
+            document.beginStudyRun(run)
+            await document.learning.waitForOperation()
+            document.learning.answerDraft = "Keep this delayed argument and all earlier evidence."
+            let saved = try XCTUnwrap(document.learning.session)
+            if paused { document.pauseStudyRun() }
+            let text = try XCTUnwrap(document.pdfDocument.page(at: 0)?.string)
+            try document.studyMap.saveCorrection(pageIndex: 0, originalText: text,
+                correctedText: text + "\nAuthored verified amendment.", note: "Compared with original PDF", confirmed: true)
+            let beforeMap = document.studyMap.map
+            let beforeSessions = document.learning.sessions
+            let recovery = try XCTUnwrap(document.studyRunRecovery(for: try XCTUnwrap(document.studyMap.currentStudyRun)))
+            XCTAssertEqual(recovery.pageIndex, 0)
+            XCTAssertEqual(recovery.savedSessionID, saved.id)
+            XCTAssertEqual(recovery.blocker, .changedSource)
+            document.learning.showSections()
+            document.continueStudyRun()
+            XCTAssertTrue(document.notesVisible)
+            XCTAssertEqual(document.notesPageIndex, 0)
+            document.inspectStudyRunWork()
+            XCTAssertEqual(document.learning.selectedSessionID, saved.id)
+            XCTAssertFalse(document.canAdvanceStudyRun)
+            XCTAssertFalse(document.advanceStudyRun())
+            XCTAssertFalse(document.learning.isBusy)
+            XCTAssertEqual(document.learning.sessions, beforeSessions)
+            XCTAssertEqual(document.studyMap.map, beforeMap)
+            try await controller.flush()
+
+            let restarted = LearningUIFixtureController(rootPath: root.path)
+            await restarted.load()
+            let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+            let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+            restored.continueStudyRun()
+            restored.inspectStudyRunWork()
+            XCTAssertEqual(restored.learning.selectedSessionID, saved.id)
+            XCTAssertEqual(try encoder.encode(restored.learning.sessions), try encoder.encode(beforeSessions))
+            XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(beforeMap))
+            restored.finishStudyRun()
+            XCTAssertEqual(restored.studyMap.currentStudyRun?.state, .finished)
+            XCTAssertEqual(restored.studyMap.currentStudyRun?.attemptedCount, 0)
+            XCTAssertTrue(restored.studyMap.currentStudyRun?.items.allSatisfy { $0.outcome == nil } == true)
+            XCTAssertEqual(try encoder.encode(restored.learning.sessions), try encoder.encode(beforeSessions))
+        }
+    }
+
+    func testPlanRecoveryFindsChangedPDFBeforeInventoryRebuildAndBoundsRemovedPages() async throws {
+        for removePage in [false, true] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-run-pdf-recovery-\(UUID())")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let controller = LearningUIFixtureController(rootPath: root.path)
+            await controller.load()
+            let document = try XCTUnwrap(controller.library?.selectedDocument)
+            let run = try XCTUnwrap(LearningStudyRun.plan(map: try XCTUnwrap(document.studyMap.map),
+                sessions: document.learning.sessions, now: Date()))
+            document.beginStudyRun(run)
+            await document.learning.waitForOperation()
+            document.learning.answerDraft = "fixture correct"
+            document.learning.submitAnswer()
+            await document.learning.waitForOperation()
+            document.learning.advance()
+            XCTAssertTrue(document.canAdvanceStudyRun)
+            let map = document.studyMap.map
+            let pdf = document.pdfDocument
+            if removePage { pdf.removePage(at: 1) }
+            else {
+                // Keep the saved first-page lesson usable; a different page
+                // still invalidates the plan's whole-document snapshot.
+                let replacement = try XCTUnwrap(try LearningUIFixture.makePDF().page(at: 0)?.copy() as? PDFPage)
+                pdf.removePage(at: 1); pdf.insert(replacement, at: 1)
+            }
+            XCTAssertFalse(document.canAdvanceStudyRun)
+            XCTAssertFalse(document.advanceStudyRun())
+            let lesson = try XCTUnwrap(document.learning.sessions.first { $0.phase == .practice })
+            document.learning.select(lesson.id)
+            let sessions = document.learning.sessions
+            XCTAssertNil(document.selectedSourceReviewPage)
+            let recovery = try XCTUnwrap(document.studyRunRecovery(for: run))
+            XCTAssertEqual(recovery.blocker, .changedSource)
+            XCTAssertEqual(recovery.pageIndex, removePage ? 0 : 1)
+            document.reviewStudyRunSource()
+            XCTAssertEqual(document.notesPageIndex, removePage ? 0 : 1)
+            XCTAssertEqual(document.learning.sessions, sessions) // No help flag on the unrelated current answer.
+            XCTAssertEqual(document.studyMap.map, map)
+            document.continueStudyRun()
+            XCTAssertEqual(document.learning.sessions, sessions)
+            XCTAssertEqual(document.studyMap.map, map)
+            XCTAssertFalse(document.learning.isBusy)
+        }
+    }
+
+    func testChangedOrMissingRequirementRecoveryRetainsPinnedWorkWithoutResuming() throws {
+        for missing in [false, true] {
+            let pdf = try LearningUIFixture.makePDF()
+            var workspace = try LearningUIFixture.makeWorkspace(document: pdf, url: URL(fileURLWithPath: "/tmp/authored-run-requirement.pdf"))
+            var map = try XCTUnwrap(workspace.learningStudyMap)
+            let saved = try XCTUnwrap(workspace.learningSessions.first { $0.phase == .practice })
+            let target = try XCTUnwrap(saved.studyTarget)
+            let index = try XCTUnwrap(map.units.firstIndex { $0.learningTargets.contains { $0.id == target.id } })
+            let item = LearningStudyRun.Item(unitID: map.units[index].id, title: map.units[index].title, target: target,
+                mode: .lesson, existingSessionID: saved.id, earlierAttemptIDs: saved.attempts.map(\.id))
+            var run = LearningStudyRun(pageSignatures: map.pageSignatures, items: [item], startedAt: now)
+            run.pause(at: now)
+            if missing { map.units.remove(at: index); map.course = nil }
+            else {
+                let changed = LearningStudyTarget(id: target.id, unitID: target.unitID, kind: target.kind,
+                    objective: "A revised requirement, not the saved plan's task.")
+                map.units[index] = replacingTargets(map.units[index], with: [changed])
+            }
+            map.studyRuns = [run]; workspace.learningStudyMap = map
+            let document = LearningDocument(workspace: workspace, document: pdf, bookmarkData: nil)
+            document.learning.select(saved.id)
+            let recovery = try XCTUnwrap(document.studyRunRecovery(for: run))
+            XCTAssertEqual(recovery.blocker, .changedRequirement)
+            XCTAssertEqual(recovery.pageIndex, 0)
+            XCTAssertEqual(recovery.savedSessionID, saved.id)
+            document.continueStudyRun(); document.inspectStudyRunWork()
+            XCTAssertEqual(document.learning.selectedSessionID, saved.id)
+            XCTAssertEqual(document.studyMap.map, map)
+            XCTAssertEqual(document.learning.sessions, workspace.learningSessions)
+            XCTAssertFalse(document.learning.isBusy)
+            XCTAssertFalse(document.advanceStudyRun())
+        }
+    }
+
     func testReviewOnlyCoordinatorStopsWithoutOpeningNewWorkAndPersistsItsRecord() async throws {
         // Match the learning sidecar's numeric date encoding precision.
         func persisted<Value: Codable>(_ value: Value) throws -> Value {

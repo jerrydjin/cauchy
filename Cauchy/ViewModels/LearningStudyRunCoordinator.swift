@@ -2,6 +2,56 @@ import Foundation
 
 @MainActor
 extension LearningDocument {
+    struct StudyRunRecovery: Equatable {
+        let pageIndex: Int
+        let savedSessionID: UUID?
+        let blocker: LearningStudyRun.Blocker
+    }
+
+    /// Recovery is navigation only. Compare the plan with the actual PDF as
+    /// well as its map: the inventory may not have been rebuilt yet.
+    func studyRunRecovery(for run: LearningStudyRun) -> StudyRunRecovery? {
+        guard run.state != .finished, let item = run.currentItem, let map = studyMap.map else { return nil }
+        let saved = item.session(in: learning.sessions)
+        func recovery(_ page: Int, _ blocker: LearningStudyRun.Blocker) -> StudyRunRecovery {
+            .init(pageIndex: min(max(0, page), max(0, pageCount - 1)), savedSessionID: saved?.id, blocker: blocker)
+        }
+        if let page = (0..<max(run.pageSignatures.count, pageCount)).first(where: { index in
+            guard run.pageSignatures.indices.contains(index), let text = pdfDocument.page(at: index)?.string else { return true }
+            return run.pageSignatures[index] != LearningStudyInput.signature(text)
+        }) {
+            return recovery(page, .changedSource)
+        }
+        if let saved, let page = sourceReviewPage(for: saved) { return recovery(page, .changedSource) }
+        guard let blocker = run.blocker(in: map, sessions: learning.sessions) else { return nil }
+        switch blocker {
+        case .sourceReview(_, _, let page): return recovery(page, blocker)
+        case .changedSource:
+            let page = (0..<max(run.pageSignatures.count, map.pageSignatures.count)).first {
+                !run.pageSignatures.indices.contains($0) || !map.pageSignatures.indices.contains($0)
+                    || run.pageSignatures[$0] != map.pageSignatures[$0]
+            }
+            return recovery(page ?? sourcePageIndex, blocker)
+        case .changedRequirement:
+            return recovery(saved?.source.passages.first?.pageIndex
+                ?? map.units.first(where: { $0.id == item.unitID })?.anchorPage ?? sourcePageIndex, blocker)
+        case .earlierRequirement: return nil
+        }
+    }
+
+    func reviewStudyRunSource() {
+        guard !isBusy, let run = studyMap.currentStudyRun, let recovery = studyRunRecovery(for: run) else { return }
+        // Do not mark an old or unrelated answer as having used current notes.
+        notesPageIndex = recovery.pageIndex
+        notesVisible = true
+    }
+
+    func inspectStudyRunWork() {
+        guard !isBusy, let run = studyMap.currentStudyRun, run.state != .finished,
+              let saved = run.currentItem?.session(in: learning.sessions) else { return }
+        learning.select(saved.id)
+    }
+
     var selectedStudyRun: LearningStudyRun? {
         guard let run = studyMap.currentStudyRun, run.state == .active,
               run.currentItem?.session(in: learning.sessions)?.id == learning.selectedSessionID,
@@ -10,7 +60,7 @@ extension LearningDocument {
     }
 
     var canAdvanceStudyRun: Bool {
-        guard let map = studyMap.map, var run = selectedStudyRun else { return false }
+        guard let map = studyMap.map, var run = selectedStudyRun, studyRunRecovery(for: run) == nil else { return false }
         return run.advance(map: map, sessions: learning.sessions, at: Date())
     }
 
@@ -25,7 +75,10 @@ extension LearningDocument {
     func continueStudyRun() {
         guard !isBusy, let map = studyMap.map, let run = studyMap.currentStudyRun,
               run.state != .finished, let item = run.currentItem else { return }
-        studyMap.updateStudyRun(run.id) { $0.resume() }
+        if studyRunRecovery(for: run) != nil {
+            reviewStudyRunSource()
+            return
+        }
         if let blocker = run.blocker(in: map, sessions: learning.sessions) {
             switch blocker {
             case .sourceReview(_, _, let page): showNotes(at: page)
@@ -35,6 +88,7 @@ extension LearningDocument {
             }
             return
         }
+        studyMap.updateStudyRun(run.id) { $0.resume() }
         if let saved = item.session(in: learning.sessions),
            LearningSourceBuilder.matches(saved.source, document: pdfDocument, map: map) {
             learning.select(saved.id)
@@ -54,7 +108,7 @@ extension LearningDocument {
 
     @discardableResult
     func advanceStudyRun() -> Bool {
-        guard !isBusy, let map = studyMap.map, let run = selectedStudyRun else { return false }
+        guard !isBusy, let map = studyMap.map, let run = selectedStudyRun, studyRunRecovery(for: run) == nil else { return false }
         var advanced = false
         studyMap.updateStudyRun(run.id) { advanced = $0.advance(map: map, sessions: learning.sessions, at: Date()) }
         if advanced, studyMap.currentStudyRun?.state == .active { continueStudyRun() }

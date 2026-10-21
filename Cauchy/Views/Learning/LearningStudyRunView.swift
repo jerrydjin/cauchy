@@ -165,22 +165,24 @@ struct LearningStudyRunCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                 }
-                if let blocker = run.blocker(in: map, sessions: document.learning.sessions) {
-                    Text(blocker.message).font(.callout).foregroundStyle(.secondary)
-                    switch blocker {
-                    case .sourceReview:
-                        continueButton("Review source", symbol: "doc.text.magnifyingglass", needsAssistant: false)
-                    case .earlierRequirement:
-                        continueButton("Open earlier requirement", symbol: "arrow.left", needsAssistant: true)
-                    case .changedSource, .changedRequirement:
-                        finishButton(prominent: true)
+                if let recovery = document.studyRunRecovery(for: run) {
+                    Text(recovery.blocker.message).font(.callout).foregroundStyle(.secondary)
+                    Button("Review current source", systemImage: "doc.text.magnifyingglass") { document.reviewStudyRunSource() }
+                        .buttonStyle(.glassProminent).controlSize(.large)
+                        .keyboardShortcut(.return, modifiers: .command).disabled(document.isBusy)
+                    if recovery.savedSessionID != nil {
+                        Button("Inspect saved work") { document.inspectStudyRunWork() }
+                            .buttonStyle(.borderless).disabled(document.isBusy)
                     }
-                    if case .sourceReview = blocker { finishButton(prominent: false) }
-                    if case .earlierRequirement = blocker { finishButton(prominent: false) }
+                    finishButton
+                } else if let blocker = run.blocker(in: map, sessions: document.learning.sessions), case .earlierRequirement = blocker {
+                    Text(blocker.message).font(.callout).foregroundStyle(.secondary)
+                    continueButton("Open earlier requirement", symbol: "arrow.left", needsAssistant: true)
+                    finishButton
                 } else {
                     continueButton(run.state == .paused ? "Resume session" : "Continue session", symbol: "arrow.right",
                         needsAssistant: item.session(in: document.learning.sessions) == nil)
-                    finishButton(prominent: false)
+                    finishButton
                 }
             }
         }
@@ -193,15 +195,9 @@ struct LearningStudyRunCard: View {
             .disabled(document.isBusy || (needsAssistant && !assistantAvailable))
     }
 
-    @ViewBuilder private func finishButton(prominent: Bool) -> some View {
-        if prominent {
-            Button("Finish session") { document.finishStudyRun() }
-                .buttonStyle(.glassProminent).controlSize(.large)
-                .keyboardShortcut(.return, modifiers: .command).disabled(document.studyMap.isBusy)
-        } else {
-            Button("Finish session here") { document.finishStudyRun() }
-                .buttonStyle(.borderless).disabled(document.studyMap.isBusy)
-        }
+    private var finishButton: some View {
+        Button("Finish session here") { document.finishStudyRun() }
+            .buttonStyle(.borderless).disabled(document.studyMap.isBusy)
     }
 
 }

@@ -1,0 +1,23 @@
+# Recover a planned session from changed notes
+
+Tracked by [JERRY-87](https://linear.app/jerryjin/issue/JERRY-87). A saved study plan now offers **Review current source** as its primary recovery action, with **Inspect saved work** when the current item has a pinned lesson, and a quiet explicit **Finish session here** route. This applies to changed PDF pages, obsolete saved transcriptions, source obligations and changed or missing requirements. Paused plans remain paused while reviewing or inspecting. The plan's requirements and outcomes are not silently replaced.
+
+Recovery compares the plan's original page signatures with the actual PDF, not only the inventory, because a changed document can be opened before its path is rebuilt. It also checks the pinned lesson's passage provenance and the existing source/requirement blockers. Removed pages use a bounded available page. Reviewing a plan's source is navigation only: it does not mark an old or unrelated answer as using notes. Plan advancement rejects source recovery even if an otherwise valid new exit result is ready. Normal lesson source/help policy is unchanged.
+
+If a rebuild temporarily leaves the map without a course, the existing plan and summary remain visible ahead of preparation. Finishing and acknowledging that summary returns to the existing path-preparation flow. No persistence schema, reader behavior or tutor/provider configuration changed.
+
+## Verification — 21 October 2026
+
+The final complete macOS suite passes **378 tests, zero failures or skips** (`/tmp/cauchy-run-recovery87-checkpoint.xcresult`, `/tmp/cauchy-run-recovery87-checkpoint.log`). Three new integration regressions cover active/paused transcription recovery and real persistence/restart, actual PDF changes before inventory rebuilding, removed-page bounds, changed/missing requirements, preserved pinned work, blocked advancement with a valid new exit, and truthful explicit finishing. The initial test build caught an invalid attempt to mutate an immutable target objective in the new fixture; the fixture was corrected to construct the revised target. `git diff --check` passes.
+
+The exact test input was an archive of `658bcce` plus byte-identical copies of the four changed Swift source/test files at `/tmp/cauchy-run-recovery87-validation`. SwiftMath was copied from its clean local submodule at `fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7`. Tests used the existing resolved package cache with automatic package resolution disabled. The native bundle used the same production source; the final test-only refinement strengthens the changed-PDF assertion without changing that executable.
+
+Native checks used `/tmp/CauchyLearnSearch84.app` (`com.cauchy.learn-search84`), a separate Debug bundle, with a fresh authored library at `/tmp/cauchy-ui-fixture-run-recovery87-native`, in a 1000-point dark window:
+
+- Planned two requirements, started the authored delayed check, entered an exact unsent argument and paused through the session toolbar.
+- Saved a page-one transcription amendment through the actual PDF comparison sheet. The paused session immediately offered source review, saved-work inspection and an explicit finish; Resume was absent.
+- Hid notes and used ⌘Return to reopen PDF page 1. Inspected the pinned delayed lesson's exact question/answer, returned to the path, quit and cold-reopened. The card still said paused. The complete sidecar, including all three lesson records and the map/plan, equals the post-correction snapshot.
+- Seeded a separate disposable variant with the course absent, representing the saved map during rebuilding. The paused plan remained visible. Review current source opened page 1 without resuming or changing the sidecar.
+- Explicitly finished that variant. The summary showed zero exit checks for two planned requirements; both records said **No new exit check · requirement left open**. Acknowledging it returned to preparation. All lesson records, plan items and source obligations remained equal; only explicit run state/end/acknowledgment metadata and the map modification timestamp changed.
+
+`/tmp/cauchy-run-recovery87-native.png` captures the recovery card and current source in window context. A transient capture/focus error was resolved by inspecting the same running app; no recovery relaunch was used for it. Real PDF replacement/removal, active-plan recovery and changed/missing requirement variants are automated scenarios, not separate native walkthroughs. VoiceOver speech, alternative appearance/accessibility settings and very large PDFs remain unexercised. No external model was called, and the installed app, normal library and system settings were unchanged.

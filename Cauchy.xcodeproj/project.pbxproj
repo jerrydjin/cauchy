@@ -16,6 +16,7 @@
 		3B0D1C145AC5316F4EC2CD2A /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = E721B0624D394A622A35B857 /* Highlight.swift */; };
 		9734D7008D2DA56E5F2EDB0E /* HighlightColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D9DB07E3A4516CEBDEEBBF /* HighlightColor.swift */; };
 		A6F3A87AB78A7DA23792E2B4 /* LearningClarification.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E76D0BA262D032CDB034C1 /* LearningClarification.swift */; };
+		EB93BCE87F8A47BF9C300AD7 /* LearningRequirementHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274468CFBB0CFCB501B93BC7 /* LearningRequirementHistory.swift */; };
 		F343BE16BEC2A53F06C4486F /* LearningSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 816CC45C66ABEA07B83486FD /* LearningSession.swift */; };
 		3A1CB37F630F4D08A0C9A25D /* LearningStudyMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E27AB51D8821DEF62ECB888 /* LearningStudyMap.swift */; };
 		BAC7D3B3D87A4C4B4177754A /* LearningStudyRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D18473CBF75ECCE24F08F01 /* LearningStudyRun.swift */; };
@@ -126,6 +127,7 @@
 		918416286927BB1329AB0DD1 /* IndexProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */; };
 		C8B3A8FF72FF3E6CBB8FBEBA /* ToolbarChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */; };
 		EAF036A31C87938B8A914D70 /* LearningClarificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A66B57877326FEC773E7A12A /* LearningClarificationView.swift */; };
+		43E3FDC4C5D7FF2234E99DFC /* LearningRequirementHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A39A0E15F5951194B6CB58F /* LearningRequirementHistoryView.swift */; };
 		A357D6DA553033D76DA7A7AE /* LearningSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */; };
 		C845A9B0CE4DBC667FC17B25 /* LearningStudyMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52FBBC4B019CC4FCD683125 /* LearningStudyMapView.swift */; };
 		C5D913FD1B1EB3C5A4E47788 /* LearningStudyRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABEA6693626712DA9AA7CF2E /* LearningStudyRunView.swift */; };
@@ -185,6 +187,7 @@
 		E721B0624D394A622A35B857 /* Highlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Highlight.swift; sourceTree = "<group>"; };
 		62D9DB07E3A4516CEBDEEBBF /* HighlightColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightColor.swift; sourceTree = "<group>"; };
 		F8E76D0BA262D032CDB034C1 /* LearningClarification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningClarification.swift; sourceTree = "<group>"; };
+		274468CFBB0CFCB501B93BC7 /* LearningRequirementHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningRequirementHistory.swift; sourceTree = "<group>"; };
 		816CC45C66ABEA07B83486FD /* LearningSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningSession.swift; sourceTree = "<group>"; };
 		1E27AB51D8821DEF62ECB888 /* LearningStudyMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyMap.swift; sourceTree = "<group>"; };
 		8D18473CBF75ECCE24F08F01 /* LearningStudyRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyRun.swift; sourceTree = "<group>"; };
@@ -295,6 +298,7 @@
 		591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexProgressRing.swift; sourceTree = "<group>"; };
 		E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarChrome.swift; sourceTree = "<group>"; };
 		A66B57877326FEC773E7A12A /* LearningClarificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningClarificationView.swift; sourceTree = "<group>"; };
+		5A39A0E15F5951194B6CB58F /* LearningRequirementHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningRequirementHistoryView.swift; sourceTree = "<group>"; };
 		E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningSessionView.swift; sourceTree = "<group>"; };
 		F52FBBC4B019CC4FCD683125 /* LearningStudyMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyMapView.swift; sourceTree = "<group>"; };
 		ABEA6693626712DA9AA7CF2E /* LearningStudyRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyRunView.swift; sourceTree = "<group>"; };
@@ -371,6 +375,7 @@
 			E721B0624D394A622A35B857 /* Highlight.swift */,
 			62D9DB07E3A4516CEBDEEBBF /* HighlightColor.swift */,
 			F8E76D0BA262D032CDB034C1 /* LearningClarification.swift */,
+			274468CFBB0CFCB501B93BC7 /* LearningRequirementHistory.swift */,
 			816CC45C66ABEA07B83486FD /* LearningSession.swift */,
 			1E27AB51D8821DEF62ECB888 /* LearningStudyMap.swift */,
 			8D18473CBF75ECCE24F08F01 /* LearningStudyRun.swift */,
@@ -518,6 +523,7 @@
 		); path = Design; sourceTree = "<group>"; };
 		173506081BBA1DCAB440CA4B /* Learning */ = { isa = PBXGroup; children = (
 			A66B57877326FEC773E7A12A /* LearningClarificationView.swift */,
+			5A39A0E15F5951194B6CB58F /* LearningRequirementHistoryView.swift */,
 			E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */,
 			F52FBBC4B019CC4FCD683125 /* LearningStudyMapView.swift */,
 			ABEA6693626712DA9AA7CF2E /* LearningStudyRunView.swift */,
@@ -610,6 +616,7 @@
 			3B0D1C145AC5316F4EC2CD2A,
 			9734D7008D2DA56E5F2EDB0E,
 			A6F3A87AB78A7DA23792E2B4,
+			EB93BCE87F8A47BF9C300AD7,
 			F343BE16BEC2A53F06C4486F,
 			3A1CB37F630F4D08A0C9A25D,
 			BAC7D3B3D87A4C4B4177754A,
@@ -720,6 +727,7 @@
 			918416286927BB1329AB0DD1,
 			C8B3A8FF72FF3E6CBB8FBEBA,
 			EAF036A31C87938B8A914D70,
+			43E3FDC4C5D7FF2234E99DFC,
 			A357D6DA553033D76DA7A7AE,
 			C845A9B0CE4DBC667FC17B25,
 			C5D913FD1B1EB3C5A4E47788,

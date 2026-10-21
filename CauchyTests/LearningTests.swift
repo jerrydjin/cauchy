@@ -155,6 +155,53 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertEqual(LearningHistorySearch.results(in: restored.learning.sessions, query: "continuous").first?.id, result.id)
     }
 
+    func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let review = try XCTUnwrap(map.nextDelayedReview(sessions: document.learning.sessions, now: Date()))
+        document.learning.startDelayedReview(review)
+        await document.learning.waitForOperation()
+        document.learning.answerDraft = "Unsubmitted delayed reasoning, retained with the earlier exit."
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let sessions = try encoder.encode(document.learning.sessions)
+        let mapData = try encoder.encode(document.studyMap.map)
+        let entries = LearningRequirementHistory.entries(for: review.target, in: document.learning.sessions)
+        XCTAssertTrue(entries.contains { $0.isDraft && $0.isDelayed })
+        XCTAssertTrue(entries.contains { !$0.isDraft && !$0.isDelayed && $0.phase == .exitCheck })
+        let chosen = try XCTUnwrap(entries.last)
+        document.learning.select(chosen.sessionID)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), sessions)
+        XCTAssertEqual(try encoder.encode(document.studyMap.map), mapData)
+        try await controller.flush()
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions), sessions)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), mapData)
+        XCTAssertEqual(LearningRequirementHistory.entries(for: review.target, in: restored.learning.sessions).map(\.id), entries.map(\.id))
+    }
+
+    func testRequirementHistoryExcludesChapterWorkEvenWithMatchingTarget() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let target = try XCTUnwrap(document.learning.sessions.first?.studyTarget)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let request = try XCTUnwrap(map.chapterRequest(for: try XCTUnwrap(map.course?.modules.first)))
+        document.learning.startChapter(request: request, source: try LearningSourceBuilder.pages(1...1, in: document.pdfDocument))
+        await document.learning.waitForOperation()
+        var chapter = try XCTUnwrap(document.learning.session)
+        chapter.studyTarget = target
+        XCTAssertTrue(LearningRequirementHistory.sessions(for: target, in: [chapter]).isEmpty)
+        XCTAssertTrue(LearningRequirementHistory.entries(for: target, in: [chapter]).isEmpty)
+    }
+
     func testHistorySearchKeepsRefresherWorkAttachedToItsChapterChallenge() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -244,6 +291,83 @@ final class LearningUIFixtureTests: XCTestCase {
     }
 }
 #endif
+
+final class LearningRequirementHistoryTests: XCTestCase {
+    private let target = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "Explain linearity.")
+    private func session() -> LearningSession {
+        func question(_ prompt: String) -> LearningQuestion {
+            .init(prompt: prompt, expectedAnswer: "HIDDEN_KEY", hints: ["HIDDEN_HINT"], kind: .concept)
+        }
+        let lesson = LearningLesson(title: "Linearity", objective: target.objective, sourceQuote: learningSource.passages[0].text,
+            explanation: "Teaching", workedExample: "Example", diagnostic: question("Visible diagnostic"),
+            practice: question("FUTURE_PRACTICE"), exitCheck: question("FUTURE_EXIT"))
+        var saved = LearningSession(source: learningSource, lesson: lesson, providerID: "authored", modelID: nil)
+        saved.studyTarget = target
+        saved.answerDraft = "My complete unsent argument."
+        return saved
+    }
+
+    func testHistoryUsesExactUnitTargetAndKindRatherThanTitleOrObjective() {
+        let saved = session()
+        var wrongID = saved; wrongID.id = UUID()
+        wrongID.studyTarget = .init(unitID: target.unitID, kind: target.kind, objective: target.objective)
+        var wrongUnit = saved; wrongUnit.id = UUID()
+        wrongUnit.studyTarget = .init(id: target.id, unitID: UUID(), kind: target.kind, objective: target.objective)
+        var wrongKind = saved; wrongKind.id = UUID()
+        wrongKind.studyTarget = .init(id: target.id, unitID: target.unitID, kind: .proof, objective: target.objective)
+        var standalone = saved; standalone.id = UUID(); standalone.studyTarget = nil
+        XCTAssertEqual(LearningRequirementHistory.sessions(for: target, in: [wrongID, saved, wrongUnit, wrongKind, standalone]), [saved])
+        let revised = LearningStudyTarget(id: target.id, unitID: target.unitID, kind: target.kind, objective: "A later revision of the requirement.")
+        XCTAssertEqual(LearningRequirementHistory.entries(for: revised, in: [saved]).first?.requirementObjective, target.objective)
+    }
+
+    func testProjectionRetainsLongReasoningAndFeedbackWithoutHiddenOrFutureQuestions() throws {
+        var saved = session()
+        let answer = String(repeating: "A complete justified step. ", count: 200)
+        let assessment = LearningAssessment(grade: .partial, feedback: "Locate the first unsupported inference.", nextStep: "Justify that step.",
+            criteria: [.init(index: 0, outcome: .notMet, feedback: "The limit must remain in the subset.")])
+        saved.attempts = [.init(phase: .diagnostic, question: saved.lesson.diagnostic, answer: answer, assessment: assessment,
+            assistanceUsed: true, providerID: "original tutor", modelID: "original model")]
+        let original = saved
+        let entries = LearningRequirementHistory.entries(for: target, in: [saved])
+        let attempt = try XCTUnwrap(entries.first { !$0.isDraft })
+        XCTAssertEqual(attempt.answer, answer)
+        XCTAssertEqual(attempt.assessment, assessment)
+        XCTAssertEqual(attempt.providerID, "original tutor")
+        XCTAssertTrue(attempt.assistanceUsed)
+        for marker in ["HIDDEN_KEY", "HIDDEN_HINT", "FUTURE_PRACTICE", "FUTURE_EXIT"] {
+            XCTAssertFalse(String(reflecting: entries).contains(marker))
+        }
+        XCTAssertEqual(saved, original)
+    }
+
+    func testOrdinaryAndDelayedWorkHaveStableRecentOrderAndDistinctIdentity() {
+        var ordinary = session(); ordinary.updatedAt = Date(timeIntervalSince1970: 200)
+        var delayed = ordinary; delayed.id = UUID()
+        delayed.delayedReview = .init(previousSessionID: ordinary.id, scheduledFor: ordinary.updatedAt, startedAt: ordinary.updatedAt, round: 1)
+        delayed.updatedAt = Date(timeIntervalSince1970: 300)
+        let entries = LearningRequirementHistory.entries(for: target, in: [ordinary, delayed])
+        XCTAssertEqual(entries.map(\.sessionID), [delayed.id, ordinary.id])
+        XCTAssertEqual(entries.map(\.isDelayed), [true, false])
+        delayed.updatedAt = ordinary.updatedAt
+        XCTAssertEqual(LearningRequirementHistory.entries(for: target, in: [ordinary, delayed]),
+                       LearningRequirementHistory.entries(for: target, in: [delayed, ordinary]))
+    }
+
+    func testLegacyAndIncompleteProofGradesRemainTruthfulAndDoNotBecomeDrafts() throws {
+        var saved = session(); saved.phase = .complete
+        let question = LearningQuestion(prompt: "A saved proof question", expectedAnswer: "HIDDEN_KEY", hints: [], kind: .proof,
+            gradingCriteria: ["State assumptions", "Justify inference", "Conclude"])
+        saved.attempts = [.init(phase: .exitCheck, question: question, answer: "My proof", assessment: .init(grade: .correct,
+            feedback: "Legacy assessment", nextStep: "Review"), assistanceUsed: false, providerID: "legacy", modelID: nil)]
+        let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: [saved]).first)
+        XCTAssertTrue(entry.incompleteProofAssessment)
+        XCTAssertEqual(entry.status, "Proof assessment incomplete")
+        XCTAssertEqual(entry.recordedKind, .proof) // Do not relabel a mismatched historic question as a concept.
+        XCTAssertFalse(entry.isDraft)
+        XCTAssertEqual(entry.assessment?.grade, .correct) // Preserve the original grade separately from its incomplete rubric.
+    }
+}
 
 final class LearningHistorySearchTests: XCTestCase {
     private func session(phase: LearningPhase = .diagnostic) -> LearningSession {

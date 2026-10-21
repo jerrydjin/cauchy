@@ -20,6 +20,7 @@ struct LearningStudyMapView: View {
     @State private var syllabusProvenance = ""
     @State private var syllabusKinds: Set<LearningStudyKind> = [.concept, .proof, .application]
     @State private var syllabusMapping: LearningSyllabusSelection?
+    @State private var historyTarget: LearningStudyTarget?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var planner: LearningStudyMapViewModel { document.studyMap }
     private var nextStudy: LearningStudyRecommendation? {
@@ -58,6 +59,9 @@ struct LearningStudyMapView: View {
         .onAppear { reviewClock = Date() }
         .sheet(item: $syllabusMapping) { selection in
             LearningSyllabusMappingEditor(document: document, requirement: selection.requirement, kind: selection.kind)
+        }
+        .sheet(item: $historyTarget) { target in
+            LearningRequirementHistoryView(document: document, target: target)
         }
     }
 
@@ -655,6 +659,11 @@ struct LearningStudyMapView: View {
                         Text(target.kind.label).font(.subheadline.weight(.semibold))
                         MessageContentView(content: target.objective)
                         Text(status(target, unit: unit)).font(.caption).foregroundStyle(.secondary)
+                        if !LearningRequirementHistory.sessions(for: target, in: document.learning.sessions).isEmpty {
+                            Button("Review my work", systemImage: "clock.arrow.circlepath") { historyTarget = target }
+                                .buttonStyle(.borderless).disabled(document.isBusy)
+                                .accessibilityLabel("Review my work · \(target.kind.label)")
+                        }
                     }
                     Spacer(minLength: 0)
                     Button(actionLabel(target)) { study(target, unit: unit) }

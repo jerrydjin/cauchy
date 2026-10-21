@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [21 October requirement-history view](evaluation/learning-requirement-history.md) lets learners review earlier reasoning, feedback and delayed checks for one concept, proof or application without losing the current path. It retains complete answers, original grades/help and pending drafts while excluding hidden keys and future questions. All 384 tests pass; native checks cover keyboard reading of long reasoning, exact lesson opening, cancellation and restart preservation.
+
 The [21 October planned-session recovery](evaluation/learning-study-run-recovery.md) keeps paused plans unchanged while reviewing changed notes or inspecting their saved work. Recovery stays available while the course is rebuilding, and changed PDFs block plan advancement before the inventory catches up. All 378 tests pass; native checks cover source review, exact drafts, restart, rebuilding and truthful finishing.
 
 The [20–21 October saved-source recovery](evaluation/learning-source-recovery.md) gives obsolete lessons a direct route to the affected current PDF page while retaining old answers, tutor help and unsent questions as read-only work. Delayed checks also offer recovery on the learning path. The complete 375-test suite passes; native edit/send attempts and restart comparisons preserve the complete saved records and map.

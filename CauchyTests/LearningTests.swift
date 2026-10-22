@@ -67,6 +67,119 @@ final class LearningUIFixtureTests: XCTestCase {
         try await controller.flush()
     }
 
+    func testRevisedChapterRequirementsCreateASeparateChallengeWithoutReplacingTheEarlierDraft() async throws {
+        let pdf = try LearningUIFixture.makePDF()
+        var workspace = try LearningUIFixture.makeWorkspace(document: pdf, url: URL(fileURLWithPath: "/tmp/authored-chapter-revision.pdf"))
+        var map = try XCTUnwrap(workspace.learningStudyMap)
+        let module = try XCTUnwrap(map.course?.modules.first)
+        let original = try XCTUnwrap(map.chapterRequest(for: module))
+        let source = try LearningSourceBuilder.pages(1...1, in: pdf)
+        let initial = LearningDocument(workspace: workspace, document: pdf, bookmarkData: nil,
+            learning: LearningViewModel(makeTutor: { ChapterTutorFixture(LearningUIFixture.challenge(request: original)) }))
+        initial.learning.startChapter(request: original, source: source)
+        await initial.learning.waitForOperation()
+        initial.learning.answerDraft = "Earlier chapter argument, kept with its original requirements."
+        let saved = try XCTUnwrap(initial.learning.session)
+        let unit = map.units[0]
+        let target = unit.targets[0]
+        let revised = LearningStudyTarget(id: target.id, unitID: target.unitID, kind: target.kind,
+            objective: "Explain why the subsequence limit must remain in the closed domain.")
+        map.units[0] = .init(id: unit.id, title: unit.title, anchorPage: unit.anchorPage, sourceQuote: unit.sourceQuote,
+            pageIndices: unit.pageIndices, prerequisites: unit.prerequisites, proofRequired: unit.proofRequired,
+            proofQuote: unit.proofQuote, gaps: unit.gaps, targets: [revised] + unit.targets.dropFirst())
+        workspace.learningStudyMap = map
+        workspace.learningSessions = initial.learning.sessions
+        let current = LearningDocument(workspace: workspace, document: pdf, bookmarkData: nil,
+            learning: LearningViewModel(makeTutor: { ChapterTutorFixture(LearningUIFixture.challenge(request: original, fresh: true)) }))
+        XCTAssertFalse(current.learning.chapterRequestIsCurrent?(original) ?? true)
+        let request = try XCTUnwrap(map.chapterRequest(for: module))
+        current.learning.startChapter(request: request, source: source)
+        await current.learning.waitForOperation()
+        XCTAssertNil(current.learning.errorMessage)
+        XCTAssertNotEqual(current.learning.session?.id, saved.id)
+        XCTAssertEqual(current.learning.session?.chapter?.request, request)
+        XCTAssertEqual(current.learning.sessions.first { $0.id == saved.id }, saved)
+        XCTAssertEqual(current.learning.sessions.count, initial.learning.sessions.count + 1)
+        let currentID = current.learning.selectedSessionID
+        XCTAssertEqual(current.savedChapter(for: request)?.id, currentID)
+        XCTAssertNil(current.savedChapter(for: original))
+        current.learning.startChapter(request: original, source: source)
+        XCTAssertEqual(current.learning.selectedSessionID, currentID)
+        XCTAssertNotNil(current.learning.errorMessage)
+        XCTAssertFalse(current.learning.isBusy)
+    }
+
+    func testCurrentAndEarlierChapterWorkSurvivePersistenceWithSeparateRequirements() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let seed = LearningUIFixtureController(rootPath: root.path)
+        await seed.load()
+        let document = try XCTUnwrap(seed.library?.selectedDocument)
+        var map = try XCTUnwrap(document.studyMap.map)
+        let module = try XCTUnwrap(map.course?.modules.first)
+        let request = try XCTUnwrap(map.chapterRequest(for: module))
+        let source = try LearningSourceBuilder.pages(1...1, in: document.pdfDocument)
+        document.learning.startChapter(request: request, source: source); await document.learning.waitForOperation()
+        document.learning.openPrerequisiteRescue()
+        document.learning.rescueDraft = "Original saved refresher reasoning."
+        document.learning.returnToChapter()
+        document.learning.answerDraft = "fixture correct"
+        document.learning.submitAnswer(); await document.learning.waitForOperation(); document.learning.advance()
+        let saved = try XCTUnwrap(document.learning.session)
+        XCTAssertTrue(saved.assistanceUsed)
+        XCTAssertFalse(saved.passedExitCheck)
+        try await seed.flush()
+        var workspace = document.snapshot
+        let unit = map.units[0]
+        let target = unit.targets[0]
+        let revised = LearningStudyTarget(id: target.id, unitID: target.unitID, kind: target.kind,
+            objective: "Explain the closed-domain condition before applying the continuous image argument.")
+        map.units[0] = .init(id: unit.id, title: unit.title, anchorPage: unit.anchorPage, sourceQuote: unit.sourceQuote,
+            pageIndices: unit.pageIndices, prerequisites: unit.prerequisites, proofRequired: unit.proofRequired,
+            proofQuote: unit.proofQuote, gaps: unit.gaps, targets: [revised] + unit.targets.dropFirst())
+        map.updatedAt = Date(); workspace.learningStudyMap = map
+        let store = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await store.saveWorkspace(workspace, bookmarkData: nil)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let oldWork = try encoder.encode(workspace.learningSessions)
+
+        let current = LearningUIFixtureController(rootPath: root.path)
+        await current.load()
+        let active = try XCTUnwrap(current.library?.selectedDocument)
+        let currentRequest = try XCTUnwrap(active.studyMap.map?.chapterRequest(for: module))
+        XCTAssertFalse(active.studyMap.map?.isCurrentChapterRequest(request) ?? true)
+        XCTAssertNil(active.savedChapter(for: currentRequest))
+        active.learning.select(saved.id)
+        active.learning.freshChapterCheck()
+        XCTAssertNotNil(active.learning.errorMessage)
+        XCTAssertFalse(active.learning.isBusy)
+        XCTAssertEqual(try encoder.encode(active.learning.sessions), oldWork)
+        active.learning.startChapter(request: currentRequest, source: source); await active.learning.waitForOperation()
+        XCTAssertNil(active.learning.errorMessage)
+        let newID = try XCTUnwrap(active.learning.selectedSessionID)
+        XCTAssertNotEqual(newID, saved.id)
+        XCTAssertEqual(active.savedChapter(for: currentRequest)?.id, newID)
+        XCTAssertEqual(active.learning.session?.chapter?.request, currentRequest)
+        XCTAssertEqual(try encoder.encode(active.learning.sessions.filter { $0.id != newID }), oldWork)
+        active.learning.answerDraft = "Current chapter's independent saved draft."
+        try await current.flush()
+
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(Optional(map)))
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions.filter { $0.id != newID }), oldWork)
+        XCTAssertEqual(restored.savedChapter(for: currentRequest)?.id, newID)
+        XCTAssertNil(restored.savedChapter(for: request))
+        restored.learning.startChapter(request: currentRequest, source: source)
+        XCTAssertFalse(restored.learning.isBusy)
+        XCTAssertEqual(restored.learning.selectedSessionID, newID)
+        XCTAssertEqual(restored.learning.answerDraft, "Current chapter's independent saved draft.")
+        XCTAssertEqual(restored.learning.sessions.count, workspace.learningSessions.count + 1)
+        XCTAssertEqual(map.units.reduce(0) { $0 + $1.checkedTargetCount(sessions: restored.learning.sessions) },
+                       map.units.reduce(0) { $0 + $1.checkedTargetCount(sessions: workspace.learningSessions) })
+    }
+
     func testOfflineChapterRescueAndDraftSurviveARealTemporaryPersistenceRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -1491,12 +1604,14 @@ private final class ChapterTutorFixture: LearningTutorProtocol {
     var delayAssessment = false
     var continuation: CheckedContinuation<LearningAssessment, Never>?
     var generationCalls = 0
+    var previousQuestions: [String] = []
     var delayGeneration = false
     var generationContinuation: CheckedContinuation<LearningChapterChallenge, Never>?
     init(_ challenge: LearningChapterChallenge) { self.challenge = challenge }
     func makeLesson(source: LearningSource) async throws -> LearningLesson { throw LearningError.invalidResponse }
     func makeChapterChallenge(request: LearningChapterRequest, source: LearningSource, previous: [String]) async throws -> LearningChapterChallenge {
         generationCalls += 1
+        previousQuestions = previous
         if delayGeneration { return await withCheckedContinuation { generationContinuation = $0 } }
         return challenge
     }
@@ -1547,6 +1662,93 @@ final class LearningChapterChallengeTests: XCTestCase {
                 check: .init(prompt: "Why must the limit of a convergent sequence in the closed subset K belong to K?",
                     expectedAnswer: "Closed subsets contain the limits in X of their convergent sequences.", hints: [], kind: .concept)))
         return (request, source, challenge)
+    }
+
+    func testChapterRequestMatchesTeachingRequirementsRatherThanDisplayContext() throws {
+        let (request, _, _) = fixture()
+        let renamedUnits = request.units.map { unit in
+            LearningStudyUnit(id: unit.id, title: "Renamed \(unit.title)", anchorPage: unit.anchorPage, sourceQuote: unit.sourceQuote,
+                pageIndices: unit.pageIndices, prerequisites: Array(unit.prerequisites.reversed()), proofRequired: unit.proofRequired,
+                proofQuote: unit.proofQuote, gaps: unit.gaps, targets: unit.targets.map { target in
+                    var contextual = target; contextual.courseContext = "Reorganized course overview."; return contextual
+                })
+        }
+        let equivalent = LearningChapterRequest(moduleID: request.moduleID, title: "Renamed chapter",
+            connection: request.connection, units: renamedUnits)
+        let module = LearningCourse.Module(id: request.moduleID, title: equivalent.title, goal: "A new display overview", unitIDs: request.units.map(\.id))
+        let connection = LearningCourse.Connection(fromUnitID: request.units[0].id, toUnitID: request.units[1].id, reason: request.connection)
+        var map = LearningStudyMap(pageSignatures: [], pages: [.init(pageIndex: 0, status: .mapped)], units: renamedUnits,
+            course: .init(title: "Renamed course", overview: "Reorganized chapters", modules: [module], connections: [connection]))
+        XCTAssertTrue(request.hasSameRequirements(as: equivalent))
+        XCTAssertTrue(map.isCurrentChapterRequest(request))
+        var changed = map
+        changed.units[0].pendingSourceCorrection = true
+        XCTAssertFalse(changed.isCurrentChapterRequest(request))
+        changed = map; changed.units[0].sourceCorrectionIDs = [UUID()]
+        XCTAssertFalse(changed.isCurrentChapterRequest(request))
+        changed = map; changed.pages[0].status = .pending
+        XCTAssertFalse(changed.isCurrentChapterRequest(request))
+        changed = map; changed.units.removeFirst()
+        XCTAssertFalse(changed.isCurrentChapterRequest(request))
+        changed = map
+        changed.course = .init(title: "Changed connection", overview: "A different argument", modules: [module],
+            connections: [.init(fromUnitID: connection.fromUnitID, toUnitID: connection.toUnitID, reason: request.connection + " Prove a different consequence.")])
+        XCTAssertFalse(changed.isCurrentChapterRequest(request))
+        map.course = nil
+        XCTAssertFalse(map.isCurrentChapterRequest(request))
+        XCTAssertFalse(request.hasSameRequirements(as: .init(moduleID: request.moduleID, title: request.title,
+            connection: request.connection, units: Array(request.units.reversed()))))
+    }
+
+    func testUnchangedChapterNavigationDoesNotRewriteSavedWorkOrRecency() async throws {
+        let (request, source, challenge) = fixture()
+        var clock = Date(timeIntervalSince1970: 1_800_000_000)
+        let vm = LearningViewModel(now: { clock }, makeTutor: { ChapterTutorFixture(challenge) })
+        vm.startChapter(request: request, source: source); await vm.waitForOperation()
+        vm.setChapterPosition("reasoning"); vm.setChapterScrollOffset(181.25)
+        let before = vm.sessions
+        clock = clock.addingTimeInterval(3_600)
+        var writes = 0; vm.onChange = { _ in writes += 1 }
+        vm.setChapterPosition("reasoning"); vm.setChapterScrollOffset(181.25)
+        XCTAssertEqual(vm.sessions, before)
+        XCTAssertEqual(writes, 0)
+        vm.setChapterScrollOffset(182.25)
+        XCTAssertEqual(writes, 1)
+        XCTAssertEqual(vm.session?.chapter?.scrollOffset, 182.25)
+        XCTAssertEqual(vm.session?.updatedAt, clock)
+    }
+
+    func testChangedChapterSourceCreatesSeparateWorkAndSameSourceReusesIt() async throws {
+        let (request, source, challenge) = fixture()
+        let tutor = ChapterTutorFixture(challenge)
+        let vm = LearningViewModel { tutor }
+        vm.startChapter(request: request, source: source); await vm.waitForOperation()
+        vm.answerDraft = "Original source argument."
+        let saved = try XCTUnwrap(vm.session)
+        let changed = LearningSource(passages: source.passages.map {
+            .init(pageIndex: $0.pageIndex, text: $0.text + "\nAdditional authored source context for the revised challenge.")
+        })
+        vm.sourceIsCurrent = { $0 == changed }
+        vm.startChapter(request: request, source: changed); await vm.waitForOperation()
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertEqual(vm.sessions, [saved]) // A new source version cannot recycle a displayed question.
+        XCTAssertTrue(tutor.previousQuestions.contains(challenge.question.prompt))
+        tutor.challenge.question = .init(prompt: challenge.assumptions.joined(separator: " ") + " Show that f restricted to K preserves the existence of convergent subsequences.",
+            expectedAnswer: challenge.question.expectedAnswer, hints: [], kind: .proof, gradingCriteria: challenge.question.gradingCriteria)
+        vm.startChapter(request: request, source: changed); await vm.waitForOperation()
+        let current = try XCTUnwrap(vm.session)
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertNotEqual(current.id, saved.id)
+        XCTAssertEqual(current.source, changed)
+        XCTAssertEqual(vm.sessions.first { $0.id == saved.id }, saved)
+        XCTAssertEqual(tutor.generationCalls, 3)
+        vm.startChapter(request: request, source: changed)
+        XCTAssertEqual(vm.selectedSessionID, current.id)
+        XCTAssertEqual(tutor.generationCalls, 3)
+        vm.startChapter(request: request, source: source)
+        XCTAssertEqual(vm.selectedSessionID, current.id)
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertEqual(vm.sessions.count, 2)
     }
 
     func testSourceOrObligationChangesDuringChapterGenerationPreserveSavedWork() async throws {

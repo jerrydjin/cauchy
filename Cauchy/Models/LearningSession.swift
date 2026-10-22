@@ -374,6 +374,27 @@ struct LearningChapterRequest: Codable, Equatable, Sendable {
     let title: String
     let connection: String
     let units: [LearningStudyUnit]
+
+    /// Keep the selected argument and its source obligations stable. Display
+    /// titles and course context alone do not create another challenge.
+    func hasSameRequirements(as other: LearningChapterRequest) -> Bool {
+        guard moduleID == other.moduleID, connection == other.connection,
+              units.count == 2, other.units.count == 2,
+              Set(units.map(\.id)).count == 2, Set(other.units.map(\.id)).count == 2 else { return false }
+        return zip(units, other.units).allSatisfy { lhs, rhs in
+            !lhs.needsSourceReview && !rhs.needsSourceReview && !lhs.hasUnlocatedProof && !rhs.hasUnlocatedProof
+                && lhs.openGapCount == 0 && rhs.openGapCount == 0
+                && lhs.id == rhs.id && lhs.teachingAnchor == rhs.teachingAnchor
+                && lhs.learningPageIndices == rhs.learningPageIndices
+                && lhs.proofRequired == rhs.proofRequired && lhs.proofQuote == rhs.proofQuote
+                && (lhs.reconciliation?.proofEvidence ?? []) == (rhs.reconciliation?.proofEvidence ?? [])
+                && Set(lhs.prerequisites) == Set(rhs.prerequisites)
+                && Set(lhs.sourceCorrectionIDs ?? []) == Set(rhs.sourceCorrectionIDs ?? [])
+                && lhs.learningTargets.count == rhs.learningTargets.count
+                && Set(lhs.learningTargets.map(\.id)) == Set(rhs.learningTargets.map(\.id))
+                && lhs.learningTargets.allSatisfy { target in rhs.learningTargets.contains { target.matchesRequirement($0) } }
+        }
+    }
 }
 
 struct LearningChapterState: Codable, Equatable, Sendable {

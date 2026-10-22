@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [22 October chapter-version check](evaluation/chapter-challenge-versions.md) lets a current chapter prepare its own challenge while keeping earlier arguments in contextual history. New versions reject previously shown questions, and unchanged navigation preserves saved recency. The complete 397-test macOS suite and native restart/history checks pass.
+
 The [22 October requirement-identity check](evaluation/learning-requirement-identity.md) keeps revised learning objectives separate from earlier credit, review schedules and saved-lesson reuse, while retaining original work and wording in history. Course reorganization alone preserves valid work; the complete 392-test macOS suite and native restart flow pass.
 
 The [21 October assessment-consistency check](evaluation/learning-assessment-consistency.md) applies essential criterion coverage and uncertainty handling to concept/application answers as well as proofs. A shared policy gates new replies, saved evidence and practice advancement without rewriting history. All 389 macOS tests and six offline evaluator checks pass; native inspection confirms inconsistent legacy grades remain visible but earn no independent credit.

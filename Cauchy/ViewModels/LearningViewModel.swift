@@ -227,17 +227,19 @@ final class LearningViewModel {
     }
 
     func startChapter(request: LearningChapterRequest, source: LearningSource) {
-        guard !isBusy, check(source) else { return }
-        if let saved = sessions.first(where: { $0.chapter?.request.moduleID == request.moduleID }) {
+        guard !isBusy, check(source), checkChapterRequest(request) else { return }
+        if let saved = sessions.first(where: {
+            $0.chapter?.request.hasSameRequirements(as: request) == true && $0.source == source
+        }) {
             select(saved.id)
             return
         }
-        guard checkChapterRequest(request) else { return }
         do { try LearningTutorService.validateChapterRequest(request, source: source) }
         catch { errorMessage = error.localizedDescription; return }
+        let previous = chapterQuestionHistory(for: request)
         perform(.chapter, source: source, chapterRequest: request) { tutor in
-            let challenge = try await tutor.makeChapterChallenge(request: request, source: source, previous: [])
-            try LearningTutorService.validate(challenge, request: request, source: source)
+            let challenge = try await tutor.makeChapterChallenge(request: request, source: source, previous: previous)
+            try LearningTutorService.validate(challenge, request: request, source: source, previous: previous)
             return challenge
         } apply: { [weak self] challenge, tutor in
             guard let self else { return }
@@ -268,12 +270,14 @@ final class LearningViewModel {
     }
 
     func setChapterScrollOffset(_ offset: Double) {
-        guard offset.isFinite, offset >= 0, session?.chapter != nil, session?.chapter?.rescueVisible == false else { return }
+        guard offset.isFinite, offset >= 0, let chapter = session?.chapter, !chapter.rescueVisible,
+              chapter.scrollOffset != offset else { return }
         update { $0.chapter?.scrollOffset = offset }
     }
 
     func setChapterPosition(_ position: String) {
-        guard ["argument", "reasoning"].contains(position), session?.chapter != nil else { return }
+        guard ["argument", "reasoning"].contains(position), let chapter = session?.chapter,
+              chapter.position != position else { return }
         update { $0.chapter?.position = position }
     }
 
@@ -281,7 +285,7 @@ final class LearningViewModel {
         guard !isBusy, let session, let chapter = session.chapter, session.phase == .complete,
               check(session.source) else { return }
         guard checkChapterRequest(chapter.request) else { return }
-        let previous = session.attempts.map { $0.question.prompt } + [chapter.challenge.question.prompt]
+        let previous = chapterQuestionHistory(for: chapter.request)
         perform(.chapter, source: session.source, chapterRequest: chapter.request) { tutor in
             let challenge = try await tutor.makeChapterChallenge(request: chapter.request, source: session.source, previous: previous)
             try LearningTutorService.validate(challenge, request: chapter.request, source: session.source, previous: previous)
@@ -442,6 +446,18 @@ final class LearningViewModel {
         }
     }
 
+    private func chapterQuestionHistory(for request: LearningChapterRequest) -> [String] {
+        let unitIDs = Set(request.units.map(\.id))
+        let prompts = sessions.filter {
+            guard let saved = $0.chapter?.request else { return false }
+            return saved.moduleID == request.moduleID || Set(saved.units.map(\.id)) == unitIDs
+        }.flatMap { session in
+            (session.chapter.map { [$0.challenge.question.prompt] } ?? []) + session.attempts.map(\.question.prompt)
+        }
+        var seen = Set<String>()
+        return prompts.filter { seen.insert(LearningSource.normalized($0)).inserted }
+    }
+
     /// Exact-repeat prevention, not a semantic novelty or transfer judgement.
     /// Include saved generated questions conservatively, even if unattempted.
     private func questionHistory(for session: LearningSession, includeExitCheck: Bool) -> [String] {
@@ -482,7 +498,7 @@ final class LearningViewModel {
 
     private func checkChapterRequest(_ request: LearningChapterRequest) -> Bool {
         guard chapterRequestIsCurrent?(request) != false else {
-            errorMessage = "The selected ideas now have open source obligations. Review the source before preparing a challenge. Your saved work is still here."
+            errorMessage = "This challenge no longer matches the current learning path or source obligations. Open the current learning path before preparing another challenge. Your saved work is still here."
             return false
         }
         return true

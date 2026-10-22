@@ -378,6 +378,12 @@ struct LearningChapterAvailability {
 }
 
 extension LearningStudyMap {
+    func isCurrentChapterRequest(_ request: LearningChapterRequest) -> Bool {
+        guard let module = course?.modules.first(where: { $0.id == request.moduleID }),
+              let current = chapterRequest(for: module) else { return false }
+        return current.hasSameRequirements(as: request)
+    }
+
     /// Select a real connection in source order. Unresolved source obligations
     /// are never reclassified as a learner knowledge gap.
     func chapterRequest(for module: LearningCourse.Module) -> LearningChapterRequest? {

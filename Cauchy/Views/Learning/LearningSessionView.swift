@@ -26,6 +26,10 @@ struct LearningSessionView: View {
     private enum SourceMode: Hashable { case currentPage, selection, pages }
     private var learning: LearningViewModel { document.learning }
     private var sourceNeedsReview: Bool { document.selectedSourceReviewPage != nil }
+    private var chapterUsesEarlierPath: Bool {
+        guard let request = learning.session?.chapter?.request else { return false }
+        return document.studyMap.map?.isCurrentChapterRequest(request) != true
+    }
     private var selectedPassage: String? {
         guard let text = document.selectedPassage?.text, !text.isEmpty else { return nil }
         return text
@@ -303,6 +307,14 @@ struct LearningSessionView: View {
             Text("Chapter challenge").font(.subheadline).foregroundStyle(.secondary)
             Text(chapter.challenge.title).font(.title.weight(.semibold))
                 .lineLimit(2).accessibilityLabel(chapter.challenge.title)
+            if chapterUsesEarlierPath && !sourceNeedsReview {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("Earlier learning path", systemImage: "clock.arrow.circlepath").font(.headline)
+                    Text("This argument is saved with an earlier version of the chapter. You can review or finish it here. Prepare a current challenge from the learning path.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Button("Open current learning path", action: onShowStudyMap).buttonStyle(.glass)
+                }
+            }
             DisclosureGroup("Challenge details") {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(chapter.request.title).font(.headline).textSelection(.enabled)
@@ -780,7 +792,9 @@ struct LearningSessionView: View {
     private func sessionActions(_ session: LearningSession) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if session.chapter != nil && session.phase == .complete {
-                if session.passedExitCheck {
+                if chapterUsesEarlierPath {
+                    primaryAction("Open current learning path", action: onShowStudyMap)
+                } else if session.passedExitCheck {
                     primaryAction("Continue learning", action: onShowStudyMap)
                     Button("Try a fresh challenge") { learning.freshChapterCheck() }
                 } else {

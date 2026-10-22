@@ -227,7 +227,9 @@ struct LearningStudyMapView: View {
                             .disabled(document.isBusy || (review.activeSessionID == nil && !assistantAvailable))
                         }
                     }
-                } else if let openChapter = document.learning.sessions.first(where: { $0.chapter != nil && $0.phase != .complete }) {
+                } else if let openChapter = document.learning.sessions.first(where: {
+                    $0.phase != .complete && $0.chapter.map { map.isCurrentChapterRequest($0.request) } == true
+                }) {
                     let sourcePage = document.sourceReviewPage(for: openChapter)
                     Text(sourcePage != nil ? "Review this challenge’s source" : "Continue your chapter argument").font(.title2.weight(.semibold))
                     let title = openChapter.chapter?.challenge.title ?? openChapter.lesson.title
@@ -247,7 +249,7 @@ struct LearningStudyMapView: View {
                     }
                 } else if let ready = course.modules.first(where: { module in
                     guard let request = map.chapterRequest(for: module),
-                          !document.learning.sessions.contains(where: { $0.chapter?.request.moduleID == module.id }) else { return false }
+                          document.savedChapter(for: request) == nil else { return false }
                     return request.units.allSatisfy { $0.hasEvidenceForEveryTarget(sessions: document.learning.sessions) }
                 }), let request = map.chapterRequest(for: ready) {
                     Text("Bring the chapter together").font(.title2.weight(.semibold))
@@ -302,16 +304,34 @@ struct LearningStudyMapView: View {
                                         }
                                     }
                                 }
-                                if let saved = document.learning.sessions.first(where: { $0.chapter?.request.moduleID == module.id }) {
+                                let request = map.chapterRequest(for: module)
+                                let saved = request.flatMap { document.savedChapter(for: $0) }
+                                if let saved {
                                     Button("Continue chapter challenge", systemImage: "arrow.right") { document.learning.select(saved.id) }
                                         .buttonStyle(.glass).disabled(document.isBusy)
-                                } else if let request = map.chapterRequest(for: module) {
+                                } else if let request {
                                     Button("Try the chapter challenge", systemImage: "point.3.connected.trianglepath.dotted") { startChapter(request) }
                                         .buttonStyle(.glass).disabled(document.isBusy || !assistantAvailable)
                                     Text("Connect \(request.units.map(\.title).joined(separator: " and ")). Each source and proof requirement stays separate.")
                                         .font(.caption).foregroundStyle(.secondary)
                                 } else {
                                     chapterRecovery(module, map: map)
+                                }
+                                let earlier = document.learning.sessions.filter {
+                                    $0.chapter?.request.moduleID == module.id && $0.id != saved?.id
+                                }
+                                if !earlier.isEmpty {
+                                    Menu("Earlier challenges (\(earlier.count))", systemImage: "clock.arrow.circlepath") {
+                                        ForEach(Array(earlier.enumerated()), id: \.element.id) { index, session in
+                                            Button {
+                                                document.learning.select(session.id)
+                                            } label: {
+                                                Text("\(earlier.count - index). \(session.chapter?.challenge.title ?? session.lesson.title) · \(session.phase.label) · \(session.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                                            }
+                                        }
+                                    }.disabled(document.isBusy)
+                                    Text("Earlier questions, answers and feedback remain saved with their original requirements and source.")
+                                        .font(.caption).foregroundStyle(.secondary)
                                 }
                                 ForEach(units) { unit in unitRow(unit).id(unit.id) }
                             }.padding(.top, 16)

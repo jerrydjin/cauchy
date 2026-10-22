@@ -66,11 +66,7 @@ final class LearningDocument: Identifiable {
         self.studyMap = studyMap ?? LearningStudyMapViewModel(map: workspace.learningStudyMap)
         self.learning.restore(workspace.learningSessions)
         self.learning.chapterRequestIsCurrent = { [weak self] request in
-            guard let map = self?.studyMap.map else { return false }
-            return request.units.allSatisfy { saved in
-                guard let current = map.units.first(where: { $0.id == saved.id }) else { return false }
-                return !current.needsSourceReview && !current.hasUnlocatedProof && current.openGapCount == 0
-            }
+            self?.studyMap.map?.isCurrentChapterRequest(request) == true
         }
         self.learning.sourceIsCurrent = { [weak self] source in
             guard let self else { return false }
@@ -82,6 +78,13 @@ final class LearningDocument: Identifiable {
         notesPageIndex = min(max(pageIndex ?? sourcePageIndex, 0), max(0, pageCount - 1))
         learning.openedSource()
         notesVisible = true
+    }
+
+    func savedChapter(for request: LearningChapterRequest) -> LearningSession? {
+        guard studyMap.map?.isCurrentChapterRequest(request) == true else { return nil }
+        return learning.sessions.first {
+            $0.chapter?.request.hasSameRequirements(as: request) == true && sourceReviewPage(for: $0) == nil
+        }
     }
 }
 

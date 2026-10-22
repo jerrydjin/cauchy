@@ -6,7 +6,11 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # The preview-line follow-up is stacked on the named-search branch, which
+    # is not main. The snapshot job still has to run for that pull request.
+    branches:
+      - main
+      - cursor/jerry-73-named-search-2149
   workflow_dispatch:
 
 concurrency:
@@ -76,21 +80,20 @@ jobs:
             -configuration Debug \
             -destination 'platform=macOS'
 
-  # The app target cannot be launched on this runner. This job compiles a
-  # macOS 26 tool that draws the citation hover with ImageRenderer and uploads
-  # the PNG.
+  # The app target cannot be launched on this runner. This job compiles
+  # macOS 26 tools that draw the citation hover and the Cmd-F result list.
   designer-snapshots:
     runs-on: xcode-27
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Render citation hover
+      - name: Render citation hover and Cmd-F results
         run: bash Snapshots/render.sh Snapshots/out
 
-      - name: Upload snapshot
+      - name: Upload snapshots
         uses: actions/upload-artifact@v4
         with:
-          name: citation-hover
+          name: reader-snapshots
           path: Snapshots/out/*.png
           if-no-files-found: error

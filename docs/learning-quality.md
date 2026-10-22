@@ -1,6 +1,6 @@
 # Learning quality in Cauchy
 
-The [22 October assessment-review check](evaluation/learning-assessment-review.md) lets learners set aside a saved tutor assessment while retaining original reasoning and feedback. Excluded results cannot earn progress or trigger spacing; reinstatement and later valid work remain usable. All 414 macOS tests and native flag/reinstate/restart checks pass. A separately observed native save-panel readiness issue is tracked as JERRY-106; a new qualified export was not completed.
+The [22 October assessment-review check](evaluation/learning-assessment-review.md) lets learners set aside a saved tutor assessment while retaining original reasoning and feedback. Excluded results cannot earn progress or trigger spacing; reinstatement and later valid work remain usable. All 414 macOS tests and native flag/reinstate/restart checks pass. The subsequent [save-panel investigation](evaluation/learning-save-panel-readiness.md) verified actual qualified selected/full exports and exact restart preservation; repeated native panel readiness remains under investigation as JERRY-106.
 
 The [22 October delayed-action check](evaluation/learning-review-actions.md) resolves review actions against the current queue, reopens existing drafts without another tutor request and rejects obsolete or changed requirements before and after question generation. Exact saved work survives real persistence restart; the complete 408-test macOS suite passes.
 

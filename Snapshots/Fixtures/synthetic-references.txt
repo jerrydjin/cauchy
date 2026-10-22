@@ -1,0 +1,5 @@
+References
+[AA19]
+A. Abel and B. Baker, A short note on sample rings. Sample J. 1 (2019), 1–10.
+[QR23]
+Q. Quinn, R. Rivera, and S. Santos. “Synthetic tensor categories”. In: Example Math. 4 (2023), pp. 10–20.

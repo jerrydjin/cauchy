@@ -193,6 +193,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
                       unit.evidence(for: target, sessions: sessions)?.hasIndependentCorrectResult == true else { continue }
                 let scheduled = related.filter { session in
                     session.reviewDueAt != nil
+                        && session.latestExitAttempt?.setAsideAt == nil
                         && Set(unit.sourceCorrectionIDs ?? []).isSubset(of: Set(session.source.passages.compactMap { $0.correction?.id }))
                 }.max { ($0.latestExitAttempt?.createdAt ?? .distantPast) < ($1.latestExitAttempt?.createdAt ?? .distantPast) }
                 guard let previous = scheduled, let due = previous.reviewDueAt, due <= now else { continue }

@@ -394,6 +394,139 @@ final class LearningStudyMapTests: XCTestCase {
         }
     }
 
+    func testSettingAsideExactEvidenceReopensRequirementWithoutRewritingTheRecord() throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        for target in unit.targets {
+            var saved = passedSession(target: target); saved.reviewDueAt = clock
+            saved.attempts[0].createdAt = clock.addingTimeInterval(-86_400)
+            var earlier = passedSession(target: target); earlier.attempts[0].createdAt = clock.addingTimeInterval(-3 * 86_400)
+            var other = saved; other.id = UUID(); other.studyTarget = nil
+            let vm = LearningViewModel(now: { clock }, makeTutor: { XCTFail("Reviewing an assessment must not request a tutor"); return ProofTutorStub(lesson: self.fixtureLesson(), assessment: self.proofAssessment(outcomes: [.met, .met, .met])) })
+            vm.restore([saved, earlier, other]); vm.select(other.id)
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.setAssessmentAside(true, sessionID: saved.id, attemptID: saved.attempts[0].id)
+            var expected = saved; expected.updatedAt = clock; expected.attempts[0].setAsideAt = clock
+            XCTAssertEqual(vm.sessions, [expected, earlier, other])
+            XCTAssertEqual(vm.selectedSessionID, other.id)
+            XCTAssertEqual(writes, 1)
+            XCTAssertFalse(expected.passedExitCheck)
+            XCTAssertEqual(expected.progressLabel, "Assessment set aside by you")
+            XCTAssertEqual(unit.evidence(for: target, sessions: vm.sessions)?.id, saved.attempts[0].id)
+            XCTAssertEqual(unit.checkedTargetCount(sessions: vm.sessions), 0)
+            XCTAssertNil(map.nextDelayedReview(sessions: vm.sessions, now: clock))
+            XCTAssertTrue(map.availableStudyChoices(sessions: vm.sessions).contains { $0.target.id == target.id })
+            let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: vm.sessions).first)
+            XCTAssertEqual(entry.setAsideAt, clock)
+            XCTAssertEqual(entry.assessment, saved.attempts[0].assessment)
+            XCTAssertEqual(entry.status, "Assessment set aside by you")
+            vm.setAssessmentAside(true, sessionID: saved.id, attemptID: saved.attempts[0].id)
+            vm.setAssessmentAside(true, sessionID: UUID(), attemptID: saved.attempts[0].id)
+            vm.setAssessmentAside(true, sessionID: saved.id, attemptID: UUID())
+            XCTAssertEqual(writes, 1)
+            vm.restore(try JSONDecoder().decode([LearningSession].self, from: JSONEncoder().encode(vm.sessions)))
+            vm.select(other.id)
+            vm.setAssessmentAside(false, sessionID: saved.id, attemptID: saved.attempts[0].id)
+            var reinstated = saved; reinstated.updatedAt = clock
+            XCTAssertEqual(vm.sessions, [reinstated, earlier, other])
+            XCTAssertEqual(vm.selectedSessionID, other.id)
+            XCTAssertEqual(writes, 2)
+            XCTAssertEqual(unit.checkedTargetCount(sessions: vm.sessions), 1)
+            XCTAssertEqual(map.nextDelayedReview(sessions: vm.sessions, now: clock)?.previous.id, saved.id)
+        }
+    }
+
+    func testSetAsideDelayedResultCannotTriggerSpacingOrPlanProgressButKeepsHistoricalOutcome() throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let target = unit.targets[0]
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        var immediate = passedSession(target: target); immediate.reviewDueAt = clock.addingTimeInterval(-86_400)
+        immediate.attempts[0].createdAt = clock.addingTimeInterval(-2 * 86_400)
+        var delayed = passedSession(target: target)
+        delayed.delayedReview = .init(previousSessionID: immediate.id, scheduledFor: clock.addingTimeInterval(-86_400), startedAt: clock, round: 1)
+        delayed.reviewDueAt = clock.addingTimeInterval(3 * 86_400); delayed.attempts[0].createdAt = clock
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        var run = LearningStudyRun(pageSignatures: [], items: [.init(unitID: unit.id, title: unit.title, target: target,
+            mode: .delayedReview, existingSessionID: delayed.id, earlierAttemptIDs: [])], startedAt: clock)
+        XCTAssertTrue(run.advance(map: map, sessions: [immediate, delayed], at: clock))
+        let originalRun = run
+        let vm = LearningViewModel(now: { clock }, makeTutor: { ProofTutorStub(lesson: self.fixtureLesson(), assessment: self.proofAssessment(outcomes: [.met, .met, .met])) })
+        vm.restore([delayed, immediate])
+        XCTAssertNil(map.nextDelayedReview(sessions: vm.sessions, now: clock))
+        vm.setAssessmentAside(true, sessionID: delayed.id, attemptID: delayed.attempts[0].id)
+        XCTAssertEqual(map.nextDelayedReview(sessions: vm.sessions, now: clock)?.previous.id, immediate.id)
+        XCTAssertEqual(map.delayedEvidence(for: target, sessions: vm.sessions).first?.setAsideAt, clock)
+        XCTAssertFalse(map.delayedEvidence(for: target, sessions: vm.sessions).first!.hasIndependentCorrectResult)
+        XCTAssertTrue(unit.evidence(for: target, sessions: vm.sessions)!.hasIndependentCorrectResult)
+        XCTAssertTrue(run.items[0].outcome!.isSetAside(in: vm.sessions))
+        XCTAssertEqual(run, originalRun) // The historical grade/outcome is retained, with a live qualification.
+        run.items[0].outcome = nil; run.state = .active; run.endedAt = nil
+        XCTAssertFalse(run.advance(map: map, sessions: vm.sessions, at: clock))
+        vm.setAssessmentAside(false, sessionID: delayed.id, attemptID: delayed.attempts[0].id)
+        XCTAssertNil(map.nextDelayedReview(sessions: vm.sessions, now: clock))
+        XCTAssertTrue(run.advance(map: map, sessions: vm.sessions, at: clock))
+    }
+
+    func testAssessmentReviewLegacyDecodeAndReinstatementNeverPromoteAnOriginalGrade() throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        for target in unit.targets {
+            for grade in [LearningGrade.correct, .partial, .incorrect, .uncertain] {
+                var saved = passedSession(target: target)
+                let old = saved.attempts[0]
+                saved.attempts[0] = .init(phase: old.phase, question: old.question, answer: old.answer,
+                    assessment: .init(grade: grade, feedback: old.assessment.feedback, nextStep: old.assessment.nextStep, criteria: old.assessment.criteria),
+                    assistanceUsed: false, providerID: old.providerID, modelID: old.modelID)
+                var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(saved.attempts[0])) as? [String: Any])
+                json.removeValue(forKey: "setAsideAt")
+                let legacy = try JSONDecoder().decode(LearningAttempt.self, from: JSONSerialization.data(withJSONObject: json))
+                XCTAssertNil(legacy.setAsideAt)
+                XCTAssertEqual(legacy.hasIndependentCorrectResult, grade == .correct)
+                let vm = LearningViewModel { ProofTutorStub(lesson: self.fixtureLesson(), assessment: self.proofAssessment(outcomes: [.met, .met, .met])) }
+                vm.restore([saved])
+                vm.setAssessmentAside(true, sessionID: saved.id, attemptID: saved.attempts[0].id)
+                XCTAssertFalse(vm.sessions[0].passedExitCheck)
+                XCTAssertEqual(vm.sessions[0].attempts[0].assessment, saved.attempts[0].assessment)
+                vm.setAssessmentAside(false, sessionID: saved.id, attemptID: saved.attempts[0].id)
+                XCTAssertEqual(vm.sessions[0].passedExitCheck, grade == .correct)
+                XCTAssertEqual(vm.sessions[0].attempts[0], saved.attempts[0])
+            }
+        }
+    }
+
+    func testSetAsideCurrentFeedbackCannotUnlockExitButALaterValidAttemptCan() throws {
+        for kind in LearningStudyKind.allCases {
+            for phase in [LearningPhase.diagnostic, .practice] {
+                let question = LearningQuestion(prompt: "Explain the inference using scalar preservation.",
+                    expectedAnswer: "Apply scalar preservation at zero.", hints: [], kind: kind, gradingCriteria: proofRubric)
+                var lesson = fixtureLesson(); lesson.diagnostic = question; lesson.practice = question
+                let feedback = proofAssessment(outcomes: [.met, .met, .met])
+                var saved = LearningSession(source: source, lesson: lesson, phase: phase, answerDraft: "My reasoning", feedback: feedback,
+                    providerID: "authored", modelID: nil)
+                saved.attempts = [.init(phase: phase, question: question, answer: saved.answerDraft, assessment: feedback,
+                    assistanceUsed: false, providerID: "authored", modelID: nil)]
+                let vm = LearningViewModel { XCTFail("Reviewing feedback must not request a tutor"); return ProofTutorStub(lesson: lesson, assessment: feedback) }
+                vm.restore([saved]); vm.select(saved.id)
+                XCTAssertTrue(vm.session!.feedbackSupportsProgress)
+                vm.setAssessmentAside(true, sessionID: saved.id, attemptID: saved.attempts[0].id)
+                XCTAssertFalse(vm.session!.feedbackSupportsProgress)
+                let flagged = try XCTUnwrap(vm.session)
+                vm.advance()
+                XCTAssertEqual(vm.session?.phase, phase == .diagnostic ? .lesson : .practice)
+                var revised = flagged
+                revised.attempts.append(.init(phase: phase, question: question, answer: "A later valid revision", assessment: feedback,
+                    assistanceUsed: false, providerID: "authored", modelID: nil))
+                revised.answerDraft = "A later valid revision"
+                vm.restore([revised]); vm.select(revised.id)
+                XCTAssertTrue(vm.session!.feedbackSupportsProgress)
+                vm.advance()
+                XCTAssertEqual(vm.session?.phase, .exitCheck)
+                XCTAssertNotNil(vm.session?.attempts.first?.setAsideAt)
+                XCTAssertNil(vm.session?.attempts.last?.setAsideAt)
+            }
+        }
+    }
+
     func testDelayedReviewRecordsHelpUncertaintyAndFailureWithoutReplacingImmediateEvidence() async throws {
         let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
         let target = try XCTUnwrap(unit.targets.first { $0.kind == .proof })

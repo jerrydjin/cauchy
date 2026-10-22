@@ -145,7 +145,7 @@ struct LearningStudyRunCard: View {
                 Text("\(run.attemptedCount) \(run.attemptedCount == 1 ? "exit check" : "exit checks") recorded · \(run.items.count) \(run.items.count == 1 ? "requirement" : "requirements") planned")
                     .font(.callout).foregroundStyle(.secondary)
                 DisclosureGroup("Session record") {
-                    LearningStudyRunRecord(run: run).padding(.top, 10)
+                    LearningStudyRunRecord(run: run, sessions: document.learning.sessions).padding(.top, 10)
                 }
                 Button("Back to learning path", systemImage: "arrow.right") {
                     document.studyMap.updateStudyRun(run.id) { $0.summaryAcknowledgedAt = Date() }
@@ -204,6 +204,7 @@ struct LearningStudyRunCard: View {
 
 struct LearningStudyRunRecord: View {
     let run: LearningStudyRun
+    let sessions: [LearningSession]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -220,6 +221,7 @@ struct LearningStudyRunRecord: View {
     private func result(_ item: LearningStudyRun.Item) -> String {
         guard let outcome = item.outcome else { return "No new exit check · requirement left open" }
         let work = item.mode == .delayedReview ? "Delayed check" : "Exit check"
+        if outcome.isSetAside(in: sessions) { return "\(work) · assessment set aside by you · excluded from progress" }
         if outcome.independentCorrect { return "\(work) · correct without help" }
         let grade: String = switch outcome.grade {
         case .correct: "correct"

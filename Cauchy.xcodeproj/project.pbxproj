@@ -128,6 +128,7 @@
 		C174D966A75CA70A73E638D0 /* GlassToolbarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */; };
 		918416286927BB1329AB0DD1 /* IndexProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */; };
 		C8B3A8FF72FF3E6CBB8FBEBA /* ToolbarChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */; };
+		BDE284A4F26178AEC43735DC /* LearningAssessmentReviewControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3E5429659010A2E5C9EC88 /* LearningAssessmentReviewControl.swift */; };
 		EAF036A31C87938B8A914D70 /* LearningClarificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A66B57877326FEC773E7A12A /* LearningClarificationView.swift */; };
 		43E3FDC4C5D7FF2234E99DFC /* LearningRequirementHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A39A0E15F5951194B6CB58F /* LearningRequirementHistoryView.swift */; };
 		A357D6DA553033D76DA7A7AE /* LearningSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */; };
@@ -302,6 +303,7 @@
 		CE0CFA09C400AE824FB7F8C5 /* GlassToolbarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassToolbarContent.swift; sourceTree = "<group>"; };
 		591832D2CF6518CDDF1D317D /* IndexProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexProgressRing.swift; sourceTree = "<group>"; };
 		E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarChrome.swift; sourceTree = "<group>"; };
+		7B3E5429659010A2E5C9EC88 /* LearningAssessmentReviewControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningAssessmentReviewControl.swift; sourceTree = "<group>"; };
 		A66B57877326FEC773E7A12A /* LearningClarificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningClarificationView.swift; sourceTree = "<group>"; };
 		5A39A0E15F5951194B6CB58F /* LearningRequirementHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningRequirementHistoryView.swift; sourceTree = "<group>"; };
 		E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningSessionView.swift; sourceTree = "<group>"; };
@@ -530,6 +532,7 @@
 			E2FDB2F323A4E93EECFF04BC /* ToolbarChrome.swift */,
 		); path = Design; sourceTree = "<group>"; };
 		173506081BBA1DCAB440CA4B /* Learning */ = { isa = PBXGroup; children = (
+			7B3E5429659010A2E5C9EC88 /* LearningAssessmentReviewControl.swift */,
 			A66B57877326FEC773E7A12A /* LearningClarificationView.swift */,
 			5A39A0E15F5951194B6CB58F /* LearningRequirementHistoryView.swift */,
 			E814FC40CC4E65AF50AE9F2F /* LearningSessionView.swift */,
@@ -737,6 +740,7 @@
 			C174D966A75CA70A73E638D0,
 			918416286927BB1329AB0DD1,
 			C8B3A8FF72FF3E6CBB8FBEBA,
+			BDE284A4F26178AEC43735DC,
 			EAF036A31C87938B8A914D70,
 			43E3FDC4C5D7FF2234E99DFC,
 			A357D6DA553033D76DA7A7AE,

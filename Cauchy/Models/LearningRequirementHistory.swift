@@ -6,6 +6,7 @@ enum LearningRequirementHistory {
     struct Entry: Identifiable, Equatable {
         let id: String
         let sessionID: UUID
+        let attemptID: UUID?
         let lessonTitle: String
         let requirementObjective: String
         let phase: LearningPhase
@@ -15,6 +16,7 @@ enum LearningRequirementHistory {
         let question: String
         let answer: String
         let assessment: LearningAssessment?
+        let setAsideAt: Date?
         let rubric: [String]
         let recordedKind: LearningStudyKind?
         let assistanceUsed: Bool
@@ -25,6 +27,7 @@ enum LearningRequirementHistory {
         var activity: String { "\(isDelayed ? "Delayed check" : "Lesson") · \(phase.label)" }
         var status: String {
             if isDraft { return phase == .lesson ? "Teaching in progress" : "Unsubmitted answer" }
+            if setAsideAt != nil { return "Assessment set aside by you" }
             if incompleteCriteriaAssessment { return recordedKind == .proof ? "Proof assessment incomplete" : "Assessment needs checking" }
             return assessment?.grade.label ?? "No assessment recorded"
         }
@@ -42,21 +45,21 @@ enum LearningRequirementHistory {
     static func entries(for target: LearningStudyTarget, in saved: [LearningSession]) -> [Entry] {
         sessions(for: target, in: saved).flatMap { session -> [Entry] in
             var entries = session.attempts.map { attempt in
-                Entry(id: "\(session.id):\(attempt.id)", sessionID: session.id, lessonTitle: session.lesson.title,
+                Entry(id: "\(session.id):\(attempt.id)", sessionID: session.id, attemptID: attempt.id, lessonTitle: session.lesson.title,
                     requirementObjective: session.studyTarget?.objective ?? session.lesson.objective,
                     phase: attempt.phase, isDelayed: session.delayedReview != nil, isDraft: false, date: attempt.createdAt,
-                    question: attempt.question.prompt, answer: attempt.answer, assessment: attempt.assessment,
+                    question: attempt.question.prompt, answer: attempt.answer, assessment: attempt.assessment, setAsideAt: attempt.setAsideAt,
                     rubric: attempt.question.gradingCriteria ?? [], recordedKind: attempt.question.kind,
                     assistanceUsed: attempt.assistanceUsed,
                     incompleteCriteriaAssessment: attempt.assessment.grade == .correct && !attempt.assessmentCriteriaSatisfied,
                     providerID: attempt.providerID, modelID: attempt.modelID)
             }
             if session.feedback == nil && session.phase != .complete {
-                entries.append(.init(id: "\(session.id):current", sessionID: session.id, lessonTitle: session.lesson.title,
+                entries.append(.init(id: "\(session.id):current", sessionID: session.id, attemptID: nil, lessonTitle: session.lesson.title,
                     requirementObjective: session.studyTarget?.objective ?? session.lesson.objective,
                     phase: session.phase, isDelayed: session.delayedReview != nil, isDraft: true, date: session.updatedAt,
                     question: session.question?.prompt ?? session.lesson.objective, answer: session.answerDraft,
-                    assessment: nil, rubric: [], recordedKind: session.question?.kind, assistanceUsed: session.assistanceUsed,
+                    assessment: nil, setAsideAt: nil, rubric: [], recordedKind: session.question?.kind, assistanceUsed: session.assistanceUsed,
                     incompleteCriteriaAssessment: false, providerID: session.providerID, modelID: session.modelID))
             }
             return entries

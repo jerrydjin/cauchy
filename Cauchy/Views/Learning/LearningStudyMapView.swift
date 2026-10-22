@@ -395,7 +395,7 @@ struct LearningStudyMapView: View {
                     DisclosureGroup("Past study sessions") {
                         ForEach(runs.reversed()) { run in
                             DisclosureGroup(run.startedAt.formatted(date: .abbreviated, time: .shortened)) {
-                                LearningStudyRunRecord(run: run).padding(.top, 10)
+                                LearningStudyRunRecord(run: run, sessions: document.learning.sessions).padding(.top, 10)
                             }.padding(.top, 8)
                         }
                     }
@@ -722,6 +722,7 @@ struct LearningStudyMapView: View {
             }
             return "Not checked"
         }
+        if attempt.setAsideAt != nil { return "Assessment set aside by you — requirement remains open" }
         switch attempt.assessment.grade {
         case .correct:
             if !attempt.assessmentCriteriaSatisfied {

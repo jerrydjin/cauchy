@@ -42,6 +42,9 @@ enum LearningRequirementHistoryExport {
             }
             if let assessment = entry.assessment {
                 out += "**Recorded tutor grade:** \(assessment.grade.label)\n\n"
+                if let setAsideAt = entry.setAsideAt {
+                    out += "Set aside by you at \(dates.string(from: setAsideAt)). This assessment does not count toward progress; the original tutor grade is retained.\n\n"
+                }
                 if entry.incompleteCriteriaAssessment {
                     out += "The saved reasoning checks do not support a complete assessment. The original tutor grade is retained above.\n\n"
                 }

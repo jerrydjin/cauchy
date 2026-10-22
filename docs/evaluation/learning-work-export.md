@@ -42,6 +42,8 @@ The entire saved `learning.json` sidecar matches `/tmp/cauchy-export92-native-be
 
 ### Limits
 
+A subsequent [assessment-review walkthrough](learning-assessment-review.md#export-observation-and-limits) observed Export remaining disabled in the native save sheet, both before and after reinstating a result. That later issue is tracked as [JERRY-106](https://linear.app/jerryjin/issue/JERRY-106). The successful observations above retain their exact dated scope; current save-panel readiness needs revalidation.
+
 Earlier native retrieval timeouts prevented observing the original application-modal implementation's return. The asynchronous implementation attaches the save sheet to the history's own weakly referenced hosting window and disables duplicate exports; it orders the panel out before a local write error, following [Apple's save-sheet API documentation](https://developer.apple.com/documentation/appkit/nssavepanel/beginsheetmodal%28for%3Acompletionhandler%3A%29). The final checks establish visible return, subsequent controls and Escape behavior. The automation used the exposed Raise action when needed before further menus; automatic app activation and exhaustive keyboard-focus behavior are not claimed. The app's write-error alert is implemented but has not been fault-injected at runtime.
 
 The installed app, normal library and system settings remain unchanged. No live model evaluation, VoiceOver speech or alternate appearance/accessibility settings are claimed. These authored flow checks do not establish educational efficacy or model accuracy.

@@ -343,6 +343,44 @@ final class LearningUIFixtureTests: XCTestCase {
         try await restarted.flush()
     }
 
+    func testAssessmentReviewSurvivesRealPersistenceAndRetainsAllOriginalWork() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let before = document.learning.sessions
+        let saved = try XCTUnwrap(before.first { $0.phase == .complete })
+        let attempt = try XCTUnwrap(saved.latestExitAttempt)
+        let selected = document.learning.selectedSessionID
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let map = try encoder.encode(document.studyMap.map)
+        document.learning.setAssessmentAside(true, sessionID: saved.id, attemptID: attempt.id)
+        let after = document.learning.sessions
+        let changed = try XCTUnwrap(after.first { $0.id == saved.id })
+        XCTAssertNotNil(changed.latestExitAttempt?.setAsideAt)
+        var normalized = changed; normalized.updatedAt = saved.updatedAt; normalized.attempts[0].setAsideAt = nil
+        XCTAssertEqual(normalized, saved)
+        XCTAssertEqual(after.filter { $0.id != saved.id }, before.filter { $0.id != saved.id })
+        XCTAssertEqual(document.learning.selectedSessionID, selected)
+        XCTAssertEqual(try encoder.encode(document.studyMap.map), map)
+        try await controller.flush()
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        // Persistence sorts sessions by recency; compare complete records by
+        // identity using the same epoch date representation as the sidecar.
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions.sorted { $0.id.uuidString < $1.id.uuidString }),
+                       try encoder.encode(after.sorted { $0.id.uuidString < $1.id.uuidString }))
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), map)
+        restored.learning.setAssessmentAside(false, sessionID: saved.id, attemptID: attempt.id)
+        let reinstated = try XCTUnwrap(restored.learning.sessions.first { $0.id == saved.id })
+        var originalFields = reinstated; originalFields.updatedAt = saved.updatedAt
+        XCTAssertEqual(try encoder.encode(originalFields), try encoder.encode(saved))
+        XCTAssertTrue(reinstated.passedExitCheck)
+        try await restarted.flush()
+    }
+
     func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }

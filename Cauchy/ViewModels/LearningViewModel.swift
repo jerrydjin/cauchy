@@ -150,6 +150,17 @@ final class LearningViewModel {
         if sourceIsCurrent?(saved.source) == false { errorMessage = LearningError.sourceChanged.localizedDescription }
     }
 
+    func setAssessmentAside(_ aside: Bool, sessionID: UUID, attemptID: UUID) {
+        guard !isBusy, let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }),
+              sessions[sessionIndex].chapter == nil,
+              let attemptIndex = sessions[sessionIndex].attempts.firstIndex(where: { $0.id == attemptID }),
+              (sessions[sessionIndex].attempts[attemptIndex].setAsideAt != nil) != aside else { return }
+        let date = now()
+        sessions[sessionIndex].attempts[attemptIndex].setAsideAt = aside ? date : nil
+        sessions[sessionIndex].updatedAt = date
+        save()
+    }
+
     func revalidateSelectedSource() {
         guard let source = session?.source else { return }
         if sourceIsCurrent?(source) == false {

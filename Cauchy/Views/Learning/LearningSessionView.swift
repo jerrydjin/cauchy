@@ -618,7 +618,7 @@ struct LearningSessionView: View {
                         Label("\(feedback.grade == .correct && !session.feedbackSupportsProgress ? "Saved tutor grade" : "Tutor feedback") · \(feedback.grade.label)",
                               systemImage: feedback.grade == .correct && session.feedbackSupportsProgress ? "checkmark.circle" : "text.bubble")
                             .font(.headline)
-                        if feedback.grade == .correct && !session.feedbackSupportsProgress {
+                        if feedback.grade == .correct && !session.feedbackSupportsProgress && session.feedbackAttempt?.setAsideAt == nil {
                             Text("This saved grade and its reasoning checks need checking. Your original answer and feedback are retained.")
                                 .font(.callout).foregroundStyle(.secondary)
                         }
@@ -644,6 +644,9 @@ struct LearningSessionView: View {
                             }
                         }
                         feedbackClarificationAction(session)
+                        if session.chapter == nil, let attempt = session.feedbackAttempt {
+                            LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
+                        }
                     }
                 }
 
@@ -709,18 +712,24 @@ struct LearningSessionView: View {
                 MessageContentView(content: attempt.question.prompt)
                 MessageContentView(content: attempt.assessment.feedback)
                 feedbackClarificationAction(session)
+                if session.chapter == nil {
+                    LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
+                }
                 Text(attempt.assistanceUsed ? "Help was used on this answer." : "No help was reported or requested in this check.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             DisclosureGroup("Answers and feedback (\(session.attempts.count))") {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(session.attempts) { attempt in
-                        DisclosureGroup("\(attempt.phase.label) · \(attempt.assessment.grade.label)") {
+                        DisclosureGroup("\(attempt.phase.label) · \(attempt.setAsideAt == nil ? attempt.assessment.grade.label : "Set aside by you · recorded " + attempt.assessment.grade.label)") {
                             VStack(alignment: .leading, spacing: 10) {
                                 MessageContentView(content: attempt.question.prompt)
                                 Text("Your answer").font(.subheadline)
                                 MessageContentView(content: attempt.answer)
                                 MessageContentView(content: attempt.assessment.feedback)
+                                if session.chapter == nil {
+                                    LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
+                                }
                                 Text("\(attempt.assistanceUsed ? "Help used" : "No help reported") · \(attempt.createdAt.formatted(date: .abbreviated, time: .shortened))")
                                     .font(.caption).foregroundStyle(.secondary)
                                 Text("Tutor: \(attempt.providerID)\(attempt.modelID.map { " / \($0)" } ?? "")")
@@ -737,6 +746,9 @@ struct LearningSessionView: View {
 
     private func resultExplanation(_ session: LearningSession) -> String {
         guard let attempt = session.latestExitAttempt else { return "There isn’t an exit result for this section yet." }
+        if attempt.setAsideAt != nil {
+            return "You set aside this assessment. Your answer and the original tutor feedback are saved, and this result does not count toward progress. Review the reasoning before deciding whether to use the recorded result again."
+        }
         if attempt.assessment.grade == .correct, !attempt.assessmentCriteriaSatisfied {
             return attempt.question.kind == .proof
                 ? "This proof assessment is incomplete. It does not establish that the essential steps were justified; the proof check remains open."

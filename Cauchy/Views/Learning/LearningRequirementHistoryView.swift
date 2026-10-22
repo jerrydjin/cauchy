@@ -134,11 +134,16 @@ struct LearningRequirementHistoryView: View {
             }
             if let assessment = entry.assessment {
                 Text("Tutor feedback").font(.subheadline.weight(.semibold))
-                if entry.incompleteCriteriaAssessment {
-                    Text("Recorded tutor grade: \(assessment.grade.label). The reasoning checks do not support a complete assessment.")
+                if entry.incompleteCriteriaAssessment || entry.setAsideAt != nil {
+                    Text("Recorded tutor grade: \(assessment.grade.label)." + (entry.incompleteCriteriaAssessment
+                        ? " The reasoning checks do not support a complete assessment." : ""))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 MessageContentView(content: assessment.feedback)
+                if let attemptID = entry.attemptID,
+                   let attempt = document.learning.sessions.first(where: { $0.id == entry.sessionID })?.attempts.first(where: { $0.id == attemptID }) {
+                    LearningAssessmentReviewControl(learning: document.learning, sessionID: entry.sessionID, attempt: attempt)
+                }
                 Text("Next step").font(.subheadline.weight(.semibold))
                 MessageContentView(content: assessment.nextStep)
                 if let criteria = assessment.criteria, !criteria.isEmpty {

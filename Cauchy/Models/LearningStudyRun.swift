@@ -40,6 +40,10 @@ struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
         let assistanceUsed: Bool
         let independentCorrect: Bool
         let assessedAt: Date
+
+        func isSetAside(in sessions: [LearningSession]) -> Bool {
+            sessions.first { $0.id == sessionID }?.attempts.first { $0.id == attemptID }?.setAsideAt != nil
+        }
     }
     enum Blocker: Equatable {
         case changedSource, changedRequirement

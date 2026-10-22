@@ -28,6 +28,35 @@ final class LearningRequirementHistoryExportTests: XCTestCase {
             selectedEntryID: selected, exportedAt: date, sourceIsCurrent: { _ in currentSource }))
     }
 
+    func testSetAsideExportQualifiesOriginalGradeWithoutChangingOrHidingTheRecord() throws {
+        var saved = session()
+        let original = LearningAssessment(grade: .correct, feedback: "Original tutor judgement.", nextStep: "Original next step.",
+            criteria: [.init(index: 0, outcome: .met, feedback: "Original criterion feedback.")])
+        var attempt = LearningAttempt(phase: .practice, question: saved.lesson.practice, answer: "My complete saved argument.",
+            assessment: original, assistanceUsed: false, providerID: "Original tutor", modelID: "Original model", createdAt: date)
+        attempt.setAsideAt = date.addingTimeInterval(60)
+        saved.attempts = [attempt]; saved.feedback = original
+        let before = saved
+        let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: [saved]).first)
+        let text = try export([saved], selected: entry.id)
+        XCTAssertTrue(text.contains("**Saved status:** Assessment set aside by you"))
+        XCTAssertTrue(text.contains("**Recorded tutor grade:** Correct"))
+        XCTAssertTrue(text.contains("Set aside by you at 2023-11-14T22:14:20.000Z"))
+        XCTAssertTrue(text.contains("does not count toward progress; the original tutor grade is retained"))
+        for preserved in [attempt.answer, original.feedback, original.nextStep, "Original criterion feedback."] {
+            XCTAssertTrue(text.contains(preserved))
+        }
+        for hidden in ["HIDDEN_EXPECTED_ANSWER", "HIDDEN_UNREVEALED_HINT", "UNSEEN_EXIT_PROMPT", "RAW_NOTES_NOT_FOR_EXPORT"] {
+            XCTAssertFalse(text.contains(hidden))
+        }
+        XCTAssertEqual(saved, before)
+        saved.attempts[0].setAsideAt = nil
+        let reinstated = try export([saved], selected: entry.id)
+        XCTAssertFalse(reinstated.contains("Set aside by you"))
+        XCTAssertTrue(reinstated.contains("**Saved status:** Correct"))
+        XCTAssertTrue(reinstated.contains(attempt.answer))
+    }
+
     func testDraftExportPreservesLongMathematicsWithoutHiddenOrUnrelatedContent() throws {
         let answer = "## My argument\n\n$$T(0v)=0T(v)=0$$\n```text\nA quoted calculation.\n```\n"
             + String(repeating: "Track the hypothesis and the limit.\n", count: 250) + "FINAL_REASONING_MARKER"

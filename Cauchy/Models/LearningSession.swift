@@ -147,13 +147,17 @@ struct LearningAttempt: Identifiable, Codable, Equatable, Sendable {
     let modelID: String?
     var createdAt = Date()
 
+    /// A personal decision to exclude this saved assessment, not a new grade.
+    /// Optional for attempts saved before learner review controls existed.
+    var setAsideAt: Date? = nil
+
     var assessmentCriteriaSatisfied: Bool {
         guard let checked = try? LearningAssessmentPolicy.checked(assessment, question: question) else { return false }
         return checked.criteria?.allSatisfy { $0.outcome == .met } ?? true
     }
 
     var hasIndependentCorrectResult: Bool {
-        assessment.grade == .correct && !assistanceUsed && assessmentCriteriaSatisfied
+        setAsideAt == nil && assessment.grade == .correct && !assistanceUsed && assessmentCriteriaSatisfied
     }
 }
 
@@ -203,8 +207,13 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
 
     var latestExitAttempt: LearningAttempt? { attempts.last { $0.phase == .exitCheck } }
 
+    var feedbackAttempt: LearningAttempt? {
+        guard let feedback, let question else { return nil }
+        return attempts.last { $0.phase == phase && $0.question == question && $0.assessment == feedback }
+    }
+
     var feedbackSupportsProgress: Bool {
-        guard let feedback, let question else { return false }
+        guard let feedback, let question, feedbackAttempt?.setAsideAt == nil else { return false }
         return (try? LearningAssessmentPolicy.checked(feedback, question: question).grade) == .correct
     }
 
@@ -222,6 +231,7 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
     var progressLabel: String {
         if phase == .complete {
             guard let attempt = latestExitAttempt else { return "No exit result yet" }
+            if attempt.setAsideAt != nil { return "Assessment set aside by you" }
             switch attempt.assessment.grade {
             case .correct:
                 guard attempt.assessmentCriteriaSatisfied else {

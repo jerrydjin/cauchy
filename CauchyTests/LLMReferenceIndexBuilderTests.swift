@@ -625,6 +625,31 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1.10")))
     }
 
+    func testLeftMarginEnumeratedStepsAreNotEquations() {
+        let page = """
+        Proof.
+        (1) f ∈ W ⇒ f = 0
+        (2) f ∈ U ⇒ f = 0
+        (1.10) |x| ≤ r ⇒ |ψ(x)| ≤ r/2.
+        A = B + C (4) for the constant term.
+        """
+        let nsPage = page as NSString
+        let positions = [
+            nsPage.range(of: "(1)").location: 0.129,
+            nsPage.range(of: "(2)").location: 0.148,
+            nsPage.range(of: "(1.10)").location: 0.118,
+            nsPage.range(of: "(4)").location: 0.82,
+        ]
+        let declarations = LLMReferenceIndexSupport.declarationMatches(
+            in: page, equationLabelX: positions
+        ).map(\.reference)
+
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1.10")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "4")))
+    }
+
     func testTheoremEvidenceKeepsEquationWithinItsStatement() {
         let page = """
         Theorem 6.13. Detailed balance holds iff

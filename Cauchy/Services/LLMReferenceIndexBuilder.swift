@@ -313,12 +313,13 @@ enum LLMReferenceIndexSupport {
             }
 
             // Numbered proof steps such as "(1) f ∈ W" can look like an
-            // equation in the text layer, but their printed numbers begin in
-            // the body of the page with the expression to their right. Keep
-            // genuinely left-labelled displays (near the page margin) and
-            // right-labelled displays eligible.
-            if Int(match.reference.number) != nil, let labelX,
-               labelX > 0.20, labelX < 0.70, !suffix.isEmpty {
+            // equation in the text layer. A bare integer with the item to its
+            // right is one of those steps, including when the number sits at
+            // the left of the text block. A dotted label such as (1.10) and a
+            // right-margin equation number stay eligible, as does a number
+            // that occupies the line by itself.
+            if Int(match.reference.number) != nil, !suffix.isEmpty,
+               (labelX ?? 0) < 0.78 {
                 return false
             }
 

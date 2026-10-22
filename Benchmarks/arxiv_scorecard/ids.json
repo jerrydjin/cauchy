@@ -1,0 +1,368 @@
+{
+  "seed": 20261018,
+  "sampled_on": "2026-10-18",
+  "method": "One paper from each of 20 math.* categories. math.MP returns no hits from the arXiv API, so math.CA stands in for it. For each category a seed-20261018 offset in 0..49 selects a page of recently submitted papers; the seeded shuffle's first LaTeXML HTML with internal refs is kept. If that page has none, later pages are tried.",
+  "papers": [
+    {
+      "id": "2610.21544",
+      "title": "On the variety of sum of powers of certain complete intersection forms",
+      "published": "2026-10-15",
+      "comment": "Comments are welcome!",
+      "categories": [
+        "math.AC",
+        "math.AG"
+      ],
+      "authors": [
+        "Meghana Bhat",
+        "Ronnie Sebastian"
+      ],
+      "primary_category": "math.AG",
+      "role": "random"
+    },
+    {
+      "id": "2610.11671",
+      "title": "A complete classification of the rational realization of gap-two products of Eilenberg--MacLane spaces as classifying spaces",
+      "published": "2026-10-08",
+      "comment": "",
+      "categories": [
+        "math.AT"
+      ],
+      "authors": [
+        "Yang Bai",
+        "Xiugui Liu",
+        "Jiaxi Zha"
+      ],
+      "primary_category": "math.AT",
+      "role": "random"
+    },
+    {
+      "id": "2610.20976",
+      "title": "Chemotaxis models with signal-dependent sensitivity and a logistic-type source, III: Bifurcation and spike-like solutions",
+      "published": "2026-10-14",
+      "comment": "42 pages, 4 figures",
+      "categories": [
+        "math.AP"
+      ],
+      "authors": [
+        "Le Chen",
+        "Ian Ruau",
+        "Wenxian Shen"
+      ],
+      "primary_category": "math.AP",
+      "role": "random"
+    },
+    {
+      "id": "2610.21341",
+      "title": "Matrix Completion Discriminants",
+      "published": "2026-10-15",
+      "comment": "29 pages, 2 figures",
+      "categories": [
+        "math.CO",
+        "math.AG",
+        "math.OC"
+      ],
+      "authors": [
+        "Yoshiyuki Sekiguchi",
+        "Shin-ichi Tanigawa"
+      ],
+      "primary_category": "math.CO",
+      "role": "random"
+    },
+    {
+      "id": "2610.04096",
+      "title": "The Benson--Etingof--Ostrik conjecture for finite tensor categories",
+      "published": "2026-10-02",
+      "comment": "",
+      "categories": [
+        "math.RT",
+        "math.CT"
+      ],
+      "authors": [
+        "Kevin Coulembier",
+        "Johannes Flake"
+      ],
+      "primary_category": "math.CT",
+      "role": "random"
+    },
+    {
+      "id": "2610.21303",
+      "title": "Asymptotics of the Moduli Spaces of Parabolic $\\mathrm{SL}(3,\\mathbb C)$-Higgs Bundles",
+      "published": "2026-10-15",
+      "comment": "",
+      "categories": [
+        "math.DG",
+        "math-ph",
+        "math.AG"
+      ],
+      "authors": [
+        "Shiyu Cao"
+      ],
+      "primary_category": "math.DG",
+      "role": "random"
+    },
+    {
+      "id": "2610.21627",
+      "title": "Degree Growth of Rational Maps with Laurent Property",
+      "published": "2026-10-15",
+      "comment": "20 pages",
+      "categories": [
+        "math.DS",
+        "math-ph"
+      ],
+      "authors": [
+        "Melih Emin Can"
+      ],
+      "primary_category": "math.DS",
+      "role": "random"
+    },
+    {
+      "id": "2610.18041",
+      "title": "Completely symmetric subspaces of noncommutative $L_p$-spaces",
+      "published": "2026-10-13",
+      "comment": "",
+      "categories": [
+        "math.FA",
+        "math.OA"
+      ],
+      "authors": [
+        "Jinghao Huang"
+      ],
+      "primary_category": "math.FA",
+      "role": "random"
+    },
+    {
+      "id": "2610.20306",
+      "title": "The zero divisor and augmentation conjectures for medial quandle rings",
+      "published": "2026-10-14",
+      "comment": "12 pages + references. Comments welcome",
+      "categories": [
+        "math.RA",
+        "math.GR"
+      ],
+      "authors": [
+        "Luc Ta"
+      ],
+      "primary_category": "math.GR",
+      "role": "random"
+    },
+    {
+      "id": "2610.19333",
+      "title": "Algebraic overtwistedness of contact $(+1)$-surgeries via augmented Floer theories",
+      "published": "2026-10-14",
+      "comment": "36 pages, comments welcome!",
+      "categories": [
+        "math.SG",
+        "math.GT"
+      ],
+      "authors": [
+        "Russell Avdek",
+        "Youlin Li",
+        "Zhengyi Zhou"
+      ],
+      "primary_category": "math.GT",
+      "role": "random"
+    },
+    {
+      "id": "2610.14417",
+      "title": "A Nullstellensatz for the field of complex Laurent series",
+      "published": "2026-10-10",
+      "comment": "Comments welcome!",
+      "categories": [
+        "math.LO",
+        "math.AC"
+      ],
+      "authors": [
+        "Pablo Cubides Kovacsics",
+        "Sebasti\u00e1n Uribe Rinc\u00f3n"
+      ],
+      "primary_category": "math.LO",
+      "role": "random"
+    },
+    {
+      "id": "2610.16227",
+      "title": "Contractivity of Rudin's diagonal restriction operator for $H^p$ of the polydisc",
+      "published": "2026-10-12",
+      "comment": "",
+      "categories": [
+        "math.FA",
+        "math.CA",
+        "math.CV"
+      ],
+      "authors": [
+        "Ole Fredrik Brevig",
+        "Javier G\u00f3mez-Serrano",
+        "Joaquim Ortega-Cerd\u00e0",
+        "Kristian Seip"
+      ],
+      "primary_category": "math.CA",
+      "role": "random",
+      "html_bytes": 467636
+    },
+    {
+      "id": "2610.19307",
+      "title": "Zero-cycles and Brauer groups on certain Enriques surfaces",
+      "published": "2026-10-13",
+      "comment": "27 pages",
+      "categories": [
+        "math.NT"
+      ],
+      "authors": [
+        "Thomas Jaklitsch"
+      ],
+      "primary_category": "math.NT",
+      "role": "random",
+      "html_bytes": 917128
+    },
+    {
+      "id": "2610.18580",
+      "title": "A two-level preconditioner for discontinuous virtual element methods with irregular subdomains",
+      "published": "2026-10-13",
+      "comment": "28 pages, 5 figures",
+      "categories": [
+        "math.NA"
+      ],
+      "authors": [
+        "Juan G. Calvo",
+        "C\u00e9sar Herrera"
+      ],
+      "primary_category": "math.NA",
+      "role": "random",
+      "html_bytes": 733974
+    },
+    {
+      "id": "2610.13792",
+      "title": "The generator problem for C*-algebras with comparison",
+      "published": "2026-10-09",
+      "comment": "41 pages",
+      "categories": [
+        "math.OA"
+      ],
+      "authors": [
+        "Ben Bouwen",
+        "Jorge Castillejos",
+        "Jakub Curda"
+      ],
+      "primary_category": "math.OA",
+      "role": "random",
+      "html_bytes": 988404
+    },
+    {
+      "id": "2610.19840",
+      "title": "GPU-Accelerated Preprocessing for Large-Scale Linear Programming",
+      "published": "2026-10-14",
+      "comment": "",
+      "categories": [
+        "math.OC"
+      ],
+      "authors": [
+        "Kaihuang Chen",
+        "Jiawei Lu",
+        "Defeng Sun",
+        "Yancheng Yuan",
+        "Guojun Zhang",
+        "Xiangyu Zhang",
+        "Xinyuan Zhao"
+      ],
+      "primary_category": "math.OC",
+      "role": "random",
+      "html_bytes": 517150
+    },
+    {
+      "id": "2610.21864",
+      "title": "Localisation of the monkey walk with an \"impurity\" at the origin",
+      "published": "2026-10-15",
+      "comment": "",
+      "categories": [
+        "math.PR"
+      ],
+      "authors": [
+        "Wilfred Armfield",
+        "C\u00e9cile Mailler"
+      ],
+      "primary_category": "math.PR",
+      "role": "random",
+      "html_bytes": 1478168
+    },
+    {
+      "id": "2610.15448",
+      "title": "The First Modular Zhu Algebra of $L(\\frac12,0)_F$ in Characteristic Seven",
+      "published": "2026-10-11",
+      "comment": "",
+      "categories": [
+        "math.QA"
+      ],
+      "authors": [
+        "Haihua Huang"
+      ],
+      "primary_category": "math.QA",
+      "role": "random",
+      "html_bytes": 590085
+    },
+    {
+      "id": "2610.14991",
+      "title": "Affine realization of tilted Richardson varieties",
+      "published": "2026-10-10",
+      "comment": "30 pages",
+      "categories": [
+        "math.AG",
+        "math.CO",
+        "math.RT"
+      ],
+      "authors": [
+        "Xuhua He",
+        "Qingchao Yu"
+      ],
+      "primary_category": "math.RT",
+      "role": "random",
+      "html_bytes": 825902
+    },
+    {
+      "id": "2610.11661",
+      "title": "BiHom-Poisson conformal superalgebras arising from related algebraic structures",
+      "published": "2026-10-08",
+      "comment": "",
+      "categories": [
+        "math.RA"
+      ],
+      "authors": [
+        "Bakol\u00c8 Louamou",
+        "Ibrahima Bakayoko",
+        "Kol B\u00c9atrice Gamou"
+      ],
+      "primary_category": "math.RA",
+      "role": "random",
+      "html_bytes": 1030012
+    }
+  ],
+  "edge_cases": [
+    {
+      "id": "2609.00233",
+      "title": "A survey on mapping class groups of 3-manifolds",
+      "published": "2026-08-31",
+      "comment": "82 pages, 2 figures. Comments welcome",
+      "categories": ["math.GT"],
+      "authors": [
+        "Philipp Bader",
+        "Rachael Boyd",
+        "Giulia Carfora",
+        "Gabriel Corrigan",
+        "Daniel Galvin",
+        "Csaba Nagy"
+      ],
+      "primary_category": "math.GT",
+      "role": "survey-60-pages",
+      "why": "The random sample has no paper of 60 or more pages. This 82-page survey is kept as that edge case and is not one of the 20."
+    },
+    {
+      "id": "2610.22308",
+      "title": "Classical Capacity of Single-Mode Bosonic Gaussian Channels",
+      "published": "2026-10-15",
+      "comment": "24 pages, 2 figures. See also related results for entanglement in https://arxiv.org/abs/2608.01909v3",
+      "categories": ["quant-ph", "math-ph"],
+      "authors": ["Gerardo Adesso", "Ludovico Lami", "Vittorio Giovannetti"],
+      "primary_category": "quant-ph",
+      "role": "two-column",
+      "why": "No random math.* paper has a two-column page. This revtex4-2 reprint PDF is two-column on every page. Its primary category is quant-ph, with math-ph secondary, because recent math.* submissions are single-column. It is not one of the 20."
+    }
+  ]
+}

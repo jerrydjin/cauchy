@@ -176,10 +176,15 @@ jobs:
             echo "::warning::Ad-hoc signed — the bundle is well formed, but Gatekeeper will still ask for approval."
           fi
 
+      # A tag whose name contains "-test" is a pre-release and is not Latest.
+      # The README download link points at /releases/latest and stays on the
+      # last stable tag.
       - name: Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: Cauchy.dmg
+          prerelease: ${{ contains(github.ref_name, '-test') }}
+          make_latest: ${{ contains(github.ref_name, '-test') && 'false' || 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

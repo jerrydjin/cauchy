@@ -18,12 +18,21 @@ import textwrap
 GRADES = {"correct", "partial", "incorrect", "uncertain"}
 
 
+def assessment_instructions(root):
+    swift = (root / "Cauchy/Services/LearningTutorService.swift").read_text()
+    match = re.search(r'private static let assessmentInstructions = """\n(.*?)\n    """', swift, re.S)
+    if not match:
+        raise ValueError("Cannot locate the app's current assessment instructions")
+    return textwrap.dedent(match.group(1)).strip()
+
+
 def effective_grade(assessment, rubric):
     """Match the app's proof gate, including decoding/text constraints."""
     def valid_text(value):
         return isinstance(value, str) and bool(value.strip()) and len(value) <= 6000
 
-    if not isinstance(assessment, dict) or assessment.get("grade") not in GRADES:
+    if (not isinstance(assessment, dict) or not isinstance(assessment.get("grade"), str)
+            or assessment["grade"] not in GRADES):
         return "invalid_response"
     if not valid_text(assessment.get("feedback")) or not valid_text(assessment.get("nextStep")):
         return "invalid_response"
@@ -36,7 +45,7 @@ def effective_grade(assessment, rubric):
     indices = [c.get("index") for c in criteria]
     if any(type(i) is not int for i in indices) or set(indices) != set(range(len(rubric))):
         return "invalid_response"
-    if any(c.get("outcome") not in {"met", "notMet", "uncertain"}
+    if any(not isinstance(c.get("outcome"), str) or c["outcome"] not in {"met", "notMet", "uncertain"}
            or not valid_text(c.get("feedback")) for c in criteria):
         return "invalid_response"
     if any(c["outcome"] == "uncertain" for c in criteria):
@@ -96,11 +105,7 @@ def main():
     parser.add_argument("--case", action="append", dest="selected", help="Run only a named case (repeatable)")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
-    swift = (root / "Cauchy/Services/LearningTutorService.swift").read_text()
-    match = re.search(r'private static let assessmentInstructions = """\n(.*?)\n    """', swift, re.S)
-    if not match:
-        raise ValueError("Cannot locate the app's current assessment instructions")
-    instructions = textwrap.dedent(match.group(1)).strip()
+    instructions = assessment_instructions(root)
     cases = json.loads((root / args.cases).read_text())
     if args.selected:
         unknown = set(args.selected) - {c["name"] for c in cases}

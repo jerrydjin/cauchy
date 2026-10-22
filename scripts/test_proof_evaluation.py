@@ -45,6 +45,10 @@ class ProofEvaluationTests(unittest.TestCase):
                          lambda a: a["criteria"][0].__setitem__("index", True),
                          lambda a: a["criteria"][0].__setitem__("outcome", "guessed"),
                          lambda a: a.__setitem__("grade", "mastered"),
+                         lambda a: a.__setitem__("grade", []),
+                         lambda a: a.__setitem__("grade", {}),
+                         lambda a: a["criteria"][0].__setitem__("outcome", []),
+                         lambda a: a["criteria"][0].__setitem__("outcome", {}),
                          lambda a: a.__setitem__("feedback", ""),
                          lambda a: a.__setitem__("nextStep", "x" * 6001)]:
             assessment = copy.deepcopy(result["assessment"])

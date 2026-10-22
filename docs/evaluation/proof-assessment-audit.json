@@ -1,0 +1,61 @@
+{
+  "auditSchemaVersion": 1,
+  "auditorImplementationSHA256": "d0b1b8e529de3eaab849177a3245ca3ab4e6730df2f2ca4a9721fdce0947654b",
+  "checksPass": false,
+  "coverage": {
+    "complete": true,
+    "currentFixtureCases": 12,
+    "missing": [],
+    "recordedUniqueCases": 12,
+    "unknown": []
+  },
+  "currentInstructionSHA256": "9ccf3114f6d19c64afd49eedac0c0b847efff5a2c6941681932fad696c294060",
+  "currentPolicyReplay": {
+    "changes": [],
+    "summary": {
+      "completedCases": 12,
+      "counts": {
+        "false_acceptance": 0,
+        "false_rejection": 0,
+        "grade_mismatch": 0,
+        "invalid_response": 0,
+        "invocation_error": 0,
+        "matched": 12,
+        "uncertainty": 0
+      },
+      "expectedInvalid": 8,
+      "expectedValid": 4,
+      "interpretation": "Counts on authored engineering fixtures, not accuracy estimates or expert validation."
+    },
+    "unavailableCases": []
+  },
+  "currentSnapshotCompatible": false,
+  "declaredRunComplete": true,
+  "evaluatorImplementationSHA256": "e596c6d022a65f288ce1a4038e3ec70345fe23fee2861d9c741bfe211da25477",
+  "fixtureSHA256": "98434a53e9387721e1c5070cf8a109febcf728578491e5cecdbb1ac73db7a05d",
+  "instructionsMatch": false,
+  "integrityErrors": [],
+  "integrityValid": true,
+  "interpretation": "Offline integrity/accounting and structural-policy replay of historical responses. No new model evaluation, mathematical verification, expert review or efficacy evidence. A matching instruction hash does not establish current model behavior.",
+  "recomputedRecordedSummary": {
+    "completedCases": 12,
+    "counts": {
+      "false_acceptance": 0,
+      "false_rejection": 0,
+      "grade_mismatch": 0,
+      "invalid_response": 0,
+      "invocation_error": 0,
+      "matched": 12,
+      "uncertainty": 0
+    },
+    "expectedInvalid": 8,
+    "expectedValid": 4,
+    "interpretation": "Counts on authored engineering fixtures, not accuracy estimates or expert validation."
+  },
+  "recordedEvaluationAt": "2026-10-17T20:56:13.261746+00:00",
+  "recordedExpectationsMatched": true,
+  "recordedInstructionSHA256": "2bf4afb2d3244df08c0da7674e9b5fd741676f681d3a2777783331b7fd8c9685",
+  "recordedModel": "gpt-6.1-sol",
+  "referenceMismatches": [],
+  "reportSHA256": "24ee8e4602e2eec3641a03d3bc728a1b486abc2a9a748ded13c876735ccd3043"
+}

@@ -240,6 +240,22 @@ enum LLMReferenceIndexSupport {
         }
     }
 
+    /// The parenthetical printed on the declaration, as in "Lemma 2.4 (Zorn)".
+    static func printedStatementName(
+        after match: DetectedReferenceMatch,
+        in sourceText: String
+    ) -> String? {
+        let after = sourceText[match.range.upperBound...]
+        guard let open = after.firstIndex(where: { !$0.isWhitespace }), after[open] == "(" else { return nil }
+        let bodyStart = after.index(after: open)
+        guard let close = after[bodyStart...].firstIndex(of: ")") else { return nil }
+        let name = after[bodyStart..<close].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (2...80).contains(name.count),
+              name.contains(where: \.isLetter),
+              name.first?.isNumber != true else { return nil }
+        return name
+    }
+
     static func groundedName(_ name: String?, in pageText: String) -> String? {
         guard let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty else { return nil }
@@ -549,6 +565,7 @@ enum LLMReferenceIndexSupport {
                 reference: match.reference,
                 formattedBody: body,
                 pageIndex: pageIndex,
+                name: groundedName(printedStatementName(after: match, in: sourceText), in: sourceText),
                 evidence: evidence,
                 contentOrigin: .sourceFallback
             )

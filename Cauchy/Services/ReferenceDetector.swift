@@ -28,10 +28,13 @@ enum ReferenceDetector {
     private static let equationCiteRegex = try! NSRegularExpression(pattern: ReferenceParsing.equationCitePattern)
     private static let figureRegex = try! NSRegularExpression(pattern: ReferenceParsing.figurePattern)
     private static let pairedFiguresRegex = try! NSRegularExpression(pattern: ReferenceParsing.pairedFiguresPattern)
+    private static let pluralBlockRegex = try! NSRegularExpression(pattern: ReferenceParsing.pluralBlockPattern)
+    private static let pluralNumberRegex = try! NSRegularExpression(pattern: ReferenceParsing.referenceNumberPattern)
 
     static func allReferences(in text: String) -> [DetectedReferenceMatch] {
         var matches: [DetectedReferenceMatch] = []
         matches.append(contentsOf: namedBlockMatches(in: text))
+        matches.append(contentsOf: pluralBlockMatches(in: text))
         matches.append(contentsOf: equationCiteMatches(in: text))
         matches.append(contentsOf: figureMatches(in: text))
         matches.append(contentsOf: pairedFigureMatches(in: text))
@@ -71,6 +74,29 @@ enum ReferenceDetector {
                 reference: DetectedReference(kind: kind, number: number),
                 range: range
             )
+        }
+    }
+
+    private static func pluralBlockMatches(in text: String) -> [DetectedReferenceMatch] {
+        let full = NSRange(text.startIndex..., in: text)
+        return pluralBlockRegex.matches(in: text, range: full).flatMap { match -> [DetectedReferenceMatch] in
+            guard let kindRange = Range(match.range(at: 1), in: text),
+                  let kind = ReferenceKind.fromKeyword(String(text[kindRange])),
+                  let phrase = Range(match.range, in: text) else { return [] }
+            let list = String(text[Range(match.range(at: 2), in: text)!])
+            let numbers = pluralNumberRegex.matches(in: list, range: NSRange(list.startIndex..., in: list))
+            return numbers.compactMap { numberMatch in
+                let absolute = NSRange(
+                    location: match.range(at: 2).location + numberMatch.range.location,
+                    length: numberMatch.range.length
+                )
+                guard let numberRange = Range(absolute, in: text) else { return nil }
+                let start = numberMatch.range.location == 0 ? phrase.lowerBound : numberRange.lowerBound
+                return DetectedReferenceMatch(
+                    reference: DetectedReference(kind: kind, number: String(text[numberRange])),
+                    range: start..<numberRange.upperBound
+                )
+            }
         }
     }
 

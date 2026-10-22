@@ -97,6 +97,16 @@ final class WorkspaceViewModel: Equatable {
         find.currentPageProvider = { [weak self] in
             self?.viewportCoordinator.viewport.pageIndex ?? 0
         }
+        find.findSource = { [weak self] in
+            guard let self else { return nil }
+            let pages: [String]
+            if let document = self.pdfDocument {
+                pages = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }
+            } else {
+                pages = []
+            }
+            return DocumentFind.Source(entries: self.referenceIndex.searchEntries(), pages: pages)
+        }
         // Same long-lived instance across documents (cleared/refilled per open),
         // so wiring once is enough.
         selectionThread.referenceIndex = referenceIndex

@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [22 October saved-work export check](evaluation/learning-work-export.md) adds local Markdown records of learner reasoning, feedback and source provenance from requirement history, with hidden-content and state-preservation boundaries. The complete 403-test macOS suite passes; native save/cancel verification is pending manual Mac unlock.
+
 The [22 October chapter-version check](evaluation/chapter-challenge-versions.md) lets a current chapter prepare its own challenge while keeping earlier arguments in contextual history. New versions reject previously shown questions, and unchanged navigation preserves saved recency. The complete 397-test macOS suite and native restart/history checks pass.
 
 The [22 October requirement-identity check](evaluation/learning-requirement-identity.md) keeps revised learning objectives separate from earlier credit, review schedules and saved-lesson reuse, while retaining original work and wording in history. Course reorganization alone preserves valid work; the complete 392-test macOS suite and native restart flow pass.

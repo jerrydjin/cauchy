@@ -1,10 +1,13 @@
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 struct LearningRequirementHistoryView: View {
     @Bindable var document: LearningDocument
     let target: LearningStudyTarget
     @Environment(\.dismiss) private var dismiss
     @State private var selection: String?
+    @State private var exportError: String?
     private enum Pane: Hashable { case list, details }
     @FocusState private var focusedPane: Pane?
     @State private var detailScroll = ScrollPosition()
@@ -58,6 +61,13 @@ struct LearningRequirementHistoryView: View {
             HStack {
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
                 readingFocusButton
+                Menu("Export work", systemImage: "square.and.arrow.up") {
+                    Button("Save selected record…") { if let selection { exportWork(entryID: selection) } }
+                        .disabled(selected == nil)
+                    Button("Save requirement history…") { exportWork(entryID: nil) }
+                }
+                .disabled(document.isBusy || entries.isEmpty)
+                .help("Save your reasoning and tutor feedback as Markdown")
                 Spacer()
                 Button("Open saved lesson") { if let selected { open(selected) } }
                     .buttonStyle(.glassProminent).keyboardShortcut(.defaultAction)
@@ -66,6 +76,11 @@ struct LearningRequirementHistoryView: View {
         }
         .padding(24).frame(width: 800)
         .onAppear { selection = entries.first?.id; focusedPane = .list }
+        .alert("Couldn’t export your work", isPresented: Binding(
+            get: { exportError != nil }, set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK") { exportError = nil }
+        } message: { Text(exportError ?? "") }
     }
 
     @ViewBuilder private var readingFocusButton: some View {
@@ -148,5 +163,20 @@ struct LearningRequirementHistoryView: View {
         guard !document.isBusy else { return }
         document.learning.select(entry.sessionID)
         dismiss()
+    }
+
+    private func exportWork(entryID: String?) {
+        guard let text = LearningRequirementHistoryExport.markdown(documentTitle: document.title, target: target,
+            sessions: document.learning.sessions, selectedEntryID: entryID,
+            sourceIsCurrent: { document.sourceReviewPage(for: $0) == nil }) else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.title = "Export learning work"
+        panel.message = entryID == nil ? "Save your work and tutor feedback for this requirement." : "Save the selected question, answer and feedback."
+        panel.nameFieldStringValue = "\(document.title.prefix(60)) — \(target.kind.rawValue) \(entryID == nil ? "history" : "record").md"
+        panel.prompt = "Export"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try text.write(to: url, atomically: true, encoding: .utf8) }
+        catch { exportError = error.localizedDescription }
     }
 }

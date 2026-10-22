@@ -56,6 +56,7 @@
 		2247B36191CDCE7F33C34190 /* LLMReferenceIndexBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F09A6C935FA0466B7CA90E /* LLMReferenceIndexBuilder.swift */; };
 		28FEE8CE2DF1856473548E60 /* LaTeXFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D663A210AE029823641923CC /* LaTeXFormatter.swift */; };
 		EF637945BB866244086487A0 /* LaTeXNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FCACBA6DC2F9866C6D1FC11 /* LaTeXNormalizer.swift */; };
+		213C16C51B88A0FD4A9147B5 /* LearningRequirementHistoryExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F755B7CEC362CF3D0D17A70 /* LearningRequirementHistoryExport.swift */; };
 		25415833370C5A55F300D5E4 /* LearningSourceBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A9FB99661557A876A15261 /* LearningSourceBuilder.swift */; };
 		265D442B3022CBC198FDCEE3 /* LearningSourceReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C39F8D07ADA51E28643C6BF /* LearningSourceReconciler.swift */; };
 		BB1E95E1D7C9E2A815DE8D74 /* LearningStudyPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A32041A07B7F22C1D3B4A21 /* LearningStudyPlanner.swift */; };
@@ -167,6 +168,7 @@
 		3DF1238D16FDD147F0AB268E /* LLMReferenceIndexBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E948EBF46AD798F1B107AA3 /* LLMReferenceIndexBuilderTests.swift */; };
 		A2783D82E780E4E872F3C983 /* LearningClarificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9066178AAAFB4FF46AD06712 /* LearningClarificationTests.swift */; };
 		BF1C725D0FC7F7899F764E47 /* LearningReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAE1A0E8F31AD0C29FE8A71 /* LearningReconciliationTests.swift */; };
+		127A37E7B2D6C9E4143B82FD /* LearningRequirementHistoryExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ACE8E99960D9E8BB22496CC /* LearningRequirementHistoryExportTests.swift */; };
 		BD8BA66CFAE0F432CAAE600B /* LearningStudyMapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C134164C6DA7F5884CE65272 /* LearningStudyMapTests.swift */; };
 		B01C412B18CB1ED3E2031ABC /* LearningStudyRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B77BA8733F34F4F35C87C4 /* LearningStudyRunTests.swift */; };
 		088F8AB8FF9B10129564D98B /* LearningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C0D946C9FD1507DB1A1CB6 /* LearningTests.swift */; };
@@ -228,6 +230,7 @@
 		78F09A6C935FA0466B7CA90E /* LLMReferenceIndexBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMReferenceIndexBuilder.swift; sourceTree = "<group>"; };
 		D663A210AE029823641923CC /* LaTeXFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaTeXFormatter.swift; sourceTree = "<group>"; };
 		5FCACBA6DC2F9866C6D1FC11 /* LaTeXNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaTeXNormalizer.swift; sourceTree = "<group>"; };
+		5F755B7CEC362CF3D0D17A70 /* LearningRequirementHistoryExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningRequirementHistoryExport.swift; sourceTree = "<group>"; };
 		57A9FB99661557A876A15261 /* LearningSourceBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningSourceBuilder.swift; sourceTree = "<group>"; };
 		7C39F8D07ADA51E28643C6BF /* LearningSourceReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningSourceReconciler.swift; sourceTree = "<group>"; };
 		0A32041A07B7F22C1D3B4A21 /* LearningStudyPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyPlanner.swift; sourceTree = "<group>"; };
@@ -340,6 +343,7 @@
 		6E948EBF46AD798F1B107AA3 /* LLMReferenceIndexBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMReferenceIndexBuilderTests.swift; sourceTree = "<group>"; };
 		9066178AAAFB4FF46AD06712 /* LearningClarificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningClarificationTests.swift; sourceTree = "<group>"; };
 		6CAE1A0E8F31AD0C29FE8A71 /* LearningReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningReconciliationTests.swift; sourceTree = "<group>"; };
+		3ACE8E99960D9E8BB22496CC /* LearningRequirementHistoryExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningRequirementHistoryExportTests.swift; sourceTree = "<group>"; };
 		C134164C6DA7F5884CE65272 /* LearningStudyMapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyMapTests.swift; sourceTree = "<group>"; };
 		42B77BA8733F34F4F35C87C4 /* LearningStudyRunTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningStudyRunTests.swift; sourceTree = "<group>"; };
 		E4C0D946C9FD1507DB1A1CB6 /* LearningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningTests.swift; sourceTree = "<group>"; };
@@ -422,6 +426,7 @@
 			78F09A6C935FA0466B7CA90E /* LLMReferenceIndexBuilder.swift */,
 			D663A210AE029823641923CC /* LaTeXFormatter.swift */,
 			5FCACBA6DC2F9866C6D1FC11 /* LaTeXNormalizer.swift */,
+			5F755B7CEC362CF3D0D17A70 /* LearningRequirementHistoryExport.swift */,
 			57A9FB99661557A876A15261 /* LearningSourceBuilder.swift */,
 			7C39F8D07ADA51E28643C6BF /* LearningSourceReconciler.swift */,
 			0A32041A07B7F22C1D3B4A21 /* LearningStudyPlanner.swift */,
@@ -576,6 +581,7 @@
 			6E948EBF46AD798F1B107AA3 /* LLMReferenceIndexBuilderTests.swift */,
 			9066178AAAFB4FF46AD06712 /* LearningClarificationTests.swift */,
 			6CAE1A0E8F31AD0C29FE8A71 /* LearningReconciliationTests.swift */,
+			3ACE8E99960D9E8BB22496CC /* LearningRequirementHistoryExportTests.swift */,
 			C134164C6DA7F5884CE65272 /* LearningStudyMapTests.swift */,
 			42B77BA8733F34F4F35C87C4 /* LearningStudyRunTests.swift */,
 			E4C0D946C9FD1507DB1A1CB6 /* LearningTests.swift */,
@@ -659,6 +665,7 @@
 			2247B36191CDCE7F33C34190,
 			28FEE8CE2DF1856473548E60,
 			EF637945BB866244086487A0,
+			213C16C51B88A0FD4A9147B5,
 			25415833370C5A55F300D5E4,
 			265D442B3022CBC198FDCEE3,
 			BB1E95E1D7C9E2A815DE8D74,
@@ -769,6 +776,7 @@
 			3DF1238D16FDD147F0AB268E,
 			A2783D82E780E4E872F3C983,
 			BF1C725D0FC7F7899F764E47,
+			127A37E7B2D6C9E4143B82FD,
 			BD8BA66CFAE0F432CAAE600B,
 			B01C412B18CB1ED3E2031ABC,
 			088F8AB8FF9B10129564D98B,

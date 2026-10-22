@@ -298,6 +298,47 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertEqual(LearningRequirementHistory.entries(for: review.target, in: restored.learning.sessions).map(\.id), entries.map(\.id))
     }
 
+    func testRequirementWorkExportPreservesAllSavedStateAcrossRealPersistenceRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let review = try XCTUnwrap(map.nextDelayedReview(sessions: document.learning.sessions, now: Date()))
+        document.learning.startDelayedReview(review); await document.learning.waitForOperation()
+        document.learning.answerDraft = "Saved delayed reasoning for a portable work record."
+        try await controller.flush()
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let sessions = try encoder.encode(document.learning.sessions)
+        let mapData = try encoder.encode(document.studyMap.map)
+        let selectedID = document.learning.selectedSessionID
+        let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: review.target, in: document.learning.sessions).first)
+        let selected = try XCTUnwrap(LearningRequirementHistoryExport.markdown(documentTitle: document.title,
+            target: review.target, sessions: document.learning.sessions, selectedEntryID: entry.id,
+            sourceIsCurrent: { document.sourceReviewPage(for: $0) == nil }))
+        let history = try XCTUnwrap(LearningRequirementHistoryExport.markdown(documentTitle: document.title,
+            target: review.target, sessions: document.learning.sessions,
+            sourceIsCurrent: { document.sourceReviewPage(for: $0) == nil }))
+        XCTAssertTrue(selected.contains("Selected record · 1 saved record"))
+        XCTAssertTrue(history.contains("Requirement history · 2 saved records"))
+        XCTAssertTrue(history.contains("Authored prior fixture answer, not learner outcome data."))
+        XCTAssertTrue(history.contains("Saved delayed reasoning for a portable work record."))
+        let destination = root.appendingPathComponent("saved-work.md")
+        try history.write(to: destination, atomically: true, encoding: .utf8)
+        XCTAssertEqual(try String(contentsOf: destination, encoding: .utf8), history)
+        XCTAssertEqual(document.learning.selectedSessionID, selectedID)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), sessions)
+        XCTAssertEqual(try encoder.encode(document.studyMap.map), mapData)
+        try await controller.flush()
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions), sessions)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), mapData)
+        XCTAssertEqual(try String(contentsOf: destination, encoding: .utf8), history)
+    }
+
     func testRequirementHistoryExcludesChapterWorkEvenWithMatchingTarget() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }

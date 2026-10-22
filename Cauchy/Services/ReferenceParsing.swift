@@ -18,4 +18,19 @@ enum ReferenceParsing {
     // Paired plural citations such as "Figures 1e and 3a,b" refer to two
     // distinct figures. Capture each printed number with its panel suffix.
     static let pairedFiguresPattern = #"(?i)\b(?:figures|figs\.)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\s*(?:and|&|,)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\b"#
+
+    /// A bracket label such as "12", "IK99", "CCC+18", "Ben17", or "BO09b".
+    /// The optional trailing letter is the disambiguator some author–year keys use.
+    static let bibliographyKey = #"(?:\d+|[A-Z][A-Za-z]*(?:\+[A-Za-z]*)?\d{2,4}[a-z]?)"#
+
+    /// The inside of a bracket citation: "[12]", "[12, Theorem 3.2]", "[IK99, Lemma 1.15]".
+    /// A text-layer line break may fall inside the bracket, as in
+    /// "[17,\nTheorem 3.31(c)]". The body is collapsed before it is parsed.
+    static let bracketCitationBody = #"\[([^\[\]]{1,180})\]"#
+
+    /// "(Smith 2019)" or "(Smith et al. 2019)".
+    static let authorYearParenthetical = #"\(([A-Z][A-Za-z'’\-]+)(?:\s+et\s+al\.?)?\s+((?:19|20)\d{2})\)"#
+
+    /// "Smith et al. [2019]" or "Smith [2019]".
+    static let authorYearBracket = #"([A-Z][A-Za-z'’\-]+)(?:\s+et\s+al\.?)?\s*\[((?:19|20)\d{2})\]"#
 }

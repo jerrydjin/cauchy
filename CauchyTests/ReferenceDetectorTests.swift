@@ -64,6 +64,21 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertEqual(ReferenceDetector.bestReference(in: text, cursorOffset: equationOffset)?.kind, .equation)
     }
 
+    func testCursorOffsetIsUTF16SoAGlyphBeforeTheCitationDoesNotShiftIt() {
+        let text = "😀 [IK99, Lemma 1.15] and Lemma 2.1."
+        let utf16 = (text as NSString).range(of: "Lemma 1.15").location
+        let characters = text.distance(from: text.startIndex, to: text.range(of: "Lemma 1.15")!.lowerBound)
+        XCTAssertNotEqual(utf16, characters)
+        XCTAssertNil(ReferenceDetector.bestReference(in: text, cursorOffset: utf16))
+        XCTAssertEqual(ReferenceDetector.externalCitation(in: text, cursorOffset: utf16)?.key, "IK99")
+
+        let local = (text as NSString).range(of: "Lemma 2.1").location
+        XCTAssertEqual(
+            ReferenceDetector.bestReference(in: text, cursorOffset: local),
+            DetectedReference(kind: .lemma, number: "2.1")
+        )
+    }
+
     func testNoReferenceInPlainText() {
         XCTAssertNil(ReferenceDetector.firstReference(in: "This is ordinary text."))
     }

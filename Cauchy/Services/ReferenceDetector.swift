@@ -64,9 +64,20 @@ enum ReferenceDetector {
         return detection(in: text).citations.first { $0.range.contains(cursorIndex) }
     }
 
+    /// `PDFTextExtractor` reports the cursor as a UTF-16 offset, including
+    /// after it stitches the previous page with `prefix.utf16.count`.
+    /// A character offset lands past the citation once the line contains a
+    /// non-BMP glyph.
     private static func cursorIndex(in text: String, offset: Int) -> String.Index {
-        let clamped = max(0, min(offset, text.count))
-        return text.index(text.startIndex, offsetBy: clamped)
+        let utf16Length = (text as NSString).length
+        var clamped = max(0, min(offset, utf16Length))
+        while true {
+            if let range = Range(NSRange(location: clamped, length: 0), in: text) {
+                return range.lowerBound
+            }
+            if clamped == 0 { return text.startIndex }
+            clamped -= 1
+        }
     }
 
     private struct Detection {

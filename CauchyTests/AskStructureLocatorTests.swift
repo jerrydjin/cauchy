@@ -166,7 +166,7 @@ final class AskStructureLocatorTests: XCTestCase {
             pages: [
                 AskPageSnapshot(
                     pageIndex: 4,
-                    text: "3.2.\nData assimilation strategy\nThe filter is derived in the following paragraphs.",
+                    text: "3.2.\nSignal tracking strategy\nThe filter is derived in the following paragraphs.",
                     lineBold: [false, false, false],
                     lineItalic: [true, true, false]
                 ),
@@ -178,7 +178,7 @@ final class AskStructureLocatorTests: XCTestCase {
             return XCTFail("Expected the italic subsection")
         }
         XCTAssertEqual(span.startPage, 4)
-        XCTAssertTrue(span.label.contains("assimilation"))
+        XCTAssertTrue(span.label.contains("tracking"))
     }
 
     func testNumberedStepOnItsOwnLineIsNotAHeading() {

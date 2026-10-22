@@ -26,6 +26,7 @@ final class LearningViewModel {
 
     @ObservationIgnored var onChange: (([LearningSession]) -> Void)?
     @ObservationIgnored var chapterRequestIsCurrent: ((LearningChapterRequest) -> Bool)?
+    @ObservationIgnored var delayedReviewRecommendation: ((UUID, Date) -> LearningReviewRecommendation?)?
     @ObservationIgnored var sourceIsCurrent: ((LearningSource) -> Bool)?
     @ObservationIgnored private let makeTutor: () -> any LearningTutorProtocol
     @ObservationIgnored private let now: () -> Date
@@ -188,21 +189,15 @@ final class LearningViewModel {
 
     func startDelayedReview(_ recommendation: LearningReviewRecommendation, studyRunItemID: UUID? = nil) {
         guard !isBusy else { return }
-        let previous = recommendation.previous
-        let target = recommendation.target
-        guard target.unitID == recommendation.unit.id,
-              recommendation.unit.learningTargets.contains(where: { $0.matchesRequirement(target) }),
-              target.matchesRequirement(previous.studyTarget), previous.chapter == nil else { return }
-        if let active = recommendation.activeSessionID {
-            guard let saved = sessions.first(where: { $0.id == active }), saved.id == previous.id,
-                  saved.chapter == nil, saved.delayedReview != nil, saved.phase != .complete,
-                  target.matchesRequirement(saved.studyTarget) else { return }
+        let startedAt = now()
+        guard let current = currentDelayedReview(for: recommendation, at: startedAt) else { return }
+        let previous = current.previous
+        let target = current.target
+        if let active = current.activeSessionID {
             select(active)
             return
         }
-        let startedAt = now()
-        guard recommendation.dueAt <= startedAt, !recommendation.unit.needsSourceReview,
-              check(previous.source), previous.source.contains(quote: previous.lesson.sourceQuote) else { return }
+        guard check(previous.source), previous.source.contains(quote: previous.lesson.sourceQuote) else { return }
         let seen = questionHistory(for: previous, includeExitCheck: true)
         perform(.exitQuestion, source: previous.source) { tutor in
             var lesson = previous.lesson
@@ -210,7 +205,9 @@ final class LearningViewModel {
             let question = try await tutor.newExitQuestion(lesson: lesson, source: previous.source, previous: seen)
             return try LearningTutorService.checkedExitQuestion(question, kind: target.kind, previous: seen)
         } apply: { [weak self] question, tutor in
-            guard let self else { return }
+            guard let self, let latest = self.currentDelayedReview(for: current, at: self.now()),
+                  latest.activeSessionID == nil, latest.previous.id == previous.id,
+                  latest.dueAt == current.dueAt else { return }
             var lesson = previous.lesson
             lesson.exitCheck = question
             var review = LearningSession(source: previous.source, lesson: lesson, providerID: tutor.providerID, modelID: tutor.modelID,
@@ -218,12 +215,30 @@ final class LearningViewModel {
             review.studyTarget = target
             review.studyRunItemID = studyRunItemID
             review.phase = .exitCheck
-            review.delayedReview = .init(previousSessionID: previous.id, scheduledFor: recommendation.dueAt,
+            review.delayedReview = .init(previousSessionID: previous.id, scheduledFor: current.dueAt,
                                         startedAt: startedAt, round: (previous.delayedReview?.round ?? 0) + 1)
             sessions.insert(review, at: 0)
             selectedSessionID = review.id
             save()
         }
+    }
+
+    private func currentDelayedReview(for requested: LearningReviewRecommendation, at date: Date) -> LearningReviewRecommendation? {
+        let current: LearningReviewRecommendation?
+        if let delayedReviewRecommendation {
+            current = delayedReviewRecommendation(requested.target.id, date)
+        } else {
+            // Standalone view models still resolve saved work, rather than
+            // treating a captured recommendation as permission for a new check.
+            current = LearningStudyMap(pageSignatures: [], pages: [], units: [requested.unit])
+                .nextDelayedReview(sessions: sessions, now: date, targetID: requested.target.id)
+        }
+        guard requested.target.unitID == requested.unit.id,
+              let current, current.target.matchesRequirement(requested.target) else {
+            errorMessage = "This delayed check is no longer available for the current requirement. Your work is saved. Open the learning path to see what is ready now."
+            return nil
+        }
+        return current
     }
 
     func startChapter(request: LearningChapterRequest, source: LearningSource) {

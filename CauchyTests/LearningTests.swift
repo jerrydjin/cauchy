@@ -268,6 +268,81 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertEqual(LearningHistorySearch.results(in: restored.learning.sessions, query: "continuous").first?.id, result.id)
     }
 
+    func testDocumentRejectsOldDelayedActionAfterCurrentRequirementsOrObligationsChange() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let original = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(original.studyMap.map)
+        let stale = try XCTUnwrap(map.nextDelayedReview(sessions: original.learning.sessions, now: Date()))
+        for change in ["requirement", "source obligation", "removed map"] {
+            var workspace = original.snapshot
+            var currentMap = map
+            let index = try XCTUnwrap(currentMap.units.firstIndex { $0.id == stale.unit.id })
+            if change == "requirement" {
+                let unit = currentMap.units[index]
+                let targets = unit.targets.map { target in
+                    LearningStudyTarget(id: target.id, unitID: target.unitID, kind: target.kind,
+                        objective: target.objective + " with the domain restriction justified")
+                }
+                currentMap.units[index] = .init(id: unit.id, title: unit.title, anchorPage: unit.anchorPage,
+                    sourceQuote: unit.sourceQuote, pageIndices: unit.pageIndices, prerequisites: unit.prerequisites,
+                    proofRequired: unit.proofRequired, proofQuote: unit.proofQuote, gaps: unit.gaps, targets: targets)
+            } else { currentMap.units[index].pendingSourceCorrection = true }
+            workspace.learningStudyMap = change == "removed map" ? nil : currentMap
+            let decoded = try JSONDecoder().decode(DocumentWorkspace.self, from: JSONEncoder().encode(workspace))
+            var requests = 0
+            let tutor = SuspendedLearningTutor()
+            let vm = LearningViewModel { requests += 1; return tutor }
+            let document = LearningDocument(workspace: decoded, document: original.pdfDocument, bookmarkData: nil, learning: vm)
+            vm.select(stale.previous.id)
+            let saved = vm.sessions
+            let expectedMap = document.studyMap.map
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.startDelayedReview(stale); await vm.waitForOperation()
+            XCTAssertEqual(requests, 0)
+            XCTAssertEqual(writes, 0)
+            XCTAssertEqual(vm.sessions, saved)
+            XCTAssertEqual(vm.selectedSessionID, stale.previous.id)
+            XCTAssertEqual(document.studyMap.map, expectedMap)
+            XCTAssertNotNil(vm.errorMessage)
+        }
+    }
+
+    func testStaleDelayedActionReopensExactWorkAcrossRealPersistenceRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let staleAction = try XCTUnwrap(document.studyMap.map?.nextDelayedReview(sessions: document.learning.sessions, now: Date()))
+        document.learning.startDelayedReview(staleAction); await document.learning.waitForOperation()
+        document.learning.answerDraft = "Retain this exact delayed argument through an old action and restart."
+        document.learning.outsideHelpUsed = true
+        let selectedID = try XCTUnwrap(document.learning.selectedSessionID)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let saved = try encoder.encode(document.learning.sessions)
+        let map = try encoder.encode(document.studyMap.map)
+        document.learning.showSections()
+        document.learning.startDelayedReview(staleAction)
+        XCTAssertFalse(document.learning.isBusy)
+        XCTAssertEqual(document.learning.selectedSessionID, selectedID)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), saved)
+        try await controller.flush()
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        restored.learning.showSections()
+        restored.learning.startDelayedReview(staleAction)
+        XCTAssertFalse(restored.learning.isBusy)
+        XCTAssertNil(restored.learning.errorMessage)
+        XCTAssertEqual(restored.learning.selectedSessionID, selectedID)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions), saved)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), map)
+        try await restarted.flush()
+    }
+
     func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }

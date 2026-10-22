@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [22 October delayed-action check](evaluation/learning-review-actions.md) resolves review actions against the current queue, reopens existing drafts without another tutor request and rejects obsolete or changed requirements before and after question generation. Exact saved work survives real persistence restart; the complete 408-test macOS suite passes.
+
 The [22 October saved-work export check](evaluation/learning-work-export.md) adds local Markdown records of learner reasoning, feedback and source provenance from requirement history, with hidden-content and state-preservation boundaries. The complete 403-test macOS suite passes. A real native selected-record save preserved the full draft and all learning state; native return/focus and the final attached-sheet save/cancel flow remain pending because window retrieval is timing out.
 
 The [22 October recorded-assessment audit](evaluation/proof-evaluation.md#recorded-evidence-audit--22-october-2026) verifies saved proof-evaluation lineage and accounting without a model call. All twelve responses replay consistently, while instruction drift is explicitly flagged; 15 offline Python tests pass. Historical results do not establish current semantic grading quality.

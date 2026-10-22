@@ -68,6 +68,10 @@ final class LearningDocument: Identifiable {
         self.learning.chapterRequestIsCurrent = { [weak self] request in
             self?.studyMap.map?.isCurrentChapterRequest(request) == true
         }
+        self.learning.delayedReviewRecommendation = { [weak self] targetID, date in
+            guard let self else { return nil }
+            return self.studyMap.map?.nextDelayedReview(sessions: self.learning.sessions, now: date, targetID: targetID)
+        }
         self.learning.sourceIsCurrent = { [weak self] source in
             guard let self else { return false }
             return LearningSourceBuilder.matches(source, document: self.pdfDocument, map: self.studyMap.map)

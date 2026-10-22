@@ -50,11 +50,14 @@ private final class ProofTutorStub: LearningTutorProtocol {
     var assessment: LearningAssessment
     var freshQuestion: LearningQuestion?
     var excluded: [String] = []
+    var holdFreshQuestion = false
+    var questionContinuation: CheckedContinuation<LearningQuestion, Never>?
     init(lesson: LearningLesson, assessment: LearningAssessment) { self.lesson = lesson; self.assessment = assessment }
     func makeLesson(source: LearningSource) async throws -> LearningLesson { lesson }
     func assess(question: LearningQuestion, answer: String, source: LearningSource) async throws -> LearningAssessment { assessment }
     func newExitQuestion(lesson: LearningLesson, source: LearningSource, previous: [String]) async throws -> LearningQuestion {
         excluded = previous
+        if holdFreshQuestion { return await withCheckedContinuation { questionContinuation = $0 } }
         return freshQuestion ?? lesson.exitCheck
     }
 }
@@ -272,6 +275,121 @@ final class LearningStudyMapTests: XCTestCase {
             for other in unit.targets where other.id != target.id {
                 XCTAssertTrue(map.delayedEvidence(for: other, sessions: restored.sessions).isEmpty)
                 XCTAssertNil(unit.evidence(for: other, sessions: restored.sessions))
+            }
+        }
+    }
+
+    func testStaleDelayedReviewActionResumesSavedDraftInsteadOfDuplicatingIt() async throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let clock = Date(timeIntervalSince1970: 1_700_100_000)
+        let map = LearningStudyMap(pageSignatures: [], pages: [.init(pageIndex: 0, status: .mapped)], units: [unit])
+        for target in unit.targets {
+            var immediate = passedSession(target: target); immediate.reviewDueAt = clock
+            let tutor = ProofTutorStub(lesson: fixtureLesson(), assessment: proofAssessment(outcomes: [.met, .met, .met]))
+            tutor.freshQuestion = .init(prompt: "A different delayed question about zero preservation in a new representation.",
+                expectedAnswer: "Use scalar preservation with scalar zero.", hints: [], kind: target.kind, gradingCriteria: proofRubric)
+            var requests = 0
+            let vm = LearningViewModel(now: { clock }, makeTutor: { requests += 1; return tutor })
+            vm.restore([immediate])
+            let earlierAction = try XCTUnwrap(map.nextDelayedReview(sessions: vm.sessions, now: clock))
+            vm.startDelayedReview(earlierAction); await vm.waitForOperation()
+            vm.answerDraft = "Keep my reasoning in the delayed check that is already open."
+            let saved = vm.sessions
+            let selected = vm.selectedSessionID
+            tutor.freshQuestion = .init(prompt: "Another unused question that should never replace the open delayed check.",
+                expectedAnswer: "Apply linearity with the domain hypotheses.", hints: [], kind: target.kind, gradingCriteria: proofRubric)
+            vm.showSections()
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.startDelayedReview(earlierAction); await vm.waitForOperation()
+            XCTAssertEqual(requests, 1)
+            XCTAssertEqual(writes, 0)
+            XCTAssertEqual(vm.sessions, saved)
+            XCTAssertEqual(vm.selectedSessionID, selected)
+            XCTAssertEqual(vm.answerDraft, "Keep my reasoning in the delayed check that is already open.")
+        }
+    }
+
+    func testStaleDelayedReviewCannotRestartCompletedRescheduledOrIneligibleWork() async throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let clock = Date(timeIntervalSince1970: 1_700_100_000)
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        for target in unit.targets {
+            var immediate = passedSession(target: target); immediate.reviewDueAt = clock
+            immediate.attempts[0].createdAt = clock.addingTimeInterval(-86_400)
+            let originalAction = try XCTUnwrap(map.nextDelayedReview(sessions: [immediate], now: clock))
+            var completed = immediate
+            completed.id = UUID()
+            completed.delayedReview = .init(previousSessionID: immediate.id, scheduledFor: clock, startedAt: clock, round: 1)
+            completed.attempts[0].createdAt = clock.addingTimeInterval(10)
+            completed.reviewDueAt = clock.addingTimeInterval(3 * 86_400)
+            var helped = passedSession(target: target, help: true); helped.reviewDueAt = clock
+            var rescheduled = immediate; rescheduled.reviewDueAt = clock.addingTimeInterval(86_400)
+            for saved in [[completed, immediate], [helped], [rescheduled], []] {
+                var requests = 0
+                let tutor = ProofTutorStub(lesson: fixtureLesson(), assessment: proofAssessment(outcomes: [.met, .met, .met]))
+                let vm = LearningViewModel(now: { clock }, makeTutor: { requests += 1; return tutor })
+                vm.restore(try JSONDecoder().decode([LearningSession].self, from: JSONEncoder().encode(saved)))
+                var writes = 0; vm.onChange = { _ in writes += 1 }
+                vm.startDelayedReview(originalAction); await vm.waitForOperation()
+                XCTAssertEqual(vm.sessions, saved)
+                XCTAssertEqual(requests, 0)
+                XCTAssertEqual(writes, 0)
+                XCTAssertNil(vm.selectedSessionID)
+                XCTAssertNotNil(vm.errorMessage)
+            }
+        }
+    }
+
+    func testDelayedQuestionRevalidatesCurrentRequirementsAndSourceObligations() async throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let clock = Date(timeIntervalSince1970: 1_700_100_000)
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        for target in unit.targets {
+            for change in ["requirement", "source obligation", "removed map", "course organization"] {
+                var immediate = passedSession(target: target); immediate.reviewDueAt = clock
+                let action = try XCTUnwrap(map.nextDelayedReview(sessions: [immediate], now: clock))
+                let tutor = ProofTutorStub(lesson: fixtureLesson(), assessment: proofAssessment(outcomes: [.met, .met, .met]))
+                tutor.holdFreshQuestion = true
+                let vm = LearningViewModel(now: { clock }, makeTutor: { tutor }); vm.restore([immediate])
+                var currentMap: LearningStudyMap? = map
+                vm.delayedReviewRecommendation = { [weak vm] id, date in
+                    guard let vm else { return nil }
+                    return currentMap?.nextDelayedReview(sessions: vm.sessions, now: date, targetID: id)
+                }
+                var writes = 0; vm.onChange = { _ in writes += 1 }
+                vm.startDelayedReview(action)
+                for _ in 0..<1_000 where tutor.questionContinuation == nil { await Task.yield() }
+                let pending = try XCTUnwrap(tutor.questionContinuation)
+                switch change {
+                case "requirement":
+                    let revised = LearningStudyTarget(id: target.id, unitID: target.unitID, kind: target.kind,
+                        objective: target.objective + " with the restricted domain justified")
+                    currentMap?.units[0] = .init(id: unit.id, title: unit.title, anchorPage: unit.anchorPage,
+                        sourceQuote: unit.sourceQuote, pageIndices: unit.pageIndices, prerequisites: unit.prerequisites,
+                        proofRequired: unit.proofRequired, proofQuote: unit.proofQuote, gaps: unit.gaps, targets: [revised])
+                case "source obligation": currentMap?.units[0].pendingSourceCorrection = true
+                case "removed map": currentMap = nil
+                default:
+                    currentMap?.course = .init(title: "Reorganized course", overview: "Same requirements.",
+                        modules: [.init(title: "New chapter title", goal: "Same ideas", unitIDs: [unit.id])], connections: [])
+                }
+                let expectedMap = currentMap
+                pending.resume(returning: .init(prompt: "A different delayed question about zero preservation with a new representation.",
+                    expectedAnswer: "Use scalar preservation with the stated hypotheses.", hints: [], kind: target.kind, gradingCriteria: proofRubric))
+                await vm.waitForOperation()
+                XCTAssertFalse(vm.isBusy)
+                XCTAssertEqual(currentMap, expectedMap)
+                XCTAssertEqual(vm.sessions.first { $0.id == immediate.id }, immediate)
+                if change == "course organization" {
+                    XCTAssertEqual(vm.sessions.count, 2)
+                    XCTAssertNil(vm.errorMessage)
+                    XCTAssertEqual(writes, 1)
+                } else {
+                    XCTAssertEqual(vm.sessions, [immediate])
+                    XCTAssertNil(vm.selectedSessionID)
+                    XCTAssertNotNil(vm.errorMessage)
+                    XCTAssertEqual(writes, 0)
+                }
             }
         }
     }

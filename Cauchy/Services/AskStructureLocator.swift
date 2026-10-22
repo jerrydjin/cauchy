@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import PDFKit
 
@@ -12,6 +13,10 @@ struct AskOutlineNode: Equatable, Sendable {
 struct AskPageSnapshot: Equatable, Sendable {
     var pageIndex: Int
     var text: String
+    /// Parallel to `text` split on newlines. A heading number is bold, or
+    /// italic when it is a subsection. Emphasis is the first glyph.
+    var lineBold: [Bool] = []
+    var lineItalic: [Bool] = []
 }
 
 struct AskDocumentStructure: Equatable, Sendable {
@@ -211,8 +216,8 @@ enum AskStructureLocator {
         AskDocumentStructure(
             outline: outlineNodes(document.outlineRoot, document: document),
             pages: (0..<document.pageCount).compactMap { index in
-                guard let text = document.page(at: index)?.string, !text.isEmpty else { return nil }
-                return AskPageSnapshot(pageIndex: index, text: text)
+                guard let page = document.page(at: index) else { return nil }
+                return pageSnapshot(for: page, pageIndex: index)
             },
             pageCount: document.pageCount
         )
@@ -267,10 +272,10 @@ enum AskStructureLocator {
     private static func headings(in pages: [AskPageSnapshot]) -> [AskHeading] {
         var found: [AskHeading] = []
         for page in pages where !LLMReferenceIndexSupport.isLikelyTableOfContents(page.text) {
-            for raw in page.text.split(separator: "\n", omittingEmptySubsequences: false) {
+            for raw in logicalLines(page.text, bold: page.lineBold, italic: page.lineItalic) {
                 // A run-in heading keeps its title and drops the paragraph
                 // that follows the title period.
-                guard let heading = headingLine(String(raw)), (3...160).contains(heading.count) else { continue }
+                guard let heading = headingLine(raw), (3...160).contains(heading.count) else { continue }
                 found.append(AskHeading(
                     title: heading,
                     pageIndex: page.pageIndex,
@@ -540,6 +545,111 @@ enum AskStructureLocator {
         return stripped
     }
 
+    private static let sectionNumberLine = #"^(?:§\s*)?(\d+(?:\.\d+){0,2})\.?$"#
+
+    /// The line after an emphasized section number is the title, not a proof step.
+    private static func splitHeadingTitle(_ text: String) -> Bool {
+        let stripped = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !stripped.isEmpty, stripped.count <= 160 else { return false }
+        guard lineMatches(stripped, pattern: sectionNumberLine) == false else { return false }
+        guard stripped.first?.isUppercase == true else { return false }
+        let words = stripped.split(whereSeparator: \.isWhitespace)
+        guard (1...16).contains(words.count) else { return false }
+        guard lineMatches(stripped, pattern: #"[A-Za-z]{4,}"#) else { return false }
+        guard lineMatches(stripped, pattern: sentenceOpener) == false else { return false }
+        let letters = stripped.filter(\.isLetter)
+        if !letters.isEmpty, letters.filter(\.isUppercase).count * 5 > letters.count * 4, words.count <= 6 {
+            return false
+        }
+        return true
+    }
+
+    /// Join "1." and "Introduction" when both lines are emphasized.
+    private static func logicalLines(_ text: String, bold: [Bool], italic: [Bool]) -> [String] {
+        let raw = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard !bold.isEmpty || !italic.isEmpty else { return raw }
+        func flag(_ flags: [Bool], _ index: Int) -> Bool {
+            index < flags.count ? flags[index] : false
+        }
+        var joined: [String] = []
+        var index = 0
+        while index < raw.count {
+            let line = raw[index].trimmingCharacters(in: .whitespaces)
+            let number = firstMatch(line, pattern: sectionNumberLine)
+            let captured = (number?.count ?? 0) > 1 ? number?[1] : nil
+            let dotted = captured?.contains(".") ?? false
+            let emphasized = flag(bold, index) || (flag(italic, index) && dotted)
+            let head = Int(captured?.split(separator: ".").first.map(String.init) ?? "")
+            if emphasized, let captured, let head, (1...40).contains(head) {
+                var next = index + 1
+                while next < raw.count, raw[next].trimmingCharacters(in: .whitespaces).isEmpty {
+                    next += 1
+                }
+                if next < raw.count, flag(bold, next) || flag(italic, next), splitHeadingTitle(raw[next]) {
+                    let tag = line.hasSuffix(".") ? line : "\(captured)."
+                    joined.append("\(tag) \(raw[next].trimmingCharacters(in: .whitespaces))")
+                    index = next + 1
+                    continue
+                }
+            }
+            joined.append(raw[index])
+            index += 1
+        }
+        return joined
+    }
+
+    private static func pageSnapshot(for page: PDFPage, pageIndex: Int) -> AskPageSnapshot? {
+        if let attributed = page.attributedString, attributed.length > 0 {
+            let lines = emphasisLines(in: attributed)
+            guard !lines.text.isEmpty else { return nil }
+            return AskPageSnapshot(
+                pageIndex: pageIndex,
+                text: lines.text,
+                lineBold: lines.bold,
+                lineItalic: lines.italic
+            )
+        }
+        guard let text = page.string, !text.isEmpty else { return nil }
+        return AskPageSnapshot(pageIndex: pageIndex, text: text)
+    }
+
+    /// Emphasis of the first glyph on each visual line.
+    private static func emphasisLines(in attributed: NSAttributedString) -> (text: String, bold: [Bool], italic: [Bool]) {
+        let raw = attributed.string as NSString
+        var texts: [String] = []
+        var bold: [Bool] = []
+        var italic: [Bool] = []
+        var location = 0
+        while location <= raw.length {
+            let rest = NSRange(location: location, length: raw.length - location)
+            let newline = raw.range(of: "\n", options: [], range: rest)
+            let end = newline.location == NSNotFound ? raw.length : newline.location
+            let lineRange = NSRange(location: location, length: max(0, end - location))
+            let traits = firstGlyphTraits(in: attributed, range: lineRange)
+            texts.append(raw.substring(with: lineRange))
+            bold.append(traits.bold)
+            italic.append(traits.italic)
+            if newline.location == NSNotFound { break }
+            location = newline.location + newline.length
+        }
+        return (texts.joined(separator: "\n"), bold, italic)
+    }
+
+    private static func firstGlyphTraits(in attributed: NSAttributedString, range: NSRange) -> (bold: Bool, italic: Bool) {
+        guard range.length > 0 else { return (false, false) }
+        let raw = attributed.string as NSString
+        var offset = 0
+        while offset < range.length {
+            let character = raw.character(at: range.location + offset)
+            if character != 32, character != 9 { break }
+            offset += 1
+        }
+        guard offset < range.length else { return (false, false) }
+        let font = attributed.attribute(.font, at: range.location + offset, effectiveRange: nil) as? NSFont
+        let traits = font?.fontDescriptor.symbolicTraits ?? []
+        return (traits.contains(.bold), traits.contains(.italic))
+    }
+
     private static func headingLine(_ line: String) -> String? {
         let stripped = line.trimmingCharacters(in: .whitespaces)
         guard !stripped.isEmpty else { return nil }
@@ -573,7 +683,7 @@ enum AskStructureLocator {
         return groups
     }
 
-    /// The text after the number has to open with a capital. "4. Clique-sum"
+    /// The text after the number has to open with a capital. "4. Block-sum"
     /// does. "4 be the" and "1 + z" do not.
     private static func titleTextFollows(_ line: String, number: String) -> Bool {
         var rest = line.trimmingCharacters(in: .whitespaces)

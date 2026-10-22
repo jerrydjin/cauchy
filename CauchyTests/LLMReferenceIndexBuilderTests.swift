@@ -509,6 +509,21 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1")))
     }
 
+    func testDottedEquationNumberAloneOnALineIsADeclaration() {
+        let page = """
+        The estimate is recorded below.
+        (2.4)
+        where the symbol denotes the usual pairing in the module.
+        (3)
+        where the reader may consult the appendix.
+        """
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "2.4")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "3")))
+    }
+
     func testOwnLineEquationKeepsTheFormulaOnTheNextLine() {
         let page = """
         (2)
@@ -523,6 +538,14 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
 
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1")))
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
+    }
+
+    func testOwnLineEquationIgnoresAFormulaMoreThanFourLinesLater() {
+        let page = "(4)\n\n\n\n\nxn = yn + 1\n"
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "4")))
     }
 
     func testDeclarationGuardAcceptsEquationLabelAtBeginningOfLine() {

@@ -363,6 +363,12 @@ enum LLMReferenceIndexSupport {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard fullLine == matchedText else { return false }
 
+            // A dotted tag alone on a line is the equation number. Enumerated
+            // items are bare integers, and a math font often extracts no "=".
+            if match.reference.number.contains(".") {
+                return true
+            }
+
             let displayStart = sourceText.index(
                 match.range.lowerBound,
                 offsetBy: -600,
@@ -386,6 +392,11 @@ enum LLMReferenceIndexSupport {
         var lines = rest.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         if !lines.isEmpty {
             lines.removeFirst()
+        }
+        // The scorecard port only inspects the next four lines. A display
+        // further down the page is a later equation, not this number.
+        if lines.count > 4 {
+            lines = Array(lines.prefix(4))
         }
         guard let next = lines.lazy.map({ $0.trimmingCharacters(in: .whitespaces) }).first(where: { !$0.isEmpty }) else {
             return false

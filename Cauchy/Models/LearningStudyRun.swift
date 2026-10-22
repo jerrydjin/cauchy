@@ -18,7 +18,7 @@ struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
 
         func session(in sessions: [LearningSession]) -> LearningSession? {
             let matching = sessions.filter {
-                $0.chapter == nil && $0.studyTarget?.id == target.id && $0.studyTarget?.kind == target.kind
+                $0.chapter == nil && target.matchesRequirement($0.studyTarget)
                     && ($0.delayedReview != nil) == (mode == .delayedReview)
                     && ($0.id == existingSessionID || $0.studyRunItemID == id)
             }
@@ -87,7 +87,7 @@ struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
         for unit in map.studyRunUnits {
             for target in unit.studyRunTargets where items.count < limit && !targets.contains(target.id) {
                 guard unit.evidence(for: target, sessions: sessions)?.hasIndependentCorrectResult != true else { continue }
-                let saved = sessions.filter { $0.chapter == nil && $0.delayedReview == nil && $0.studyTarget?.id == target.id }
+                let saved = sessions.filter { $0.chapter == nil && $0.delayedReview == nil && target.matchesRequirement($0.studyTarget) }
                     .max { $0.updatedAt < $1.updatedAt }
                 items.append(.init(unitID: unit.id, title: unit.title, target: target, mode: .lesson,
                     existingSessionID: saved?.id, earlierAttemptIDs: saved?.attempts.map(\.id) ?? []))
@@ -109,7 +109,7 @@ struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
         guard let item = currentItem,
               let unit = map.units.first(where: { $0.id == item.unitID }),
               let target = unit.learningTargets.first(where: { $0.id == item.target.id }),
-              target.kind == item.target.kind, target.objective == item.target.objective else { return .changedRequirement }
+              item.unitID == item.target.unitID, target.matchesRequirement(item.target) else { return .changedRequirement }
         if unit.needsSourceReview || unit.openGapCount > 0 || unit.hasUnlocatedProof {
             return .sourceReview(unitID: unit.id, title: unit.title, pageIndex: unit.anchorPage)
         }

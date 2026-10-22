@@ -26,6 +26,13 @@ struct LearningStudyTarget: Identifiable, Codable, Equatable, Sendable {
     let kind: LearningStudyKind
     let objective: String
     var courseContext: String? = nil
+
+    /// Credit and lesson reuse belong to this exact requirement. Course
+    /// organization can change without changing what the learner must show.
+    func matchesRequirement(_ other: LearningStudyTarget?) -> Bool {
+        guard let other else { return false }
+        return id == other.id && unitID == other.unitID && kind == other.kind && objective == other.objective
+    }
 }
 
 struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
@@ -75,8 +82,9 @@ struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
     func evidence(for target: LearningStudyTarget, sessions: [LearningSession]) -> LearningAttempt? {
         // Only a check explicitly attached to this requirement can count.
         // An unrelated application lesson cannot establish proof comprehension.
-        sessions.filter { session in
-            session.chapter == nil && session.delayedReview == nil && session.studyTarget?.id == target.id
+        guard target.unitID == id else { return nil }
+        return sessions.filter { session in
+            session.chapter == nil && session.delayedReview == nil && target.matchesRequirement(session.studyTarget)
                 && Set(sourceCorrectionIDs ?? []).isSubset(of: Set(session.source.passages.compactMap { $0.correction?.id }))
         }
             .compactMap(\.latestExitAttempt).filter { $0.question.kind == target.kind }
@@ -174,7 +182,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
         var candidates: [LearningReviewRecommendation] = []
         for unit in units {
             for target in unit.learningTargets where targetID == nil || target.id == targetID {
-                let related = sessions.filter { $0.chapter == nil && $0.studyTarget?.id == target.id }
+                let related = sessions.filter { $0.chapter == nil && target.matchesRequirement($0.studyTarget) }
                 if let active = related.filter({ $0.delayedReview != nil && $0.phase != .complete })
                     .max(by: { $0.updatedAt < $1.updatedAt }) {
                     candidates.append(.init(unit: unit, target: target, previous: active,
@@ -199,7 +207,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
     }
 
     func delayedEvidence(for target: LearningStudyTarget, sessions: [LearningSession]) -> [LearningAttempt] {
-        sessions.filter { $0.chapter == nil && $0.delayedReview != nil && $0.studyTarget?.id == target.id }
+        sessions.filter { $0.chapter == nil && $0.delayedReview != nil && target.matchesRequirement($0.studyTarget) }
             .flatMap(\.attempts).filter { $0.phase == .exitCheck && $0.question.kind == target.kind }
             .sorted { $0.createdAt < $1.createdAt }
     }
@@ -211,7 +219,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
         return ordered.flatMap { unit in
             unit.learningTargets.map { target in
                 LearningStudyRecommendation(unit: unit, target: target,
-                    session: sessions.filter { $0.chapter == nil && $0.delayedReview == nil && $0.studyTarget?.id == target.id }.max { $0.updatedAt < $1.updatedAt })
+                    session: sessions.filter { $0.chapter == nil && $0.delayedReview == nil && target.matchesRequirement($0.studyTarget) }.max { $0.updatedAt < $1.updatedAt })
             }
         }.filter { $0.unit.evidence(for: $0.target, sessions: sessions)?.hasIndependentCorrectResult != true }
     }
@@ -273,7 +281,7 @@ struct LearningSyllabus: Codable, Equatable, Sendable {
                   unit.teachingAnchor.quote == reference.sourceQuote,
                   Set(unit.sourceCorrectionIDs ?? []) == Set(reference.correctionIDs),
                   let target = unit.learningTargets.first(where: { $0.id == reference.target.id }),
-                  target.kind == mapping.kind, target.objective == reference.target.objective else { return nil }
+                  target.kind == mapping.kind, target.matchesRequirement(reference.target) else { return nil }
             if target.kind == .proof, unit.hasUnlocatedProof { return nil }
             targets.append(target)
         }

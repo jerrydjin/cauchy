@@ -31,6 +31,8 @@ enum LearningRequirementHistory {
     }
 
     static func sessions(for target: LearningStudyTarget, in sessions: [LearningSession]) -> [LearningSession] {
+        // Retain earlier wording here for inspection, even though only the
+        // exact current requirement can receive credit or resume as new work.
         sessions.filter {
             $0.chapter == nil && $0.studyTarget?.id == target.id
                 && $0.studyTarget?.unitID == target.unitID && $0.studyTarget?.kind == target.kind

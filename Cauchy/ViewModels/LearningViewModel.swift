@@ -188,12 +188,20 @@ final class LearningViewModel {
 
     func startDelayedReview(_ recommendation: LearningReviewRecommendation, studyRunItemID: UUID? = nil) {
         guard !isBusy else { return }
-        if let active = recommendation.activeSessionID { select(active); return }
         let previous = recommendation.previous
         let target = recommendation.target
+        guard target.unitID == recommendation.unit.id,
+              recommendation.unit.learningTargets.contains(where: { $0.matchesRequirement(target) }),
+              target.matchesRequirement(previous.studyTarget), previous.chapter == nil else { return }
+        if let active = recommendation.activeSessionID {
+            guard let saved = sessions.first(where: { $0.id == active }), saved.id == previous.id,
+                  saved.chapter == nil, saved.delayedReview != nil, saved.phase != .complete,
+                  target.matchesRequirement(saved.studyTarget) else { return }
+            select(active)
+            return
+        }
         let startedAt = now()
         guard recommendation.dueAt <= startedAt, !recommendation.unit.needsSourceReview,
-              previous.studyTarget?.id == target.id, previous.chapter == nil,
               check(previous.source), previous.source.contains(quote: previous.lesson.sourceQuote) else { return }
         let seen = questionHistory(for: previous, includeExitCheck: true)
         perform(.exitQuestion, source: previous.source) { tutor in
@@ -439,6 +447,7 @@ final class LearningViewModel {
     private func questionHistory(for session: LearningSession, includeExitCheck: Bool) -> [String] {
         let related = sessions.filter { other in
             guard other.id != session.id, other.chapter == nil else { return false }
+            // Prior wording still counts as a seen question, not as current evidence.
             if let target = session.studyTarget { return other.studyTarget?.id == target.id }
             return other.studyTarget == nil && other.source == session.source
         }

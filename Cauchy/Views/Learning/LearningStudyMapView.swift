@@ -667,10 +667,10 @@ struct LearningStudyMapView: View {
                     }
                     Spacer(minLength: 0)
                     Button(actionLabel(target)) { study(target, unit: unit) }
-                        .disabled(!canStudy(target) || (unit.needsSourceReview && !document.learning.sessions.contains { $0.delayedReview == nil && $0.studyTarget?.id == target.id }))
+                        .disabled(!canStudy(target) || (unit.needsSourceReview && savedLesson(for: target) == nil))
                 }
                 if !unit.needsSourceReview,
-                   let saved = document.learning.sessions.first(where: { $0.delayedReview == nil && $0.studyTarget?.id == target.id }),
+                   let saved = savedLesson(for: target),
                    !LearningSourceBuilder.matches(saved.source, document: document.pdfDocument, map: planner.map) {
                     Button("Prepare a lesson from the revised source", systemImage: "arrow.clockwise") {
                         study(target, unit: unit, prepareNew: true)
@@ -695,7 +695,12 @@ struct LearningStudyMapView: View {
 
     private func status(_ target: LearningStudyTarget, unit: LearningStudyUnit) -> String {
         guard let attempt = unit.evidence(for: target, sessions: document.learning.sessions) else {
-            return document.learning.sessions.contains { $0.studyTarget?.id == target.id } ? "In progress — no exit evidence yet" : "Not checked"
+            if savedLesson(for: target) != nil { return "In progress — no exit evidence yet" }
+            if LearningRequirementHistory.sessions(for: target, in: document.learning.sessions)
+                .contains(where: { !target.matchesRequirement($0.studyTarget) }) {
+                return "Not checked — requirement wording changed; earlier work is saved"
+            }
+            return "Not checked"
         }
         switch attempt.assessment.grade {
         case .correct:
@@ -709,7 +714,13 @@ struct LearningStudyMapView: View {
     }
 
     private func actionLabel(_ target: LearningStudyTarget) -> String {
-        document.learning.sessions.contains { $0.delayedReview == nil && $0.studyTarget?.id == target.id } ? "Open lesson" : "Study"
+        savedLesson(for: target) != nil ? "Open lesson" : "Study"
+    }
+
+    private func savedLesson(for target: LearningStudyTarget) -> LearningSession? {
+        document.learning.sessions.first {
+            $0.chapter == nil && $0.delayedReview == nil && target.matchesRequirement($0.studyTarget)
+        }
     }
 
     private func startChapter(_ request: LearningChapterRequest) {
@@ -728,7 +739,7 @@ struct LearningStudyMapView: View {
     }
 
     private func canStudy(_ target: LearningStudyTarget) -> Bool {
-        !document.isBusy && (assistantAvailable || document.learning.sessions.contains { $0.delayedReview == nil && $0.studyTarget?.id == target.id })
+        !document.isBusy && (assistantAvailable || savedLesson(for: target) != nil)
     }
 
     private func study(_ target: LearningStudyTarget, unit: LearningStudyUnit, prepareNew: Bool = false) {

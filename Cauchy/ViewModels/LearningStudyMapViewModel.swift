@@ -37,8 +37,8 @@ final class LearningStudyMapViewModel {
               Set(run.items.map { $0.target.id }).count == run.items.count,
               run.items.allSatisfy({ item in
                   updated.units.contains { unit in
-                      unit.id == item.unitID && unit.learningTargets.contains {
-                          $0.id == item.target.id && $0.kind == item.target.kind && $0.objective == item.target.objective
+                      unit.id == item.unitID && item.unitID == item.target.unitID && unit.learningTargets.contains {
+                          $0.matchesRequirement(item.target)
                       }
                   }
               }),

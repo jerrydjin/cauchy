@@ -127,15 +127,19 @@ extension LearningDocument {
         studyMap.updateStudyRun(run.id) { $0.finish(sessions: learning.sessions, at: Date()) }
     }
 
-    func study(_ target: LearningStudyTarget, unit: LearningStudyUnit, prepareNew: Bool = false, studyRunItemID: UUID? = nil) {
+    func study(_ target: LearningStudyTarget, unit requestedUnit: LearningStudyUnit, prepareNew: Bool = false, studyRunItemID: UUID? = nil) {
+        guard let map = studyMap.map, let unit = map.units.first(where: { $0.id == requestedUnit.id }),
+              target.unitID == unit.id, unit.learningTargets.contains(where: { $0.matchesRequirement(target) }) else { return }
         // Existing lessons and drafts remain available for inspection, but
         // damaged source text cannot silently generate another lesson.
-        if !prepareNew, let session = learning.sessions.first(where: { $0.delayedReview == nil && $0.studyTarget?.id == target.id }) {
+        if !prepareNew, let session = learning.sessions.first(where: {
+            $0.chapter == nil && $0.delayedReview == nil && target.matchesRequirement($0.studyTarget)
+        }) {
             learning.select(session.id)
             return
         }
         guard !unit.needsSourceReview else { return }
-        guard let map = studyMap.map, unit.learningPageIndices.allSatisfy({ index in
+        guard unit.learningPageIndices.allSatisfy({ index in
             guard map.pageSignatures.indices.contains(index), let text = pdfDocument.page(at: index)?.string else { return false }
             return LearningStudyInput.signature(text) == map.pageSignatures[index]
         }) else {

@@ -81,6 +81,170 @@ final class LearningStudyRunTests: XCTestCase {
         XCTAssertEqual(LearningStudyRun.plan(map: map, sessions: [], count: 2, now: now)?.items.count, 2)
     }
 
+    func testRevisedRequirementKeepsEarlierWorkOutOfCreditReviewsAndPlans() throws {
+        var map = map()
+        let original = map.units[0].targets[0]
+        let revised = LearningStudyTarget(id: original.id, unitID: original.unitID, kind: original.kind,
+            objective: "Explain why preserving zero is necessary but insufficient for linearity.")
+        map.units[0] = replacingTargets(map.units[0], with: [revised] + map.units[0].targets.dropFirst())
+        var passed = session(target: original)
+        passed.reviewDueAt = now.addingTimeInterval(-86_400)
+        var reviewDraft = session(target: original, delayed: true)
+        reviewDraft.phase = .exitCheck
+        reviewDraft.attempts = []
+        reviewDraft.answerDraft = "My earlier objective's unfinished review"
+        let completedReview = session(target: original, delayed: true)
+        let saved = [passed, reviewDraft, completedReview]
+
+        XCTAssertNil(map.units[0].evidence(for: revised, sessions: saved))
+        XCTAssertEqual(map.units[0].checkedTargetCount(sessions: saved), 0)
+        XCTAssertNil(map.nextDelayedReview(sessions: [passed], now: now))
+        XCTAssertNil(map.nextDelayedReview(sessions: saved, now: now))
+        XCTAssertTrue(map.delayedEvidence(for: revised, sessions: saved).isEmpty)
+        let next = try XCTUnwrap(map.nextStudy(sessions: saved))
+        XCTAssertEqual(next.target, revised)
+        XCTAssertNil(next.session)
+        let planned = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: saved, count: 1, now: now))
+        XCTAssertEqual(planned.items.first?.target, revised)
+        XCTAssertEqual(planned.items.first?.mode, .lesson)
+        XCTAssertNil(planned.items.first?.existingSessionID)
+        // Earlier wording remains available for inspection under this requirement.
+        XCTAssertEqual(Set(LearningRequirementHistory.sessions(for: revised, in: saved).map(\.id)), Set(saved.map(\.id)))
+    }
+
+    func testRequirementIdentityIncludesUnitKindAndObjectiveButNotCourseContext() throws {
+        let map = map()
+        let target = map.units[0].targets[0]
+        var contextual = target
+        contextual.courseContext = "A reorganized chapter with a revised course overview."
+        XCTAssertTrue(target.matchesRequirement(contextual))
+        XCTAssertFalse(target.matchesRequirement(nil))
+        let different = [
+            LearningStudyTarget(unitID: target.unitID, kind: target.kind, objective: target.objective),
+            LearningStudyTarget(id: target.id, unitID: UUID(), kind: target.kind, objective: target.objective),
+            LearningStudyTarget(id: target.id, unitID: target.unitID, kind: .proof, objective: target.objective),
+            LearningStudyTarget(id: target.id, unitID: target.unitID, kind: target.kind, objective: target.objective + " Revised.")
+        ]
+        for other in different {
+            XCTAssertFalse(target.matchesRequirement(other))
+            var saved = session(target: other)
+            let attempt = saved.attempts[0]
+            var question = attempt.question
+            question.kind = target.kind // A raw matching question kind is insufficient.
+            saved.attempts = [.init(phase: attempt.phase, question: question, answer: attempt.answer,
+                assessment: attempt.assessment, assistanceUsed: attempt.assistanceUsed,
+                providerID: attempt.providerID, modelID: attempt.modelID)]
+            XCTAssertNil(map.units[0].evidence(for: target, sessions: [saved]))
+            let item = LearningStudyRun.Item(unitID: target.unitID, title: "Pinned requirement", target: target,
+                mode: .lesson, existingSessionID: saved.id, earlierAttemptIDs: [])
+            XCTAssertNil(item.session(in: [saved]))
+            saved.studyRunItemID = item.id
+            XCTAssertNil(item.session(in: [saved]))
+        }
+        var saved = session(target: contextual)
+        saved.reviewDueAt = now
+        XCTAssertEqual(map.units[0].evidence(for: target, sessions: [saved]), saved.latestExitAttempt)
+        XCTAssertEqual(map.nextDelayedReview(sessions: [saved], now: now)?.previous.id, saved.id)
+        var draft = saved
+        draft.phase = .practice; draft.attempts = []
+        let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: [draft], count: 1, now: now))
+        XCTAssertEqual(run.items[0].existingSessionID, draft.id)
+        XCTAssertEqual(run.items[0].session(in: [draft]), draft)
+        XCTAssertNil(run.blocker(in: map, sessions: [draft]))
+        let vm = LearningStudyMapViewModel(map: map)
+        try vm.startStudyRun(run)
+    }
+
+    func testRevisedRequirementsStartSeparateLessonsAndPreserveHistoricalWorkAcrossRestart() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-requirement-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let seed = LearningUIFixtureController(rootPath: root.path)
+        await seed.load()
+        let originalDocument = try XCTUnwrap(seed.library?.selectedDocument)
+        let originalMap = try XCTUnwrap(originalDocument.studyMap.map)
+        let due = try XCTUnwrap(originalMap.nextDelayedReview(sessions: originalDocument.learning.sessions, now: Date()))
+        originalDocument.learning.startDelayedReview(due)
+        await originalDocument.learning.waitForOperation()
+        originalDocument.learning.answerDraft = "Earlier objective's unsubmitted delayed argument."
+        let oldDraftID = try XCTUnwrap(originalDocument.learning.session?.id)
+        try await seed.flush()
+        var workspace = originalDocument.snapshot
+        var revisedMap = originalMap
+        let previousConcept = revisedMap.units[0].targets[0]
+        let revisedConcept = LearningStudyTarget(id: previousConcept.id, unitID: previousConcept.unitID, kind: previousConcept.kind,
+            objective: "Explain where closedness is needed to keep the subsequence limit in the subset.")
+        let revisedApplication = LearningStudyTarget(id: due.target.id, unitID: due.target.unitID, kind: due.target.kind,
+            objective: "Use the continuous image result with a restricted closed domain.")
+        revisedMap.units[0] = replacingTargets(revisedMap.units[0], with: revisedMap.units[0].targets.map {
+            $0.id == revisedConcept.id ? revisedConcept : $0
+        })
+        revisedMap.units[1] = replacingTargets(revisedMap.units[1], with: revisedMap.units[1].targets.map {
+            $0.id == revisedApplication.id ? revisedApplication : $0
+        })
+        revisedMap.updatedAt = Date()
+        workspace.learningStudyMap = revisedMap
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await persistence.saveWorkspace(workspace, bookmarkData: nil)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let oldWork = try encoder.encode(workspace.learningSessions)
+
+        let current = LearningUIFixtureController(rootPath: root.path)
+        await current.load()
+        let document = try XCTUnwrap(current.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        XCTAssertNil(map.nextDelayedReview(sessions: document.learning.sessions, now: Date()))
+        XCTAssertEqual(map.units[1].checkedTargetCount(sessions: document.learning.sessions), 0)
+        XCTAssertEqual(map.nextStudy(sessions: document.learning.sessions)?.target, revisedConcept)
+        XCTAssertNil(map.nextStudy(sessions: document.learning.sessions)?.session)
+        let history = LearningRequirementHistory.entries(for: revisedApplication, in: document.learning.sessions)
+        XCTAssertTrue(history.contains { $0.requirementObjective == due.target.objective && !$0.isDraft })
+        XCTAssertTrue(history.contains { $0.sessionID == oldDraftID && $0.isDraft })
+        document.learning.select(due.previous.id)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), oldWork)
+        document.study(previousConcept, unit: originalMap.units[0])
+        XCTAssertFalse(document.learning.isBusy)
+        XCTAssertEqual(document.learning.selectedSessionID, due.previous.id)
+
+        // Stale recommendations cannot relabel old evidence or resume an old draft as the new objective.
+        for activeID in [UUID?.none, oldDraftID] {
+            let previous = try XCTUnwrap(document.learning.sessions.first { $0.id == (activeID ?? due.previous.id) })
+            document.learning.startDelayedReview(.init(unit: map.units[1], target: revisedApplication,
+                previous: previous, dueAt: due.dueAt, activeSessionID: activeID))
+            XCTAssertFalse(document.learning.isBusy)
+            XCTAssertEqual(document.learning.selectedSessionID, due.previous.id)
+            XCTAssertEqual(try encoder.encode(document.learning.sessions), oldWork)
+        }
+
+        document.study(revisedConcept, unit: map.units[0])
+        await document.learning.waitForOperation()
+        XCTAssertNil(document.learning.errorMessage)
+        let newID = try XCTUnwrap(document.learning.session?.id)
+        XCTAssertTrue(revisedConcept.matchesRequirement(document.learning.session?.studyTarget))
+        XCTAssertEqual(document.learning.session?.lesson.objective, revisedConcept.objective)
+        XCTAssertEqual(document.learning.session?.phase, .diagnostic)
+        XCTAssertEqual(document.learning.sessions.count, workspace.learningSessions.count + 1)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions.filter { $0.id != newID }), oldWork)
+        document.study(revisedConcept, unit: map.units[0])
+        XCTAssertEqual(document.learning.selectedSessionID, newID)
+        XCTAssertFalse(document.learning.isBusy)
+        document.learning.answerDraft = "New objective, separate saved reasoning."
+        try await current.flush()
+
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        let restoredMap = try XCTUnwrap(restored.studyMap.map)
+        XCTAssertEqual(try encoder.encode(restoredMap), try encoder.encode(map))
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions.filter { $0.id != newID }), oldWork)
+        restored.study(revisedConcept, unit: restoredMap.units[0])
+        XCTAssertEqual(restored.learning.selectedSessionID, newID)
+        XCTAssertEqual(restored.learning.answerDraft, "New objective, separate saved reasoning.")
+        XCTAssertFalse(restored.learning.isBusy)
+        XCTAssertEqual(restoredMap.nextStudy(sessions: restored.learning.sessions)?.session?.id, newID)
+        XCTAssertNil(restoredMap.nextDelayedReview(sessions: restored.learning.sessions, now: Date()))
+        XCTAssertEqual(LearningRequirementHistory.entries(for: revisedApplication, in: restored.learning.sessions), history)
+    }
+
     func testDueReviewLeadsAndKeepsItsOwnEvidenceKindAndSession() throws {
         let map = map()
         let target = map.units[1].targets[2]

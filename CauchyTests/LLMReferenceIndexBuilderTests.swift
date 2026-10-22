@@ -540,6 +540,14 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
     }
 
+    func testOwnLineEquationIgnoresAFormulaMoreThanFourLinesLater() {
+        let page = "(4)\n\n\n\n\nxn = yn + 1\n"
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "4")))
+    }
+
     func testDeclarationGuardAcceptsEquationLabelAtBeginningOfLine() {
         let page = """
         By the mean value theorem we have

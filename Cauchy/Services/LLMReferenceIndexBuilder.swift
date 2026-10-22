@@ -269,8 +269,8 @@ enum LLMReferenceIndexSupport {
     /// citation into the index. A named declaration starts a line: punctuation,
     /// a capitalised statement, or the statement on the next line. A number-first
     /// heading such as "6.1 Definition." is the same shape. Equations require
-    /// equation-like content on the numbered line, a short formula on the line
-    /// above a dotted tag, or a display when the number sits on its own line.
+    /// equation-like content on the numbered line, a dotted tag on its own line,
+    /// or a short display on one of the next four lines.
     static func declarationMatches(
         in sourceText: String,
         equationLabelX: [Int: Double] = [:]
@@ -380,11 +380,12 @@ enum LLMReferenceIndexSupport {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard fullLine == matchedText else { return false }
 
-            // A dotted tag alone on the line, with the formula on the line
-            // above. The operator is often a glyph rather than "=". A long
-            // sentence above the tag is a citation.
-            if match.reference.number.contains("."),
-               isShortFormulaLine(previousNonemptyLine(in: sourceText, before: fullLineStart)) {
+            // A dotted tag alone on a line is the equation number. Enumerated
+            // items are bare integers, and a math font often extracts no "=".
+            // #24 kept the tag only when the previous line was a short formula,
+            // which dropped a tag under a diagram. The scorecard port accepts
+            // every dotted own-line tag.
+            if match.reference.number.contains(".") {
                 return true
             }
 
@@ -394,7 +395,13 @@ enum LLMReferenceIndexSupport {
                 limitedBy: sourceText.startIndex
             ) ?? sourceText.startIndex
             let precedingDisplay = sourceText[displayStart..<match.range.lowerBound]
-            return mathSignals.contains(where: precedingDisplay.contains)
+            if mathSignals.contains(where: precedingDisplay.contains) {
+                return true
+            }
+            // The text layer can put the formula on the next line:
+            // "(1)\nxn+m xn = P(...)". A sentence that merely contains an
+            // equals sign is not that formula.
+            return followingLineIsDisplay(sourceText, after: match.range.upperBound)
         }
         return (detected + numberFirstDeclarations(in: sourceText))
             .sorted { $0.range.lowerBound < $1.range.lowerBound }
@@ -448,31 +455,26 @@ enum LLMReferenceIndexSupport {
         return first.isUppercase
     }
 
-    private static func previousNonemptyLine(in text: String, before index: String.Index) -> String {
-        var end = index
-        while end > text.startIndex {
-            let previous = text.index(before: end)
-            let character = text[previous]
-            if character != "\n" && character != "\r" {
-                break
-            }
-            end = previous
+    /// The next non-empty line after an own-line equation number is a display
+    /// when it contains a relation and almost no words.
+    private static func followingLineIsDisplay(_ sourceText: String, after index: String.Index) -> Bool {
+        let rest = sourceText[index...]
+        var lines = rest.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        if !lines.isEmpty {
+            lines.removeFirst()
         }
-        let lineStart = text[..<end].lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
-        return text[lineStart..<end].trimmingCharacters(in: .whitespaces)
-    }
-
-    private static func isShortFormulaLine(_ line: String) -> Bool {
-        let stripped = line.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !stripped.isEmpty, !stripped.hasSuffix(".") else { return false }
-        let mathSignals = ["=", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
-        let words = stripped.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
-        if mathSignals.contains(where: stripped.contains) {
-            return words.count <= 8
+        // The scorecard port only inspects the next four lines. A display
+        // further down the page is a later equation, not this number.
+        if lines.count > 4 {
+            lines = Array(lines.prefix(4))
         }
-        let operators = CharacterSet(charactersIn: "0123456789=<>+-*/^_|")
-        let hasDigitOrOperator = stripped.unicodeScalars.contains { operators.contains($0) }
-        return words.count <= 6 && hasDigitOrOperator
+        guard let next = lines.lazy.map({ $0.trimmingCharacters(in: .whitespaces) }).first(where: { !$0.isEmpty }) else {
+            return false
+        }
+        let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+        guard operators.contains(where: { next.contains($0) }) else { return false }
+        let words = next.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
+        return words.count <= 2
     }
 
     static func isLikelyDeclaration(

@@ -514,7 +514,7 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .theorem, number: "4.1")))
     }
 
-    func testDottedEquationTagUsesTheShortFormulaAboveIt() {
+    func testDottedEquationTagOnItsOwnLineIsADeclaration() {
         let page = """
         n D q times d plus r AND 0
         (1.2)
@@ -526,8 +526,8 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         let numbers = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference.number)
 
         XCTAssertTrue(numbers.contains("1.2"))
-        XCTAssertFalse(numbers.contains("1.3"))
-        XCTAssertFalse(numbers.contains("1.4"))
+        XCTAssertTrue(numbers.contains("1.3"))
+        XCTAssertTrue(numbers.contains("1.4"))
     }
 
     func testNumberFirstHeadingIsADeclaration() {
@@ -556,6 +556,45 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
 
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1")))
+    }
+
+    func testDottedEquationNumberAloneOnALineIsADeclaration() {
+        let page = """
+        The estimate is recorded below.
+        (2.4)
+        where the symbol denotes the usual pairing in the module.
+        (3)
+        where the reader may consult the appendix.
+        """
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "2.4")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "3")))
+    }
+
+    func testOwnLineEquationKeepsTheFormulaOnTheNextLine() {
+        let page = """
+        (2)
+        Then f = 0 whenever the hypothesis holds.
+        We first consider recurrences of the form
+        (1)
+        xn+mxn = P(xn+1, . . . , xn+m−1) =
+        for n ≥ 0.
+        """
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
+    }
+
+    func testOwnLineEquationIgnoresAFormulaMoreThanFourLinesLater() {
+        let page = "(4)\n\n\n\n\nxn = yn + 1\n"
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "4")))
     }
 
     func testDeclarationGuardAcceptsEquationLabelAtBeginningOfLine() {

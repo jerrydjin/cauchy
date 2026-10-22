@@ -558,6 +558,22 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1")))
     }
 
+    func testOwnLineEquationKeepsTheFormulaOnTheNextLine() {
+        let page = """
+        (2)
+        Then f = 0 whenever the hypothesis holds.
+        We first consider recurrences of the form
+        (1)
+        xn+mxn = P(xn+1, . . . , xn+m−1) =
+        for n ≥ 0.
+        """
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
+    }
+
     func testDeclarationGuardAcceptsEquationLabelAtBeginningOfLine() {
         let page = """
         By the mean value theorem we have

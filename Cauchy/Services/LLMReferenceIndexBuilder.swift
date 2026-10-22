@@ -378,7 +378,13 @@ enum LLMReferenceIndexSupport {
                 limitedBy: sourceText.startIndex
             ) ?? sourceText.startIndex
             let precedingDisplay = sourceText[displayStart..<match.range.lowerBound]
-            return mathSignals.contains(where: precedingDisplay.contains)
+            if mathSignals.contains(where: precedingDisplay.contains) {
+                return true
+            }
+            // The text layer can put the formula on the next line:
+            // "(1)\nxn+m xn = P(...)". A sentence that merely contains an
+            // equals sign is not that formula.
+            return followingLineIsDisplay(sourceText, after: match.range.upperBound)
         }
         return (detected + numberFirstDeclarations(in: sourceText))
             .sorted { $0.range.lowerBound < $1.range.lowerBound }
@@ -457,6 +463,23 @@ enum LLMReferenceIndexSupport {
         let operators = CharacterSet(charactersIn: "0123456789=<>+-*/^_|")
         let hasDigitOrOperator = stripped.unicodeScalars.contains { operators.contains($0) }
         return words.count <= 6 && hasDigitOrOperator
+    }
+
+    /// The next non-empty line after an own-line equation number is a display
+    /// when it contains a relation and almost no words.
+    private static func followingLineIsDisplay(_ sourceText: String, after index: String.Index) -> Bool {
+        let rest = sourceText[index...]
+        var lines = rest.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        if !lines.isEmpty {
+            lines.removeFirst()
+        }
+        guard let next = lines.lazy.map({ $0.trimmingCharacters(in: .whitespaces) }).first(where: { !$0.isEmpty }) else {
+            return false
+        }
+        let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+        guard operators.contains(where: { next.contains($0) }) else { return false }
+        let words = next.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
+        return words.count <= 2
     }
 
     static func isLikelyDeclaration(

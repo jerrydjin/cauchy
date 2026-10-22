@@ -242,7 +242,8 @@ final class SelectionThreadViewModel {
             referenceIndex: referenceIndex,
             documentIndex: documentIndex,
             // The on-device window is small; cloud/CLI providers can take more.
-            passageLimit: provider == .onDevice ? 3 : 5
+            passageLimit: provider == .onDevice ? 3 : 5,
+            structure: pdfDocument.map { AskStructureLocator.structure(from: $0) }
         )
     }
 

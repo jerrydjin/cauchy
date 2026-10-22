@@ -77,8 +77,22 @@ enum AskContextRetriever {
         pageIndex: Int?,
         referenceIndex: DocumentReferenceIndex?,
         documentIndex: (any DocumentIndexProtocol)?,
-        passageLimit: Int
+        passageLimit: Int,
+        structure: AskDocumentStructure? = nil
     ) -> AskRetrieval {
+        if let structure,
+           let structuralQuery = AskStructureLocator.query(in: question),
+           case .found(let span) = AskStructureLocator.locate(structuralQuery, in: structure) {
+            return retrieve(
+                in: span,
+                question: question,
+                selectedText: selectedText,
+                referenceIndex: referenceIndex,
+                structure: structure,
+                passageLimit: passageLimit
+            )
+        }
+
         let query = question + " " + selectedText.prefix(200)
         let queryVector = SentenceEmbedder.queryVector(for: query)
 
@@ -132,6 +146,54 @@ enum AskContextRetriever {
             }
         }
 
+        return AskRetrieval(
+            statements: collected.map {
+                let scope = $0.entry.reference.kind == .figure
+                    ? "PDF caption heading only; image not interpreted"
+                    : "PDF source excerpt"
+                return "\($0.entry.promptHeading) [\(scope)]:\n\($0.entry.groundingBody)"
+            },
+            statementRoutes: collected.map(\.route),
+            statementReferences: collected.map(\.entry),
+            passages: passageRecords.map(\.text),
+            passageRecords: passageRecords
+        )
+    }
+
+    /// A question that names a section, chapter, or part is answered from that
+    /// unit. Passages come from the heading's pages, not from an open search
+    /// that can land somewhere else in the paper.
+    private static func retrieve(
+        in span: AskDocumentSpan,
+        question: String,
+        selectedText: String,
+        referenceIndex: DocumentReferenceIndex?,
+        structure: AskDocumentStructure,
+        passageLimit: Int
+    ) -> AskRetrieval {
+        let passageRecords = AskStructureLocator.passages(
+            for: span,
+            in: structure,
+            characterBudget: 800,
+            limit: passageLimit
+        )
+        var collected: [(entry: IndexedReference, route: String)] = []
+        var seen = Set<ReferenceKey>()
+        func add(_ entries: [IndexedReference], route: String, cap: Int = .max) {
+            var added = 0
+            for entry in entries where span.pageRange.contains(entry.pageIndex) {
+                guard added < cap, collected.count < maxStatements else { return }
+                let key = entry.reference.key
+                guard !seen.contains(key), !entry.groundingBody.isEmpty else { continue }
+                seen.insert(key)
+                collected.append((entry, route))
+                added += 1
+            }
+        }
+        if let referenceIndex, !referenceIndex.isEmpty {
+            add(referenceIndex.statements(citedIn: [question, selectedText]), route: "cited")
+            add(referenceIndex.statements(matchingTermsIn: question), route: "term", cap: 2)
+        }
         return AskRetrieval(
             statements: collected.map {
                 let scope = $0.entry.reference.kind == .figure

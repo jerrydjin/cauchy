@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [23 October chapter revision](evaluation/learning-chapter-revision.md) restores an assessed argument to the same question, retains its original feedback and records revision as supported work. All 425 macOS tests pass; native feedback/result entry preserves complete answers and earlier records. Native feedback-companion, restart and final grading checks await manual Mac unlock, so this refinement remains In Progress.
+
 The [23 October chapter feedback discussion](evaluation/learning-chapter-feedback.md) lets learners question an exact saved chapter assessment without rewriting its grade or reasoning. Earlier replies and unsent follow-ups remain readable during a fresh argument, with help recorded and answer focus restored. All 420 macOS tests and native discussion/restart/help-accounting checks pass; the offline fixture does not establish explanation quality.
 
 The [23 October chapter assessment review](evaluation/learning-chapter-assessment-review.md) extends reversible personal assessment exclusion to chapter feedback, results and earlier arguments. Original grades, complete reasoning and prerequisite help remain saved; chapter evidence stays separate from topic checks. All 416 macOS tests and native exclusion/reinstatement/restart checks pass. Chapter result copy now describes a record of work without treating every saved grade as independent evidence.

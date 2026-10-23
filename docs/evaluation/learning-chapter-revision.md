@@ -1,0 +1,34 @@
+# Revising a chapter argument — 23 October 2026
+
+[JERRY-114](https://linear.app/jerryjin/issue/JERRY-114) adds **Revise this argument** beside current main chapter feedback and completed results. Learners can work on the same argument instead of immediately replacing it with a fresh problem. The implementation and complete automated suite are verified; native feedback-companion, restart and final grading checks remain pending while the Mac is locked.
+
+The action resolves the exact selected session and latest assessed attempt, verifies that its question is still the current challenge, and checks source and chapter requirements. Stale IDs, unanswered work, ordinary/refresher records and busy operations cannot overwrite a draft. A valid revision clears an earlier operation error, restores the complete submitted answer to the same question and focuses editing. It preserves original attempts, grades, criteria, personal exclusions, source, tutor attribution, discussions, unsent follow-ups and prerequisite work. No tutor request or new attempt occurs until explicit submission.
+
+Optional `LearningChapterState.revisingAttemptID` pins the assessment used for an unfinished revision. **Feedback for this revision** provides its original grade, feedback, next step, individual criterion outcomes and earlier answer in contextual disclosures. Personal exclusion remains visible. Revision records feedback as help. Accepted grading appends supported work and clears the pending reference; a late rejected grade retains the complete draft/reference. Only a genuinely distinct fresh challenge resets chapter help and revision state. Topic evidence and delayed schedules remain separate. Older chapter records decode with no pending revision.
+
+## Automated verification
+
+The final complete macOS suite passes **425 tests, zero failures or skips** (`/tmp/cauchy-chapter114-complete.xcresult`, `/tmp/cauchy-chapter114-complete.log`, summary `/tmp/cauchy-chapter114-complete-summary.json`). Five new regression methods and an extended suspended-generation check cover:
+
+- exact same-question/answer restoration for every grade, feedback/result stage and personal exclusion; unchanged original records/selection, no tutor request, stale-ID rejection, idempotence and preservation of an edited revision;
+- supported revision grading that appends history, followed by a distinct fresh question that alone resets help and can earn independent chapter evidence; stale revision actions cannot overwrite that fresh draft, and no chapter answer completes a topic requirement;
+- obsolete source/requirements and non-chapter records being rejected without saved changes, plus busy-generation protection;
+- a held revision grade rejected after source invalidation, retaining the complete draft, original attempts and exact feedback reference;
+- real temporary persistence restart of a revision, graded prerequisite history, personal exclusion, discussion and unsent follow-up. Whole-record comparisons use stable IDs and epoch dates; the entire map is preserved. A refresher attempt ID cannot target the main revision, and returning from the prerequisite view preserves the pending argument/reference.
+
+Inputs are an isolated archive of `6e58792` in `/tmp/cauchy-chapter114-validation`, plus four byte-identical implementation/test files listed in `/tmp/cauchy-chapter114-inputs.json`. SwiftMath remains at `fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7`; automatic package resolution is disabled. The task-owned `/tmp/cauchy-chapter107-derived` cache is reused. No new Swift file or project registration is needed. The running native debug dylib matches the app code from the final 425-test run byte-for-byte.
+
+## Native observations and remaining checks
+
+The previously stopped task-owned `/tmp/CauchyChapterFeedback112.app` (`com.cauchy.chapterfeedback112`) is refreshed with the tested code and pointed at **fresh** authored root `/tmp/cauchy-ui-fixture-chapter114-native`. The preceding `chapter112` fixture is retained unchanged. Reusing this temporary identity opens normally, without the earlier slow first binding to a new app identity. This is one workflow observation, not an established explanation for the tool's earlier delays or export readiness. Current debug-dylib SHA-256: `39b81ae37bd879b4d14d0538c0bbb838e302df7b0ab644df017b45a542ae3fd5`.
+
+The authored offline flow verifies:
+
+1. A complete 2,800-character argument receives the deterministic Partial fixture result. An offline discussion and unsent follow-up are saved. Revise this argument from feedback restores the entire answer, same question, answer focus, feedback disclosure and recorded-help label. No attempt is added. Whole-sidecar comparison with `/tmp/cauchy-chapter114-feedback-before-revision.json` shows only the intended current draft/feedback, revision/help/navigation and recency fields changed; every original assessment, source, discussion, follow-up, other session and map remains intact.
+2. Explicitly grading an edited 2,859-character revision appends supported work to the same question while retaining the complete original attempt. Its pending reference clears. The learner then personally sets aside this latest Partial result. The completed result also offers revision. It restores that exact latest answer and pins that latest assessment, preserving its exclusion and both original records. Comparison with `/tmp/cauchy-chapter114-result-before-revision.json` confirms the same preservation boundary. Current saved state: `/tmp/cauchy-chapter114-result-revision-started.json`.
+
+The completed-result action encountered an accessibility capture failure after the mutation. A fresh observation confirmed the full restored answer, same question, focused editor and Feedback for this revision disclosure, so the action was not repeated. The next disclosure interaction was blocked: the native tool reported the Mac locked and automatic unlock paused after physical input. Manual unlock has been requested. The app and exact live revision are preserved; no quit, restart, feedback-companion screenshot or final native supported/fresh grading result is claimed yet.
+
+After unlock, finish inspecting the pinned feedback/criteria/earlier answer and personal qualification, save an edited revision through actual quit/cold restart, verify prerequisite return, then confirm supported grading and a distinct fresh question's help reset. These are required remaining native acceptance checks, so JERRY-114 stays In Progress.
+
+The installed app, normal learner library, reader implementation and system settings remain unchanged. No live model call, push or release occurred. Authored offline grades do not establish mathematical assessment quality or educational efficacy. Full VoiceOver and alternate appearances remain unverified. [Native export readiness](learning-save-panel-readiness.md) remains separately open as JERRY-106.

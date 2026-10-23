@@ -350,6 +350,9 @@ struct LearningSessionView: View {
             } else {
                 questionContent(session)
                 if session.feedback == nil {
+                    if let attempt = session.chapterRevisionAttempt {
+                        chapterRevisionFeedback(attempt)
+                    }
                     DisclosureGroup(session.assistanceUsed ? "Help with this argument · help recorded" : "Help with this argument") {
                         VStack(alignment: .leading, spacing: 10) {
                             Text(session.assistanceUsed
@@ -653,6 +656,7 @@ struct LearningSessionView: View {
                         }
                         feedbackClarificationAction(session)
                         if let attempt = session.feedbackAttempt {
+                            chapterRevisionAction(session, attempt: attempt)
                             LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
                         }
                     }
@@ -720,6 +724,7 @@ struct LearningSessionView: View {
                 MessageContentView(content: attempt.question.prompt)
                 MessageContentView(content: attempt.assessment.feedback)
                 feedbackClarificationAction(session)
+                chapterRevisionAction(session, attempt: attempt)
                 LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
                 Text(attempt.assistanceUsed ? "Help was used on this answer." : "No help was reported or requested in this check.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -961,6 +966,50 @@ struct LearningSessionView: View {
         returningToFeedback = context.attemptID != nil && (learning.session?.phase == .complete || learning.session?.feedback != nil)
         learning.openedClarifications(for: context)
         clarificationContext = context
+    }
+
+    @ViewBuilder private func chapterRevisionAction(_ session: LearningSession, attempt: LearningAttempt) -> some View {
+        if session.chapter != nil && !chapterUsesEarlierPath {
+            Button("Revise this argument", systemImage: "pencil") {
+                learning.reviseChapterArgument(sessionID: session.id, attemptID: attempt.id)
+                focusAnswerIfNeeded()
+            }
+            .buttonStyle(.borderless).disabled(learning.isBusy || sourceNeedsReview)
+            .help("Keep the same question and revise your saved answer. Feedback is recorded as help; a fresh challenge can provide independent evidence.")
+        }
+    }
+
+    private func chapterRevisionFeedback(_ attempt: LearningAttempt) -> some View {
+        DisclosureGroup("Feedback for this revision") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Recorded tutor grade: \(attempt.assessment.grade.label)").font(.subheadline)
+                if attempt.setAsideAt != nil {
+                    Text("You set this assessment aside. Its original feedback is retained.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                MessageContentView(content: attempt.assessment.feedback)
+                Text("Next step").font(.subheadline)
+                MessageContentView(content: attempt.assessment.nextStep)
+                if let criteria = attempt.assessment.criteria, let rubric = attempt.question.gradingCriteria {
+                    DisclosureGroup("Reasoning checks") {
+                        ForEach(criteria, id: \.index) { criterion in
+                            if rubric.indices.contains(criterion.index) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Label(rubric[criterion.index], systemImage: criterion.outcome == .met ? "checkmark.circle" : "questionmark.circle")
+                                        .font(.subheadline)
+                                    Text(criterion.outcome == .met ? "Met" : criterion.outcome == .notMet ? "Not yet met" : "Needs checking")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                    MessageContentView(content: criterion.feedback)
+                                }.padding(.top, 8)
+                            }
+                        }
+                    }
+                }
+                DisclosureGroup("Your earlier answer") {
+                    MessageContentView(content: attempt.answer).padding(.top, 8)
+                }
+            }.padding(.top, 8)
+        }
     }
 
     @ViewBuilder private func feedbackClarificationAction(_ session: LearningSession) -> some View {

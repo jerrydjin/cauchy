@@ -306,6 +306,24 @@ final class LearningViewModel {
         update { $0.chapter?.position = position }
     }
 
+    func reviseChapterArgument(sessionID: UUID, attemptID: UUID) {
+        guard !isBusy, selectedSessionID == sessionID, let session, let chapter = session.chapter,
+              !chapter.rescueVisible, let attempt = session.latestExitAttempt, attempt.id == attemptID,
+              attempt.question == chapter.challenge.question,
+              session.phase == .complete || (session.phase == .exitCheck && session.feedback == attempt.assessment) else { return }
+        guard check(session.source), checkChapterRequest(chapter.request) else { return }
+        errorMessage = nil
+        update {
+            $0.phase = .exitCheck
+            $0.answerDraft = attempt.answer
+            $0.feedback = nil
+            $0.chapter?.revisingAttemptID = attempt.id
+            $0.chapter?.assistanceUsed = true
+            $0.chapter?.position = "reasoning"
+            $0.chapter?.scrollOffset = nil
+        }
+    }
+
     func freshChapterCheck() {
         guard !isBusy, let session, let chapter = session.chapter, session.phase == .complete,
               check(session.source) else { return }
@@ -323,6 +341,7 @@ final class LearningViewModel {
                 $0.chapter?.rescueVisible = false
                 $0.chapter?.rescueDraft = ""
                 $0.chapter?.rescueFeedback = nil
+                $0.chapter?.revisingAttemptID = nil
                 $0.chapter?.position = "argument"
                 $0.chapter?.scrollOffset = nil
                 $0.move(to: .exitCheck)
@@ -366,6 +385,7 @@ final class LearningViewModel {
                 )
                 attempt.createdAt = self?.now() ?? Date()
                 current.attempts.append(attempt)
+                current.chapter?.revisingAttemptID = nil
                 if session.phase == .exitCheck, session.studyTarget != nil, session.chapter == nil,
                    attempt.hasIndependentCorrectResult || session.delayedReview != nil {
                     let delay: TimeInterval = attempt.hasIndependentCorrectResult && session.delayedReview != nil ? 3 * 86_400 : 86_400

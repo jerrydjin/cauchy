@@ -420,6 +420,62 @@ final class LearningUIFixtureTests: XCTestCase {
         try await restarted.flush()
     }
 
+    func testChapterRevisionAndItsFeedbackSurviveRealPersistenceAndPrerequisiteReturn() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let request = try XCTUnwrap(map.chapterRequest(for: XCTUnwrap(map.course?.modules.first)))
+        document.learning.startChapter(request: request, source: document.learning.sessions[0].source)
+        await document.learning.waitForOperation()
+        document.learning.openPrerequisiteRescue()
+        document.learning.rescueDraft = "Retain my prerequisite reasoning."
+        document.learning.submitAnswer(); await document.learning.waitForOperation()
+        let refresherAttempt = try XCTUnwrap(document.learning.session?.chapter?.rescueAttempts.first)
+        document.learning.returnToChapter()
+        document.learning.answerDraft = "Retain my original chapter argument."
+        document.learning.submitAnswer(); await document.learning.waitForOperation()
+        let id = try XCTUnwrap(document.learning.selectedSessionID)
+        let attempt = try XCTUnwrap(document.learning.session?.latestExitAttempt)
+        let context = try XCTUnwrap(document.learning.session?.feedbackClarificationContext)
+        document.learning.setClarificationDraft("Which step needs justification?", for: context)
+        document.learning.askClarification(for: context); await document.learning.waitForOperation()
+        document.learning.setClarificationDraft("Retain this unsent feedback follow-up.", for: context)
+        document.learning.advance()
+        document.learning.setAssessmentAside(true, sessionID: id, attemptID: attempt.id)
+        let original = try XCTUnwrap(document.learning.session)
+        let beforeRejectedRevision = document.learning.sessions
+        document.learning.reviseChapterArgument(sessionID: id, attemptID: refresherAttempt.id)
+        XCTAssertEqual(document.learning.sessions, beforeRejectedRevision)
+        document.learning.reviseChapterArgument(sessionID: id, attemptID: attempt.id)
+        let draft = "My complete revised argument.\nPlace the subsequence limit in K before applying continuity."
+        document.learning.answerDraft = draft
+        let expected = document.learning.sessions.sorted { $0.id.uuidString < $1.id.uuidString }
+        try await controller.flush()
+        let restart = LearningUIFixtureController(rootPath: root.path)
+        await restart.load()
+        let restored = try XCTUnwrap(restart.library?.selectedDocument)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions.sorted { $0.id.uuidString < $1.id.uuidString }), try encoder.encode(expected))
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(Optional(map)))
+        restored.learning.select(id)
+        XCTAssertEqual(restored.learning.answerDraft, draft)
+        XCTAssertEqual(restored.learning.session?.chapterRevisionAttempt?.id, attempt.id)
+        XCTAssertEqual(try encoder.encode(restored.learning.session!.attempts), try encoder.encode(original.attempts))
+        XCTAssertTrue(restored.learning.session!.assistanceUsed)
+        XCTAssertEqual(restored.learning.clarificationDraft(for: context), "Retain this unsent feedback follow-up.")
+        restored.learning.openPrerequisiteRescue(); restored.learning.returnToChapter()
+        XCTAssertEqual(restored.learning.answerDraft, draft)
+        XCTAssertEqual(restored.learning.session?.chapterRevisionAttempt?.id, attempt.id)
+        XCTAssertEqual(restored.learning.session?.chapter?.rescueDraft, original.chapter?.rescueDraft)
+        XCTAssertEqual(try encoder.encode(restored.learning.session!.chapter!.rescueAttempts), try encoder.encode(original.chapter!.rescueAttempts))
+        XCTAssertEqual(try encoder.encode(restored.learning.session!.attempts), try encoder.encode(original.attempts))
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(Optional(map)))
+        try await restart.flush()
+    }
+
     func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -1858,6 +1914,152 @@ final class LearningChapterChallengeTests: XCTestCase {
         return (request, source, challenge)
     }
 
+    func testChapterRevisionRestoresTheExactArgumentAndPreservesEveryOriginalGrade() async throws {
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        for grade in [LearningGrade.correct, .partial, .incorrect, .uncertain] {
+            for complete in [false, true] {
+                for excluded in [false, true] {
+                    let (request, source, challenge) = fixture()
+                    let tutor = ChapterTutorFixture(challenge); tutor.grade = grade
+                    var allowTutor = true
+                    let vm = LearningViewModel(now: { clock }, makeTutor: {
+                        XCTAssertTrue(allowTutor, "Starting a revision must not request a tutor")
+                        return tutor
+                    })
+                    vm.startChapter(request: request, source: source); await vm.waitForOperation()
+                    vm.answerDraft = String(repeating: "Keep each step of my original argument.\n", count: 200) + "ORIGINAL-END"
+                    vm.submitAnswer(); await vm.waitForOperation()
+                    if complete { vm.advance() }
+                    let id = try XCTUnwrap(vm.selectedSessionID)
+                    let attempt = try XCTUnwrap(vm.session?.latestExitAttempt)
+                    if excluded { vm.setAssessmentAside(true, sessionID: id, attemptID: attempt.id) }
+                    let saved = try XCTUnwrap(vm.session)
+                    var other = saved; other.id = UUID()
+                    vm.restore([saved, other]); vm.select(other.id)
+                    var writes = 0; vm.onChange = { _ in writes += 1 }; allowTutor = false
+                    vm.reviseChapterArgument(sessionID: saved.id, attemptID: attempt.id)
+                    XCTAssertEqual(vm.sessions, [saved, other])
+                    vm.select(saved.id)
+                    vm.reviseChapterArgument(sessionID: saved.id, attemptID: UUID())
+                    XCTAssertEqual(writes, 0)
+                    vm.errorMessage = "An earlier fresh-question request failed."
+                    vm.reviseChapterArgument(sessionID: saved.id, attemptID: attempt.id)
+                    XCTAssertNil(vm.errorMessage)
+                    var expected = saved
+                    expected.phase = .exitCheck; expected.feedback = nil; expected.answerDraft = attempt.answer
+                    expected.chapter?.revisingAttemptID = attempt.id; expected.chapter?.assistanceUsed = true
+                    expected.chapter?.position = "reasoning"; expected.chapter?.scrollOffset = nil; expected.updatedAt = clock
+                    XCTAssertEqual(vm.sessions, [expected, other])
+                    XCTAssertEqual(vm.session?.chapterRevisionAttempt, saved.latestExitAttempt)
+                    XCTAssertEqual(vm.session?.question, saved.chapter?.challenge.question)
+                    XCTAssertTrue(vm.session!.assistanceUsed)
+                    XCTAssertEqual(writes, 1)
+                    vm.answerDraft = "My new revision stays here."
+                    let edited = vm.sessions
+                    vm.reviseChapterArgument(sessionID: saved.id, attemptID: attempt.id)
+                    XCTAssertEqual(vm.sessions, edited)
+                    XCTAssertEqual(writes, 2)
+                    var invalid = expected; invalid.chapter?.revisingAttemptID = UUID()
+                    XCTAssertNil(invalid.chapterRevisionAttempt)
+                    let legacy = try JSONDecoder().decode(LearningSession.self, from: JSONEncoder().encode(saved))
+                    XCTAssertNil(legacy.chapter?.revisingAttemptID)
+                }
+            }
+        }
+    }
+
+    func testRevisionAppendsSupportedWorkAndOnlyAFreshQuestionResetsItsHelp() async throws {
+        let (request, source, challenge) = fixture()
+        let tutor = ChapterTutorFixture(challenge); tutor.grade = .partial
+        let vm = LearningViewModel { tutor }
+        vm.startChapter(request: request, source: source); await vm.waitForOperation()
+        vm.answerDraft = "My original argument."
+        vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+        let id = try XCTUnwrap(vm.selectedSessionID)
+        let original = try XCTUnwrap(vm.session?.latestExitAttempt)
+        vm.reviseChapterArgument(sessionID: id, attemptID: original.id)
+        vm.answerDraft = "My revised argument explicitly places the limit in K."
+        tutor.grade = .correct
+        vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+        let supported = try XCTUnwrap(vm.session)
+        XCTAssertEqual(supported.attempts.count, 2)
+        XCTAssertEqual(supported.attempts[0], original)
+        XCTAssertEqual(supported.attempts[1].question, original.question)
+        XCTAssertTrue(supported.attempts[1].assistanceUsed)
+        XCTAssertFalse(supported.passedExitCheck)
+        XCTAssertEqual(supported.progressLabel, "Correct with help")
+        XCTAssertNil(supported.chapter?.revisingAttemptID)
+        XCTAssertNil(supported.chapterRevisionAttempt)
+        tutor.challenge.question = .init(prompt: challenge.assumptions[0] + " Additionally Y is the real line. Prove that f(K) is closed and bounded.",
+            expectedAnswer: "Use the continuous-image result and the supplied closedness and boundedness consequence.",
+            hints: [], kind: .proof, gradingCriteria: challenge.question.gradingCriteria)
+        vm.freshChapterCheck(); await vm.waitForOperation()
+        XCTAssertFalse(vm.session!.assistanceUsed)
+        XCTAssertNil(vm.session?.chapter?.revisingAttemptID)
+        XCTAssertNil(vm.session?.chapterRevisionAttempt)
+        let fresh = vm.sessions
+        vm.reviseChapterArgument(sessionID: id, attemptID: supported.latestExitAttempt!.id)
+        XCTAssertEqual(vm.sessions, fresh)
+        vm.answerDraft = "My independent argument for the fresh question."
+        vm.submitAnswer(); await vm.waitForOperation()
+        XCTAssertTrue(vm.session!.passedExitCheck)
+        XCTAssertEqual(Array(vm.session!.attempts.prefix(2)), supported.attempts)
+        XCTAssertFalse(vm.session!.attempts[2].assistanceUsed)
+        XCTAssertEqual(request.units.reduce(0) { $0 + $1.checkedTargetCount(sessions: vm.sessions) }, 0)
+    }
+
+    func testObsoleteOrNonChapterRevisionActionsCannotChangeSavedWork() async throws {
+        let (request, source, challenge) = fixture()
+        let tutor = ChapterTutorFixture(challenge)
+        let vm = LearningViewModel { tutor }
+        vm.startChapter(request: request, source: source); await vm.waitForOperation()
+        vm.answerDraft = "Keep my assessed argument."
+        vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+        let original = try XCTUnwrap(vm.session)
+        let attempt = try XCTUnwrap(original.latestExitAttempt)
+        for changedSource in [false, true] {
+            vm.restore([original]); vm.select(original.id)
+            vm.sourceIsCurrent = { _ in !changedSource }; vm.chapterRequestIsCurrent = { _ in changedSource }
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.reviseChapterArgument(sessionID: original.id, attemptID: attempt.id)
+            XCTAssertEqual(vm.session, original)
+            XCTAssertEqual(writes, 0)
+            XCTAssertNotNil(vm.errorMessage)
+        }
+        var ordinary = original; ordinary.chapter = nil
+        vm.sourceIsCurrent = nil; vm.chapterRequestIsCurrent = nil
+        vm.restore([ordinary]); vm.select(ordinary.id)
+        vm.reviseChapterArgument(sessionID: ordinary.id, attemptID: attempt.id)
+        XCTAssertEqual(vm.session, ordinary)
+    }
+
+    func testLateRevisionGradePreservesTheDraftAndItsExactFeedbackReference() async throws {
+        let (request, source, challenge) = fixture()
+        let tutor = ChapterTutorFixture(challenge)
+        let vm = LearningViewModel { tutor }
+        vm.startChapter(request: request, source: source); await vm.waitForOperation()
+        vm.answerDraft = "My original argument."
+        vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+        let id = try XCTUnwrap(vm.selectedSessionID)
+        let attempt = try XCTUnwrap(vm.session?.latestExitAttempt)
+        vm.reviseChapterArgument(sessionID: id, attemptID: attempt.id)
+        vm.answerDraft = "Retain this complete revision after source invalidation."
+        let original = vm.session
+        var writes = 0; vm.onChange = { _ in writes += 1 }
+        tutor.delayAssessment = true
+        vm.submitAnswer()
+        for _ in 0..<1_000 where tutor.continuation == nil { await Task.yield() }
+        let pending = try XCTUnwrap(tutor.continuation)
+        vm.sourceIsCurrent = { _ in false }
+        pending.resume(returning: .init(grade: .correct, feedback: "Late grade", nextStep: "Continue",
+            criteria: challenge.question.gradingCriteria?.indices.map { .init(index: $0, outcome: .met, feedback: "Authored check") }))
+        await vm.waitForOperation()
+        XCTAssertEqual(vm.session, original)
+        XCTAssertEqual(vm.session?.chapterRevisionAttempt, attempt)
+        XCTAssertEqual(writes, 0)
+        XCTAssertNotNil(vm.errorMessage)
+    }
+
     func testChapterAssessmentReviewRetainsExactArgumentAndRefresherForEveryGrade() async throws {
         let clock = Date(timeIntervalSince1970: 1_900_000_000)
         for grade in [LearningGrade.correct, .partial, .incorrect, .uncertain] {
@@ -2025,6 +2227,7 @@ final class LearningChapterChallengeTests: XCTestCase {
                 let pending = try XCTUnwrap(tutor.generationContinuation)
                 if let saved = vm.session, let attempt = saved.latestExitAttempt {
                     vm.setAssessmentAside(true, sessionID: saved.id, attemptID: attempt.id)
+                    vm.reviseChapterArgument(sessionID: saved.id, attemptID: attempt.id)
                     XCTAssertEqual(vm.sessions, original)
                     XCTAssertEqual(writes, 0)
                 }

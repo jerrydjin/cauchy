@@ -207,6 +207,11 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
 
     var latestExitAttempt: LearningAttempt? { attempts.last { $0.phase == .exitCheck } }
 
+    var chapterRevisionAttempt: LearningAttempt? {
+        guard phase == .exitCheck, feedback == nil, let chapter, let id = chapter.revisingAttemptID else { return nil }
+        return attempts.first { $0.id == id && $0.phase == .exitCheck && $0.question == chapter.challenge.question }
+    }
+
     var feedbackAttempt: LearningAttempt? {
         guard let feedback, let question else { return nil }
         return attempts.last { $0.phase == phase && $0.question == question && $0.assessment == feedback }
@@ -418,4 +423,7 @@ struct LearningChapterState: Codable, Equatable, Sendable {
     var assistanceUsed = false
     var position = "argument"
     var scrollOffset: Double? = nil
+    /// The main assessment whose feedback supports an unfinished revision.
+    /// Absent for older chapters and cleared after grading or a fresh question.
+    var revisingAttemptID: UUID? = nil
 }

@@ -55,12 +55,13 @@ enum LearningRequirementHistory {
                     providerID: attempt.providerID, modelID: attempt.modelID)
             }
             if session.feedback == nil && session.phase != .complete {
+                let tutor = session.currentContentTutor
                 entries.append(.init(id: "\(session.id):current", sessionID: session.id, attemptID: nil, lessonTitle: session.lesson.title,
                     requirementObjective: session.studyTarget?.objective ?? session.lesson.objective,
                     phase: session.phase, isDelayed: session.delayedReview != nil, isDraft: true, date: session.updatedAt,
                     question: session.question?.prompt ?? session.lesson.objective, answer: session.answerDraft,
                     assessment: nil, setAsideAt: nil, rubric: [], recordedKind: session.question?.kind, assistanceUsed: session.assistanceUsed,
-                    incompleteCriteriaAssessment: false, providerID: session.providerID, modelID: session.modelID))
+                    incompleteCriteriaAssessment: false, providerID: tutor.providerID, modelID: tutor.modelID))
             }
             return entries
         }.sorted { $0.date == $1.date ? $0.id < $1.id : $0.date > $1.date }

@@ -222,6 +222,8 @@ final class LearningViewModel {
             lesson.exitCheck = question
             var review = LearningSession(source: previous.source, lesson: lesson, providerID: tutor.providerID, modelID: tutor.modelID,
                                          createdAt: startedAt, updatedAt: startedAt)
+            review.lessonAttribution = previous.lessonAttribution ?? .init(providerID: previous.providerID, modelID: previous.modelID)
+            review.exitQuestionAttribution = .init(providerID: tutor.providerID, modelID: tutor.modelID)
             review.studyTarget = target
             review.studyRunItemID = studyRunItemID
             review.phase = .exitCheck
@@ -490,9 +492,10 @@ final class LearningViewModel {
         perform(.exitQuestion, source: session.source) { tutor in
             let question = try await tutor.newExitQuestion(lesson: lesson, source: session.source, previous: previous)
             return try LearningTutorService.checkedExitQuestion(question, kind: kind, previous: previous)
-        } apply: { [weak self] question, _ in
+        } apply: { [weak self] question, tutor in
             self?.update {
                 $0.lesson.exitCheck = question
+                $0.exitQuestionAttribution = .init(providerID: tutor.providerID, modelID: tutor.modelID)
                 $0.move(to: .exitCheck)
             }
         }

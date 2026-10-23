@@ -1409,7 +1409,8 @@ final class LearningFlowTests: XCTestCase {
         XCTAssertEqual(vm.session?.attempts.filter { $0.phase == .exitCheck }.count, 1)
     }
 
-    private func exitReadySession(target: LearningStudyTarget? = nil, phase: LearningPhase = .practice, retry: Bool = false) -> LearningSession {
+    private func exitReadySession(target: LearningStudyTarget? = nil, phase: LearningPhase = .practice, retry: Bool = false,
+                                  modelID: String? = nil) -> LearningSession {
         var lesson = learningLesson()
         lesson.diagnostic.kind = target?.kind; lesson.practice.kind = target?.kind; lesson.exitCheck.kind = target?.kind
         if target?.kind == .proof {
@@ -1419,7 +1420,7 @@ final class LearningFlowTests: XCTestCase {
                 strategy: "Apply scalar preservation.", steps: [.init(claim: "T(0v)=0T(v)=0.", justification: "Scalar preservation.")],
                 conclusion: "T(0)=0.", sourceQuote: lesson.sourceQuote)
         }
-        var saved = LearningSession(source: learningSource, lesson: lesson, phase: phase, providerID: "original", modelID: nil)
+        var saved = LearningSession(source: learningSource, lesson: lesson, phase: phase, providerID: "original", modelID: modelID)
         saved.studyTarget = target
         saved.feedback = assessment(.correct)
         if let rubric = lesson.practice.gradingCriteria {
@@ -1435,6 +1436,166 @@ final class LearningFlowTests: XCTestCase {
                 assessment: assessment(.incorrect), assistanceUsed: false, providerID: "original", modelID: nil)]
         }
         return saved
+    }
+
+    func testGeneratedExitDraftAndExportIdentifyTheActualQuestionTutor() async throws {
+        let target = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "Justify zero preservation.")
+        let original = exitReadySession(target: target, retry: true)
+        let tutor = TestLearningTutor()
+        tutor.providerID = "replacement-question-provider"
+        tutor.modelID = "replacement-question-model"
+        let vm = LearningViewModel { tutor }
+        vm.restore([original]); vm.select(original.id)
+        vm.advance(); await vm.waitForOperation()
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertEqual(tutor.freshQuestionCount, 1)
+        vm.answerDraft = "An unsubmitted answer to the new question."
+        let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: vm.sessions).first { $0.isDraft })
+        XCTAssertEqual(entry.providerID, tutor.providerID)
+        XCTAssertEqual(entry.modelID, tutor.modelID)
+        let exported = try XCTUnwrap(LearningRequirementHistoryExport.markdown(documentTitle: "Authored notes", target: target,
+            sessions: vm.sessions, selectedEntryID: entry.id, sourceIsCurrent: { _ in true }))
+        XCTAssertTrue(exported.contains("replacement-question-provider / replacement-question-model"))
+        XCTAssertEqual(vm.session?.providerID, original.providerID) // The original lesson creator stays distinct.
+        XCTAssertEqual(vm.session?.attempts, original.attempts)
+    }
+
+    func testExitQuestionAttributionSurvivesRealPersistenceWithoutReplacingLessonOrGrader() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let persistence = DocumentPersistenceService(root: root)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        for questionModel in ["new-question-model", nil] as [String?] {
+            let target = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "Justify zero preservation.")
+            let original = exitReadySession(target: target, retry: true, modelID: "original-lesson-model")
+            let legacy = try JSONDecoder().decode(LearningSession.self, from: JSONEncoder().encode(original))
+            XCTAssertNil(legacy.exitQuestionAttribution)
+            XCTAssertEqual(legacy.currentContentTutor, .init(providerID: original.providerID, modelID: original.modelID))
+            let tutor = TestLearningTutor(); tutor.providerID = "new-question-provider"; tutor.modelID = questionModel
+            let vm = LearningViewModel(now: { clock }, makeTutor: { tutor })
+            vm.restore([original]); vm.select(original.id)
+            vm.advance(); await vm.waitForOperation()
+            vm.answerDraft = "Full unsubmitted argument.\nThe new question and its actual tutor stay together."
+            let saved = try XCTUnwrap(vm.session)
+            XCTAssertEqual(saved.exitQuestionAttribution, .init(providerID: tutor.providerID, modelID: questionModel))
+            var workspace = DocumentWorkspace(documentURL: URL(fileURLWithPath: "/tmp/authored-attribution116.pdf"))
+            workspace.learningSessions = [saved]
+            workspace.learningStudyMap = .init(pageSignatures: ["retained-source-signature"], pages: [])
+            try await persistence.saveWorkspace(workspace, bookmarkData: nil, learningOnly: true)
+            let read = await persistence.loadWorkspace(id: workspace.id)
+            let loaded = try XCTUnwrap(read)
+            XCTAssertEqual(try encoder.encode(loaded.workspace.learningSessions), try encoder.encode(workspace.learningSessions))
+            XCTAssertEqual(try encoder.encode(loaded.workspace.learningStudyMap), try encoder.encode(workspace.learningStudyMap))
+            let restored = LearningViewModel(now: { clock }, makeTutor: { tutor })
+            restored.restore(loaded.workspace.learningSessions); restored.select(saved.id)
+            var writes = 0; restored.onChange = { _ in writes += 1 }
+            let before = restored.sessions
+            let entry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: before).first { $0.isDraft })
+            XCTAssertEqual(entry.providerID, "new-question-provider")
+            XCTAssertEqual(entry.modelID, questionModel) // nil never inherits the original lesson's model.
+            let exported = try XCTUnwrap(LearningRequirementHistoryExport.markdown(documentTitle: "Authored notes", target: target,
+                sessions: before, selectedEntryID: entry.id, exportedAt: clock, sourceIsCurrent: { _ in true }))
+            XCTAssertTrue(exported.contains("> new-question-provider" + (questionModel.map { " / " + $0 } ?? "") + "\n"))
+            XCTAssertFalse(exported.contains("original-lesson-model"))
+            let destination = root.appendingPathComponent(workspace.id.uuidString + ".md")
+            try exported.write(to: destination, atomically: true, encoding: .utf8)
+            XCTAssertEqual(try String(contentsOf: destination, encoding: .utf8), exported)
+            XCTAssertEqual(restored.sessions, before)
+            XCTAssertEqual(writes, 0)
+            XCTAssertEqual(tutor.freshQuestionCount, 1)
+            tutor.providerID = "assessment-provider"; tutor.modelID = "assessment-model"; tutor.grade = .correct
+            restored.submitAnswer(); await restored.waitForOperation()
+            let graded = try XCTUnwrap(restored.session?.attempts.last)
+            XCTAssertEqual(graded.providerID, "assessment-provider")
+            XCTAssertEqual(graded.modelID, "assessment-model")
+            XCTAssertEqual(try encoder.encode(restored.session?.attempts.first), try encoder.encode(original.attempts.first))
+            XCTAssertEqual(restored.session?.providerID, "original")
+            XCTAssertEqual(restored.session?.modelID, "original-lesson-model")
+            XCTAssertEqual(restored.session?.exitQuestionAttribution, saved.exitQuestionAttribution)
+            let assessedEntry = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: restored.sessions).first { $0.attemptID == graded.id })
+            XCTAssertEqual(assessedEntry.providerID, "assessment-provider")
+            XCTAssertEqual(assessedEntry.modelID, "assessment-model")
+            restored.advance(); restored.practiseAgain()
+            let teaching = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: restored.sessions).first { $0.isDraft })
+            XCTAssertEqual(teaching.phase, .lesson)
+            XCTAssertEqual(teaching.providerID, original.providerID)
+            XCTAssertEqual(teaching.modelID, original.modelID)
+            restored.advance()
+            let practice = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: restored.sessions).first { $0.isDraft })
+            XCTAssertEqual(practice.phase, .practice)
+            XCTAssertEqual(practice.providerID, original.providerID)
+            XCTAssertEqual(practice.modelID, original.modelID)
+        }
+    }
+
+    func testDelayedReviewKeepsInheritedTeachingAndNewQuestionTutorsSeparate() async throws {
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        let target = LearningStudyTarget(unitID: UUID(), kind: .concept, objective: "Justify zero preservation.")
+        var original = exitReadySession(target: target, retry: true, modelID: "original-teaching-model")
+        original.phase = .complete
+        original.attempts = [.init(phase: .exitCheck, question: original.lesson.exitCheck, answer: "Original independent answer.",
+            assessment: assessment(.correct), assistanceUsed: false, providerID: "original-assessor", modelID: "original-grading-model")]
+        original.reviewDueAt = clock.addingTimeInterval(-1)
+        let unit = LearningStudyUnit(id: target.unitID, title: "Linear maps", anchorPage: 0, sourceQuote: original.lesson.sourceQuote,
+            pageIndices: [0], prerequisites: [], proofRequired: false, proofQuote: nil, gaps: [], targets: [target])
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        let tutor = TestLearningTutor(); tutor.providerID = "delayed-question-tutor"; tutor.modelID = "delayed-question-model"
+        let vm = LearningViewModel(now: { clock }, makeTutor: { tutor })
+        vm.restore([original]); vm.select(original.id)
+        vm.delayedReviewRecommendation = { [weak vm] id, date in map.nextDelayedReview(sessions: vm?.sessions ?? [], now: date, targetID: id) }
+        let recommendation = try XCTUnwrap(map.nextDelayedReview(sessions: vm.sessions, now: clock))
+        vm.startDelayedReview(recommendation); await vm.waitForOperation()
+        XCTAssertNil(vm.errorMessage)
+        let review = try XCTUnwrap(vm.session)
+        XCTAssertEqual(review.providerID, "delayed-question-tutor")
+        XCTAssertEqual(review.currentContentTutor, .init(providerID: "delayed-question-tutor", modelID: "delayed-question-model"))
+        XCTAssertEqual(review.lessonAttribution, .init(providerID: original.providerID, modelID: original.modelID))
+        let draft = try XCTUnwrap(LearningRequirementHistory.entries(for: target, in: vm.sessions).first { $0.isDraft })
+        XCTAssertTrue(draft.isDelayed)
+        XCTAssertEqual(draft.providerID, "delayed-question-tutor")
+        vm.answerDraft = "My delayed answer."; tutor.grade = .correct
+        vm.submitAnswer(); await vm.waitForOperation(); vm.advance(); vm.practiseAgain()
+        let teaching = try XCTUnwrap(vm.session)
+        XCTAssertEqual(teaching.phase, .lesson)
+        XCTAssertEqual(teaching.currentContentTutor, .init(providerID: "original", modelID: "original-teaching-model"))
+        let restarted = try JSONDecoder().decode(LearningSession.self, from: JSONEncoder().encode(teaching))
+        XCTAssertEqual(restarted.currentContentTutor, teaching.currentContentTutor)
+        XCTAssertEqual(restarted.exitQuestionAttribution, review.exitQuestionAttribution)
+        let earlier = try XCTUnwrap(vm.sessions.first { $0.id == original.id })
+        XCTAssertEqual(earlier, original)
+    }
+
+    func testRejectedExitQuestionsPreserveEarlierAttributionAndAllSavedWork() async throws {
+        for providerFailure in [false, true] {
+            var original = exitReadySession(retry: true)
+            original.exitQuestionAttribution = .init(providerID: "earlier-question-tutor", modelID: "earlier-model")
+            let tutor = TestLearningTutor(); tutor.shouldFail = providerFailure
+            tutor.exitQuestionOverride = original.lesson.exitCheck // Otherwise reject the repeated question.
+            let vm = LearningViewModel { tutor }; vm.restore([original]); vm.select(original.id)
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.advance(); await vm.waitForOperation()
+            XCTAssertEqual(vm.session, original)
+            XCTAssertEqual(writes, 0)
+            XCTAssertNotNil(vm.errorMessage)
+        }
+        for cancel in [false, true] {
+            var original = exitReadySession(retry: true)
+            original.exitQuestionAttribution = .init(providerID: "earlier-question-tutor", modelID: "earlier-model")
+            let tutor = SuspendedLearningTutor(); tutor.holdExitQuestion = true
+            let vm = LearningViewModel { tutor }; vm.restore([original]); vm.select(original.id)
+            var writes = 0; vm.onChange = { _ in writes += 1 }
+            vm.advance()
+            for _ in 0..<1_000 where tutor.questionContinuation == nil { await Task.yield() }
+            let pending = try XCTUnwrap(tutor.questionContinuation)
+            if cancel { vm.cancel() } else { vm.sourceIsCurrent = { _ in false } }
+            pending.resume(returning: learningQuestion("A different source-supported exit question."))
+            await vm.waitForOperation()
+            for _ in 0..<100 { await Task.yield() }
+            XCTAssertEqual(vm.session, original)
+            XCTAssertEqual(writes, 0)
+            XCTAssertFalse(vm.isBusy)
+        }
     }
 
     func testFirstExitAvoidsOtherSavedQuestionsForTheSameTargetIncludingDelayedWork() async throws {

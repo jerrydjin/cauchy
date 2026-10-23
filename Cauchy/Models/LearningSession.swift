@@ -161,6 +161,11 @@ struct LearningAttempt: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
+struct LearningTutorAttribution: Codable, Equatable, Sendable {
+    let providerID: String
+    let modelID: String?
+}
+
 struct LearningSession: Identifiable, Codable, Equatable, Sendable {
     var id = UUID()
     let source: LearningSource
@@ -189,6 +194,17 @@ struct LearningSession: Identifiable, Codable, Equatable, Sendable {
     var clarificationDrafts: [String: String]? = nil
     var clarificationHelpUsed: Bool? = nil
     var studyRunItemID: UUID? = nil
+    /// A replacement ordinary exit question can come from a different tutor
+    /// than the original lesson. Missing on older records; never inferred later.
+    var exitQuestionAttribution: LearningTutorAttribution? = nil
+    /// Delayed checks reuse earlier teaching but generate their own question.
+    /// Keep that teaching's recorded creator separate from the new session.
+    var lessonAttribution: LearningTutorAttribution? = nil
+
+    var currentContentTutor: LearningTutorAttribution {
+        if chapter == nil, phase == .exitCheck, let exitQuestionAttribution { return exitQuestionAttribution }
+        return lessonAttribution ?? .init(providerID: providerID, modelID: modelID)
+    }
 
     var currentLessonPartIndex: Int {
         min(max(lessonPartIndex ?? 0, 0), lesson.parts.count - 1)

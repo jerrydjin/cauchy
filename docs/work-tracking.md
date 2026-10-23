@@ -20,6 +20,7 @@ These are entry points for investigating each issue, not claims that the planned
 
 | Issue | Relevant code and evidence |
 | --- | --- |
+| [JERRY-116: Attribute replacement questions correctly](https://linear.app/jerryjin/issue/JERRY-116) | [Optional content attribution](../Cauchy/Models/LearningSession.swift), [history projection](../Cauchy/Models/LearningRequirementHistory.swift), [432-test and persistence/export verification](evaluation/learning-tutor-attribution.md) |
 | [JERRY-115: Preserve unsubmitted prerequisites](https://linear.app/jerryjin/issue/JERRY-115) | [Optional draft history and search](../Cauchy/Models/LearningSession.swift), [fresh-challenge transition](../Cauchy/ViewModels/LearningViewModel.swift), [428-test verification and native observations](evaluation/learning-prerequisite-drafts.md) |
 | [JERRY-114: Revise a chapter argument](https://linear.app/jerryjin/issue/JERRY-114) | [Revision state](../Cauchy/Models/LearningSession.swift), [exact local action](../Cauchy/ViewModels/LearningViewModel.swift), [425-test and complete native verification](evaluation/learning-chapter-revision.md) |
 | [JERRY-112: Chapter feedback discussion](https://linear.app/jerryjin/issue/JERRY-112) | [Exact feedback context](../Cauchy/Models/LearningClarification.swift), [discussion panel](../Cauchy/Views/Learning/LearningClarificationView.swift), [420-test and native verification](evaluation/learning-chapter-feedback.md) |

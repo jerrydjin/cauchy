@@ -95,6 +95,14 @@ enum RenderFindList {
         let findBar = SnapshotChrome(
             caption: "Cmd-F",
             content: FindBarView(find: find)
+                .environment(\.colorScheme, .light)
+        )
+        let darkFindBar = SnapshotChrome(
+            caption: "Cmd-F · dark",
+            content: FindBarView(find: find)
+                .environment(\.colorScheme, .dark)
+                .padding(8)
+                .background(Color.black)
         )
         let lightPalette = SnapshotChrome(
             caption: "Cmd-K Jump to",
@@ -108,15 +116,35 @@ enum RenderFindList {
                 .padding(8)
                 .background(Color.black)
         )
+        // The list Cmd-F used to show, drawn from the same synthetic paper.
+        let before = BeforeFindBar(query: "", hits: catalogue)
+        let beforeLight = SnapshotChrome(
+            caption: "Cmd-F before",
+            content: before.environment(\.colorScheme, .light)
+        )
+        let beforeDark = SnapshotChrome(
+            caption: "Cmd-F before · dark",
+            content: before
+                .environment(\.colorScheme, .dark)
+                .padding(8)
+                .background(Color.black)
+        )
 
         try writePNG(findBar, to: output.appendingPathComponent("find-bar.png"), minimumBytes: 3_000)
+        try writePNG(darkFindBar, to: output.appendingPathComponent("find-bar-dark.png"), minimumBytes: 3_000)
         try writePNG(lightPalette, to: output.appendingPathComponent("jump-palette.png"), minimumBytes: 8_000)
+        try writePNG(darkPalette, to: output.appendingPathComponent("jump-palette-dark.png"), minimumBytes: 8_000)
+        try writePNG(beforeLight, to: output.appendingPathComponent("find-before-light.png"), minimumBytes: 8_000)
+        try writePNG(beforeDark, to: output.appendingPathComponent("find-before-dark.png"), minimumBytes: 8_000)
         let combined = HStack(alignment: .top, spacing: 28) {
             VStack(alignment: .leading, spacing: 20) {
                 findBar
                 lightPalette
             }
-            darkPalette
+            VStack(alignment: .leading, spacing: 20) {
+                darkFindBar
+                darkPalette
+            }
         }
         .padding(8)
         .background(Color(white: 0.94))
@@ -187,6 +215,104 @@ private struct LemmaFixture: Decodable {
     var number: String
     var pageIndex: Int
     var body: String
+}
+
+/// Cmd-F as it was on main: the text field and the indexed list in one bar.
+/// The snapshot draws it from the same synthetic paper as the palette.
+private struct BeforeFindBar: View {
+    var query: String
+    var hits: [DocumentFind.Hit]
+    @FocusState private var isFieldFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            capsule
+            if !hits.isEmpty {
+                namedList
+            }
+        }
+        .onAppear { isFieldFocused = true }
+    }
+
+    private var capsule: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField("Find in document", text: Binding.constant(query))
+                .textFieldStyle(.plain)
+                .frame(width: 200)
+                .focused($isFieldFocused)
+
+            if !query.isEmpty {
+                Text(matchLabel)
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+
+            Divider()
+                .frame(height: 16)
+
+            GlassIconButton(systemName: "chevron.up", accessibilityLabel: "Previous Match") {}
+                .disabled(true)
+            GlassIconButton(systemName: "chevron.down", accessibilityLabel: "Next Match") {}
+                .disabled(true)
+            GlassIconButton(systemName: "xmark", accessibilityLabel: "Close Find Bar") {}
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .glassEffect(in: .capsule)
+    }
+
+    private var namedList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(groupedHits, id: \.title) { group in
+                Text(group.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(group.hits) { hit in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(hit.label)
+                                .font(.callout.weight(.medium))
+                            Spacer(minLength: 8)
+                            Text("p. \(hit.pageIndex + 1)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        if !hit.firstLine.isEmpty {
+                            Text(hit.firstLine)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 360, alignment: .leading)
+        .glassEffect(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var groupedHits: [(title: String, hits: [DocumentFind.Hit])] {
+        var titles: [String] = []
+        var grouped: [String: [DocumentFind.Hit]] = [:]
+        for hit in hits {
+            if grouped[hit.group] == nil { titles.append(hit.group) }
+            grouped[hit.group, default: []].append(hit)
+        }
+        return titles.map { ($0, grouped[$0] ?? []) }
+    }
+
+    private var matchLabel: String {
+        if hits.isEmpty { return "Not found" }
+        return "\(hits.count) named"
+    }
 }
 
 private struct SnapshotChrome<Content: View>: View {

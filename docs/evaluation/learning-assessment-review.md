@@ -2,6 +2,8 @@
 
 [JERRY-105](https://linear.app/jerryjin/issue/JERRY-105) adds a reversible **Set aside assessment** action under **Review this assessment**, beside ordinary saved tutor feedback and in requirement history. **Use recorded result again** restores use of the original result. This is a learner decision to exclude evidence, not a new tutor grade, expert review or judgement that the answer is wrong.
 
+The later [23 October chapter refinement](learning-chapter-assessment-review.md) extends these controls to main chapter arguments, with separate 416-test and native verification. The ordinary-assessment checkpoint and its original scope are recorded below; prerequisite refresher controls remain separate.
+
 An optional `LearningAttempt.setAsideAt` records the learner's decision on the exact session/attempt. Old attempts decode without it. The operation preserves the original question, answer, assessment, criteria, help, tutor/model, source and due dates; it updates the owning session's recency and leaves current selection unchanged. Repeated or invalid-ID requests do nothing, and busy/chapter operations cannot be changed through this ordinary-assessment control. No provider request occurs.
 
 Set-aside assessments cannot contribute independent credit, unlock diagnostic/practice advancement, trigger delayed spacing or advance a planned session. A set-aside immediate result keeps the requirement open without falling back to an earlier success. A set-aside delayed result remains in history while its stored schedule is excluded from the current queue; earlier eligible evidence can still offer a fresh check. Reinstatement cannot promote an original incorrect, partial or uncertain grade, and a later valid unflagged attempt remains usable.

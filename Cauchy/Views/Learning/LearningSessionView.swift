@@ -345,7 +345,7 @@ struct LearningSessionView: View {
                         }
                     }
                 }
-                Text("This is evidence for this argument. Individual topic and proof checks stay open until separately supported; it does not establish chapter mastery.")
+                Text("This records your work on this argument. Individual topic and proof checks stay open until separately supported; it does not establish chapter mastery.")
                     .font(.callout).foregroundStyle(.secondary)
             } else {
                 questionContent(session)
@@ -644,7 +644,7 @@ struct LearningSessionView: View {
                             }
                         }
                         feedbackClarificationAction(session)
-                        if session.chapter == nil, let attempt = session.feedbackAttempt {
+                        if let attempt = session.feedbackAttempt {
                             LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
                         }
                     }
@@ -712,9 +712,7 @@ struct LearningSessionView: View {
                 MessageContentView(content: attempt.question.prompt)
                 MessageContentView(content: attempt.assessment.feedback)
                 feedbackClarificationAction(session)
-                if session.chapter == nil {
-                    LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
-                }
+                LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
                 Text(attempt.assistanceUsed ? "Help was used on this answer." : "No help was reported or requested in this check.")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -727,9 +725,7 @@ struct LearningSessionView: View {
                                 Text("Your answer").font(.subheadline)
                                 MessageContentView(content: attempt.answer)
                                 MessageContentView(content: attempt.assessment.feedback)
-                                if session.chapter == nil {
-                                    LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
-                                }
+                                LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
                                 Text("\(attempt.assistanceUsed ? "Help used" : "No help reported") · \(attempt.createdAt.formatted(date: .abbreviated, time: .shortened))")
                                     .font(.caption).foregroundStyle(.secondary)
                                 Text("Tutor: \(attempt.providerID)\(attempt.modelID.map { " / \($0)" } ?? "")")

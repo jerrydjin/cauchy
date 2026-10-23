@@ -152,7 +152,6 @@ final class LearningViewModel {
 
     func setAssessmentAside(_ aside: Bool, sessionID: UUID, attemptID: UUID) {
         guard !isBusy, let sessionIndex = sessions.firstIndex(where: { $0.id == sessionID }),
-              sessions[sessionIndex].chapter == nil,
               let attemptIndex = sessions[sessionIndex].attempts.firstIndex(where: { $0.id == attemptID }),
               (sessions[sessionIndex].attempts[attemptIndex].setAsideAt != nil) != aside else { return }
         let date = now()

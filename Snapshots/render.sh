@@ -1,5 +1,5 @@
 #!/bin/bash
-# Renders the citation hover and the Cmd-F result list with ImageRenderer.
+# Renders the citation hover, the plain Cmd-F bar, and the Cmd-K jump palette.
 # The app-hosted tests cannot launch here: the runner is macOS 26 and the app
 # requires macOS 27.
 set -euo pipefail

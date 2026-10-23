@@ -1,9 +1,10 @@
 import Foundation
 
-/// Cmd-F lookup for printed statements and section headings.
+/// Lookup for printed statements and section headings.
 ///
-/// A kind-and-number query such as "Lemma 2" is answered from the index only.
-/// Several matches stay listed; the reader jumps only when there is exactly one.
+/// Cmd-F is a plain text search. Cmd-K jumps through this index. A kind-and-number
+/// query such as "Lemma 2" is answered from the index only, and the set of hits
+/// is the same one `search` has always returned.
 enum DocumentFind {
     struct Entry: Equatable, Sendable {
         var kind: ReferenceKind
@@ -12,6 +13,9 @@ enum DocumentFind {
         var body: String
         var pageIndex: Int
         var anchor: String
+        /// PDF text layer for the statement. Previews fall back to it when the
+        /// stored body is LaTeX or other markup.
+        var sourceExcerpt: String? = nil
     }
 
     struct Section: Equatable, Sendable {
@@ -24,7 +28,15 @@ enum DocumentFind {
     struct Hit: Equatable, Identifiable, Sendable {
         var id: String
         var group: String
+        /// Kind, number, and the longest real name. Sorting and tests use this.
         var label: String
+        /// Kind and number, never truncated and never repeated in parentheses.
+        var title: String
+        /// Real names, longest first, then shorter alternatives and word prefixes.
+        var nameCandidates: [String]
+        /// Printed name, including one that repeats the label, for filtering.
+        var jumpName: String
+        var number: String
         var firstLine: String
         var pageIndex: Int
         var anchor: String
@@ -99,22 +111,79 @@ enum DocumentFind {
         return Outcome(hits: sort(named), message: nil, suppressesTextSearch: false)
     }
 
-    /// One caption line in the find-results list, including the ellipsis when cut.
+    /// Every indexed statement, or the subset whose label, number, or name
+    /// matches `query`. A kind-and-number query uses `search` unchanged.
+    static func jumpHits(query: String, entries: [Entry], sections: [Section]) -> [Hit] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return sort(entries.map(hit(for:)) + sections.map(sectionHit))
+        }
+        if numberedQuery(in: trimmed) != nil {
+            return search(query: trimmed, entries: entries, sections: sections).hits
+        }
+        let all = entries.map(hit(for:)) + sections.map(sectionHit)
+        return sort(all.filter { matchesJump($0, query: trimmed) })
+    }
+
+    /// Cmd-F's count. "232 matches in the text", never a named-result count.
+    static func textMatchLabel(count: Int, isSearching: Bool) -> String {
+        if isSearching { return "Searching…" }
+        if count <= 0 { return "Not found" }
+        if count == 1 { return "1 match in the text" }
+        return "\(count) matches in the text"
+    }
+
+    /// Names worth showing after the label. Empty when the parenthetical only
+    /// repeats the label. Longest real name first, then shorter alternatives,
+    /// then word prefixes of the longest name.
+    static func displayNames(kind: ReferenceKind, number: String, name: String?) -> [String] {
+        guard let raw = name?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return [] }
+        let leaves = nameLeaves(raw)
+        let anyLeafRepeatsLabel = leaves.contains { repeatsLabel($0, kind: kind, number: number) }
+        var pieces = leaves
+        if !anyLeafRepeatsLabel {
+            pieces.append(raw)
+        }
+        var kept: [String] = []
+        for piece in pieces {
+            let trimmed = piece.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: " .,:;"))
+            guard trimmed.count >= 2 else { continue }
+            guard !repeatsLabel(trimmed, kind: kind, number: number) else { continue }
+            guard !kept.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) else { continue }
+            kept.append(trimmed)
+        }
+        kept.sort { lhs, rhs in
+            if lhs.count != rhs.count { return lhs.count > rhs.count }
+            return lhs.localizedStandardCompare(rhs) == .orderedAscending
+        }
+        guard let longest = kept.first else { return [] }
+        let words = longest.split(separator: " ").map(String.init)
+        if words.count > 1 {
+            for end in stride(from: words.count - 1, through: 1, by: -1) {
+                let prefix = words.prefix(end).joined(separator: " ")
+                guard prefix.count >= 2 else { continue }
+                guard !kept.contains(where: { $0.caseInsensitiveCompare(prefix) == .orderedSame }) else { continue }
+                kept.append(prefix)
+            }
+        }
+        return kept
+    }
+
+    /// One caption line in the jump list, including the ellipsis when cut.
     static let previewCharacterLimit = 64
 
-    static func firstLine(of body: String) -> String {
-        let line = body.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
-        let collapsed = line.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        let repaired = TextLayerRepairs.apply(collapsed)
-        guard repaired.count > previewCharacterLimit else { return repaired }
-        let budget = previewCharacterLimit - 1
-        var end = repaired.index(repaired.startIndex, offsetBy: budget)
-        let head = repaired[..<end]
-        if let space = head.lastIndex(of: " "),
-           repaired.distance(from: repaired.startIndex, to: space) >= budget / 2 {
-            end = space
+    static func firstLine(of body: String, sourceExcerpt: String? = nil) -> String {
+        for source in [body, sourceExcerpt ?? ""] where !source.isEmpty {
+            for line in source.split(whereSeparator: \.isNewline) {
+                let collapsed = line.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                guard !collapsed.isEmpty else { continue }
+                let repaired = TextLayerRepairs.apply(collapsed)
+                guard let plain = PreviewPlainText.readableLine(repaired) else { continue }
+                return truncatePreview(plain)
+            }
         }
-        return repaired[..<end].trimmingCharacters(in: .whitespaces) + "…"
+        return ""
     }
 
     // MARK: - Private
@@ -132,11 +201,24 @@ enum DocumentFind {
     private static let numberedRegex = try! NSRegularExpression(
         pattern: #"(?i)^\s*(theorems?|lemmas?|propositions?|corollaries|corollary|definitions?|exercises?|examples?|remarks?|proofs?|sections?)\s+(\d+(?:\.\d+)*)(?:\s*\(([^)]{1,80})\))?\s*$"#
     )
+    private static let orSeparator = try! NSRegularExpression(pattern: #"(?i)\s+or\s+"#)
     private static let groupOrder = [
         "Theorems", "Lemmas", "Definitions", "Sections",
         "Propositions", "Corollaries", "Remarks", "Examples",
         "Exercises", "Proofs", "Figures", "Equations",
     ]
+
+    private static func truncatePreview(_ repaired: String) -> String {
+        guard repaired.count > previewCharacterLimit else { return repaired }
+        let budget = previewCharacterLimit - 1
+        var end = repaired.index(repaired.startIndex, offsetBy: budget)
+        let head = repaired[..<end]
+        if let space = head.lastIndex(of: " "),
+           repaired.distance(from: repaired.startIndex, to: space) >= budget / 2 {
+            end = space
+        }
+        return repaired[..<end].trimmingCharacters(in: .whitespaces) + "…"
+    }
 
     private static func numberedQuery(in query: String) -> NumberedQuery? {
         let range = NSRange(query.startIndex..., in: query)
@@ -168,14 +250,7 @@ enum DocumentFind {
             return sections.compactMap { section in
                 guard number(section.number, extends: query.number) else { return nil }
                 if let name = query.name, !nameMatches(section.title, query: name) { return nil }
-                return Hit(
-                    id: "section-\(section.number)-\(section.pageIndex)",
-                    group: "Sections",
-                    label: "Section \(section.number)",
-                    firstLine: firstLine(of: section.title),
-                    pageIndex: section.pageIndex,
-                    anchor: section.anchor
-                )
+                return sectionHit(section)
             }
         }
         return entries.compactMap { entry in
@@ -187,17 +262,36 @@ enum DocumentFind {
         }
     }
 
+    private static func sectionHit(_ section: Section) -> Hit {
+        let title = "Section \(section.number)"
+        return Hit(
+            id: "section-\(section.number)-\(section.pageIndex)",
+            group: "Sections",
+            label: title,
+            title: title,
+            nameCandidates: [],
+            jumpName: section.title,
+            number: section.number,
+            firstLine: firstLine(of: section.title),
+            pageIndex: section.pageIndex,
+            anchor: section.anchor
+        )
+    }
+
     private static func hit(for entry: Entry) -> Hit {
-        var label = "\(entry.kind.displayName) \(entry.number)"
-        if let name = entry.name, !name.isEmpty {
-            label += " (\(name))"
-        }
+        let title = "\(entry.kind.displayName) \(entry.number)"
+        let names = displayNames(kind: entry.kind, number: entry.number, name: entry.name)
+        let label = names.first.map { "\(title) (\($0))" } ?? title
         let anchor = entry.anchor.isEmpty ? label : entry.anchor
         return Hit(
             id: "\(entry.kind.rawValue)-\(entry.number)-\(entry.pageIndex)",
             group: groupName(for: entry.kind),
             label: label,
-            firstLine: firstLine(of: entry.body),
+            title: title,
+            nameCandidates: names,
+            jumpName: entry.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+            number: entry.number,
+            firstLine: firstLine(of: entry.body, sourceExcerpt: entry.sourceExcerpt),
             pageIndex: entry.pageIndex,
             anchor: anchor
         )
@@ -230,11 +324,98 @@ enum DocumentFind {
         }
     }
 
+    private static func matchesJump(_ hit: Hit, query: String) -> Bool {
+        let token = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let kind = ReferenceKind.fromKeyword(token.lowercased()), hit.group == groupName(for: kind) {
+            return true
+        }
+        if token.compare("section", options: .caseInsensitive) == .orderedSame
+            || token.compare("sections", options: .caseInsensitive) == .orderedSame {
+            return hit.group == "Sections"
+        }
+        if nameMatches(hit.label, query: token) { return true }
+        if nameMatches(hit.jumpName, query: token) { return true }
+        if nameMatches(hit.title, query: token) { return true }
+        if isNumberToken(token), number(hit.number, extends: token) { return true }
+        return false
+    }
+
+    private static func isNumberToken(_ token: String) -> Bool {
+        token.contains(where: \.isNumber) && token.allSatisfy { $0.isNumber || $0 == "." }
+    }
+
     private static func nameMatches(_ name: String, query: String) -> Bool {
         let token = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard token.count >= 2 else { return false }
         let pattern = "\\b\(NSRegularExpression.escapedPattern(for: token))\\b"
         return name.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// The parenthetical repeats the label when, ignoring case and punctuation,
+    /// it is the kind (or an abbreviation) plus the number, or the number alone.
+    private static func repeatsLabel(_ name: String, kind: ReferenceKind, number: String) -> Bool {
+        let key = alnum(name)
+        guard !key.isEmpty else { return true }
+        let numberKey = alnum(number)
+        if key == numberKey { return true }
+        for alias in kindAliases(kind) {
+            let aliasKey = alnum(alias)
+            if key == aliasKey || key == aliasKey + numberKey { return true }
+        }
+        return false
+    }
+
+    private static func kindAliases(_ kind: ReferenceKind) -> [String] {
+        switch kind {
+        case .theorem: ["theorem", "thm", "th"]
+        case .lemma: ["lemma", "lem"]
+        case .proposition: ["proposition", "prop"]
+        case .corollary: ["corollary", "cor"]
+        case .definition: ["definition", "defn", "def"]
+        case .exercise: ["exercise", "exer"]
+        case .example: ["example", "ex"]
+        case .remark: ["remark", "rem"]
+        case .proof: ["proof"]
+        case .figure: ["figure", "fig"]
+        case .equation: ["equation", "eq"]
+        }
+    }
+
+    private static func alnum(_ text: String) -> String {
+        String(text.lowercased().filter { $0.isLetter || $0.isNumber })
+    }
+
+    private static func nameLeaves(_ name: String) -> [String] {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        if let open = trimmed.firstIndex(of: "("),
+           let close = trimmed[open...].lastIndex(of: ")"),
+           trimmed.index(after: open) <= close {
+            let outer = String(trimmed[..<open])
+            let innerStart = trimmed.index(after: open)
+            let inner = innerStart < close ? String(trimmed[innerStart..<close]) : ""
+            return nameLeaves(outer) + nameLeaves(inner)
+        }
+        let parts = splitOr(trimmed)
+        if parts.count > 1 {
+            return parts.flatMap { nameLeaves($0) }
+        }
+        return [trimmed]
+    }
+
+    private static func splitOr(_ text: String) -> [String] {
+        let range = NSRange(text.startIndex..., in: text)
+        let matches = orSeparator.matches(in: text, range: range)
+        guard !matches.isEmpty else { return [text] }
+        var parts: [String] = []
+        var cursor = text.startIndex
+        for match in matches {
+            guard let matchRange = Range(match.range, in: text) else { continue }
+            parts.append(String(text[cursor..<matchRange.lowerBound]))
+            cursor = matchRange.upperBound
+        }
+        parts.append(String(text[cursor...]))
+        return parts
     }
 }
 
@@ -269,5 +450,107 @@ enum TextLayerRepairs {
             )
         }
         return result
+    }
+}
+
+/// Turns a statement line into plain text for the jump list.
+///
+/// `formattedBody` is often the model's LaTeX (`$\subset$`, `\gamma`, `\left`).
+/// `JSONDecoder` also reads `\b` in `\boldsymbol` as a backspace, so the stored
+/// body can contain `$oldsymbol{`. Lines that stay unreadable are skipped; the
+/// caller then tries the next line and the PDF text layer.
+enum PreviewPlainText {
+    private static let symbols: [(String, String)] = [
+        ("\\subseteq", "⊆"), ("\\supseteq", "⊇"), ("\\subset", "⊂"), ("\\supset", "⊃"),
+        ("\\notin", "∉"), ("\\infty", "∞"), ("\\rightarrow", "→"), ("\\leftarrow", "←"),
+        ("\\Rightarrow", "⇒"), ("\\Leftarrow", "⇐"), ("\\mapsto", "↦"),
+        ("\\varepsilon", "ε"), ("\\varphi", "φ"), ("\\emptyset", "∅"),
+        ("\\gamma", "γ"), ("\\Gamma", "Γ"), ("\\alpha", "α"), ("\\beta", "β"),
+        ("\\delta", "δ"), ("\\epsilon", "ε"), ("\\lambda", "λ"), ("\\mu", "μ"),
+        ("\\nu", "ν"), ("\\pi", "π"), ("\\rho", "ρ"), ("\\sigma", "σ"),
+        ("\\tau", "τ"), ("\\phi", "φ"), ("\\omega", "ω"), ("\\Omega", "Ω"),
+        ("\\theta", "θ"), ("\\to", "→"), ("\\leq", "≤"), ("\\geq", "≥"),
+        ("\\neq", "≠"), ("\\approx", "≈"), ("\\equiv", "≡"), ("\\cdot", "·"),
+        ("\\times", "×"), ("\\pm", "±"), ("\\partial", "∂"), ("\\forall", "∀"),
+        ("\\exists", "∃"), ("\\cup", "∪"), ("\\cap", "∩"), ("\\nabla", "∇"),
+        ("\\sum", "∑"), ("\\prod", "∏"), ("\\int", "∫"), ("\\in", "∈"),
+        ("\\ldots", "…"), ("\\cdots", "⋯"), ("\\dots", "…"),
+        ("\\le", "≤"), ("\\ge", "≥"), ("\\ne", "≠"),
+    ]
+
+    private static let sizing = [
+        "\\Biggl", "\\Biggr", "\\biggl", "\\biggr", "\\Bigl", "\\Bigr",
+        "\\bigl", "\\bigr", "\\left", "\\right", "\\Bigg", "\\bigg", "\\Big", "\\big",
+    ]
+
+    private static let fontUnwrap = try! NSRegularExpression(
+        pattern: #"\\(?:boldsymbol|mathbf|mathrm|mathbb|mathcal|mathfrak|operatorname|textbf|textit|text|emph)\{([^{}]*)\}"#
+    )
+
+    static func readableLine(_ raw: String) -> String? {
+        var text = raw.replacingOccurrences(of: "\u{8}oldsymbol", with: "\\boldsymbol")
+        if text.contains("oldsymbol") && !text.contains("\\boldsymbol") {
+            return nil
+        }
+        if text.unicodeScalars.contains(where: { value in
+            let scalar = value.value
+            return scalar < 32 && scalar != 9 && scalar != 10 && scalar != 13
+        }) {
+            return nil
+        }
+
+        for (command, symbol) in symbols.sorted(by: { $0.0.count > $1.0.count }) {
+            let pattern = NSRegularExpression.escapedPattern(for: command) + "(?![A-Za-z])"
+            text = text.replacingOccurrences(of: pattern, with: symbol, options: .regularExpression)
+        }
+        for _ in 0..<6 {
+            let range = NSRange(text.startIndex..., in: text)
+            let next = fontUnwrap.stringByReplacingMatches(in: text, range: range, withTemplate: "$1")
+            if next == text { break }
+            text = next
+        }
+        for command in sizing {
+            let pattern = NSRegularExpression.escapedPattern(for: command) + "(?![A-Za-z])"
+            text = text.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+        }
+        for command in ["\\displaystyle", "\\textstyle", "\\scriptstyle", "\\scriptscriptstyle", "\\quad", "\\qquad"] {
+            text = text.replacingOccurrences(of: command, with: " ")
+        }
+        for token in ["\\,", "\\;", "\\:", "\\!", "\\ ", "\\[", "\\]", "\\(", "\\)"] {
+            text = text.replacingOccurrences(of: token, with: token == "\\!" ? "" : " ")
+        }
+        text = text.replacingOccurrences(of: "\\{", with: "{")
+        text = text.replacingOccurrences(of: "\\}", with: "}")
+        text = text.replacingOccurrences(of: "$$", with: "")
+        text = text.replacingOccurrences(of: "$", with: "")
+
+        if text.contains("\\") || text.contains("$") || text.contains("oldsymbol") || !bracesBalanced(text) {
+            return nil
+        }
+        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isReadable(collapsed) else { return nil }
+        return collapsed
+    }
+
+    private static func bracesBalanced(_ text: String) -> Bool {
+        var depth = 0
+        for character in text {
+            if character == "{" {
+                depth += 1
+            } else if character == "}" {
+                depth -= 1
+                if depth < 0 { return false }
+            }
+        }
+        return depth == 0
+    }
+
+    private static func isReadable(_ text: String) -> Bool {
+        guard !text.isEmpty, text != "$$", text != "$" else { return false }
+        let letters = text.filter(\.isLetter).count
+        guard letters >= 3 else { return false }
+        let dense = text.filter { !$0.isWhitespace }.count
+        return letters * 3 >= dense
     }
 }

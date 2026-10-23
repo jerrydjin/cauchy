@@ -53,6 +53,7 @@ final class WorkspaceViewModel: Equatable {
     var selectionThread = SelectionThreadViewModel()
     var referenceIndex = DocumentReferenceIndex()
     var find = PDFFindModel()
+    var jump = JumpPaletteModel()
     var isIndexingReferences = false
     var referenceIndexProgress: Double = 0
     var referenceIndexError: String?
@@ -97,7 +98,7 @@ final class WorkspaceViewModel: Equatable {
         find.currentPageProvider = { [weak self] in
             self?.viewportCoordinator.viewport.pageIndex ?? 0
         }
-        find.findSource = { [weak self] in
+        jump.source = { [weak self] in
             guard let self else { return nil }
             let pages: [String]
             if let document = self.pdfDocument {
@@ -106,6 +107,9 @@ final class WorkspaceViewModel: Equatable {
                 pages = []
             }
             return DocumentFind.Source(entries: self.referenceIndex.searchEntries(), pages: pages)
+        }
+        jump.onJump = { [weak self] hit in
+            self?.find.activate(hit)
         }
         // Same long-lived instance across documents (cleared/refilled per open),
         // so wiring once is enough.
@@ -242,6 +246,7 @@ final class WorkspaceViewModel: Equatable {
         selectionThread.pdfDocument = document
         OpenDocumentRegistry.shared.claim(resolvedURL, by: self)
         find.attach(to: document)
+        jump.dismiss()
         bookmarkData = try? persistence.createBookmark(for: resolvedURL)
 
         let isNewDocument: Bool
@@ -332,6 +337,7 @@ final class WorkspaceViewModel: Equatable {
         lexicalIndexTask = nil
         selectionThread.documentIndex = nil
         find.attach(to: nil)
+        jump.dismiss()
         selectionThread.activeThread = nil
         contextEngine.reset()
         viewportCoordinator = ViewportCoordinator()
@@ -858,7 +864,15 @@ final class WorkspaceViewModel: Equatable {
 
     func presentFindBar() {
         guard pdfDocument != nil else { return }
+        jump.dismiss()
         find.present()
+    }
+
+    func presentJumpPalette() {
+        guard pdfDocument != nil else { return }
+        find.dismiss()
+        jump.isIndexing = isIndexingReferences
+        jump.present()
     }
 
     func presentGoToPagePanel() {
@@ -997,6 +1011,8 @@ final class WorkspaceViewModel: Equatable {
         referenceIndexProvenance = nil
         isIndexingReferences = true
         referenceIndexProgress = 0
+        jump.isIndexing = true
+        jump.refreshIfVisible()
 
         // Indexing prefers the free on-device model; a cloud key is only a fallback
         // when Apple Intelligence is unavailable. Independent of which
@@ -1005,6 +1021,7 @@ final class WorkspaceViewModel: Equatable {
             let availability = referenceIndexingAvailability
             guard availability.isAvailable else {
                 isIndexingReferences = false
+                jump.isIndexing = false
                 referenceIndexError = referenceIndexUnavailableMessage(for: availability)
                 return
             }
@@ -1032,6 +1049,8 @@ final class WorkspaceViewModel: Equatable {
                 await MainActor.run {
                     referenceIndex.replace(with: outcome.snapshot)
                     isIndexingReferences = false
+                    jump.isIndexing = false
+                    jump.refreshIfVisible()
                     referenceIndexProgress = 1
                     referenceIndexError = nil
                     referenceIndexProvenance = ReferenceIndexProvenance(
@@ -1048,6 +1067,8 @@ final class WorkspaceViewModel: Equatable {
                 await MainActor.run {
                     referenceIndex.clear()
                     isIndexingReferences = false
+                    jump.isIndexing = false
+                    jump.refreshIfVisible()
                     referenceIndexProgress = 0
                     referenceIndexProvenance = nil
                     referenceIndexError = error.localizedDescription

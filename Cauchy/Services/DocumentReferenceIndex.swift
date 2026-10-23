@@ -429,7 +429,8 @@ final class DocumentReferenceIndex {
                 body: entry.formattedBody,
                 pageIndex: entry.pageIndex,
                 anchor: entry.evidence?.matchedText
-                    ?? "\(entry.reference.kind.displayName) \(entry.reference.number)"
+                    ?? "\(entry.reference.kind.displayName) \(entry.reference.number)",
+                sourceExcerpt: entry.groundingBody.isEmpty ? nil : entry.groundingBody
             )
         }
     }

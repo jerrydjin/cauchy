@@ -98,6 +98,14 @@ struct ReaderCommands: Commands {
             .disabled(workspace?.find.hasMatches != true)
         }
 
+        CommandMenu("Go") {
+            Button("Jump to…") {
+                workspace?.presentJumpPalette()
+            }
+            .keyboardShortcut("k")
+            .disabled(!hasDocument)
+        }
+
         CommandMenu("Reading") {
             Button(workspace?.contextPanelVisible == true ? "Hide Context Panel" : "Show Context Panel") {
                 workspace?.toggleContextPanel()

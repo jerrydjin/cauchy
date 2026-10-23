@@ -52,7 +52,19 @@ struct ReaderWorkspaceView: View {
                                     .transition(.move(edge: .top).combined(with: .opacity))
                             }
                         }
+                        .overlay {
+                            if workspace.jump.isVisible {
+                                JumpPaletteView(
+                                    palette: workspace.jump,
+                                    isIndexing: workspace.isIndexingReferences
+                                )
+                                .padding(24)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                .transition(.opacity)
+                            }
+                        }
                         .animation(.easeInOut(duration: 0.15), value: workspace.find.isVisible)
+                        .animation(.easeInOut(duration: 0.15), value: workspace.jump.isVisible)
                         // The page is centred in the space the context panel leaves,
                         // not pushed up against it. A single leading Spacer used to
                         // absorb every extra point of window width, so widening the

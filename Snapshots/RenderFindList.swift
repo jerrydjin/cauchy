@@ -2,8 +2,8 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// Renders Cmd-F for "Lemma 2" from four synthetic lemmas on pages 3 and 4.
-/// DocumentFind builds the rows.
+/// Renders the plain Cmd-F bar and the Cmd-K jump palette.
+/// DocumentFind builds the rows; the palette is what a reader sees for "theorem".
 @main
 enum RenderFindList {
     @MainActor
@@ -54,18 +54,132 @@ enum RenderFindList {
             throw SnapshotError("several lemmas must stay listed")
         }
 
-        let find = PDFFindModel()
-        find.showSnapshotResults(query: "Lemma 2", hits: outcome.hits)
+        let catalogue = jumpCatalogue()
+        let jumpLabels = catalogue.map(\.label)
+        guard jumpLabels == [
+            "Theorem 1.3.3",
+            "Theorem 2.3.1 (Cauchy or Cauchy-Goursat Theorem)",
+            "Theorem 3.5.27 (Residue theorem)",
+            "Theorem 9",
+            "Lemma 2.4 (Zorn)",
+            "Definition 3.2.1 (Homotopy Version of Cauchy's Theorem)",
+        ] else {
+            throw SnapshotError("unexpected jump rows: \(jumpLabels)")
+        }
+        let jumpPreviews = catalogue.map(\.firstLine)
+        guard jumpPreviews == [
+            "Let U ⊂ C be open, and suppose that f : U → C is holomorphic.",
+            "Let U ⊂ C be a domain and γ be a closed curve.",
+            "Suppose that U is an open set in C and γ is a closed curve.",
+            "",
+            "Every chain has an upper bound.",
+            "Two cycles are homologous when their difference is a boundary.",
+        ] else {
+            throw SnapshotError("unexpected jump previews: \(jumpPreviews)")
+        }
+        for preview in jumpPreviews {
+            if preview.contains("$") || preview.contains("{") || preview.contains("oldsymbol") || preview == "$$" {
+                throw SnapshotError("preview still has markup: \(preview)")
+            }
+        }
 
-        NSApplication.shared.setActivationPolicy(.prohibited)
-        let view = SnapshotChrome(
-            caption: "Cmd-F “Lemma 2”",
+        let find = PDFFindModel()
+        find.showPlainSnapshot(query: "theorem", matchCount: 232)
+        guard DocumentFind.textMatchLabel(count: find.matchCount, isSearching: find.isSearching) == "232 matches in the text" else {
+            throw SnapshotError("find bar lost the match wording")
+        }
+
+        let palette = JumpPaletteModel()
+        palette.showSnapshot(query: "", hits: catalogue)
+
+        let findBar = SnapshotChrome(
+            caption: "Cmd-F",
             content: FindBarView(find: find)
         )
-        try writePNG(view, to: output.appendingPathComponent("find-lemma-2.png"), minimumBytes: 3_000)
-        for hit in outcome.hits {
+        let lightPalette = SnapshotChrome(
+            caption: "Cmd-K Jump to",
+            content: JumpPaletteView(palette: palette)
+                .environment(\.colorScheme, .light)
+        )
+        let darkPalette = SnapshotChrome(
+            caption: "Cmd-K Jump to · dark",
+            content: JumpPaletteView(palette: palette)
+                .environment(\.colorScheme, .dark)
+                .padding(8)
+                .background(Color.black)
+        )
+
+        try writePNG(findBar, to: output.appendingPathComponent("find-bar.png"), minimumBytes: 3_000)
+        try writePNG(lightPalette, to: output.appendingPathComponent("jump-palette.png"), minimumBytes: 8_000)
+        let combined = HStack(alignment: .top, spacing: 28) {
+            VStack(alignment: .leading, spacing: 20) {
+                findBar
+                lightPalette
+            }
+            darkPalette
+        }
+        .padding(8)
+        .background(Color(white: 0.94))
+        try writePNG(combined, to: output.appendingPathComponent("find-and-jump.png"), minimumBytes: 12_000)
+        for hit in catalogue {
             fputs("\(hit.label)  p.\(hit.pageIndex + 1)  \(hit.firstLine)\n", stdout)
         }
+    }
+
+    private static func jumpCatalogue() -> [DocumentFind.Hit] {
+        let entries = [
+            DocumentFind.Entry(
+                kind: .theorem,
+                number: "1.3.3",
+                name: "Theorem 1.3.3",
+                body: "Let U $\\subset C$ be open, and suppose that f : U \\to C is holomorphic.",
+                pageIndex: 17,
+                anchor: "Theorem 1.3.3"
+            ),
+            DocumentFind.Entry(
+                kind: .theorem,
+                number: "2.3.1",
+                name: "Cauchy or Cauchy-Goursat Theorem",
+                body: "Let U $\\subset C$ be a domain and $\\gamma$ be a closed curve.",
+                pageIndex: 47,
+                anchor: "Theorem 2.3.1"
+            ),
+            DocumentFind.Entry(
+                kind: .theorem,
+                number: "3.5.27",
+                name: "Residue theorem",
+                body: "Suppose that U is an open set in C and \\gamma is a closed curve.",
+                pageIndex: 83,
+                anchor: "Theorem 3.5.27"
+            ),
+            DocumentFind.Entry(
+                kind: .theorem,
+                number: "9",
+                name: "Theorem 9",
+                body: "$$",
+                pageIndex: 107,
+                anchor: "Theorem 9",
+                sourceExcerpt: "$oldsymbol{"
+            ),
+            DocumentFind.Entry(
+                kind: .lemma,
+                number: "2.4",
+                name: "Zorn",
+                body: "Every chain has an upper bound.",
+                pageIndex: 11,
+                anchor: "Lemma 2.4"
+            ),
+            DocumentFind.Entry(
+                kind: .definition,
+                number: "3.2.1",
+                name: "Homotopy Version of Cauchy's Theorem",
+                body: "$$",
+                pageIndex: 66,
+                anchor: "Definition 3.2.1",
+                sourceExcerpt: "Two cycles are homologous when their difference is a boundary."
+            ),
+        ]
+        return DocumentFind.jumpHits(query: "", entries: entries, sections: [])
     }
 }
 
@@ -88,7 +202,7 @@ private struct SnapshotChrome<Content: View>: View {
             content
         }
         .padding(28)
-        .frame(width: 460, alignment: .trailing)
+        .frame(width: 640, alignment: .trailing)
         .background(Color(white: 0.94))
     }
 }

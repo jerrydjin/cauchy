@@ -54,23 +54,60 @@ struct FindBarView: View {
             Divider()
                 .frame(height: 16)
 
-            GlassIconButton(systemName: "chevron.up", accessibilityLabel: "Previous Match") {
-                find.findPrevious()
-            }
-            .disabled(!find.hasMatches)
+            if rendersForSnapshot {
+                SnapshotIcon(systemName: "chevron.up")
+                SnapshotIcon(systemName: "chevron.down")
+                SnapshotIcon(systemName: "xmark")
+            } else {
+                GlassIconButton(systemName: "chevron.up", accessibilityLabel: "Previous Match") {
+                    find.findPrevious()
+                }
+                .disabled(!find.hasMatches)
 
-            GlassIconButton(systemName: "chevron.down", accessibilityLabel: "Next Match") {
-                find.findNext()
-            }
-            .disabled(!find.hasMatches)
+                GlassIconButton(systemName: "chevron.down", accessibilityLabel: "Next Match") {
+                    find.findNext()
+                }
+                .disabled(!find.hasMatches)
 
-            GlassIconButton(systemName: "xmark", accessibilityLabel: "Close Find Bar") {
-                find.dismiss()
+                GlassIconButton(systemName: "xmark", accessibilityLabel: "Close Find Bar") {
+                    find.dismiss()
+                }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .glassEffect(in: .capsule)
+        .modifier(FindCapsuleChrome(snapshot: rendersForSnapshot))
+    }
+}
+
+/// ImageRenderer drops `glassEffect`, and the find bar with it. The snapshot
+/// uses an opaque capsule; the live bar stays glass.
+private struct FindCapsuleChrome: ViewModifier {
+    var snapshot: Bool
+
+    func body(content: Content) -> some View {
+        Group {
+            if snapshot {
+                content
+                    .background(.background, in: Capsule())
+                    .overlay {
+                        Capsule().strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
+                    }
+            } else {
+                content.glassEffect(in: .capsule)
+            }
+        }
+    }
+}
+
+private struct SnapshotIcon: View {
+    var systemName: String
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 28, height: 28)
     }
 }
 

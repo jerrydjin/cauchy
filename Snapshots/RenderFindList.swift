@@ -226,7 +226,6 @@ private struct LemmaFixture: Decodable {
 private struct BeforeFindBar: View {
     var query: String
     var hits: [DocumentFind.Hit]
-    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
@@ -235,7 +234,6 @@ private struct BeforeFindBar: View {
                 namedList
             }
         }
-        .onAppear { isFieldFocused = true }
     }
 
     private var capsule: some View {
@@ -260,15 +258,22 @@ private struct BeforeFindBar: View {
             Divider()
                 .frame(height: 16)
 
-            GlassIconButton(systemName: "chevron.up", accessibilityLabel: "Previous Match") {}
-                .disabled(true)
-            GlassIconButton(systemName: "chevron.down", accessibilityLabel: "Next Match") {}
-                .disabled(true)
-            GlassIconButton(systemName: "xmark", accessibilityLabel: "Close Find Bar") {}
+            Image(systemName: "chevron.up")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+            Image(systemName: "chevron.down")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+            Image(systemName: "xmark")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .glassEffect(in: .capsule)
+        .background(Color.white.opacity(0.55), in: Capsule())
     }
 
     private var namedList: some View {
@@ -301,7 +306,10 @@ private struct BeforeFindBar: View {
         }
         .padding(12)
         .frame(width: 360, alignment: .leading)
-        .glassEffect(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(
+            Color.white.opacity(0.45),
+            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+        )
     }
 
     private var groupedHits: [(title: String, hits: [DocumentFind.Hit])] {

@@ -327,6 +327,11 @@ enum LearningHistorySearch {
         if let chapter = session.chapter {
             fields.append(.init(label: "Your refresher draft", text: chapter.rescueDraft))
             if chapter.rescueVisible { fields.append(.init(label: "Refresher question", text: chapter.challenge.refresher.check.prompt)) }
+            for draft in chapter.prerequisiteDrafts ?? [] {
+                fields += [.init(label: "Earlier prerequisite question", text: draft.refresher.check.prompt),
+                           .init(label: "Your unsubmitted prerequisite draft", text: draft.answer),
+                           .init(label: "Earlier chapter question", text: draft.chapterQuestion)]
+            }
         }
         for exchange in session.clarifications ?? [] {
             fields += [.init(label: "Your question", text: exchange.question), .init(label: "Explanation", text: exchange.reply.answer)]
@@ -412,6 +417,17 @@ struct LearningChapterRequest: Codable, Equatable, Sendable {
     }
 }
 
+/// Unsubmitted learner work retained when a fresh challenge replaces its
+/// prerequisite. Its source and requirements remain those of the parent session.
+/// This is a draft, never an assessment or independent evidence.
+struct LearningPrerequisiteDraft: Identifiable, Codable, Equatable, Sendable {
+    var id = UUID()
+    let chapterQuestion: String
+    let refresher: LearningChapterChallenge.Refresher
+    let answer: String
+    let savedAt: Date
+}
+
 struct LearningChapterState: Codable, Equatable, Sendable {
     let request: LearningChapterRequest
     var challenge: LearningChapterChallenge
@@ -426,4 +442,10 @@ struct LearningChapterState: Codable, Equatable, Sendable {
     /// The main assessment whose feedback supports an unfinished revision.
     /// Absent for older chapters and cleared after grading or a fresh question.
     var revisingAttemptID: UUID? = nil
+    /// Optional for chapters saved before unsubmitted prerequisites were retained.
+    var prerequisiteDrafts: [LearningPrerequisiteDraft]? = nil
+
+    var hasUnsubmittedPrerequisiteDraft: Bool {
+        rescueFeedback == nil && !rescueDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 }

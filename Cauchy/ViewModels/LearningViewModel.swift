@@ -334,7 +334,14 @@ final class LearningViewModel {
             try LearningTutorService.validate(challenge, request: chapter.request, source: session.source, previous: previous)
             return challenge
         } apply: { [weak self] challenge, _ in
-            self?.update {
+            guard let self else { return }
+            self.update {
+                if let chapter = $0.chapter, chapter.hasUnsubmittedPrerequisiteDraft {
+                    $0.chapter?.prerequisiteDrafts = (chapter.prerequisiteDrafts ?? []) + [
+                        .init(chapterQuestion: chapter.challenge.question.prompt, refresher: chapter.challenge.refresher,
+                              answer: chapter.rescueDraft, savedAt: self.now())
+                    ]
+                }
                 $0.lesson = challenge.sessionEnvelope
                 $0.chapter?.challenge = challenge
                 $0.chapter?.assistanceUsed = false

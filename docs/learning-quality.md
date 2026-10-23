@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [23 October prerequisite-draft preservation](evaluation/learning-prerequisite-drafts.md) keeps unsubmitted reasoning with its original question when a fresh chapter challenge replaces the refresher. Completed results and local search expose the full ungraded work. All 428 macOS tests pass, and native save/read/search checks preserve the exact earlier work. Final native cold restart and grading checks await manual Mac unlock, so this refinement remains In Progress.
+
 The [23 October chapter revision](evaluation/learning-chapter-revision.md) restores an assessed argument to the same question, retains its original feedback and records revision as supported work. All 425 macOS tests and native feedback/result, restart, prerequisite-return and fresh-check checks pass. Final polish aligns the feedback content and prevents default scroll restoration from changing saved recency. Exact original records, exclusions and discussion drafts remain intact.
 
 The [23 October chapter feedback discussion](evaluation/learning-chapter-feedback.md) lets learners question an exact saved chapter assessment without rewriting its grade or reasoning. Earlier replies and unsent follow-ups remain readable during a fresh argument, with help recorded and answer focus restored. All 420 macOS tests and native discussion/restart/help-accounting checks pass; the offline fixture does not establish explanation quality.

@@ -347,6 +347,11 @@ struct LearningSessionView: View {
                 }
                 Text("This records your work on this argument. Individual topic and proof checks stay open until separately supported; it does not establish chapter mastery.")
                     .font(.callout).foregroundStyle(.secondary)
+                if chapter.hasUnsubmittedPrerequisiteDraft {
+                    DisclosureGroup("Unsubmitted prerequisite draft") {
+                        prerequisiteDraftContent(question: chapter.challenge.refresher.check.prompt, answer: chapter.rescueDraft)
+                    }
+                }
             } else {
                 questionContent(session)
                 if session.feedback == nil {
@@ -375,7 +380,35 @@ struct LearningSessionView: View {
                     }
                 }
             }
+            if let drafts = chapter.prerequisiteDrafts, !drafts.isEmpty {
+                DisclosureGroup("Earlier prerequisite drafts · \(drafts.count)") {
+                    ForEach(drafts.reversed()) { draft in
+                        DisclosureGroup {
+                            Text("Saved \(draft.savedAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption).foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
+                            prerequisiteDraftContent(question: draft.refresher.check.prompt, answer: draft.answer)
+                            DisclosureGroup("Original chapter question") {
+                                MessageContentView(content: draft.chapterQuestion)
+                                    .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                            }.padding(.top, 12)
+                        } label: {
+                            Text(draft.refresher.check.prompt).lineLimit(2)
+                                .accessibilityLabel("Unsubmitted prerequisite draft: \(draft.refresher.check.prompt)")
+                        }.padding(.top, 12)
+                    }
+                }
+            }
         }.accessibilityElement(children: .contain)
+    }
+
+    private func prerequisiteDraftContent(question: String, answer: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Not submitted · no assessment").font(.caption).foregroundStyle(.secondary)
+            MessageContentView(content: question)
+            Text("Your draft").font(.headline)
+            MessageContentView(content: answer)
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
     }
 
     private func prerequisiteRescue(_ session: LearningSession, chapter: LearningChapterState) -> some View {

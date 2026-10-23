@@ -420,6 +420,88 @@ final class LearningUIFixtureTests: XCTestCase {
         try await restarted.flush()
     }
 
+    func testUnsubmittedPrerequisiteHistorySurvivesRealPersistenceAndFurtherFreshWork() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let request = try XCTUnwrap(map.chapterRequest(for: XCTUnwrap(map.course?.modules.first)))
+        let source = document.learning.sessions[0].source
+        document.learning.startChapter(request: request, source: source); await document.learning.waitForOperation()
+        document.learning.openPrerequisiteRescue()
+        let draft = "  PERSISTED-PREREQUISITE: x_n → x ∈ K.\n" + String(repeating: "Retain each unfinished line.\n", count: 100) + "COMPLETE-END  "
+        document.learning.rescueDraft = draft
+        document.learning.returnToChapter()
+        document.learning.answerDraft = "The main argument is saved separately."
+        document.learning.submitAnswer(); await document.learning.waitForOperation()
+        let context = try XCTUnwrap(document.learning.session?.feedbackClarificationContext)
+        document.learning.setClarificationDraft("Why does this step need a justification?", for: context)
+        document.learning.askClarification(for: context); await document.learning.waitForOperation()
+        document.learning.setClarificationDraft("Keep this unsent feedback follow-up.", for: context)
+        document.learning.advance()
+        let id = try XCTUnwrap(document.learning.selectedSessionID)
+        let attempt = try XCTUnwrap(document.learning.session?.latestExitAttempt)
+        document.learning.setAssessmentAside(true, sessionID: id, attemptID: attempt.id)
+        let original = try XCTUnwrap(document.learning.session)
+        document.learning.freshChapterCheck(); await document.learning.waitForOperation()
+        let archive = try XCTUnwrap(document.learning.session?.chapter?.prerequisiteDrafts?.first)
+        XCTAssertEqual(archive.answer, draft)
+        XCTAssertEqual(archive.refresher, original.chapter?.challenge.refresher)
+        let expected = document.snapshot
+        try await controller.flush()
+        let restart = LearningUIFixtureController(rootPath: root.path)
+        await restart.load()
+        let restored = try XCTUnwrap(restart.library?.selectedDocument)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions.sorted { $0.id.uuidString < $1.id.uuidString }),
+            try encoder.encode(expected.learningSessions.sorted { $0.id.uuidString < $1.id.uuidString }))
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(Optional(map)))
+        restored.learning.select(id)
+        XCTAssertEqual(restored.learning.clarificationDraft(for: context), "Keep this unsent feedback follow-up.")
+        XCTAssertEqual(try encoder.encode(restored.learning.session!.attempts), try encoder.encode(original.attempts))
+        let beforeSearch = restored.learning.sessions
+        XCTAssertEqual(LearningHistorySearch.results(in: beforeSearch, query: "PERSISTED-PREREQUISITE").map(\.id), [id])
+        XCTAssertEqual(restored.learning.sessions, beforeSearch)
+        restored.learning.openPrerequisiteRescue()
+        XCTAssertEqual(restored.learning.rescueDraft, "") // The old draft never becomes the fresh answer.
+        restored.learning.rescueDraft = "A separate unsubmitted prerequisite for the second argument."
+        restored.learning.returnToChapter()
+        restored.learning.answerDraft = "fixture correct"
+        restored.learning.submitAnswer(); await restored.learning.waitForOperation(); restored.learning.advance()
+        try await restart.flush()
+        var next = try XCTUnwrap(restored.learning.session?.chapter?.challenge)
+        next.question = .init(prompt: next.assumptions[0] + " Prove that f restricted to K preserves convergent subsequences of sequences in K.",
+            expectedAnswer: "Use closedness and continuity.", hints: [], kind: .proof, gradingCriteria: next.question.gradingCriteria)
+        let tutor = ChapterTutorFixture(next)
+        let continued = LearningDocument(workspace: restored.snapshot, document: restored.pdfDocument, bookmarkData: nil,
+            learning: LearningViewModel(makeTutor: { tutor }))
+        continued.learning.select(id)
+        continued.learning.freshChapterCheck(); await continued.learning.waitForOperation()
+        XCTAssertNil(continued.learning.errorMessage)
+        let drafts = try XCTUnwrap(continued.learning.session?.chapter?.prerequisiteDrafts)
+        XCTAssertEqual(drafts.count, 2)
+        XCTAssertEqual(try encoder.encode(drafts[0]), try encoder.encode(archive))
+        XCTAssertNotEqual(drafts[0].id, drafts[1].id)
+        XCTAssertEqual(drafts[1].answer, "A separate unsubmitted prerequisite for the second argument.")
+        XCTAssertEqual(drafts[1].chapterQuestion, restored.learning.session?.chapter?.challenge.question.prompt)
+        XCTAssertTrue(continued.learning.session?.chapter?.rescueAttempts.isEmpty == true)
+        XCTAssertFalse(continued.learning.session?.passedExitCheck == true)
+        var final = continued.snapshot
+        // This standalone continuation is not attached to a library's save callback.
+        final.learningSessions = continued.learning.sessions
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await persistence.saveWorkspace(final, bookmarkData: nil, learningOnly: true)
+        let savedWorkspace = await persistence.loadWorkspace(id: final.id)
+        let loaded = try XCTUnwrap(savedWorkspace)
+        XCTAssertEqual(try encoder.encode(loaded.workspace.learningSessions.sorted { $0.id.uuidString < $1.id.uuidString }),
+            try encoder.encode(final.learningSessions.sorted { $0.id.uuidString < $1.id.uuidString }))
+        XCTAssertEqual(try encoder.encode(loaded.workspace.learningStudyMap), try encoder.encode(final.learningStudyMap))
+        let persistedDrafts = try XCTUnwrap(loaded.workspace.learningSessions.first { $0.id == id }?.chapter?.prerequisiteDrafts)
+        XCTAssertEqual(try encoder.encode(persistedDrafts), try encoder.encode(drafts))
+    }
+
     func testChapterRevisionAndItsFeedbackSurviveRealPersistenceAndPrerequisiteReturn() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -2219,6 +2301,8 @@ final class LearningChapterChallengeTests: XCTestCase {
                 let vm = LearningViewModel { tutor }
                 if fresh {
                     vm.startChapter(request: request, source: source); await vm.waitForOperation()
+                    vm.openPrerequisiteRescue(); vm.rescueDraft = "Unsubmitted prerequisite reasoning survives rejected generation."
+                    vm.returnToChapter()
                     vm.answerDraft = "My original chapter reasoning."
                     vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
                     tutor.challenge.question = .init(prompt: challenge.assumptions[0] + " Additionally Y is the real line. Prove that f(K) is closed and bounded.",
@@ -2318,6 +2402,103 @@ final class LearningChapterChallengeTests: XCTestCase {
         for unit in request.units {
             XCTAssertEqual(unit.checkedTargetCount(sessions: restored.sessions), 0)
             XCTAssertNil(unit.evidence(for: unit.targets[0], sessions: restored.sessions))
+        }
+    }
+
+    func testFreshChapterKeepsUnsubmittedPrerequisiteReasoningFindable() async throws {
+        let (request, source, challenge) = fixture()
+        let tutor = ChapterTutorFixture(challenge)
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        let vm = LearningViewModel(now: { clock }, makeTutor: { tutor })
+        vm.startChapter(request: request, source: source); await vm.waitForOperation()
+        vm.openPrerequisiteRescue()
+        let draft = "  UNSENT-PREREQUISITE-KEEP: \\(x_n → x ∈ K\\).\n" + String(repeating: "Keep every unfinished step.\n", count: 100) + "END-OF-DRAFT  "
+        vm.rescueDraft = draft
+        vm.returnToChapter()
+        vm.answerDraft = "My completed supported chapter argument."
+        vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+        let original = try XCTUnwrap(vm.session)
+        XCTAssertNil(original.chapter?.prerequisiteDrafts)
+        let legacy = try JSONDecoder().decode(LearningSession.self, from: JSONEncoder().encode(original))
+        XCTAssertNil(legacy.chapter?.prerequisiteDrafts)
+        var writes = 0; vm.onChange = { _ in writes += 1 }
+        vm.freshChapterCheck(); await vm.waitForOperation() // A repeated question is rejected without archiving.
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertEqual(vm.session, original)
+        XCTAssertEqual(writes, 0)
+        tutor.challenge.question = .init(prompt: challenge.assumptions[0] + " Additionally Y is the real line. Prove that f(K) is closed and bounded.",
+            expectedAnswer: "Use the supplied closedness and boundedness consequence.", hints: [], kind: .proof,
+            gradingCriteria: challenge.question.gradingCriteria)
+        tutor.delayGeneration = true
+        vm.freshChapterCheck()
+        for _ in 0..<1_000 where tutor.generationContinuation == nil { await Task.yield() }
+        let pending = try XCTUnwrap(tutor.generationContinuation)
+        vm.cancel()
+        pending.resume(returning: tutor.challenge)
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertEqual(vm.session, original)
+        XCTAssertEqual(writes, 0)
+        tutor.delayGeneration = false
+        vm.freshChapterCheck(); await vm.waitForOperation()
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertEqual(LearningHistorySearch.results(in: vm.sessions, query: "UNSENT-PREREQUISITE-KEEP").map(\.id), [original.id])
+        XCTAssertTrue(String(decoding: try JSONEncoder().encode(vm.sessions), as: UTF8.self).contains("UNSENT-PREREQUISITE-KEEP"))
+        XCTAssertEqual(vm.session?.attempts, original.attempts)
+        XCTAssertTrue(vm.session?.chapter?.rescueAttempts.isEmpty == true)
+        XCTAssertFalse(vm.session?.assistanceUsed == true)
+        XCTAssertEqual(vm.rescueDraft, "")
+        XCTAssertEqual(writes, 1)
+        let saved = try XCTUnwrap(vm.session?.chapter?.prerequisiteDrafts?.first)
+        XCTAssertEqual(vm.session?.chapter?.prerequisiteDrafts?.count, 1)
+        XCTAssertEqual(saved.answer, draft) // Includes every character and surrounding whitespace.
+        XCTAssertEqual(saved.refresher, challenge.refresher)
+        XCTAssertEqual(saved.chapterQuestion, challenge.question.prompt)
+        XCTAssertEqual(saved.savedAt, clock)
+        let freshState = vm.sessions
+        _ = LearningHistorySearch.results(in: vm.sessions, query: "UNSENT-PREREQUISITE-KEEP")
+        XCTAssertEqual(vm.sessions, freshState)
+        vm.answerDraft = "Independent reasoning for the genuinely fresh chapter question."
+        vm.submitAnswer(); await vm.waitForOperation()
+        XCTAssertTrue(vm.session?.passedExitCheck == true)
+        XCTAssertEqual(vm.session?.chapter?.prerequisiteDrafts, [saved])
+        XCTAssertEqual(request.units.reduce(0) { $0 + $1.checkedTargetCount(sessions: vm.sessions) }, 0)
+        // Archived keys, hints and tutor explanation are not local search fields.
+        var searchable = try XCTUnwrap(vm.session)
+        searchable.chapter?.prerequisiteDrafts = [.init(chapterQuestion: saved.chapterQuestion,
+            refresher: .init(unitID: saved.refresher.unitID, pageIndex: saved.refresher.pageIndex,
+                sourceQuote: saved.refresher.sourceQuote, explanation: "ARCHIVED-TUTOR-EXPLANATION",
+                check: .init(prompt: "ARCHIVED-QUESTION-ONLY", expectedAnswer: "ARCHIVED-ANSWER-KEY", hints: ["ARCHIVED-HIDDEN-HINT"])),
+            answer: saved.answer, savedAt: saved.savedAt)]
+        XCTAssertEqual(LearningHistorySearch.results(in: [searchable], query: "ARCHIVED-QUESTION-ONLY").map(\.id), [original.id])
+        for hidden in ["ARCHIVED-ANSWER-KEY", "ARCHIVED-HIDDEN-HINT", "ARCHIVED-TUTOR-EXPLANATION"] {
+            XCTAssertTrue(LearningHistorySearch.results(in: [searchable], query: hidden).isEmpty)
+        }
+    }
+
+    func testFreshChapterDoesNotArchiveEmptyOrAlreadyAssessedPrerequisites() async throws {
+        for answer in ["", " \n\t ", "My submitted prerequisite argument."] {
+            let (request, source, challenge) = fixture()
+            let tutor = ChapterTutorFixture(challenge)
+            let vm = LearningViewModel { tutor }
+            vm.startChapter(request: request, source: source); await vm.waitForOperation()
+            vm.openPrerequisiteRescue(); vm.rescueDraft = answer
+            if !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                vm.submitAnswer(); await vm.waitForOperation()
+            }
+            vm.returnToChapter()
+            vm.answerDraft = "A completed chapter argument."
+            vm.submitAnswer(); await vm.waitForOperation(); vm.advance()
+            let original = try XCTUnwrap(vm.session)
+            tutor.challenge.question = .init(prompt: challenge.assumptions[0] + " Additionally Y is the real line. Prove that f(K) is closed and bounded.",
+                expectedAnswer: "Use the supplied closedness and boundedness consequence.", hints: [], kind: .proof,
+                gradingCriteria: challenge.question.gradingCriteria)
+            vm.freshChapterCheck(); await vm.waitForOperation()
+            XCTAssertNil(vm.errorMessage)
+            XCTAssertNil(vm.session?.chapter?.prerequisiteDrafts)
+            XCTAssertEqual(vm.session?.attempts, original.attempts)
+            XCTAssertEqual(vm.session?.chapter?.rescueAttempts, original.chapter?.rescueAttempts)
+            XCTAssertEqual(vm.rescueDraft, "")
+            XCTAssertNil(vm.session?.chapter?.rescueFeedback)
         }
     }
 

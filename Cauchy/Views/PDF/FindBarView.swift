@@ -1,8 +1,22 @@
 import SwiftUI
 
+/// ImageRenderer draws neither `TextField` nor the contents of a `ScrollView`.
+/// The designer snapshot sets this so the find bar and jump list still paint.
+private struct RendersForSnapshotKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var rendersForSnapshot: Bool {
+        get { self[RendersForSnapshotKey.self] }
+        set { self[RendersForSnapshotKey.self] = newValue }
+    }
+}
+
 struct FindBarView: View {
     @Bindable var find: PDFFindModel
     @FocusState private var isFieldFocused: Bool
+    @Environment(\.rendersForSnapshot) private var rendersForSnapshot
 
     var body: some View {
         capsule
@@ -18,11 +32,16 @@ struct FindBarView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField("Find in document", text: $find.query)
-                .textFieldStyle(.plain)
-                .frame(width: 200)
-                .focused($isFieldFocused)
-                .onSubmit { find.findNext() }
+            if rendersForSnapshot {
+                SnapshotFieldText(text: find.query, placeholder: "Find in document")
+                    .frame(width: 200, alignment: .leading)
+            } else {
+                TextField("Find in document", text: $find.query)
+                    .textFieldStyle(.plain)
+                    .frame(width: 200)
+                    .focused($isFieldFocused)
+                    .onSubmit { find.findNext() }
+            }
 
             if !find.query.isEmpty {
                 Text(DocumentFind.textMatchLabel(count: find.matchCount, isSearching: find.isSearching))
@@ -60,6 +79,7 @@ struct JumpPaletteView: View {
     @Bindable var palette: JumpPaletteModel
     var isIndexing: Bool = false
     @FocusState private var isFieldFocused: Bool
+    @Environment(\.rendersForSnapshot) private var rendersForSnapshot
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -85,19 +105,24 @@ struct JumpPaletteView: View {
         HStack(spacing: 8) {
             Image(systemName: "arrow.turn.down.right")
                 .foregroundStyle(.secondary)
-            TextField("Jump to a theorem, lemma or section", text: $palette.query)
-                .textFieldStyle(.plain)
-                .focused($isFieldFocused)
-                .onSubmit { palette.jumpSelected() }
-                .onKeyPress(keys: [.upArrow, .downArrow, .escape], phases: .down) { key in
-                    switch key.key {
-                    case .upArrow: palette.move(-1)
-                    case .downArrow: palette.move(1)
-                    case .escape: palette.dismiss()
-                    default: break
+            if rendersForSnapshot {
+                SnapshotFieldText(text: palette.query, placeholder: "Jump to a theorem, lemma or section")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                TextField("Jump to a theorem, lemma or section", text: $palette.query)
+                    .textFieldStyle(.plain)
+                    .focused($isFieldFocused)
+                    .onSubmit { palette.jumpSelected() }
+                    .onKeyPress(keys: [.upArrow, .downArrow, .escape], phases: .down) { key in
+                        switch key.key {
+                        case .upArrow: palette.move(-1)
+                        case .downArrow: palette.move(1)
+                        case .escape: palette.dismiss()
+                        default: break
+                        }
+                        return .handled
                     }
-                    return .handled
-                }
+            }
             if !palette.query.isEmpty {
                 Button {
                     palette.query = ""
@@ -121,22 +146,12 @@ struct JumpPaletteView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
+        } else if rendersForSnapshot {
+            resultStack
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(groupedHits, id: \.title) { group in
-                            Text("\(group.title) \(group.hits.count)")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 8)
-                            ForEach(group.hits) { hit in
-                                row(hit)
-                                    .id(hit.id)
-                            }
-                        }
-                    }
-                    .padding(10)
+                    resultStack
                 }
                 .frame(maxHeight: 420)
                 .onChange(of: palette.selection) {
@@ -145,6 +160,22 @@ struct JumpPaletteView: View {
                 }
             }
         }
+    }
+
+    private var resultStack: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(groupedHits, id: \.title) { group in
+                Text("\(group.title) \(group.hits.count)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                ForEach(group.hits) { hit in
+                    row(hit)
+                        .id(hit.id)
+                }
+            }
+        }
+        .padding(10)
     }
 
     private var emptyMessage: String {
@@ -212,6 +243,19 @@ struct JumpPaletteView: View {
             grouped[hit.group, default: []].append(hit)
         }
         return titles.map { ($0, grouped[$0] ?? []) }
+    }
+}
+
+/// Plain stand-in for a text field. ImageRenderer leaves `TextField` blank.
+private struct SnapshotFieldText: View {
+    var text: String
+    var placeholder: String
+
+    var body: some View {
+        Text(text.isEmpty ? placeholder : text)
+            .font(.body)
+            .foregroundStyle(text.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+            .lineLimit(1)
     }
 }
 

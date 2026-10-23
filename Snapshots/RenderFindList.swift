@@ -95,11 +95,13 @@ enum RenderFindList {
         let findBar = SnapshotChrome(
             caption: "Cmd-F",
             content: FindBarView(find: find)
+                .environment(\.rendersForSnapshot, true)
                 .environment(\.colorScheme, .light)
         )
         let darkFindBar = SnapshotChrome(
             caption: "Cmd-F · dark",
             content: FindBarView(find: find)
+                .environment(\.rendersForSnapshot, true)
                 .environment(\.colorScheme, .dark)
                 .padding(8)
                 .background(Color.black)
@@ -107,11 +109,13 @@ enum RenderFindList {
         let lightPalette = SnapshotChrome(
             caption: "Cmd-K Jump to",
             content: JumpPaletteView(palette: palette)
+                .environment(\.rendersForSnapshot, true)
                 .environment(\.colorScheme, .light)
         )
         let darkPalette = SnapshotChrome(
             caption: "Cmd-K Jump to · dark",
             content: JumpPaletteView(palette: palette)
+                .environment(\.rendersForSnapshot, true)
                 .environment(\.colorScheme, .dark)
                 .padding(8)
                 .background(Color.black)
@@ -239,10 +243,11 @@ private struct BeforeFindBar: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField("Find in document", text: Binding.constant(query))
-                .textFieldStyle(.plain)
-                .frame(width: 200)
-                .focused($isFieldFocused)
+            Text(query.isEmpty ? "Find in document" : query)
+                .font(.body)
+                .foregroundStyle(query.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                .lineLimit(1)
+                .frame(width: 200, alignment: .leading)
 
             if !query.isEmpty {
                 Text(matchLabel)

@@ -56,7 +56,9 @@ struct LearningClarification: Codable, Equatable, Sendable, Identifiable {
 
 extension LearningSession {
     var feedbackClarificationContext: LearningClarificationContext? {
-        guard chapter == nil else { return nil }
+        // A prerequisite refresher owns separate supported feedback. This
+        // discussion always refers to the saved main-argument assessment.
+        guard chapter?.rescueVisible != true else { return nil }
         let attempt: LearningAttempt?
         if phase == .complete { attempt = latestExitAttempt }
         else if let feedback, let question {

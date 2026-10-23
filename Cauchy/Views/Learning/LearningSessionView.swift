@@ -350,16 +350,24 @@ struct LearningSessionView: View {
             } else {
                 questionContent(session)
                 if session.feedback == nil {
-                    DisclosureGroup(chapter.assistanceUsed ? "Help with this argument · refresher used" : "Help with this argument") {
+                    DisclosureGroup(session.assistanceUsed ? "Help with this argument · help recorded" : "Help with this argument") {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(chapter.assistanceUsed
+                            Text(session.assistanceUsed
                                  ? "This response records help. A fresh check can later provide independent evidence."
-                                 : "Your argument stays here while you revisit one relevant idea. Using the refresher records help on this response.")
+                                 : "Your argument stays here while you revisit a relevant idea. Using the refresher or reading a saved tutor reply records help on this response.")
                                 .font(.caption).foregroundStyle(.secondary)
                             Button("Refresh a prerequisite", systemImage: "arrow.uturn.backward") {
                                 answerFocused = false
                                 learning.openPrerequisiteRescue()
                             }.buttonStyle(.glass).disabled(learning.isBusy || sourceNeedsReview)
+                            if let exchanges = session.clarifications?.filter({ $0.context.attemptID != nil }), !exchanges.isEmpty {
+                                DisclosureGroup("Saved feedback discussions (\(exchanges.count))") {
+                                    ForEach(exchanges) { exchange in
+                                        Button(exchange.question) { openClarification(exchange.context) }
+                                            .buttonStyle(.borderless).disabled(learning.isBusy)
+                                    }
+                                }
+                            }
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
                     }
                 }
@@ -950,7 +958,7 @@ struct LearningSessionView: View {
         answerFocused = false
         clarificationActionFocused = false
         feedbackActionFocused = false
-        returningToFeedback = context.attemptID != nil
+        returningToFeedback = context.attemptID != nil && (learning.session?.phase == .complete || learning.session?.feedback != nil)
         learning.openedClarifications(for: context)
         clarificationContext = context
     }

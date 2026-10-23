@@ -14,6 +14,10 @@ struct LearningClarificationView: View {
     private var isCurrent: Bool { learning.session?.canAskClarification(for: context) == true }
     private var sourceNeedsReview: Bool { document.selectedSourceReviewPage != nil }
     private var subject: String { context.attemptID != nil ? "feedback" : context.phase == .lesson ? "step" : "question" }
+    private var returnLabel: String {
+        if learning.session?.question != nil && learning.session?.feedback == nil { return "Return to my answer" }
+        return context.attemptID != nil ? "Return to feedback" : context.phase == .lesson ? "Return to lesson" : "Return to my answer"
+    }
     private var draft: Binding<String> {
         Binding(get: { learning.clarificationDraft(for: context) },
                 set: { learning.setClarificationDraft($0, for: context) })
@@ -23,11 +27,11 @@ struct LearningClarificationView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Ask about this \(subject)").font(.headline)
+                    Text(context.attemptID != nil && !isCurrent ? "Saved feedback discussion" : "Ask about this \(subject)").font(.headline)
                     Text(context.title).font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Return to \(context.attemptID != nil ? "feedback" : context.phase == .lesson ? "lesson" : "my answer")") {
+                Button(returnLabel) {
                     learning.cancelClarification()
                     dismiss()
                 }.keyboardShortcut(.cancelAction)
@@ -48,6 +52,12 @@ struct LearningClarificationView: View {
                                 }
                             }
                             exchangeContent(latest).id(latest.id)
+                        }
+                        if !isCurrent, !draft.wrappedValue.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Unsent question").font(.subheadline)
+                                MessageContentView(content: draft.wrappedValue)
+                            }
                         }
                         if let error = learning.clarificationErrorMessage {
                             Label(error, systemImage: "exclamationmark.circle")

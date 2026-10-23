@@ -2,6 +2,8 @@
 
 Tracked by [JERRY-80](https://linear.app/jerryjin/issue/JERRY-80). Ordinary and delayed lessons now offer **Ask about this feedback** beside an assessment and its completed result. This extends [contextual clarification](learning-clarification.md) to the learner's actual submitted reasoning.
 
+The [23 October chapter extension](learning-chapter-feedback.md) adds main chapter arguments and a contextual read-only route to earlier discussions during fresh work. Its separate 420-test and native report includes retained unsent follow-ups, exact restart preservation, return focus and help accounting. The original ordinary/delayed checkpoint is recorded below.
+
 The discussion snapshots the exact question, answer, grade, feedback, next step and criterion assessments. Its optional attempt ID distinguishes separate attempts even when their text is identical; the same discussion remains attached when moving from feedback to the completed result. No private answer key is supplied. Existing teaching/question context IDs remain unchanged, and older saved contexts decode without an attempt ID.
 
 Feedback questions and drafts use the existing source-validated clarification path and learning sidecar. A post-assessment reply cannot change the answer, grade, assistance, review timing or progress. Prior question/lesson explanations remain saved. Historical discussions are read-only once another phase/attempt becomes current; deliberately reopening a saved explanation during a later unanswered assessment records help under the existing policy. Source changes reject new and late replies while retaining drafts. The provider instructions explicitly allow identifying an incorrect assessment rather than defending it, without claiming to change the saved grade.

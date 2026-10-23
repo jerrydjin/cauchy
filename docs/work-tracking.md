@@ -20,6 +20,7 @@ These are entry points for investigating each issue, not claims that the planned
 
 | Issue | Relevant code and evidence |
 | --- | --- |
+| [JERRY-112: Chapter feedback discussion](https://linear.app/jerryjin/issue/JERRY-112) | [Exact feedback context](../Cauchy/Models/LearningClarification.swift), [discussion panel](../Cauchy/Views/Learning/LearningClarificationView.swift), [420-test and native verification](evaluation/learning-chapter-feedback.md) |
 | [JERRY-107: Chapter assessment review](https://linear.app/jerryjin/issue/JERRY-107) | [Exact assessment operation](../Cauchy/ViewModels/LearningViewModel.swift), [chapter feedback/results/history](../Cauchy/Views/Learning/LearningSessionView.swift), [416-test and native verification](evaluation/learning-chapter-assessment-review.md) |
 | [JERRY-69: Reader/Learn synchronization](https://linear.app/jerryjin/issue/JERRY-69) | [Sync policy](../.cursor/rules/workstream-sync.mdc), [exact inputs and integration evidence](evaluation/workstream-sync.md) |
 | [JERRY-50: Native Learn verification](https://linear.app/jerryjin/issue/JERRY-50) | [LearningSessionView](../Cauchy/Views/Learning/LearningSessionView.swift), [LearningStudyMapView](../Cauchy/Views/Learning/LearningStudyMapView.swift), [chapter challenge audit](evaluation/chapter-challenge.md), [source review audit](evaluation/source-reconciliation.md) |

@@ -434,6 +434,183 @@ final class LearningClarificationTests: XCTestCase {
     }
 
 #if DEBUG
+    private func chapterFeedback(grade: LearningGrade = .partial, assisted: Bool = false,
+                                 excluded: Bool = false, complete: Bool = false) throws -> LearningSession {
+        let pdf = try LearningUIFixture.makePDF()
+        let workspace = try LearningUIFixture.makeWorkspace(document: pdf, url: URL(fileURLWithPath: "/tmp/authored-chapter-feedback.pdf"))
+        let map = try XCTUnwrap(workspace.learningStudyMap)
+        let request = try XCTUnwrap(map.chapterRequest(for: XCTUnwrap(map.course?.modules.first)))
+        var challenge = LearningUIFixture.challenge(request: request)
+        let question = challenge.question
+        challenge.question = .init(prompt: question.prompt, expectedAnswer: "PRIVATE CHAPTER KEY 112",
+            hints: ["PRIVATE CHAPTER HINT 112"], kind: question.kind, gradingCriteria: question.gradingCriteria)
+        var session = LearningSession(source: workspace.learningSessions[0].source, lesson: challenge.sessionEnvelope,
+            phase: .exitCheck, providerID: "original-chapter-tutor", modelID: "original-model")
+        session.chapter = .init(request: request, challenge: challenge)
+        session.chapter?.position = "reasoning"; session.chapter?.scrollOffset = 317.25
+        session.chapter?.assistanceUsed = assisted
+        if assisted {
+            session.chapter?.rescueDraft = "Retain my original prerequisite reasoning."
+            session.chapter?.rescueFeedback = .init(grade: .correct, feedback: "Saved supported feedback.", nextStep: "Return to the argument.")
+        }
+        session.answerDraft = "My complete original chapter argument.\nClosedness keeps the subsequence limit in K."
+        let assessment = LearningAssessment(grade: grade, feedback: "Explain how the limit belongs to the closed subset.",
+            nextStep: "Connect the source hypothesis to this step.", criteria: question.gradingCriteria?.indices.map {
+                .init(index: $0, outcome: grade == .correct ? .met : grade == .uncertain ? .uncertain : .notMet,
+                      feedback: "Saved reasoning check \($0 + 1).")
+            })
+        var attempt = LearningAttempt(phase: .exitCheck, question: challenge.question, answer: session.answerDraft,
+            assessment: assessment, assistanceUsed: assisted, providerID: session.providerID, modelID: session.modelID)
+        if excluded { attempt.setAsideAt = Date(timeIntervalSince1970: 1_900_000_000) }
+        session.attempts = [attempt]; session.feedback = assessment
+        if complete { session.move(to: .complete) }
+        return session
+    }
+
+    func testChapterFeedbackContextUsesOnlyExactAssessedArgumentAndSurvivesPersonalReview() throws {
+        var session = try chapterFeedback()
+        let attempt = try XCTUnwrap(session.latestExitAttempt)
+        let context = try XCTUnwrap(session.feedbackClarificationContext)
+        XCTAssertEqual(context.attemptID, attempt.id)
+        for visible in [attempt.question.prompt, attempt.answer, attempt.assessment.feedback, attempt.assessment.nextStep]
+            + (attempt.question.gradingCriteria ?? []) + (attempt.assessment.criteria?.map(\.feedback) ?? []) {
+            XCTAssertTrue(context.content.contains(visible))
+        }
+        let encoded = try XCTUnwrap(String(data: JSONEncoder().encode(context), encoding: .utf8))
+        XCTAssertFalse(encoded.contains("PRIVATE CHAPTER KEY 112"))
+        XCTAssertFalse(encoded.contains("PRIVATE CHAPTER HINT 112"))
+        XCTAssertFalse(context.content.contains(session.chapter!.challenge.refresher.check.expectedAnswer))
+        XCTAssertTrue(session.canAskClarification(for: context))
+        session.attempts[0].setAsideAt = Date()
+        XCTAssertEqual(session.feedbackClarificationContext, context)
+        session.move(to: .complete)
+        XCTAssertEqual(session.feedbackClarificationContext, context)
+        session.chapter?.rescueVisible = true
+        XCTAssertNil(session.feedbackClarificationContext)
+        XCTAssertFalse(session.canAskClarification(for: context))
+        session.chapter?.rescueVisible = false
+        session.move(to: .exitCheck)
+        XCTAssertNil(session.feedbackClarificationContext)
+        XCTAssertNil(session.clarificationContext) // No new question-help route is introduced.
+        XCTAssertFalse(session.canAskClarification(for: context))
+    }
+
+    func testChapterFeedbackDiscussionPreservesEveryOriginalResultAndHelpState() async throws {
+        for grade in [LearningGrade.correct, .partial, .incorrect, .uncertain] {
+            for assisted in [false, true] {
+                for excluded in [false, true] {
+                    for complete in [false, true] {
+                        let original = try chapterFeedback(grade: grade, assisted: assisted, excluded: excluded, complete: complete)
+                        let tutor = ClarificationTutor()
+                        tutor.reply = .init(answer: "Use the closedness hypothesis to justify the limit location.", basis: .suppliedNotes,
+                            citations: [.init(pageIndex: 0, quote: LearningUIFixture.closedStatement)])
+                        let vm = model(original, tutor: tutor)
+                        let context = try XCTUnwrap(vm.session?.feedbackClarificationContext)
+                        vm.setClarificationDraft("Why this criterion?", for: context)
+                        vm.askClarification(for: context); await vm.waitForOperation()
+                        vm.openedClarifications(for: context)
+                        let result = try XCTUnwrap(vm.session)
+                        XCTAssertEqual(tutor.calls, 1)
+                        XCTAssertEqual(result.clarifications?.last?.context, context)
+                        XCTAssertEqual(result.clarifications?.last?.question, "Why this criterion?")
+                        XCTAssertTrue(result.clarificationDrafts?.isEmpty ?? true)
+                        var normalized = result
+                        normalized.clarifications = original.clarifications
+                        normalized.clarificationDrafts = original.clarificationDrafts
+                        normalized.updatedAt = original.updatedAt
+                        XCTAssertEqual(normalized, original)
+                        XCTAssertEqual(result.passedExitCheck, original.passedExitCheck)
+                        XCTAssertEqual(result.assistanceUsed, original.assistanceUsed)
+                    }
+                }
+            }
+        }
+    }
+
+    func testLateChapterDiscussionCannotApplyAfterSourceChangeOrCancellation() async throws {
+        for cancel in [false, true] {
+            let original = try chapterFeedback(excluded: true)
+            let tutor = ClarificationTutor(); tutor.hold = true
+            tutor.reply = .init(answer: "Review the source hypothesis.", basis: .suppliedNotes,
+                citations: [.init(pageIndex: 0, quote: LearningUIFixture.closedStatement)])
+            let vm = model(original, tutor: tutor)
+            let context = try XCTUnwrap(vm.session?.feedbackClarificationContext)
+            vm.setClarificationDraft("Keep my unsent chapter question.", for: context)
+            let before = vm.session
+            vm.askClarification(for: context)
+            for _ in 0..<1_000 where tutor.continuation == nil { await Task.yield() }
+            let pending = try XCTUnwrap(tutor.continuation)
+            // Capture completion while the operation is still live: cancel
+            // clears the view model's task handle before the held reply returns.
+            var completion: Task<Void, Never>?
+            await withCheckedContinuation { (started: CheckedContinuation<Void, Never>) in
+                completion = Task {
+                    started.resume()
+                    await vm.waitForOperation()
+                }
+            }
+            let finished = try XCTUnwrap(completion)
+            vm.setClarificationDraft("Do not replace a busy draft.", for: context)
+            if cancel { vm.cancelClarification() } else { vm.sourceIsCurrent = { _ in false } }
+            pending.resume(returning: tutor.reply); tutor.continuation = nil
+            await finished.value
+            XCTAssertEqual(vm.session, before)
+            XCTAssertEqual(vm.clarificationDraft(for: context), "Keep my unsent chapter question.")
+            XCTAssertFalse(vm.isBusy)
+            if !cancel { XCTAssertNotNil(vm.clarificationErrorMessage) }
+        }
+    }
+
+    func testChapterDiscussionAndFollowupPersistAndEarlierReplyRecordsHelpOnFreshArgument() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-chapter-feedback-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let request = try XCTUnwrap(map.chapterRequest(for: XCTUnwrap(map.course?.modules.first)))
+        document.learning.startChapter(request: request, source: document.learning.sessions[0].source)
+        await document.learning.waitForOperation()
+        document.learning.answerDraft = "fixture correct"
+        document.learning.submitAnswer(); await document.learning.waitForOperation(); document.learning.advance()
+        let id = try XCTUnwrap(document.learning.selectedSessionID)
+        let attempt = try XCTUnwrap(document.learning.session?.latestExitAttempt)
+        document.learning.setAssessmentAside(true, sessionID: id, attemptID: attempt.id)
+        let original = try XCTUnwrap(document.learning.session)
+        let context = try XCTUnwrap(original.feedbackClarificationContext)
+        document.learning.setClarificationDraft("Why was this chapter criterion met?", for: context)
+        document.learning.askClarification(for: context); await document.learning.waitForOperation()
+        document.learning.setClarificationDraft("Keep this chapter feedback follow-up.", for: context)
+        let expected = document.learning.sessions.sorted { $0.id.uuidString < $1.id.uuidString }
+        try await controller.flush()
+        let restart = LearningUIFixtureController(rootPath: root.path)
+        await restart.load()
+        let restored = try XCTUnwrap(restart.library?.selectedDocument)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let originalAttempts = try encoder.encode(original.attempts)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions.sorted { $0.id.uuidString < $1.id.uuidString }), try encoder.encode(expected))
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(Optional(map)))
+        restored.learning.select(id)
+        XCTAssertEqual(restored.learning.session?.feedbackClarificationContext, context)
+        XCTAssertEqual(restored.learning.clarificationDraft(for: context), "Keep this chapter feedback follow-up.")
+        XCTAssertEqual(try encoder.encode(restored.learning.session!.attempts), originalAttempts)
+        XCTAssertFalse(restored.learning.session!.assistanceUsed)
+        restored.learning.freshChapterCheck(); await restored.learning.waitForOperation()
+        XCTAssertFalse(restored.learning.session!.canAskClarification(for: context))
+        restored.learning.answerDraft = "Keep my new chapter argument."
+        let fresh = restored.learning.session
+        restored.learning.setClarificationDraft("Cannot overwrite a historical follow-up.", for: context)
+        restored.learning.askClarification(for: context)
+        XCTAssertEqual(restored.learning.session, fresh)
+        restored.learning.openedClarifications(for: context)
+        XCTAssertTrue(restored.learning.session!.assistanceUsed)
+        XCTAssertEqual(restored.learning.answerDraft, "Keep my new chapter argument.")
+        XCTAssertEqual(try encoder.encode(restored.learning.session!.attempts), originalAttempts)
+        XCTAssertEqual(restored.learning.clarificationDraft(for: context), "Keep this chapter feedback follow-up.")
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(Optional(map)))
+        try await restart.flush()
+    }
+
     func testFeedbackDiscussionAndFollowupSurviveRealFixturePersistence() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-feedback-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }

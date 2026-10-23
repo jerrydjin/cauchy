@@ -2159,10 +2159,16 @@ final class LearningChapterChallengeTests: XCTestCase {
         var clock = Date(timeIntervalSince1970: 1_800_000_000)
         let vm = LearningViewModel(now: { clock }, makeTutor: { ChapterTutorFixture(challenge) })
         vm.startChapter(request: request, source: source); await vm.waitForOperation()
+        let initial = vm.sessions
+        clock = clock.addingTimeInterval(3_600)
+        var writes = 0; vm.onChange = { _ in writes += 1 }
+        vm.setChapterScrollOffset(0)
+        XCTAssertEqual(vm.sessions, initial)
+        XCTAssertEqual(writes, 0)
         vm.setChapterPosition("reasoning"); vm.setChapterScrollOffset(181.25)
         let before = vm.sessions
         clock = clock.addingTimeInterval(3_600)
-        var writes = 0; vm.onChange = { _ in writes += 1 }
+        writes = 0
         vm.setChapterPosition("reasoning"); vm.setChapterScrollOffset(181.25)
         XCTAssertEqual(vm.sessions, before)
         XCTAssertEqual(writes, 0)

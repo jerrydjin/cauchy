@@ -20,7 +20,7 @@ These are entry points for investigating each issue, not claims that the planned
 
 | Issue | Relevant code and evidence |
 | --- | --- |
-| [JERRY-114: Revise a chapter argument](https://linear.app/jerryjin/issue/JERRY-114) | [Revision state](../Cauchy/Models/LearningSession.swift), [exact local action](../Cauchy/ViewModels/LearningViewModel.swift), [425-test verification and pending native checks](evaluation/learning-chapter-revision.md) |
+| [JERRY-114: Revise a chapter argument](https://linear.app/jerryjin/issue/JERRY-114) | [Revision state](../Cauchy/Models/LearningSession.swift), [exact local action](../Cauchy/ViewModels/LearningViewModel.swift), [425-test and complete native verification](evaluation/learning-chapter-revision.md) |
 | [JERRY-112: Chapter feedback discussion](https://linear.app/jerryjin/issue/JERRY-112) | [Exact feedback context](../Cauchy/Models/LearningClarification.swift), [discussion panel](../Cauchy/Views/Learning/LearningClarificationView.swift), [420-test and native verification](evaluation/learning-chapter-feedback.md) |
 | [JERRY-107: Chapter assessment review](https://linear.app/jerryjin/issue/JERRY-107) | [Exact assessment operation](../Cauchy/ViewModels/LearningViewModel.swift), [chapter feedback/results/history](../Cauchy/Views/Learning/LearningSessionView.swift), [416-test and native verification](evaluation/learning-chapter-assessment-review.md) |
 | [JERRY-69: Reader/Learn synchronization](https://linear.app/jerryjin/issue/JERRY-69) | [Sync policy](../.cursor/rules/workstream-sync.mdc), [exact inputs and integration evidence](evaluation/workstream-sync.md) |

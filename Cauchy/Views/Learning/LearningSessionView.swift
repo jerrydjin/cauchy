@@ -1000,15 +1000,16 @@ struct LearningSessionView: View {
                                     Text(criterion.outcome == .met ? "Met" : criterion.outcome == .notMet ? "Not yet met" : "Needs checking")
                                         .font(.caption).foregroundStyle(.secondary)
                                     MessageContentView(content: criterion.feedback)
-                                }.padding(.top, 8)
+                                }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                             }
                         }
                     }
                 }
                 DisclosureGroup("Your earlier answer") {
-                    MessageContentView(content: attempt.answer).padding(.top, 8)
+                    MessageContentView(content: attempt.answer)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                 }
-            }.padding(.top, 8)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
         }
     }
 

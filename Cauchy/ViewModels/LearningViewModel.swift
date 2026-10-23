@@ -296,7 +296,7 @@ final class LearningViewModel {
 
     func setChapterScrollOffset(_ offset: Double) {
         guard offset.isFinite, offset >= 0, let chapter = session?.chapter, !chapter.rescueVisible,
-              chapter.scrollOffset != offset else { return }
+              (chapter.scrollOffset ?? 0) != offset else { return }
         update { $0.chapter?.scrollOffset = offset }
     }
 

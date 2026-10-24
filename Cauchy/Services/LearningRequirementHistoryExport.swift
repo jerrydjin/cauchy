@@ -23,9 +23,10 @@ enum LearningRequirementHistoryExport {
             out += "**Saved status:** \(entry.status)\n\n"
             out += "**Recorded at:** \(dates.string(from: entry.date))\n\n"
             out += "### Saved lesson\n\n\(quote(entry.lessonTitle))\n\n"
-            if entry.requirementObjective != target.objective {
-                out += "### Earlier requirement wording\n\n\(quote(entry.requirementObjective))\n\n"
-                out += "This record uses earlier wording and does not establish the current requirement.\n\n"
+            if !target.matchesRequirement(session.studyTarget) {
+                let title = entry.requirementObjective != target.objective ? "Earlier requirement wording" : "Earlier requirement version"
+                out += "### \(title)\n\n\(quote(entry.requirementObjective))\n\n"
+                out += "This record belongs to an earlier requirement and does not establish the current requirement.\n\n"
             }
             if entry.phase != .lesson {
                 out += entry.assistanceUsed ? "Help was recorded for this \(entry.isDraft ? "question" : "answer").\n\n"

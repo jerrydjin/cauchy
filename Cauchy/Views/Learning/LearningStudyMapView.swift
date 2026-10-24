@@ -21,6 +21,7 @@ struct LearningStudyMapView: View {
     @State private var syllabusKinds: Set<LearningStudyKind> = [.concept, .proof, .application]
     @State private var syllabusMapping: LearningSyllabusSelection?
     @State private var historyTarget: LearningStudyTarget?
+    @State private var goalSelection: LearningGoalSelection?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var planner: LearningStudyMapViewModel { document.studyMap }
     private var nextStudy: LearningStudyRecommendation? {
@@ -62,6 +63,9 @@ struct LearningStudyMapView: View {
         }
         .sheet(item: $historyTarget) { target in
             LearningRequirementHistoryView(document: document, target: target)
+        }
+        .sheet(item: $goalSelection) { selection in
+            LearningGoalEditor(document: document, unit: selection.unit, target: selection.target)
         }
     }
 
@@ -391,6 +395,14 @@ struct LearningStudyMapView: View {
                 }
                 sourceReview(map)
                 syllabusReview(map)
+                let revisions = (map.earlierGoalRevisions ?? []) + map.units.flatMap { $0.goalRevisions ?? [] }
+                if !revisions.isEmpty {
+                    DisclosureGroup("Your goal revisions (\(revisions.count))") {
+                        ForEach(revisions.sorted { $0.createdAt > $1.createdAt }) { revision in
+                            LearningGoalRevisionRecord(revision: revision).padding(.top, 12)
+                        }
+                    }
+                }
                 if let runs = map.studyRuns?.filter({ $0.state == .finished }), !runs.isEmpty {
                     DisclosureGroup("Past study sessions") {
                         ForEach(runs.reversed()) { run in
@@ -678,11 +690,21 @@ struct LearningStudyMapView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(target.kind.label).font(.subheadline.weight(.semibold))
                         MessageContentView(content: target.objective)
+                        if target.revisionID != nil {
+                            Text("Goal revised by you").font(.caption).foregroundStyle(.secondary)
+                        }
                         Text(status(target, unit: unit)).font(.caption).foregroundStyle(.secondary)
-                        if !LearningRequirementHistory.sessions(for: target, in: document.learning.sessions).isEmpty {
-                            Button("Review my work", systemImage: "clock.arrow.circlepath") { historyTarget = target }
-                                .buttonStyle(.borderless).disabled(document.isBusy)
-                                .accessibilityLabel("Review my work · \(target.kind.label)")
+                        HStack(spacing: 14) {
+                            if !LearningRequirementHistory.sessions(for: target, in: document.learning.sessions).isEmpty {
+                                Button("Review my work", systemImage: "clock.arrow.circlepath") { historyTarget = target }
+                                    .buttonStyle(.borderless).disabled(document.isBusy)
+                                    .accessibilityLabel("Review my work · \(target.kind.label)")
+                            }
+                            Button("Revise goal", systemImage: "pencil") {
+                                goalSelection = .init(unit: unit, target: target)
+                            }
+                            .buttonStyle(.borderless).disabled(document.isBusy)
+                            .accessibilityLabel("Revise goal · \(target.kind.label)")
                         }
                     }
                     Spacer(minLength: 0)
@@ -718,7 +740,7 @@ struct LearningStudyMapView: View {
             if savedLesson(for: target) != nil { return "In progress — no exit evidence yet" }
             if LearningRequirementHistory.sessions(for: target, in: document.learning.sessions)
                 .contains(where: { !target.matchesRequirement($0.studyTarget) }) {
-                return "Not checked — requirement wording changed; earlier work is saved"
+                return "Not checked — requirement changed; earlier work is saved"
             }
             return "Not checked"
         }
@@ -964,5 +986,109 @@ private struct LearningSyllabusMappingEditor: View {
                 .disabled(document.isBusy || note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (status == .mapped && selected.isEmpty))
             }
         }.padding(24).frame(minWidth: 600, idealWidth: 720, minHeight: 560)
+    }
+}
+
+private struct LearningGoalSelection: Identifiable {
+    var id: UUID { target.id }
+    let unit: LearningStudyUnit
+    let target: LearningStudyTarget
+}
+
+private struct LearningGoalRevisionRecord: View {
+    let revision: LearningGoalRevision
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(revision.unitTitle) · \(revision.previous.kind.label)").font(.subheadline.weight(.medium))
+            Text("Revised by you · \(revision.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                .font(.caption).foregroundStyle(.secondary)
+            MessageContentView(content: revision.objective)
+            Text(revision.note).font(.callout).textSelection(.enabled)
+            DisclosureGroup("Previous goal and source reference") {
+                VStack(alignment: .leading, spacing: 8) {
+                    MessageContentView(content: revision.previous.objective)
+                    Text("PDF page \(revision.source.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
+                    Text(revision.source.quote).font(.callout).textSelection(.enabled)
+                    if revision.source.correctionID != nil {
+                        Text("Source reference uses a user-verified transcription.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }.padding(.top, 8)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct LearningGoalEditor: View {
+    let document: LearningDocument
+    let unit: LearningStudyUnit
+    let target: LearningStudyTarget
+    @State private var objective: String
+    @State private var note = ""
+    @State private var error: String?
+    @Environment(\.dismiss) private var dismiss
+
+    init(document: LearningDocument, unit: LearningStudyUnit, target: LearningStudyTarget) {
+        self.document = document
+        self.unit = unit
+        self.target = target
+        _objective = State(initialValue: target.objective)
+    }
+
+    private var canSave: Bool {
+        !document.isBusy && !objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && objective.trimmingCharacters(in: .whitespacesAndNewlines).count <= 2_000
+            && LearningSource.normalized(objective) != LearningSource.normalized(target.objective)
+            && !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && note.trimmingCharacters(in: .whitespacesAndNewlines).count <= 2_000
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Revise study goal").font(.title2.weight(.semibold))
+            Text("\(unit.title) · \(target.kind.label)").font(.subheadline).foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Correct the wording to describe what you need to learn from this source.").font(.callout)
+                    Text("Study goal").font(.headline)
+                    TextEditor(text: $objective).font(.body).frame(minHeight: 100, idealHeight: 140)
+                        .padding(6).background(.background, in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator))
+                        .accessibilityLabel("Revised study goal")
+                    TextField("Why are you revising this goal?", text: $note, axis: .vertical)
+                        .textFieldStyle(.roundedBorder).lineLimit(2...4).accessibilityLabel("Goal revision reason")
+                    Text("The revised goal starts unchecked. Earlier lessons, answers and feedback stay saved. Source issues, proof obligations and syllabus requirements remain; review any syllabus mapping that used this goal.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    DisclosureGroup("Current goal and source reference") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            MessageContentView(content: target.objective)
+                            Text("PDF page \(unit.teachingAnchor.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
+                            Text(unit.teachingAnchor.quote).font(.callout).textSelection(.enabled)
+                        }.padding(.top, 8)
+                    }
+                    let revisions = unit.goalRevisions?.filter { $0.previous.id == target.id } ?? []
+                    if !revisions.isEmpty {
+                        DisclosureGroup("Previous goal revisions (\(revisions.count))") {
+                            ForEach(revisions.reversed()) { revision in
+                                LearningGoalRevisionRecord(revision: revision).padding(.top, 12)
+                            }
+                        }
+                    }
+                    if let error { Text(error).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
+                }.padding(2)
+            }
+            HStack {
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Save revised goal") {
+                    guard !document.isBusy else { return }
+                    do {
+                        try document.studyMap.reviseGoal(target, in: unit, objective: objective, note: note, document: document.pdfDocument)
+                        dismiss()
+                    } catch { self.error = error.localizedDescription }
+                }
+                .buttonStyle(.glassProminent).keyboardShortcut(.return, modifiers: .command).disabled(!canSave)
+            }
+        }.padding(24).frame(minWidth: 560, idealWidth: 640, minHeight: 480, idealHeight: 600)
     }
 }

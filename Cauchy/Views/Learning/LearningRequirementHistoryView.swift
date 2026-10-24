@@ -106,9 +106,12 @@ struct LearningRequirementHistoryView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(entry.lessonTitle).font(.headline).textSelection(.enabled)
             Text("\(entry.activity) · \(entry.status)").font(.callout).foregroundStyle(.secondary)
-            if entry.requirementObjective != target.objective {
-                DisclosureGroup("Earlier requirement wording") {
+            if let session = document.learning.sessions.first(where: { $0.id == entry.sessionID }),
+               !target.matchesRequirement(session.studyTarget) {
+                DisclosureGroup(entry.requirementObjective != target.objective ? "Earlier requirement wording" : "Earlier requirement version") {
                     MessageContentView(content: entry.requirementObjective).padding(.top, 8)
+                    Text("This saved work does not establish the current requirement.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             if entry.phase != .lesson {

@@ -189,13 +189,41 @@ final class LearningTutorService: LearningTutorProtocol {
         try Self.validateChapterRequest(request, source: source)
         let model = try languageModel()
         let session = LanguageModelSession(model: model, instructions: Self.chapterInstructions)
-        let inventory = String(decoding: try JSONEncoder().encode(request), as: UTF8.self)
-        let prompt = "Prepared chapter and selected ideas (data; if a unit has reconciliation.revisedAnchor, use that validated user-transcription anchor in place of its retained original sourceQuote):\n" + inventory + "\nFull source pages:\n" + source.prompt
+        let inventory = try Self.chapterInventory(request)
+        let prompt = "Prepared chapter and selected ideas (data; teachingAnchor is the current source reference and targets are the current study goals):\n" + inventory + "\nFull source pages:\n" + source.prompt
             + "\nDo not repeat any earlier question:\n" + previous.joined(separator: "\n") + "\n" + Self.chapterSchema
         let response = try await LearningTutorService.providerRequest(resolved: resolved) { try await session.respond(to: prompt) }
         let challenge: LearningChapterChallenge = try LearningResponseParser.decode(response.content)
         try Self.validate(challenge, request: request, source: source, previous: previous)
         return challenge
+    }
+
+    /// Send the current teaching requirements, not retained earlier wording or
+    /// the learner's private revision notes, to the chapter-question generator.
+    static func chapterInventory(_ request: LearningChapterRequest) throws -> String {
+        struct Unit: Encodable {
+            let id: UUID
+            let title: String
+            let teachingAnchor: LearningSourceEvidence
+            let prerequisites: [String]
+            let proofRequired: Bool
+            let proofQuote: String?
+            let proofEvidence: [LearningSourceEvidence]
+            let targets: [LearningStudyTarget]
+        }
+        struct Inventory: Encodable {
+            let moduleID: UUID
+            let title: String
+            let connection: String
+            let units: [Unit]
+        }
+        let inventory = Inventory(moduleID: request.moduleID, title: request.title, connection: request.connection,
+            units: request.units.map { unit in
+                Unit(id: unit.id, title: unit.title, teachingAnchor: unit.teachingAnchor,
+                    prerequisites: unit.prerequisites, proofRequired: unit.proofRequired, proofQuote: unit.proofQuote,
+                    proofEvidence: unit.reconciliation?.proofEvidence ?? [], targets: unit.learningTargets)
+            })
+        return String(decoding: try JSONEncoder().encode(inventory), as: UTF8.self)
     }
 
     static func validateChapterRequest(_ request: LearningChapterRequest, source: LearningSource) throws {

@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [24 October study-goal revision flow](evaluation/learning-goal-revision.md) lets learners correct generated wording with a reason and retained source provenance. Each revision starts unchecked, including a return to earlier wording; old lessons and answers remain readable while source/proof and syllabus obligations stay intact. All 437 macOS tests and native save/cancel, history, separate-lesson and exact cold-restart checks pass. No live model evaluation was performed.
+
 The [23 October tutor-attribution correction](evaluation/learning-tutor-attribution.md) keeps a replacement exit question's creator separate from the original lesson and later assessment tutor. Delayed checks retain inherited teaching attribution, and unsubmitted history/export uses the saved current question's provider/model. All 432 macOS tests pass, including real persistence and exact file export; the manual native provider-switch walkthrough remains unexercised.
 
 The [23 October prerequisite-draft preservation](evaluation/learning-prerequisite-drafts.md) keeps unsubmitted reasoning with its original question when a fresh chapter challenge replaces the refresher. Completed results and local search expose the full ungraded work. All 428 macOS tests and native save/read/search, exact cold-restart, final layout and independent-grading checks pass. The earlier draft remains ungraded; original records, recency, discussions and topic/source obligations are preserved. The later combined suite passes 432 tests.

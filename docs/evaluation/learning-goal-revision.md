@@ -1,0 +1,44 @@
+# Learner revisions to generated study goals
+
+Tracked by [JERRY-117](https://linear.app/jerryjin/issue/JERRY-117). Learn already separated changed requirement wording from earlier evidence, but learners could not correct a generated goal in the product. The expanded topic now offers **Revise goal** beside its contextual history action. The editor requires changed wording and a reason, shows the current source reference, explains the evidence and syllabus consequences, and retains previous decisions. Cancel discards only the unsaved edit.
+
+The generated inventory remains unchanged. Optional `LearningStudyUnit.goalRevisions` records each preceding requirement, new objective, reason, topic title, source reference and date. `learningTargets` applies a revision only to its exact preceding requirement. It works for both inventoried targets and a proof target established by source reconciliation. Every edit receives a distinct optional `LearningStudyTarget.revisionID`; exact requirement identity now includes this ID. Restoring an earlier sentence therefore starts a new unchecked version rather than resurrecting its old credit or review schedule. Course context alone still preserves a requirement's identity.
+
+Current evidence also requires membership in the unit's effective requirements. Existing exact-identity checks then protect lesson reuse, delayed-review queues, syllabus references, study plans and chapter requests. Original sessions and assessments are never migrated or rewritten. History retains their original answers and feedback, with earlier wording or an **Earlier requirement version** notice when the sentence happens to match. Markdown export preserves the same qualification.
+
+Editing cannot change the requirement kind, remove a proof obligation, close a source issue, change a source correction, delete a syllabus item or rewrite a syllabus decision. Syllabus mappings referring to an earlier version become unresolved until explicitly reviewed. Stale unit/target snapshots, busy mapping and changed actual PDF text reject the edit without a save. Blank, unchanged or oversized input also rejects without a save. Wording and reason are each limited to 2,000 characters.
+
+Unchanged-source remapping retains revision decisions. Rebuilt source with a new signature archives them in optional `earlierGoalRevisions`, without applying them to newly generated requirements. Course details lists all retained decisions, including those no longer applied; after source rebuilding this history is available when the new course is available. Earlier sources are labelled as references, not offered as a claim about the current PDF.
+
+Ordinary lesson generation already receives the effective target. Course composition now uses effective goals too. Chapter generation uses an explicit current inventory with source anchors, prerequisites, proof obligations/evidence and effective goals. Retained earlier wording and revision reasons are omitted from that model payload. The saved full chapter request still retains the exact requirements it was prepared against.
+
+## Verification — 24 October 2026
+
+The complete isolated macOS suite passes **437 tests, zero failures or skips and no reported runtime warnings**. This adds five behavior tests to the prior 432-test checkpoint:
+
+* All three study kinds reject earlier evidence and due scheduling after revision; plans stop at the changed requirement, historical work remains inspectable, and a reversal of wording still receives no old credit. A fresh correct assessment for the exact new version can count. Round trips retain decisions; older maps decode with absent optional fields.
+* A source-reconciled proof can be revised without changing its proof evidence, generated targets or kind. Syllabus obligations/history remain, while their earlier reference no longer counts. Source-review markers and open gaps survive editing.
+* Invalid, stale, busy and changed-PDF requests perform no writes. A valid edit saves once, and a second stale editor cannot overwrite it.
+* Unchanged-source remapping retains the effective goal and decisions. Changed-source rebuilding archives the decisions without applying them to new requirements or duplicating them on resume.
+* The real isolated fixture/persistence flow invalidates the old chapter request and review, rejects a stale lesson action, creates a separate current lesson and saves its draft. The chapter payload contains the new goal and excludes both the earlier goal and revision note. A new controller reloads the exact map and sessions, preserves all earlier sessions, and resumes the same new lesson/draft.
+
+Inputs: archive of `059a104` plus nine byte-identical Swift source/test inputs in `/tmp/cauchy-goal-revision-validation`; hashes in `/tmp/cauchy-goal-revision-inputs.json`. SwiftMath is pinned at `fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7`. Xcode uses the existing resolved packages with automatic resolution disabled. Results: `/tmp/cauchy-goal-revision-first.xcresult`, `/tmp/cauchy-goal-revision-first.log`, `/tmp/cauchy-goal-revision-first-summary.json`. No new source files require project regeneration. Existing compiler deprecation/conformance warnings remain outside this change; the result bundle reports no runtime warnings.
+
+### Native editor and cold restart
+
+The exact tested debug dylib is pinned at `/tmp/cauchy-goal117-tested.dylib`, SHA-256 `a869407c8c193b51847fef0c1a06d33a748166450d6dc9bc995269a4034da27b`. After confirming it stopped, the known disposable `/tmp/CauchyChapterFeedback112.app` identity was temporarily pointed at a new authored root, `/tmp/cauchy-ui-fixture-goal117-native`. Only its debug dylib and fixture-root plist were changed, with exact backups. All native interaction used the computer-use tool. No live tutor was called.
+
+Observed and compared:
+
+1. The original application goal has one Correct unassisted exit assessment and a due review. Its topic shows one of three checks; the chapter shows one of six.
+2. An authored edit and reason enable Save. **Escape** cancels it. Reopening shows the original goal and an empty reason. The complete learning sidecar equals `/tmp/cauchy-goal117-before.json`.
+3. Changing wording alone keeps Save disabled. Entering a reason enables it. The current-goal disclosure shows the original sentence and source quote on PDF page 1. Native Save accepts the new goal about explicit compactness/continuity hypotheses.
+4. The topic shows **Goal revised by you**, **Not checked — requirement changed; earlier work is saved**, **Study** and **Review my work**. Topic/chapter checks become zero; the old due-review action disappears. Both original sessions and every source, syllabus and course field remain exactly unchanged; only the appended revision and map recency differ. Snapshot: `/tmp/cauchy-goal117-after-save.json`.
+5. History retains the original Correct assessment, question, answer and feedback. Expanding **Earlier requirement wording** shows the original sentence and explicitly says it does not establish the current requirement. Merely reading history changes no saved work.
+6. Reopening the editor retains the new sentence, original decision date/reason, previous wording and source quote. Long disclosed history scrolls independently while Cancel and disabled Save remain visible. Save remains disabled with an unchanged goal and empty new reason. Screenshot inspections: `/tmp/cauchy-goal117-editor.png`, `/tmp/cauchy-goal117-earlier-work.png`, `/tmp/cauchy-goal117-revision-history.png`.
+7. **Study** creates a third, separate application lesson at Starting point with the revised goal. An authored `GOAL-117-CURRENT-DRAFT` answer is saved under the exact revision ID. Both original sessions and the whole revised map remain equal to their earlier snapshots.
+8. Actual Cmd-Q, confirmed process stop and cold reopen restore the same new lesson and complete draft. The entire learning sidecar is equal before and after (`/tmp/cauchy-goal117-restart-before.json`, `/tmp/cauchy-goal117-restart-after.json`). Course details still exposes the same saved revision reason and date. Further read-only inspection and quit leave that complete sidecar unchanged.
+
+The disposable app is left stopped with its earlier plist and dylib restored byte-for-byte. Its protected prerequisite-draft fixture still equals the previously verified final snapshot. The installed app, normal learner library, system settings and reader are unchanged.
+
+These are offline identity, persistence and native interaction checks. They do not establish mathematical grading accuracy, revised-goal quality or live model adherence to the changed chapter payload. Native source rebuilding, native wording reversal, VoiceOver speech, alternate appearance/accessibility settings and the Save keyboard shortcut were not exercised; automated tests cover source rebuilding and reversals. No push, merge or release is claimed.

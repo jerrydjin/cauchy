@@ -26,12 +26,33 @@ struct LearningStudyTarget: Identifiable, Codable, Equatable, Sendable {
     let kind: LearningStudyKind
     let objective: String
     var courseContext: String? = nil
+    var revisionID: UUID? = nil
 
     /// Credit and lesson reuse belong to this exact requirement. Course
     /// organization can change without changing what the learner must show.
     func matchesRequirement(_ other: LearningStudyTarget?) -> Bool {
         guard let other else { return false }
-        return id == other.id && unitID == other.unitID && kind == other.kind && objective == other.objective
+        return id == other.id && unitID == other.unitID && kind == other.kind
+            && objective == other.objective && revisionID == other.revisionID
+    }
+}
+
+/// A learner's wording decision, separate from the generated source inventory.
+/// The full preceding requirement keeps repeated edits and reversals traceable.
+struct LearningGoalRevision: Identifiable, Codable, Equatable, Sendable {
+    var id = UUID()
+    let previous: LearningStudyTarget
+    let objective: String
+    let note: String
+    let unitTitle: String
+    let source: LearningSourceEvidence
+    let createdAt: Date
+
+    var target: LearningStudyTarget {
+        var revised = LearningStudyTarget(id: previous.id, unitID: previous.unitID,
+            kind: previous.kind, objective: objective, courseContext: previous.courseContext)
+        revised.revisionID = id
+        return revised
     }
 }
 
@@ -49,9 +70,14 @@ struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
     var reconciliation: LearningUnitReconciliation? = nil
     var pendingSourceCorrection: Bool? = nil
     var sourceCorrectionIDs: [UUID]? = nil
+    var goalRevisions: [LearningGoalRevision]? = nil
 
     var learningTargets: [LearningStudyTarget] {
-        targets + (reconciliation?.proofTarget.map { [$0] } ?? [])
+        (targets + (reconciliation?.proofTarget.map { [$0] } ?? [])).map { original in
+            (goalRevisions ?? []).reduce(original) { current, revision in
+                current.matchesRequirement(revision.previous) ? revision.target : current
+            }
+        }
     }
 
     var teachingAnchor: LearningSourceEvidence {
@@ -82,7 +108,7 @@ struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
     func evidence(for target: LearningStudyTarget, sessions: [LearningSession]) -> LearningAttempt? {
         // Only a check explicitly attached to this requirement can count.
         // An unrelated application lesson cannot establish proof comprehension.
-        guard target.unitID == id else { return nil }
+        guard target.unitID == id, learningTargets.contains(where: { $0.matchesRequirement(target) }) else { return nil }
         return sessions.filter { session in
             session.chapter == nil && session.delayedReview == nil && target.matchesRequirement(session.studyTarget)
                 && Set(sourceCorrectionIDs ?? []).isSubset(of: Set(session.source.passages.compactMap { $0.correction?.id }))
@@ -139,6 +165,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
     var sourceCorrections: [LearningSourceCorrection]? = nil
     var syllabus: LearningSyllabus? = nil
     var studyRuns: [LearningStudyRun]? = nil
+    var earlierGoalRevisions: [LearningGoalRevision]? = nil
 
     func latestCorrection(for pageIndex: Int) -> LearningSourceCorrection? {
         sourceCorrections?.last { $0.pageIndex == pageIndex }

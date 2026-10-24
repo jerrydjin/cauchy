@@ -281,7 +281,7 @@ enum LearningCourseComposer {
         }
         var items = units.enumerated().map { index, unit in
             Item(unitNumbers: [index + 1], title: unit.title, prerequisites: unit.prerequisites,
-                 sourceQuote: unit.sourceQuote, goals: unit.targets.map(\.objective), gaps: unit.gaps)
+                 sourceQuote: unit.sourceQuote, goals: unit.learningTargets.map(\.objective), gaps: unit.gaps)
         }
         func encode(_ items: [Item]) throws -> String {
             String(decoding: try JSONEncoder().encode(items), as: UTF8.self)

@@ -29,6 +29,27 @@ final class LearningStudyMapViewModel {
 
     var currentStudyRun: LearningStudyRun? { map?.studyRuns?.last }
 
+    func reviseGoal(_ target: LearningStudyTarget, in unit: LearningStudyUnit, objective: String, note: String,
+                    document: PDFDocument, at date: Date = Date()) throws {
+        guard !isBusy, var updated = map,
+              let index = updated.units.firstIndex(where: { $0.id == unit.id }), updated.units[index] == unit,
+              target.unitID == unit.id, unit.learningTargets.contains(where: { $0.matchesRequirement(target) }),
+              (0..<document.pageCount).map({ LearningStudyInput.signature(document.page(at: $0)?.string ?? "") }) == updated.pageSignatures else {
+            throw LearningStudyValidationError(reason: "This goal or its source has changed. Close the editor and reopen the current goal before saving.")
+        }
+        let wording = objective.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reason = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !wording.isEmpty, wording.count <= 2_000, !reason.isEmpty, reason.count <= 2_000,
+              LearningSource.normalized(wording) != LearningSource.normalized(target.objective) else {
+            throw LearningStudyValidationError(reason: "Enter a changed study goal and a brief reason, each within 2,000 characters.")
+        }
+        let revision = LearningGoalRevision(previous: target, objective: wording, note: reason,
+            unitTitle: unit.title, source: unit.teachingAnchor, createdAt: date)
+        updated.units[index].goalRevisions = (unit.goalRevisions ?? []) + [revision]
+        map = updated
+        save()
+    }
+
     func startStudyRun(_ run: LearningStudyRun) throws {
         guard !isBusy, var updated = map, updated.pageSignatures == run.pageSignatures,
               !run.items.isEmpty, run.items.count <= 3,
@@ -275,7 +296,9 @@ final class LearningStudyMapViewModel {
         if map?.pageSignatures != signatures {
             let syllabus = map?.syllabus
             let runs = map?.studyRuns
-            map = LearningStudyMap(pageSignatures: signatures, pages: pages.indices.map { .init(pageIndex: $0) }, syllabus: syllabus, studyRuns: runs)
+            let revisions = (map?.earlierGoalRevisions ?? []) + (map?.units.flatMap { $0.goalRevisions ?? [] } ?? [])
+            map = LearningStudyMap(pageSignatures: signatures, pages: pages.indices.map { .init(pageIndex: $0) },
+                syllabus: syllabus, studyRuns: runs, earlierGoalRevisions: revisions.isEmpty ? nil : revisions)
             save()
         }
         let pending = map?.unresolvedPages.map(\.pageIndex) ?? []
@@ -392,7 +415,8 @@ final class LearningStudyMapViewModel {
                             && previous.targets.map(\.objective) == candidate.targets.map(\.objective)
                             ? previous.reconciliation : nil,
                         pendingSourceCorrection: previous.pendingSourceCorrection,
-                        sourceCorrectionIDs: previous.sourceCorrectionIDs)
+                        sourceCorrectionIDs: previous.sourceCorrectionIDs,
+                        goalRevisions: previous.goalRevisions)
                 } else { merged.append(candidate) }
             }
             map?.units = merged.sorted { $0.anchorPage < $1.anchorPage }

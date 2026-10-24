@@ -558,6 +558,56 @@ final class LearningUIFixtureTests: XCTestCase {
         try await restart.flush()
     }
 
+    func testGoalRevisionAndSeparateCurrentLessonSurviveRealPersistenceRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let oldRequest = try XCTUnwrap(map.chapterRequest(for: map.course!.modules[0]))
+        let review = try XCTUnwrap(map.nextDelayedReview(sessions: document.learning.sessions, now: Date()))
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let previousSessions = try encoder.encode(document.learning.sessions)
+        try document.studyMap.reviseGoal(review.target, in: review.unit,
+            objective: "Justify the compact-image application using every hypothesis.", note: "PRIVATE-REVISION-NOTE: make the missing hypotheses explicit.", document: document.pdfDocument)
+        let revisedMap = try XCTUnwrap(document.studyMap.map)
+        let currentUnit = try XCTUnwrap(revisedMap.units.first { $0.id == review.unit.id })
+        let current = try XCTUnwrap(currentUnit.learningTargets.first { $0.id == review.target.id })
+        XCTAssertFalse(revisedMap.isCurrentChapterRequest(oldRequest))
+        XCTAssertNil(revisedMap.nextDelayedReview(sessions: document.learning.sessions, now: Date(), targetID: current.id))
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), previousSessions)
+        let request = try XCTUnwrap(revisedMap.chapterRequest(for: map.course!.modules[0]))
+        let inventory = try LearningTutorService.chapterInventory(request)
+        XCTAssertTrue(inventory.contains(current.objective))
+        XCTAssertFalse(inventory.contains(review.target.objective))
+        XCTAssertFalse(inventory.contains("PRIVATE-REVISION-NOTE"))
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(inventory.utf8)) as? [String: Any])
+        XCTAssertEqual((payload["units"] as? [[String: Any]])?.count, 2)
+        document.study(review.target, unit: review.unit)
+        await document.learning.waitForOperation()
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), previousSessions)
+        document.study(current, unit: currentUnit)
+        await document.learning.waitForOperation()
+        let currentSession = try XCTUnwrap(document.learning.session)
+        XCTAssertTrue(current.matchesRequirement(currentSession.studyTarget))
+        document.learning.answerDraft = "Independent draft for the revised goal — retained exactly."
+        XCTAssertEqual(try encoder.encode(document.learning.sessions.filter { $0.id != currentSession.id }), previousSessions)
+        try await controller.flush()
+        let expectedSessions = try encoder.encode(document.learning.sessions)
+        let expectedMap = try encoder.encode(document.studyMap.map)
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions), expectedSessions)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), expectedMap)
+        XCTAssertEqual(restored.studyMap.map?.units.first { $0.id == currentUnit.id }?.goalRevisions, currentUnit.goalRevisions)
+        XCTAssertEqual(LearningRequirementHistory.sessions(for: current, in: restored.learning.sessions).count, 2)
+        restored.study(current, unit: currentUnit)
+        XCTAssertEqual(restored.learning.session?.id, currentSession.id)
+        XCTAssertEqual(restored.learning.answerDraft, "Independent draft for the revised goal — retained exactly.")
+    }
+
     func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }

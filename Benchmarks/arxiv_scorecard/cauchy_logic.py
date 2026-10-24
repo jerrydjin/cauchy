@@ -3,7 +3,8 @@
 This is a line-by-line port of the non-UI rules on the combined reader
 branch. Line-start statements and number-first headings follow main.
 A dotted equation tag on its own line is a declaration, and the display
-after a bare number is only read from the next four lines.
+after a bare number is only read from the next four lines. A bare tag at
+the end of a prose sentence is not a declaration.
 
 - main: Cauchy/Services/ReferenceParsing.swift, ReferenceDetector.swift,
   LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing.
@@ -397,17 +398,27 @@ def declaration_matches(
             nearby = before[-180:] + after[:180]
         else:
             nearby = prefix + suffix
+        # A bare "(1)" at the right margin of a prose sentence is a cross
+        # reference that happened to wrap there. A tag after a short formula
+        # ("A = B + C (4)") still is.
+        bare = match.number.isdigit()
         if label_x is not None and label_x >= 0.78 and any(op in nearby for op in _DISPLAY_OPERATORS):
-            accepted.append(match)
-            continue
+            # An own-line tag has an empty prefix; its formula sits on a
+            # neighbour line. A nonempty prefix has to be that formula, not
+            # the sentence that cites the number.
+            if not bare or not prefix or _prefix_is_display_tag(prefix):
+                accepted.append(match)
+                continue
         if not prefix and suffix and any(op in suffix for op in _MATH_SIGNALS):
             accepted.append(match)
             continue
         if not suffix:
             recent = prefix[-80:]
             if len(prefix.split()) <= 10 and any(op in recent for op in _LABEL_MATH):
-                accepted.append(match)
-                continue
+                # "λ = 1 ⇒ (1) and (2)" is a list of references. "x = y + z (7)" is a tag.
+                if not bare or _prefix_is_display_tag(prefix):
+                    accepted.append(match)
+                    continue
 
         matched_text = match.text.strip()
         full_line_start = source_text.rfind("\n", 0, match.start)
@@ -468,6 +479,18 @@ def _number_first_declarations(source_text: str) -> list[Match]:
             continue
         found.append(Match(kind, match.group(1), match.start(), match.end(), match.group(0)))
     return found
+
+
+def _prefix_is_display_tag(prefix: str) -> bool:
+    """The text before a bare tag is a short formula, not a sentence."""
+    trimmed = prefix.rstrip()
+    if trimmed.endswith((",", ";")):
+        return False
+    if re.search(r"(?i)(?:^|\s)(?:and|or)$", trimmed):
+        return False
+    if not any(op in prefix for op in _DISPLAY_OPERATORS):
+        return False
+    return len(re.findall(r"[A-Za-z]{3,}", prefix)) <= 2
 
 
 def _following_line_is_display(rest: str) -> bool:

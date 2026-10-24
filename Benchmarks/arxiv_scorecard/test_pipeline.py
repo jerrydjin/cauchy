@@ -286,6 +286,23 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("4", numbers)
         self.assertIn("5", numbers)
 
+    def test_prose_sentence_does_not_declare_a_bare_equation(self) -> None:
+        page = "\n".join([
+            "Proof. By construction f = g, so the equivalence between (1) follows at once.",
+            "λ = 1 ⇒ (1) and (3)",
+            "x = y + z (7)",
+            "We minimize the joint loss",
+            "L = λ ∑ x",
+            "(5)",
+            "where the two terms measure energy and force error.",
+        ])
+        positions = {page.index("(1)"): 0.86}
+        numbers = [item.number for item in declaration_matches(page, positions)]
+        self.assertNotIn("1", numbers)
+        self.assertNotIn("3", numbers)
+        self.assertIn("7", numbers)
+        self.assertIn("5", numbers)
+
     def test_own_line_equation_keeps_the_formula_on_the_next_line(self) -> None:
         page = "\n".join([
             "(2)",

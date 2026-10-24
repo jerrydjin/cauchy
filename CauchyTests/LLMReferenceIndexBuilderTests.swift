@@ -545,6 +545,30 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .definition, number: "8.2")))
     }
 
+    func testProseSentenceDoesNotDeclareABareEquation() {
+        let page = """
+        Proof. By construction f = g, so the equivalence between (1) follows at once.
+        λ = 1 ⇒ (1) and (3)
+        x = y + z (7)
+        We minimize the joint loss
+        L = λ ∑ x
+        (5)
+        where the two terms measure energy and force error.
+        """
+        let nsPage = page as NSString
+        let positions = [
+            nsPage.range(of: "(1)").location: 0.86,
+        ]
+        let declarations = LLMReferenceIndexSupport.declarationMatches(
+            in: page, equationLabelX: positions
+        ).map(\.reference)
+
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "3")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "7")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "5")))
+    }
+
     func testDeclarationGuardAcceptsEquationNumberOnOwnLine() {
         let page = """
         We minimize the joint loss

@@ -270,7 +270,8 @@ enum LLMReferenceIndexSupport {
     /// a capitalised statement, or the statement on the next line. A number-first
     /// heading such as "6.1 Definition." is the same shape. Equations require
     /// equation-like content on the numbered line, a dotted tag on its own line,
-    /// or a short display on one of the next four lines.
+    /// or a short display on one of the next four lines. A bare tag at the end
+    /// of a prose sentence is not an equation.
     static func declarationMatches(
         in sourceText: String,
         equationLabelX: [Int: Double] = [:]
@@ -354,9 +355,18 @@ enum LLMReferenceIndexSupport {
                 nearbyDisplay = prefix + suffix
             }
             let displayOperators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+            let bare = Int(match.reference.number) != nil
+            // A bare "(1)" at the right margin of a prose sentence is a cross
+            // reference that happened to wrap there. A tag after a short
+            // formula ("A = B + C (4)") still is.
             if let labelX, labelX >= 0.78,
                displayOperators.contains(where: nearbyDisplay.contains) {
-                return true
+                // An own-line tag has an empty prefix; its formula sits on a
+                // neighbour line. A nonempty prefix has to be that formula,
+                // not the sentence that cites the number.
+                if !bare || prefix.isEmpty || prefixIsDisplayTag(String(prefix)) {
+                    return true
+                }
             }
             if prefix.isEmpty, !suffix.isEmpty,
                mathSignals.contains(where: suffix.contains) {
@@ -367,7 +377,11 @@ enum LLMReferenceIndexSupport {
                 let labelMath = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
                 if prefix.split(whereSeparator: \.isWhitespace).count <= 10,
                    labelMath.contains(where: recentPrefix.contains) {
-                    return true
+                    // "λ = 1 ⇒ (1) and (2)" is a list of references.
+                    // "x = y + z (7)" is a tag.
+                    if !bare || prefixIsDisplayTag(String(prefix)) {
+                        return true
+                    }
                 }
             }
 
@@ -454,6 +468,20 @@ enum LLMReferenceIndexSupport {
         }
         if first == ":" || first == "(" { return true }
         return first.isUppercase
+    }
+
+    /// Text before a bare tag is a short formula, not "… and" or a sentence.
+    private static func prefixIsDisplayTag(_ prefix: String) -> Bool {
+        let trimmed = prefix.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasSuffix(",") || trimmed.hasSuffix(";") { return false }
+        if let last = trimmed.split(whereSeparator: \.isWhitespace).last,
+           last.lowercased() == "and" || last.lowercased() == "or" {
+            return false
+        }
+        let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+        guard operators.contains(where: { prefix.contains($0) }) else { return false }
+        let words = prefix.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
+        return words.count <= 2
     }
 
     /// The next non-empty line after an own-line equation number is a display

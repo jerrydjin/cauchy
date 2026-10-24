@@ -111,7 +111,9 @@ private struct SnapshotIcon: View {
     }
 }
 
-/// Centred Cmd-K catalogue. Opaque window background, so the page doesn't show through.
+/// Centred Cmd-K catalogue. One layout in both appearances: Liquid Glass over
+/// the page, light frost when the window is light and darker glass when it is
+/// dark. Rows stay a label, an optional name, a page, and one preview line.
 struct JumpPaletteView: View {
     @Bindable var palette: JumpPaletteModel
     var isIndexing: Bool = false
@@ -125,12 +127,7 @@ struct JumpPaletteView: View {
             results
         }
         .frame(width: 340)
-        .background(.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+        .modifier(JumpPaletteChrome(snapshot: rendersForSnapshot))
         .onExitCommand { palette.dismiss() }
         .onAppear { isFieldFocused = true }
         .onChange(of: palette.focusRequest) {
@@ -272,12 +269,20 @@ struct JumpPaletteView: View {
             .background {
                 if selected {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.18))
+                        .fill(Color.accentColor.opacity(0.14))
                 }
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(hit.label), page \(hit.pageIndex + 1)")
+        .accessibilityLabel(accessibilityLabel(hit, visible: visible))
+    }
+
+    /// Speak the name the row actually draws, accents composed, when it has one.
+    private func accessibilityLabel(_ hit: DocumentFind.Hit, visible: DocumentFind.VisibleNames) -> String {
+        if let name = visible.names.first {
+            return "\(hit.title) (\(name)), page \(hit.pageIndex + 1)"
+        }
+        return "\(hit.label), page \(hit.pageIndex + 1)"
     }
 
     private var groupedHits: [(title: String, hits: [DocumentFind.Hit])] {
@@ -288,6 +293,43 @@ struct JumpPaletteView: View {
             grouped[hit.group, default: []].append(hit)
         }
         return titles.map { ($0, grouped[$0] ?? []) }
+    }
+}
+
+/// Liquid Glass panel. ImageRenderer drops `glassEffect` and would leave the
+/// list floating with no chrome, so the snapshot paints a translucent frost
+/// in the same shape. The live palette uses the platform glass and blurs the page.
+private struct JumpPaletteChrome: ViewModifier {
+    var snapshot: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+    }
+
+    func body(content: Content) -> some View {
+        Group {
+            if snapshot {
+                content
+                    .background(snapshotFrost, in: shape)
+                    .overlay {
+                        shape.strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.12), lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.16), radius: 18, y: 8)
+            } else {
+                content
+                    .glassEffect(.regular, in: shape)
+                    .shadow(color: .black.opacity(0.16), radius: 18, y: 8)
+            }
+        }
+    }
+
+    /// Light frost over light paper, darker glass over dark paper.
+    /// Kept under fully opaque so a page colour behind the snapshot still tints it.
+    private var snapshotFrost: Color {
+        colorScheme == .dark
+            ? Color(white: 0.28, opacity: 0.84)
+            : Color(white: 1, opacity: 0.78)
     }
 }
 

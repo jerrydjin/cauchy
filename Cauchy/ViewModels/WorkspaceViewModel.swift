@@ -100,13 +100,11 @@ final class WorkspaceViewModel: Equatable {
         }
         jump.source = { [weak self] in
             guard let self else { return nil }
-            let pages: [String]
-            if let document = self.pdfDocument {
-                pages = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }
-            } else {
-                pages = []
-            }
-            return DocumentFind.Source(entries: self.referenceIndex.searchEntries(), pages: pages)
+            return DocumentFind.Source(
+                entries: self.referenceIndex.searchEntries(),
+                pages: self.jumpPageTexts(),
+                catalogueID: self.jumpCatalogueID()
+            )
         }
         jump.onJump = { [weak self] hit in
             self?.find.activate(hit)
@@ -322,6 +320,7 @@ final class WorkspaceViewModel: Equatable {
         pageThumbnailCache.removeAll()
         highlightStore.highlights.removeAll()
         referenceIndex.clear()
+        discardJumpPageCache()
         // stopSecurityScopedAccess() cancelled any in-flight index build, and a
         // cancelled build never runs its completion — so the flags have to be
         // cleared here or indexing state (and the menu items gated on it)
@@ -873,6 +872,46 @@ final class WorkspaceViewModel: Equatable {
         find.dismiss()
         jump.isIndexing = isIndexingReferences
         jump.present()
+    }
+
+    private var jumpPagesDocument: PDFDocument?
+    private var jumpPages: [String] = []
+    private var jumpPagesReady = false
+
+    /// Identity of the document plus the reference index. The palette keeps
+    /// its built rows while this value stays the same.
+    private func jumpCatalogueID() -> Int {
+        var hasher = Hasher()
+        hasher.combine(referenceIndex.generation)
+        if let document = pdfDocument {
+            hasher.combine(ObjectIdentifier(document))
+            hasher.combine(document.pageCount)
+        }
+        return hasher.finalize()
+    }
+
+    /// `PDFPage.string` is main-thread work and walks the content stream.
+    /// Cmd-K used to do that on every keystroke. The strings stay until the
+    /// document changes.
+    private func jumpPageTexts() -> [String] {
+        guard let document = pdfDocument else {
+            discardJumpPageCache()
+            return []
+        }
+        if jumpPagesReady, jumpPagesDocument === document {
+            return jumpPages
+        }
+        let pages = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }
+        jumpPagesDocument = document
+        jumpPages = pages
+        jumpPagesReady = true
+        return pages
+    }
+
+    private func discardJumpPageCache() {
+        jumpPages = []
+        jumpPagesDocument = nil
+        jumpPagesReady = false
     }
 
     func presentGoToPagePanel() {

@@ -415,6 +415,9 @@ final class DocumentReferenceIndex {
     private var bodyStems: [ReferenceKey: Set<String>] = [:]
     private var stemDocumentFrequency: [String: Int] = [:]
     private var mentionGraph: ReferenceMentionGraph?
+    /// Bumps on `replace` and `clear`, so the jump palette can tell a new
+    /// index from the one it already turned into rows.
+    private(set) var generation = 0
 
     func lookup(_ reference: DetectedReference) -> IndexedReference? {
         entries[reference.key]
@@ -474,6 +477,7 @@ final class DocumentReferenceIndex {
                 stemDocumentFrequency[stem, default: 0] += 1
             }
         }
+        generation &+= 1
     }
 
     func clear() {
@@ -483,6 +487,7 @@ final class DocumentReferenceIndex {
         bodyStems = [:]
         stemDocumentFrequency = [:]
         mentionGraph = nil
+        generation &+= 1
     }
 
     /// Crude prefix stem so inflections meet: "continuity"/"continuous" →

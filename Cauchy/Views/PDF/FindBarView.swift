@@ -202,10 +202,14 @@ struct JumpPaletteView: View {
     private var resultStack: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(groupedHits, id: \.title) { group in
-                Text("\(group.title) \(group.hits.count)")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    Text(group.title)
+                        .foregroundStyle(.secondary)
+                    Text(" \(group.hits.count)")
+                        .foregroundStyle(.tertiary)
+                }
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
                 ForEach(group.hits) { hit in
                     row(hit)
                         .id(hit.id)
@@ -226,6 +230,7 @@ struct JumpPaletteView: View {
     private func row(_ hit: DocumentFind.Hit) -> some View {
         let selected = palette.hits.indices.contains(palette.selection)
             && palette.hits[palette.selection].id == hit.id
+        let visible = DocumentFind.namesForDisplay(hit.nameCandidates)
         return Button {
             palette.jump(hit)
         } label: {
@@ -236,12 +241,15 @@ struct JumpPaletteView: View {
                         .foregroundStyle(.primary)
                         .fixedSize(horizontal: true, vertical: false)
                         .layoutPriority(3)
-                    if hit.nameCandidates.isEmpty {
+                    if visible.names.isEmpty {
                         Spacer(minLength: 8)
                     } else {
-                        FittingNames(names: hit.nameCandidates)
-                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-                            .layoutPriority(1)
+                        FittingNames(
+                            names: visible.names,
+                            allowsTruncation: !visible.stoppedBeforeCutOff
+                        )
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                        .layoutPriority(1)
                     }
                     Text("p. \(hit.pageIndex + 1)")
                         .font(.caption.monospacedDigit())
@@ -297,23 +305,36 @@ private struct SnapshotFieldText: View {
 }
 
 /// Shows the longest real name that fits, then a shorter one, then a word prefix.
+/// A phrase cut off mid-way is not truncated into; the row shows the label alone.
 private struct FittingNames: View {
     var names: [String]
+    var allowsTruncation: Bool
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            ForEach(Array(names.dropLast()), id: \.self) { name in
-                Text("(\(name))")
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-            if let last = names.last {
-                Text("(\(last))")
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+            if allowsTruncation {
+                ForEach(Array(names.dropLast()), id: \.self) { name in
+                    fullName(name)
+                }
+                if let last = names.last {
+                    Text("(\(last))")
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            } else {
+                ForEach(names, id: \.self) { name in
+                    fullName(name)
+                }
+                Color.clear.frame(width: 0, height: 0)
             }
         }
         .font(.callout.weight(.semibold))
         .foregroundStyle(.primary)
+    }
+
+    private func fullName(_ name: String) -> some View {
+        Text("(\(name))")
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
     }
 }

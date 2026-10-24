@@ -42,6 +42,13 @@ enum DocumentFind {
         var anchor: String
     }
 
+    /// Names the jump row may draw. A cut-off phrase is omitted; indexing is unchanged.
+    struct VisibleNames: Equatable, Sendable {
+        var names: [String]
+        /// A later candidate ended mid-phrase and was not included.
+        var stoppedBeforeCutOff: Bool
+    }
+
     struct Outcome: Equatable, Sendable {
         var hits: [Hit]
         var message: String?
@@ -168,6 +175,23 @@ enum DocumentFind {
             }
         }
         return kept
+    }
+
+    /// Names the jump row may draw. Display only: `nameCandidates`, `label`,
+    /// and `jumpName` stay as indexed so search and sorting are unchanged.
+    ///
+    /// A candidate that ends on a function word ("Homotopy Version of") is a
+    /// phrase cut off mid-way. It is left out, and so is anything shorter,
+    /// so the row shows the kind and number alone.
+    static func namesForDisplay(_ names: [String]) -> VisibleNames {
+        var kept: [String] = []
+        for name in names {
+            if nameEndsMidPhrase(name) {
+                return VisibleNames(names: kept, stoppedBeforeCutOff: true)
+            }
+            kept.append(name)
+        }
+        return VisibleNames(names: kept, stoppedBeforeCutOff: false)
     }
 
     /// One caption line in the jump list, including the ellipsis when cut.
@@ -338,6 +362,19 @@ enum DocumentFind {
         if nameMatches(hit.title, query: token) { return true }
         if isNumberToken(token), number(hit.number, extends: token) { return true }
         return false
+    }
+
+    private static let midPhraseWords: Set<String> = [
+        "of", "the", "a", "an", "and", "for", "to", "in", "on", "with",
+    ]
+
+    /// The last word is a function word, so the phrase stops mid-way.
+    private static func nameEndsMidPhrase(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let last = trimmed.split(whereSeparator: \.isWhitespace).last else { return false }
+        let word = last.trimmingCharacters(in: CharacterSet(charactersIn: ".,:;!?'\"“”"))
+        guard !word.isEmpty else { return false }
+        return midPhraseWords.contains(word.lowercased())
     }
 
     private static func isNumberToken(_ token: String) -> Bool {

@@ -139,6 +139,58 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertEqual(residue.hits.map(\.anchor), ["Theorem 3.5.27"])
     }
 
+    func testCutOffNameIsHiddenFromTheJumpRow() {
+        let cutOff = entry(
+            .definition,
+            "3.2.1",
+            "Two cycles are homologous when their difference is a boundary.",
+            name: "Homotopy Version of"
+        )
+        let hits = DocumentFind.jumpHits(query: "", entries: [cutOff], sections: [])
+        XCTAssertEqual(hits.map(\.title), ["Definition 3.2.1"])
+        XCTAssertEqual(hits.map(\.label), ["Definition 3.2.1 (Homotopy Version of)"])
+        XCTAssertEqual(hits.map(\.jumpName), ["Homotopy Version of"])
+        XCTAssertFalse(hits[0].nameCandidates.isEmpty)
+        XCTAssertTrue(DocumentFind.namesForDisplay(hits[0].nameCandidates).names.isEmpty)
+
+        let found = DocumentFind.jumpHits(query: "homotopy", entries: [cutOff], sections: [])
+        XCTAssertEqual(found.map(\.title), ["Definition 3.2.1"])
+        XCTAssertEqual(found.map(\.jumpName), ["Homotopy Version of"])
+
+        for word in ["of", "the", "a", "an", "and", "for", "to", "in", "on", "with"] {
+            let names = DocumentFind.displayNames(
+                kind: .definition,
+                number: "3.2.1",
+                name: "Homotopy Version \(word)"
+            )
+            XCTAssertEqual(
+                DocumentFind.namesForDisplay(names).names,
+                [],
+                "a name ending in \(word) stays indexed and is left off the row"
+            )
+        }
+
+        let full = DocumentFind.displayNames(
+            kind: .definition,
+            number: "3.2.1",
+            name: "Homotopy Version of Cauchy's Theorem"
+        )
+        XCTAssertEqual(full.first, "Homotopy Version of Cauchy's Theorem")
+        let visible = DocumentFind.namesForDisplay(full)
+        XCTAssertEqual(visible.names, [
+            "Homotopy Version of Cauchy's Theorem",
+            "Homotopy Version of Cauchy's",
+        ])
+        XCTAssertTrue(visible.stoppedBeforeCutOff)
+        XCTAssertFalse(visible.names.contains("Homotopy Version of"))
+
+        let residue = DocumentFind.namesForDisplay(
+            DocumentFind.displayNames(kind: .theorem, number: "3.5.27", name: "Residue theorem")
+        )
+        XCTAssertEqual(residue.names, ["Residue theorem", "Residue"])
+        XCTAssertFalse(residue.stoppedBeforeCutOff)
+    }
+
     func testPreviewConvertsTeXAndSkipsUnreadableLines() {
         XCTAssertEqual(
             DocumentFind.firstLine(of: "Let U $\\subset C$ be open and $\\gamma \\in U$."),

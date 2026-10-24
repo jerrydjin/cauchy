@@ -22,6 +22,7 @@ struct LearningStudyMapView: View {
     @State private var syllabusMapping: LearningSyllabusSelection?
     @State private var historyTarget: LearningStudyTarget?
     @State private var goalSelection: LearningGoalSelection?
+    @State private var goalHistoryVisible = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var planner: LearningStudyMapViewModel { document.studyMap }
     private var nextStudy: LearningStudyRecommendation? {
@@ -43,6 +44,7 @@ struct LearningStudyMapView: View {
                         Text(document.title.replacingOccurrences(of: "_", with: " ")).font(.largeTitle.weight(.semibold))
                         errors
                         LearningStudyRunCard(document: document, run: run, map: map, assistantAvailable: assistantAvailable)
+                        goalHistoryButton(map)
                     }
                     .padding(32).frame(maxWidth: 824, alignment: .leading).frame(maxWidth: .infinity)
                 }
@@ -66,6 +68,9 @@ struct LearningStudyMapView: View {
         }
         .sheet(item: $goalSelection) { selection in
             LearningGoalEditor(document: document, unit: selection.unit, target: selection.target)
+        }
+        .sheet(isPresented: $goalHistoryVisible) {
+            LearningGoalHistoryView(document: document)
         }
     }
 
@@ -127,6 +132,7 @@ struct LearningStudyMapView: View {
                                 .font(.callout).foregroundStyle(.secondary)
                             if let map = planner.map {
                                 Text("\(map.units.count) topics identified").font(.callout)
+                                goalHistoryButton(map)
                                 let attention = map.pages.filter { $0.status != .pending && !$0.status.isResolved }
                                 if !attention.isEmpty {
                                     DisclosureGroup("\(attention.count) pages to review") {
@@ -395,14 +401,7 @@ struct LearningStudyMapView: View {
                 }
                 sourceReview(map)
                 syllabusReview(map)
-                let revisions = (map.earlierGoalRevisions ?? []) + map.units.flatMap { $0.goalRevisions ?? [] }
-                if !revisions.isEmpty {
-                    DisclosureGroup("Your goal revisions (\(revisions.count))") {
-                        ForEach(revisions.sorted { $0.createdAt > $1.createdAt }) { revision in
-                            LearningGoalRevisionRecord(revision: revision).padding(.top, 12)
-                        }
-                    }
-                }
+                goalHistoryButton(map)
                 if let runs = map.studyRuns?.filter({ $0.state == .finished }), !runs.isEmpty {
                     DisclosureGroup("Past study sessions") {
                         ForEach(runs.reversed()) { run in
@@ -432,6 +431,15 @@ struct LearningStudyMapView: View {
                     Text("Sources, syllabus and coverage").font(.caption).foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    @ViewBuilder private func goalHistoryButton(_ map: LearningStudyMap) -> some View {
+        let count = LearningGoalHistory.entries(in: map).count
+        if count > 0 {
+            Button("Review goal revisions (\(count))", systemImage: "clock.arrow.circlepath") {
+                goalHistoryVisible = true
+            }.buttonStyle(.borderless)
         }
     }
 
@@ -1090,5 +1098,86 @@ private struct LearningGoalEditor: View {
                 .buttonStyle(.glassProminent).keyboardShortcut(.return, modifiers: .command).disabled(!canSave)
             }
         }.padding(24).frame(minWidth: 560, idealWidth: 640, minHeight: 480, idealHeight: 600)
+    }
+}
+
+private struct LearningGoalHistoryView: View {
+    let document: LearningDocument
+    @State private var selection: UUID?
+    @State private var detailScroll = ScrollPosition()
+    @State private var detailOffset: CGFloat = 0
+    private enum Pane: Hashable { case list, details }
+    @FocusState private var focusedPane: Pane?
+    @Environment(\.dismiss) private var dismiss
+
+    private var entries: [LearningGoalHistory.Entry] {
+        document.studyMap.map.map { LearningGoalHistory.entries(in: $0) } ?? []
+    }
+    private var selected: LearningGoalHistory.Entry? { entries.first { $0.id == selection } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Your goal revisions").font(.title2.weight(.semibold))
+            Text("Saved wording decisions, most recent first.").font(.callout).foregroundStyle(.secondary)
+            HSplitView {
+                List(selection: $selection) {
+                    ForEach(entries) { entry in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(entry.revision.unitTitle).font(.subheadline.weight(.medium))
+                            Text(entry.revision.previous.kind.label).font(.callout)
+                            Text(entry.status.label).font(.caption)
+                            Text(entry.revision.createdAt.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }.padding(.vertical, 4).tag(entry.id)
+                    }
+                }
+                .accessibilityLabel("Saved goal revisions").focused($focusedPane, equals: .list)
+                .frame(minWidth: 210, idealWidth: 230, maxWidth: 280)
+                ScrollView {
+                    if let selected {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(selected.status.label).font(.headline)
+                            if selected.status == .earlierSource {
+                                Text("This decision refers to earlier source text. Its page reference may differ from the current PDF.")
+                                    .font(.callout).foregroundStyle(.secondary)
+                            } else if selected.status == .earlierGoal {
+                                Text("This decision is kept for reference. It does not replace the current goal.")
+                                    .font(.callout).foregroundStyle(.secondary)
+                            }
+                            LearningGoalRevisionRecord(revision: selected.revision)
+                        }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Text("No saved goal revisions.").foregroundStyle(.secondary).padding(24)
+                    }
+                }
+                .scrollPosition($detailScroll)
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in detailOffset = offset }
+                .focusable().focused($focusedPane, equals: .details)
+                .onKeyPress(keys: [.space, .pageUp, .pageDown], phases: [.down, .repeat]) { key in
+                    guard key.modifiers.isEmpty || (key.key == .space && key.modifiers == .shift) else { return .ignored }
+                    let backwards = key.key == .pageUp || key.modifiers.contains(.shift)
+                    detailScroll.scrollTo(y: max(0, detailOffset + (backwards ? -340 : 340)))
+                    return .handled
+                }
+                .onChange(of: selection) { detailScroll.scrollTo(edge: .top) }
+                .frame(minWidth: 350)
+            }
+            HStack {
+                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(focusedPane == .details ? "Choose another revision" : "Read selected revision") {
+                    focusedPane = focusedPane == .details ? .list : .details
+                }
+                .buttonStyle(.borderless).keyboardShortcut("r", modifiers: .command)
+                .help(focusedPane == .details ? "Choose another revision (⌘R)" : "Read and scroll the selected revision (⌘R)")
+                .disabled(selected == nil)
+            }
+        }
+        .padding(24).frame(minWidth: 720, idealWidth: 820, minHeight: 520, idealHeight: 600)
+        .multilineTextAlignment(.leading)
+        .onAppear { selection = entries.first?.id; focusedPane = .list }
+        .onChange(of: entries.map(\.id)) {
+            if !entries.contains(where: { $0.id == selection }) { selection = entries.first?.id }
+        }
     }
 }

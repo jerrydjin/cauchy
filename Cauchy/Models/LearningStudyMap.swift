@@ -56,6 +56,43 @@ struct LearningGoalRevision: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
+/// Read-only history remains available without a composed course. A retained
+/// decision is current only when its exact version is still an effective goal.
+enum LearningGoalHistory {
+    struct Entry: Identifiable, Equatable {
+        enum Status: Equatable {
+            case current, earlierGoal, earlierSource
+
+            var label: String {
+                switch self {
+                case .current: "Current goal"
+                case .earlierGoal: "Earlier goal"
+                case .earlierSource: "Earlier source"
+                }
+            }
+        }
+
+        var id: UUID { revision.id }
+        let revision: LearningGoalRevision
+        let status: Status
+    }
+
+    static func entries(in map: LearningStudyMap) -> [Entry] {
+        let archived = (map.earlierGoalRevisions ?? []).map { Entry(revision: $0, status: .earlierSource) }
+        let retained = map.units.flatMap { unit in
+            let current = unit.learningTargets
+            return (unit.goalRevisions ?? []).map { revision in
+                Entry(revision: revision, status: current.contains { $0.matchesRequirement(revision.target) }
+                    ? .current : .earlierGoal)
+            }
+        }
+        return (archived + retained).sorted {
+            $0.revision.createdAt == $1.revision.createdAt ? $0.id.uuidString < $1.id.uuidString
+                : $0.revision.createdAt > $1.revision.createdAt
+        }
+    }
+}
+
 struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
     var id: UUID
     let title: String

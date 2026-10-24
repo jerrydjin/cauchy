@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [24 October goal-history recovery fix](evaluation/learning-goal-history-recovery.md) keeps revision decisions readable before a course is available and beside blocked planned sessions. A focused history view distinguishes current goals, earlier goals and earlier-source references. All 439 macOS tests pass; native recovery/restart, long-history keyboard reading and exact read-only state preservation pass across three authored fixtures. A redundant timestamp assertion in the earlier persistence test was corrected without changing product persistence.
+
 The [24 October study-goal revision flow](evaluation/learning-goal-revision.md) lets learners correct generated wording with a reason and retained source provenance. Each revision starts unchecked, including a return to earlier wording; old lessons and answers remain readable while source/proof and syllabus obligations stay intact. All 437 macOS tests and native save/cancel, history, separate-lesson and exact cold-restart checks pass. No live model evaluation was performed.
 
 The [23 October tutor-attribution correction](evaluation/learning-tutor-attribution.md) keeps a replacement exit question's creator separate from the original lesson and later assessment tutor. Delayed checks retain inherited teaching attribution, and unsubmitted history/export uses the saved current question's provider/model. All 432 macOS tests pass, including real persistence and exact file export; the manual native provider-switch walkthrough remains unexercised.

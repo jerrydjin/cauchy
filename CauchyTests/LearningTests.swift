@@ -601,11 +601,60 @@ final class LearningUIFixtureTests: XCTestCase {
         let restored = try XCTUnwrap(restarted.library?.selectedDocument)
         XCTAssertEqual(try encoder.encode(restored.learning.sessions), expectedSessions)
         XCTAssertEqual(try encoder.encode(restored.studyMap.map), expectedMap)
-        XCTAssertEqual(restored.studyMap.map?.units.first { $0.id == currentUnit.id }?.goalRevisions, currentUnit.goalRevisions)
+        // The canonical whole-map comparison above includes every revision field
+        // at the persistence format’s timestamp precision.
+        XCTAssertEqual(restored.studyMap.map?.units.first { $0.id == currentUnit.id }?.goalRevisions?.map(\.id),
+                       currentUnit.goalRevisions?.map(\.id))
         XCTAssertEqual(LearningRequirementHistory.sessions(for: current, in: restored.learning.sessions).count, 2)
         restored.study(current, unit: currentUnit)
         XCTAssertEqual(restored.learning.session?.id, currentSession.id)
         XCTAssertEqual(restored.learning.answerDraft, "Independent draft for the revised goal — retained exactly.")
+    }
+
+    func testArchivedGoalHistorySurvivesRecoveryPersistenceWithoutRequiringACourseOrTutor() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let unit = try XCTUnwrap(map.units.first)
+        try document.studyMap.reviseGoal(unit.learningTargets[0], in: unit, objective: "A complete source-supported goal.",
+            note: "Keep this reason while rebuilding.", document: document.pdfDocument, at: Date(timeIntervalSince1970: 1_800_000_000))
+        try await controller.flush()
+        var recovery = try XCTUnwrap(document.studyMap.map)
+        let revision = try XCTUnwrap(recovery.units.first?.goalRevisions?.first)
+        recovery.earlierGoalRevisions = [revision]
+        recovery.units = []; recovery.course = nil
+        recovery.updatedAt = recovery.updatedAt.addingTimeInterval(1)
+        var workspace = document.snapshot
+        workspace.learningSessions = document.learning.sessions
+        workspace.learningStudyMap = recovery
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await persistence.saveWorkspace(workspace, bookmarkData: nil)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let expectedSessions = try encoder.encode(document.learning.sessions)
+        let expectedMap = try encoder.encode(recovery)
+        let restarted = LearningUIFixtureController(rootPath: root.path)
+        await restarted.load()
+        let restored = try XCTUnwrap(restarted.library?.selectedDocument)
+        let savedMap = try XCTUnwrap(restored.studyMap.map)
+        XCTAssertNil(savedMap.course)
+        XCTAssertTrue(savedMap.units.isEmpty)
+        let entries = LearningGoalHistory.entries(in: savedMap)
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.status, .earlierSource)
+        XCTAssertEqual(entries.first?.revision.note, "Keep this reason while rebuilding.")
+        XCTAssertEqual(entries.first?.revision.previous.objective, unit.learningTargets[0].objective)
+        XCTAssertEqual(entries.first?.revision.source, unit.teachingAnchor)
+        XCTAssertFalse(restored.isBusy)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions), expectedSessions)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), expectedMap)
+        try await restarted.flush()
+        let reloaded = LearningUIFixtureController(rootPath: root.path)
+        await reloaded.load()
+        XCTAssertEqual(try encoder.encode(reloaded.library?.selectedDocument?.studyMap.map), expectedMap)
+        XCTAssertEqual(try encoder.encode(reloaded.library?.selectedDocument?.learning.sessions), expectedSessions)
     }
 
     func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {

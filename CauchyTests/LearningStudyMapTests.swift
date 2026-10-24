@@ -306,6 +306,40 @@ final class LearningStudyMapTests: XCTestCase {
         XCTAssertEqual(resumed.map?.earlierGoalRevisions?.count, 1)
     }
 
+    func testGoalHistoryDistinguishesCurrentEarlierAndUnappliedDecisionsWithoutAComposedCourse() throws {
+        var unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let original = unit.targets[0]
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = LearningGoalRevision(id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!, previous: original,
+            objective: "First revised goal", note: "First decision", unitTitle: unit.title, source: unit.teachingAnchor, createdAt: date)
+        let latest = LearningGoalRevision(id: UUID(uuidString: "00000000-0000-4000-8000-000000000002")!, previous: first.target,
+            objective: original.objective, note: "Restore wording with a separate version", unitTitle: unit.title, source: unit.teachingAnchor, createdAt: date.addingTimeInterval(1))
+        var other = original; other.id = UUID()
+        let unapplied = LearningGoalRevision(id: UUID(uuidString: "00000000-0000-4000-8000-000000000003")!, previous: other,
+            objective: "A requirement no longer inventoried", note: "Retain its decision", unitTitle: unit.title, source: unit.teachingAnchor, createdAt: date)
+        unit.goalRevisions = [first, latest, unapplied]
+        let archived = LearningGoalRevision(previous: original, objective: "An earlier-source goal", note: "Keep the original source reference",
+            unitTitle: unit.title, source: unit.teachingAnchor, createdAt: date.addingTimeInterval(-1))
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit], earlierGoalRevisions: [archived])
+        XCTAssertNil(map.course)
+        let before = try JSONEncoder().encode(map)
+        let entries = LearningGoalHistory.entries(in: map)
+        XCTAssertEqual(entries.map(\.id), [latest.id, first.id, unapplied.id, archived.id])
+        XCTAssertEqual(entries.map(\.status), [.current, .earlierGoal, .earlierGoal, .earlierSource])
+        XCTAssertEqual(entries.last?.revision.source, unit.teachingAnchor)
+        XCTAssertEqual(entries.first?.revision.note, latest.note)
+        XCTAssertEqual(entries.first?.revision.previous, first.target)
+        XCTAssertEqual(unit.learningTargets[0].objective, original.objective)
+        XCTAssertEqual(unit.learningTargets[0].revisionID, latest.id)
+        XCTAssertEqual(LearningGoalHistory.entries(in: map), entries)
+        XCTAssertTrue(LearningGoalHistory.entries(in: .init(pageSignatures: [], pages: [])).isEmpty)
+        let roundTrip = try JSONDecoder().decode(LearningStudyMap.self, from: before)
+        XCTAssertEqual(LearningGoalHistory.entries(in: roundTrip), entries)
+        var remapped = map
+        remapped.units[0].goalRevisions = [latest] // Its preceding version is missing: wording alone cannot make it current.
+        XCTAssertEqual(LearningGoalHistory.entries(in: remapped).first?.status, .earlierGoal)
+    }
+
     func testSyllabusMapsSeparateObligationsWithoutCreatingLearnerEvidence() throws {
         let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
         let vm = LearningStudyMapViewModel(map: .init(pageSignatures: [], pages: [], units: [unit]))

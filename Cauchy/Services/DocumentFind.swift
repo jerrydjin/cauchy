@@ -63,6 +63,9 @@ enum DocumentFind {
     struct Source: Sendable {
         var entries: [Entry]
         var pages: [String]
+        /// Changes when the document or the reference index changes.
+        /// The jump palette reuses one built catalogue while this stays put.
+        var catalogueID: Int = 0
     }
 
     /// `2` matches `2` and `2.1`, and does not match `20` or `12`.
@@ -118,17 +121,28 @@ enum DocumentFind {
         return Outcome(hits: sort(named), message: nil, suppressesTextSearch: false)
     }
 
-    /// Every indexed statement, or the subset whose label, number, or name
-    /// matches `query`. A kind-and-number query uses `search` unchanged.
-    static func jumpHits(query: String, entries: [Entry], sections: [Section]) -> [Hit] {
+    /// Every indexed statement, or the subset whose label, printed name, or
+    /// one-line preview contains `query` as a case-insensitive substring.
+    /// A kind-and-number query uses `search` unchanged. A bare number keeps
+    /// the dotted-number rule (`2` matches `2.1`, not `20`).
+    ///
+    /// `catalogue`, when present, is the full sorted list from an empty query.
+    /// Text queries filter those rows instead of parsing previews again.
+    static func jumpHits(
+        query: String,
+        entries: [Entry],
+        sections: [Section],
+        catalogue: [Hit]? = nil
+    ) -> [Hit] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
+            if let catalogue { return catalogue }
             return sort(entries.map(hit(for:)) + sections.map(sectionHit))
         }
         if numberedQuery(in: trimmed) != nil {
             return search(query: trimmed, entries: entries, sections: sections).hits
         }
-        let all = entries.map(hit(for:)) + sections.map(sectionHit)
+        let all = catalogue ?? (entries.map(hit(for:)) + sections.map(sectionHit))
         return sort(all.filter { matchesJump($0, query: trimmed) })
     }
 
@@ -357,11 +371,26 @@ enum DocumentFind {
             || token.compare("sections", options: .caseInsensitive) == .orderedSame {
             return hit.group == "Sections"
         }
-        if nameMatches(hit.label, query: token) { return true }
-        if nameMatches(hit.jumpName, query: token) { return true }
-        if nameMatches(hit.title, query: token) { return true }
-        if isNumberToken(token), number(hit.number, extends: token) { return true }
+        // A dotted number stays a prefix match. A substring would treat
+        // 1.2.70 as a hit for 1.2.7, including when that string sits in a preview.
+        if isNumberToken(token) {
+            if nameMatches(hit.label, query: token) { return true }
+            if nameMatches(hit.jumpName, query: token) { return true }
+            if nameMatches(hit.title, query: token) { return true }
+            return number(hit.number, extends: token)
+        }
+        if containsQuery(hit.label, query: token) { return true }
+        if containsQuery(hit.jumpName, query: token) { return true }
+        if containsQuery(hit.title, query: token) { return true }
+        if containsQuery(hit.firstLine, query: token) { return true }
         return false
+    }
+
+    /// Case-insensitive substring against one visible field. One letter is
+    /// too small: it would light up every English preview.
+    private static func containsQuery(_ field: String, query: String) -> Bool {
+        guard query.count >= 2, !field.isEmpty else { return false }
+        return field.range(of: query, options: .caseInsensitive) != nil
     }
 
     private static let midPhraseWords: Set<String> = [

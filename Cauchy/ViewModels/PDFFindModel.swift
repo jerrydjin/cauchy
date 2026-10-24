@@ -222,6 +222,11 @@ final class JumpPaletteModel {
     var onJump: ((DocumentFind.Hit) -> Void)?
 
     private var suppressRefresh = false
+    /// Rows for the current document and index. Keystrokes filter this list.
+    private var cachedCatalogueID: Int?
+    private var cachedEntries: [DocumentFind.Entry] = []
+    private var cachedSections: [DocumentFind.Section] = []
+    private var cachedCatalogue: [DocumentFind.Hit] = []
 
     func present() {
         isVisible = true
@@ -263,17 +268,41 @@ final class JumpPaletteModel {
     }
 
     func refresh() {
-        guard let source = source?() else {
+        guard loadCatalogue() else {
             hits = []
             selection = 0
             return
         }
+        // `catalogue` is already sorted. Text queries filter those rows
+        // instead of rereading page text and rebuilding previews.
         hits = DocumentFind.jumpHits(
             query: query,
-            entries: source.entries,
-            sections: DocumentFind.sections(in: source.pages)
+            entries: cachedEntries,
+            sections: cachedSections,
+            catalogue: cachedCatalogue
         )
         if selection >= hits.count { selection = 0 }
+    }
+
+    private func loadCatalogue() -> Bool {
+        guard let source = source?() else {
+            cachedCatalogueID = nil
+            cachedEntries = []
+            cachedSections = []
+            cachedCatalogue = []
+            return false
+        }
+        if cachedCatalogueID != source.catalogueID {
+            cachedEntries = source.entries
+            cachedSections = DocumentFind.sections(in: source.pages)
+            cachedCatalogue = DocumentFind.jumpHits(
+                query: "",
+                entries: cachedEntries,
+                sections: cachedSections
+            )
+            cachedCatalogueID = source.catalogueID
+        }
+        return true
     }
 
     func refreshIfVisible() {

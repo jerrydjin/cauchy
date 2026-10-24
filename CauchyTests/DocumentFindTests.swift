@@ -297,6 +297,47 @@ final class DocumentFindTests: XCTestCase {
         )
     }
 
+    func testJumpQueryMatchesThePreviewWhenTheLabelAndNameDoNot() {
+        let theorem = entry(
+            .theorem,
+            "1.3.3",
+            "Let U be open and suppose that f is holomorphic.",
+            name: "Theorem 1.3.3"
+        )
+        let lemma = entry(
+            .lemma,
+            "4",
+            "Every holomorphic function on the disk is analytic."
+        )
+        let unrelated = entry(.lemma, "2", "Let G be trivial.", name: "Zorn")
+
+        let found = DocumentFind.jumpHits(
+            query: "holomorphic",
+            entries: [unrelated, lemma, theorem],
+            sections: []
+        )
+        XCTAssertEqual(found.map(\.group), ["Theorems", "Lemmas"])
+        XCTAssertEqual(found.map(\.number), ["1.3.3", "4"])
+        XCTAssertFalse(found[0].label.localizedCaseInsensitiveContains("holomorphic"))
+        XCTAssertFalse(found[0].jumpName.localizedCaseInsensitiveContains("holomorphic"))
+        XCTAssertTrue(found[0].firstLine.localizedCaseInsensitiveContains("holomorphic"))
+        XCTAssertFalse(found.contains { $0.number == "2" })
+
+        let upper = DocumentFind.jumpHits(query: "HOLOMORPHIC", entries: [theorem], sections: [])
+        XCTAssertEqual(upper.map(\.number), ["1.3.3"])
+        let partial = DocumentFind.jumpHits(query: "holo", entries: [theorem], sections: [])
+        XCTAssertEqual(partial.map(\.number), ["1.3.3"])
+
+        // The word sits past the one-line preview, so it is not a match.
+        let hiddenBody = String(repeating: "alpha ", count: 30) + "quasiconformal"
+        let hidden = entry(.theorem, "8", hiddenBody, name: "Theorem 8")
+        let preview = DocumentFind.firstLine(of: hiddenBody)
+        XCTAssertFalse(preview.localizedCaseInsensitiveContains("quasiconformal"))
+        XCTAssertTrue(
+            DocumentFind.jumpHits(query: "quasiconformal", entries: [hidden], sections: []).isEmpty
+        )
+    }
+
     func testPlainFindCountSaysMatchesInTheText() {
         XCTAssertEqual(DocumentFind.textMatchLabel(count: 232, isSearching: false), "232 matches in the text")
         XCTAssertEqual(DocumentFind.textMatchLabel(count: 1, isSearching: false), "1 match in the text")
@@ -323,6 +364,30 @@ final class DocumentFindTests: XCTestCase {
         palette.move(1)
         XCTAssertEqual(palette.hits[palette.selection].title, "Lemma 2")
         palette.move(-1)
+        palette.move(-1)
+        XCTAssertEqual(palette.selection, 0)
+    }
+
+    @MainActor
+    func testJumpPaletteQueryMatchingThePreviewKeepsArrowSelection() {
+        let entries = [
+            entry(.theorem, "1.3.3", "Let f be holomorphic.", name: "Theorem 1.3.3"),
+            entry(.lemma, "2", "Let G be trivial.", name: "Zorn"),
+        ]
+        let palette = JumpPaletteModel()
+        palette.source = {
+            DocumentFind.Source(entries: entries, pages: [], catalogueID: 1)
+        }
+        palette.present()
+        XCTAssertEqual(palette.hits.map(\.title), ["Theorem 1.3.3", "Lemma 2"])
+        palette.query = "holomorphic"
+        XCTAssertEqual(palette.hits.map(\.title), ["Theorem 1.3.3"])
+        XCTAssertEqual(palette.selection, 0)
+        palette.query = ""
+        palette.move(1)
+        XCTAssertEqual(palette.hits[palette.selection].title, "Lemma 2")
+        palette.move(1)
+        XCTAssertEqual(palette.selection, 1)
         palette.move(-1)
         XCTAssertEqual(palette.selection, 0)
     }

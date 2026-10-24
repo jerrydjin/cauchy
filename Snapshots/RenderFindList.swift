@@ -82,6 +82,12 @@ enum RenderFindList {
                 throw SnapshotError("preview still has markup: \(preview)")
             }
         }
+        let rouche = DocumentFind.namesForDisplay(
+            DocumentFind.displayNames(kind: .theorem, number: "3.6.3", name: "Rouch\u{00B4}e")
+        ).names
+        guard rouche == ["Rouché"] else {
+            throw SnapshotError("Rouché accent still broken: \(rouche)")
+        }
 
         let find = PDFFindModel()
         find.showPlainSnapshot(query: "theorem", matchCount: 232)
@@ -111,14 +117,16 @@ enum RenderFindList {
             content: JumpPaletteView(palette: palette)
                 .environment(\.rendersForSnapshot, true)
                 .environment(\.colorScheme, .light)
+                .padding(16)
+                .background(PagePaper(dark: false))
         )
         let darkPalette = SnapshotChrome(
             caption: "Cmd-K Jump to · dark",
             content: JumpPaletteView(palette: palette)
                 .environment(\.rendersForSnapshot, true)
                 .environment(\.colorScheme, .dark)
-                .padding(8)
-                .background(Color.black)
+                .padding(16)
+                .background(PagePaper(dark: true))
         )
         // The list Cmd-F used to show, drawn from the same synthetic paper.
         let before = BeforeFindBar(query: "", hits: catalogue)
@@ -325,6 +333,32 @@ private struct BeforeFindBar: View {
     private var matchLabel: String {
         if hits.isEmpty { return "Not found" }
         return "\(hits.count) named"
+    }
+}
+
+/// The page behind the palette. ImageRenderer cannot sample `glassEffect`,
+/// so the snapshot frost is translucent and this paper colour shows through.
+private struct PagePaper: View {
+    var dark: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            (dark ? Color(white: 0.10) : Color(red: 0.98, green: 0.97, blue: 0.94))
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(0..<24, id: \.self) { index in
+                    Capsule()
+                        .fill((dark ? Color.white : Color.black).opacity(dark ? 0.16 : 0.08))
+                        .frame(width: lineWidth(index), height: 5)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 22)
+        }
+    }
+
+    private func lineWidth(_ index: Int) -> CGFloat {
+        let pattern: [CGFloat] = [210, 260, 170, 240, 120, 200, 250, 150]
+        return pattern[index % pattern.count]
     }
 }
 

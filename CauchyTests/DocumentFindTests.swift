@@ -191,6 +191,60 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertFalse(residue.stoppedBeforeCutOff)
     }
 
+    func testSpacingAcuteBeforeTheVowelDisplaysAsRouche() {
+        let broken = "Rouch\u{00B4}e"
+        let indexed = DocumentFind.displayNames(kind: .theorem, number: "3.6.3", name: broken)
+        XCTAssertEqual(indexed, [broken], "the indexed name stays the text-layer spelling")
+        XCTAssertEqual(DocumentFind.namesForDisplay(indexed).names, ["Rouché"])
+
+        let statement = entry(
+            .theorem,
+            "3.6.3",
+            "Suppose that f and g are holomorphic functions on an open set.",
+            name: broken
+        )
+        let hits = DocumentFind.jumpHits(query: "holomorphic", entries: [statement], sections: [])
+        XCTAssertEqual(hits.map(\.title), ["Theorem 3.6.3"])
+        XCTAssertEqual(hits.map(\.jumpName), [broken])
+        XCTAssertEqual(hits.map(\.label), ["Theorem 3.6.3 (\(broken))"])
+        XCTAssertEqual(DocumentFind.namesForDisplay(hits[0].nameCandidates).names, ["Rouché"])
+
+        XCTAssertEqual(
+            DocumentFind.namesForDisplay(
+                DocumentFind.displayNames(kind: .theorem, number: "1", name: "Poincar\u{00B4}e")
+            ).names,
+            ["Poincaré"]
+        )
+        XCTAssertEqual(
+            DocumentFind.namesForDisplay(
+                DocumentFind.displayNames(kind: .theorem, number: "1", name: "G\u{00A8}odel")
+            ).names,
+            ["Gödel"]
+        )
+        XCTAssertEqual(
+            DocumentFind.namesForDisplay(
+                DocumentFind.displayNames(kind: .theorem, number: "1", name: "Rouch\u{02CA}e")
+            ).names,
+            ["Rouché"]
+        )
+        XCTAssertEqual(
+            DocumentFind.namesForDisplay(
+                DocumentFind.displayNames(kind: .theorem, number: "3.6.3", name: "Rouché")
+            ).names,
+            ["Rouché"]
+        )
+        XCTAssertEqual(
+            DocumentFind.namesForDisplay(
+                DocumentFind.displayNames(kind: .theorem, number: "3.6.6", name: "Open mapping theorem")
+            ).names.first,
+            "Open mapping theorem"
+        )
+        let withTheorem = DocumentFind.namesForDisplay(
+            DocumentFind.displayNames(kind: .theorem, number: "3.6.3", name: "Rouch\u{00B4}e's theorem")
+        )
+        XCTAssertEqual(withTheorem.names, ["Rouché's theorem", "Rouché's"])
+    }
+
     func testPreviewConvertsTeXAndSkipsUnreadableLines() {
         XCTAssertEqual(
             DocumentFind.firstLine(of: "Let U $\\subset C$ be open and $\\gamma \\in U$."),

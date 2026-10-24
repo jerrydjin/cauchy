@@ -194,16 +194,24 @@ enum DocumentFind {
     /// Names the jump row may draw. Display only: `nameCandidates`, `label`,
     /// and `jumpName` stay as indexed so search and sorting are unchanged.
     ///
+    /// A spacing accent the PDF text layer drew before its letter is composed
+    /// here, so `Rouch´e` (U+00B4 before e) draws as Rouché. The indexed
+    /// strings are left alone, including catalogues already on disk.
+    ///
     /// A candidate that ends on a function word ("Homotopy Version of") is a
     /// phrase cut off mid-way. It is left out, and so is anything shorter,
     /// so the row shows the kind and number alone.
     static func namesForDisplay(_ names: [String]) -> VisibleNames {
         var kept: [String] = []
         for name in names {
-            if nameEndsMidPhrase(name) {
+            let decoded = DisplayAccentDecoding.compose(name)
+            if nameEndsMidPhrase(decoded) {
                 return VisibleNames(names: kept, stoppedBeforeCutOff: true)
             }
-            kept.append(name)
+            if kept.contains(where: { $0.caseInsensitiveCompare(decoded) == .orderedSame }) {
+                continue
+            }
+            kept.append(decoded)
         }
         return VisibleNames(names: kept, stoppedBeforeCutOff: false)
     }
@@ -482,6 +490,53 @@ enum DocumentFind {
         }
         parts.append(String(text[cursor...]))
         return parts
+    }
+}
+
+/// Spacing accents a PDF text layer emits as their own character, in front of
+/// the letter they belong on. TeX draws the accent glyph first; PDFKit then
+/// returns "Rouch´e" instead of "Rouché". Composition is for drawing only.
+enum DisplayAccentDecoding {
+    static func compose(_ text: String) -> String {
+        let scalars = Array(text.unicodeScalars)
+        var composed: [Unicode.Scalar] = []
+        composed.reserveCapacity(scalars.count)
+        var index = 0
+        while index < scalars.count {
+            if let mark = combiningMark(forSpacing: scalars[index]),
+               index + 1 < scalars.count,
+               Character(scalars[index + 1]).isLetter {
+                composed.append(contentsOf: precomposed(base: scalars[index + 1], mark: mark))
+                index += 2
+                continue
+            }
+            composed.append(scalars[index])
+            index += 1
+        }
+        return String(String.UnicodeScalarView(composed)).precomposedStringWithCanonicalMapping
+    }
+
+    /// Spacing forms of the accents TeX constructs as a separate glyph.
+    /// Already-combining marks are left where the text layer attached them.
+    private static func combiningMark(forSpacing scalar: Unicode.Scalar) -> Unicode.Scalar? {
+        switch scalar.value {
+        case 0x00B4, 0x02CA: return Unicode.Scalar(0x0301) // ´ acute, ˊ modifier acute
+        case 0x02CB: return Unicode.Scalar(0x0300) // ˋ modifier grave
+        case 0x02C6: return Unicode.Scalar(0x0302) // ˆ modifier circumflex
+        case 0x02DC: return Unicode.Scalar(0x0303) // ˜ small tilde
+        case 0x00A8: return Unicode.Scalar(0x0308) // ¨ diaeresis
+        case 0x02DA: return Unicode.Scalar(0x030A) // ˚ ring above
+        case 0x02DD: return Unicode.Scalar(0x030B) // ˝ double acute
+        case 0x02C7: return Unicode.Scalar(0x030C) // ˇ caron
+        case 0x02D8: return Unicode.Scalar(0x0306) // ˘ breve
+        case 0x00B8: return Unicode.Scalar(0x0327) // ¸ cedilla
+        default: return nil
+        }
+    }
+
+    private static func precomposed(base: Unicode.Scalar, mark: Unicode.Scalar) -> [Unicode.Scalar] {
+        let pair = String(String.UnicodeScalarView([base, mark]))
+        return Array(pair.precomposedStringWithCanonicalMapping.unicodeScalars)
     }
 }
 

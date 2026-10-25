@@ -98,6 +98,9 @@ final class WorkspaceViewModel: Equatable {
         find.currentPageProvider = { [weak self] in
             self?.viewportCoordinator.viewport.pageIndex ?? 0
         }
+        jump.catalogueID = { [weak self] in
+            self?.jumpCatalogueID() ?? 0
+        }
         jump.source = { [weak self] in
             guard let self else { return nil }
             return DocumentFind.Source(
@@ -878,8 +881,10 @@ final class WorkspaceViewModel: Equatable {
     private var jumpPages: [String] = []
     private var jumpPagesReady = false
 
-    /// Identity of the document plus the reference index. The palette keeps
-    /// its built rows while this value stays the same.
+    /// Identity of the document plus the reference index. Compared on each
+    /// keystroke before `source` runs, so a stable id does not copy indexed
+    /// statements or page text. The palette keeps its built rows while this
+    /// value stays the same.
     private func jumpCatalogueID() -> Int {
         var hasher = Hasher()
         hasher.combine(referenceIndex.generation)

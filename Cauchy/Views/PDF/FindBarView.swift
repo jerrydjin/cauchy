@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// ImageRenderer draws neither `TextField` nor the contents of a `ScrollView`.
@@ -111,6 +112,28 @@ private struct SnapshotIcon: View {
     }
 }
 
+/// Layout contract for the Cmd-K panel. Jony, Cauchy room 2026-10-25: the
+/// results area keeps one reserved height and scrolls inside it. The glass
+/// chrome does not grow, shrink, or animate when the match count changes.
+enum JumpPaletteMetrics {
+    /// The old cap (`maxHeight: 420`) is now the reserved height. Short result
+    /// lists leave empty glass below the rows instead of pulling the field down.
+    static let resultsAreaHeight: CGFloat = 420
+    /// Selected and hovered rows use this fill. One state, not two treatments.
+    static let rowHighlightOpacity: Double = 0.14
+    /// There is no animate-once path. Height does not follow the hit count.
+    static let animatesResultsHeight = false
+
+    static func resultsFrameHeight(hitCount: Int) -> CGFloat {
+        _ = hitCount
+        return resultsAreaHeight
+    }
+
+    static func rowIsHighlighted(isSelected: Bool, isHovered: Bool) -> Bool {
+        isSelected || isHovered
+    }
+}
+
 /// Centred Cmd-K catalogue. One layout in both appearances: Liquid Glass over
 /// the page, light frost when the window is light and darker glass when it is
 /// dark. Rows stay a label, an optional name, a page, and one preview line.
@@ -127,6 +150,9 @@ struct JumpPaletteView: View {
             results
         }
         .frame(width: 340)
+        // Match-count changes must not animate the panel. The results frame is
+        // reserved, and this opts that update out of any inherited animation.
+        .animation(nil, value: palette.hits.count)
         .modifier(JumpPaletteChrome(snapshot: rendersForSnapshot))
         .onExitCommand { palette.dismiss() }
         .onAppear { isFieldFocused = true }
@@ -172,22 +198,50 @@ struct JumpPaletteView: View {
         .padding(.vertical, 10)
     }
 
+    /// ImageRenderer drops `ScrollView` contents, so the snapshot paints every
+    /// row in a stack. The live palette always reserves `resultsAreaHeight`
+    /// and scrolls inside that frame, including when there are no matches.
     @ViewBuilder
     private var results: some View {
-        if palette.hits.isEmpty {
-            Text(emptyMessage)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-        } else if rendersForSnapshot {
-            resultStack
+        if rendersForSnapshot {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(groupedHits, id: \.title) { group in
+                    groupHeader(group)
+                    ForEach(group.hits) { hit in
+                        paletteRow(hit)
+                    }
+                }
+            }
+            .padding(10)
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
-                    resultStack
+                    if palette.hits.isEmpty {
+                        Text(emptyMessage)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                    } else {
+                        LazyVStack(alignment: .leading, spacing: 8) {
+                            ForEach(groupedHits, id: \.title) { group in
+                                groupHeader(group)
+                                ForEach(group.hits) { hit in
+                                    paletteRow(hit)
+                                }
+                            }
+                        }
+                        .padding(10)
+                    }
                 }
-                .frame(maxHeight: 420)
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(
+                    height: JumpPaletteMetrics.resultsFrameHeight(hitCount: palette.hits.count),
+                    alignment: .top
+                )
+                .transaction { transaction in
+                    transaction.disablesAnimations = true
+                }
                 .onChange(of: palette.selection) {
                     guard palette.hits.indices.contains(palette.selection) else { return }
                     proxy.scrollTo(palette.hits[palette.selection].id, anchor: .center)
@@ -196,24 +250,31 @@ struct JumpPaletteView: View {
         }
     }
 
-    private var resultStack: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(groupedHits, id: \.title) { group in
-                HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    Text(group.title)
-                        .foregroundStyle(.secondary)
-                    Text(" \(group.hits.count)")
-                        .foregroundStyle(.tertiary)
-                }
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 8)
-                ForEach(group.hits) { hit in
-                    row(hit)
-                        .id(hit.id)
-                }
-            }
+    private func groupHeader(_ group: (title: String, hits: [DocumentFind.Hit])) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(group.title)
+                .foregroundStyle(.secondary)
+            Text(" \(group.hits.count)")
+                .foregroundStyle(.tertiary)
         }
-        .padding(10)
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 8)
+    }
+
+    private func paletteRow(_ hit: DocumentFind.Hit) -> some View {
+        JumpPaletteRow(
+            hit: hit,
+            isSelected: isSelected(hit),
+            tracksPointer: !rendersForSnapshot
+        ) {
+            palette.jump(hit)
+        }
+        .id(hit.id)
+    }
+
+    private func isSelected(_ hit: DocumentFind.Hit) -> Bool {
+        palette.hits.indices.contains(palette.selection)
+            && palette.hits[palette.selection].id == hit.id
     }
 
     private var emptyMessage: String {
@@ -224,13 +285,39 @@ struct JumpPaletteView: View {
         return "No matches"
     }
 
-    private func row(_ hit: DocumentFind.Hit) -> some View {
-        let selected = palette.hits.indices.contains(palette.selection)
-            && palette.hits[palette.selection].id == hit.id
+    private var groupedHits: [(title: String, hits: [DocumentFind.Hit])] {
+        var titles: [String] = []
+        var grouped: [String: [DocumentFind.Hit]] = [:]
+        for hit in palette.hits {
+            if grouped[hit.group] == nil { titles.append(hit.group) }
+            grouped[hit.group, default: []].append(hit)
+        }
+        return titles.map { ($0, grouped[$0] ?? []) }
+    }
+}
+
+/// One row in the jump list. Hover and keyboard selection share one fill.
+/// SwiftUI hover inside `.glassEffect` over a PDF view does not fire on
+/// macOS 27, so the row also installs an AppKit tracking area. Either source
+/// can light the row; both use the same highlight.
+private struct JumpPaletteRow: View {
+    var hit: DocumentFind.Hit
+    var isSelected: Bool
+    var tracksPointer: Bool
+    var onJump: () -> Void
+
+    @State private var pointerHover = false
+    @State private var trackingHover = false
+
+    private var isHovered: Bool { pointerHover || trackingHover }
+
+    var body: some View {
         let visible = DocumentFind.namesForDisplay(hit.nameCandidates)
-        return Button {
-            palette.jump(hit)
-        } label: {
+        let highlighted = JumpPaletteMetrics.rowIsHighlighted(
+            isSelected: isSelected,
+            isHovered: isHovered
+        )
+        Button(action: onJump) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(hit.title)
@@ -266,15 +353,28 @@ struct JumpPaletteView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                if selected {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.14))
-                }
-            }
+            .contentShape(.interaction, Rectangle())
+            .contentShape(.hoverEffect, Rectangle())
         }
         .buttonStyle(.plain)
+        .background {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.accentColor.opacity(highlighted ? JumpPaletteMetrics.rowHighlightOpacity : 0))
+        }
+        .onContinuousHover { phase in
+            guard tracksPointer else { return }
+            switch phase {
+            case .active: pointerHover = true
+            case .ended: pointerHover = false
+            }
+        }
+        .overlay {
+            if tracksPointer {
+                JumpHoverTracker { trackingHover = $0 }
+            }
+        }
         .accessibilityLabel(accessibilityLabel(hit, visible: visible))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     /// Speak the name the row actually draws, accents composed, when it has one.
@@ -284,15 +384,89 @@ struct JumpPaletteView: View {
         }
         return "\(hit.label), page \(hit.pageIndex + 1)"
     }
+}
 
-    private var groupedHits: [(title: String, hits: [DocumentFind.Hit])] {
-        var titles: [String] = []
-        var grouped: [String: [DocumentFind.Hit]] = [:]
-        for hit in palette.hits {
-            if grouped[hit.group] == nil { titles.append(hit.group) }
-            grouped[hit.group, default: []].append(hit)
+/// Pointer enter/exit for a jump row. `hitTest` returns nil so the SwiftUI
+/// button keeps the click. Tracking areas are delivered from the window, which
+/// still reaches this view when the glass material swallows SwiftUI hover.
+private struct JumpHoverTracker: NSViewRepresentable {
+    var onHover: @MainActor (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onHover: onHover)
+    }
+
+    func makeNSView(context: Context) -> TrackerView {
+        let view = TrackerView()
+        view.coordinator = context.coordinator
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackerView, context: Context) {
+        context.coordinator.onHover = onHover
+        nsView.coordinator = context.coordinator
+    }
+
+    final class Coordinator {
+        var onHover: @MainActor (Bool) -> Void
+        init(onHover: @escaping @MainActor (Bool) -> Void) {
+            self.onHover = onHover
         }
-        return titles.map { ($0, grouped[$0] ?? []) }
+    }
+
+    final class TrackerView: NSView {
+        var coordinator: Coordinator?
+        private var lastHovered: Bool?
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            for area in trackingAreas {
+                removeTrackingArea(area)
+            }
+            addTrackingArea(NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            ))
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            // `perform(afterDelay:)` stays on the main thread without capturing
+            // this view in a sendable closure. Bounds are often empty during
+            // the update that inserts the view; the next turn sees the real frame.
+            NSObject.cancelPreviousPerformRequests(withTarget: self)
+            guard window != nil else {
+                report(false)
+                return
+            }
+            perform(#selector(syncHoverFromRunLoop), with: nil, afterDelay: 0)
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            report(true)
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            report(false)
+        }
+
+        @objc private func syncHoverFromRunLoop() {
+            guard let window, bounds.width > 0, bounds.height > 0 else { return }
+            let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+            report(bounds.contains(point))
+        }
+
+        private func report(_ hovered: Bool) {
+            guard lastHovered != hovered else { return }
+            lastHovered = hovered
+            MainActor.assumeIsolated {
+                coordinator?.onHover(hovered)
+            }
+        }
     }
 }
 

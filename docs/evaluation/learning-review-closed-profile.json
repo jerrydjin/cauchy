@@ -1,0 +1,67 @@
+{
+  "inputs": {
+    "mode": "closed",
+    "revision": "fec550755133191ae4d835f4c09ad76cea75b281",
+    "swiftMath": "fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7",
+    "workingTreeOverlay": false,
+    "harnessSHA256": "410ff3730509f03dd48d6055fccd1ef9e2744c4ecb5459f37e188db99bfc40c6",
+    "sources": {
+      "Cauchy/Models/LearningStudyMap.swift": "ebec407678d9cc9a44c18ac3465322eb08d3f4b19666f0d9a387ea50327391ee",
+      "Cauchy/ViewModels/LearningLibraryStore.swift": "883ec87ad5e3b38153dd41dc966951bcfa0aa835528ce29a4d59e841d79394e1",
+      "Cauchy/ViewModels/LearningViewModel.swift": "b422db2d47cbd2f6ef186c3df288f47186437cfbb1fc95fe8f0687859c3e8031",
+      "Cauchy/ViewModels/LearningStudyMapViewModel.swift": "d8550f36ab6868625bde1069bdb663b494c2cb7275a9bbf23a8dedf94c2757f3",
+      "Cauchy/Views/Learning/LearningWorkspaceView.swift": "34396b3be6d11a8fcba940c63cac0349212a3a34e491cca3f11611e69b806dd7"
+    }
+  },
+  "results": {
+    "cases": [
+      {
+        "documents": 1,
+        "eligibleTargetsPerDocument": 1,
+        "learningSidecarBytes": 707804,
+        "projectionMilliseconds": [
+          0.035625,
+          0.01825
+        ],
+        "refreshMilliseconds": [
+          22.283167,
+          20.781375
+        ],
+        "sessionsPerDocument": 144,
+        "workspaceBytes": 955499
+      },
+      {
+        "documents": 8,
+        "eligibleTargetsPerDocument": 1,
+        "learningSidecarBytes": 14108896,
+        "projectionMilliseconds": [
+          0.047875,
+          0.045875
+        ],
+        "refreshMilliseconds": [
+          408.26,
+          392.892042
+        ],
+        "sessionsPerDocument": 360,
+        "workspaceBytes": 19029784
+      },
+      {
+        "documents": 16,
+        "eligibleTargetsPerDocument": 1,
+        "learningSidecarBytes": 56372672,
+        "projectionMilliseconds": [
+          0.093959,
+          0.103291
+        ],
+        "refreshMilliseconds": [
+          1535.462709,
+          1529.560541
+        ],
+        "sessionsPerDocument": 720,
+        "workspaceBytes": 76012214
+      }
+    ],
+    "configuration": "Standard unoptimized Debug test host; first refresh is not an OS cold-cache measurement",
+    "scope": "Authored closed-history read, decode, schedule preparation and row projection; excludes PDF loading"
+  }
+}

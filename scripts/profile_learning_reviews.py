@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--package-cache", required=True, type=Path)
     parser.add_argument("--derived-data", type=Path)
     parser.add_argument("--revision", default="HEAD")
+    parser.add_argument("--mode", choices=["live", "closed"], default="live")
     parser.add_argument("--working-tree", action="store_true", help="Overlay the declared Learn source files from the current checkout")
     args = parser.parse_args()
     if sys.version_info < (3, 12):
@@ -50,10 +51,12 @@ def main():
     if args.working_tree:
         for name in SOURCES:
             shutil.copy2(REPO / name, output / name)
-    harness = (REPO / "scripts/fixtures/learning_review_profile.swift").read_bytes()
+    fixture = "learning_review_closed_profile.swift" if args.mode == "closed" else "learning_review_profile.swift"
+    test = "testProfileClosedLearningReviewOverview" if args.mode == "closed" else "testProfileLearningReviewOverview"
+    harness = (REPO / "scripts/fixtures" / fixture).read_bytes()
     with (output / "CauchyTests/LearningTests.swift").open("ab") as target:
         target.write(b"\n" + harness)
-    manifest = {"revision": revision, "swiftMath": SWIFT_MATH, "workingTreeOverlay": args.working_tree,
+    manifest = {"mode": args.mode, "revision": revision, "swiftMath": SWIFT_MATH, "workingTreeOverlay": args.working_tree,
                 "harnessSHA256": hashlib.sha256(harness).hexdigest(),
                 "sources": {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in SOURCES}}
     (output / "profile-inputs.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -61,7 +64,7 @@ def main():
                "-destination", "platform=macOS", "-derivedDataPath", str(args.derived_data.resolve() if args.derived_data else output / "DerivedData"),
                "-clonedSourcePackagesDirPath", str(args.package_cache.resolve()), "-disableAutomaticPackageResolution",
                "-resultBundlePath", str(output / "results.xcresult"),
-               "-only-testing:CauchyTests/LearningUIFixtureTests/testProfileLearningReviewOverview"]
+               f"-only-testing:CauchyTests/LearningUIFixtureTests/{test}"]
     env = dict(os.environ, DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer")
     with (output / "build.log").open("w") as log:
         try:

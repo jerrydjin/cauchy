@@ -475,10 +475,47 @@ final class LearningStudyMapTests: XCTestCase {
             XCTAssertEqual(status.inProgressCount, queue.filter { $0.activeSessionID != nil }.count)
             XCTAssertEqual(status.dueCount, queue.filter { $0.activeSessionID == nil }.count)
             XCTAssertEqual(status.earliestDate, queue.map(\.dueAt).min())
+            let planned = try XCTUnwrap(schedule.status(at: date, includingUpcoming: true))
+            XCTAssertEqual(planned.dueCount, status.dueCount)
+            XCTAssertEqual(planned.inProgressCount, status.inProgressCount)
+            let futureDates = [due.reviewDueAt!, future.reviewDueAt!].filter { $0 > date }.sorted()
+            XCTAssertEqual(planned.upcomingCount, futureDates.count)
+            XCTAssertEqual(planned.nextDueDate, futureDates.first)
         }
         XCTAssertNil(LearningReviewSchedule.empty.status(at: clock))
+        XCTAssertNil(LearningReviewSchedule.empty.status(at: clock, includingUpcoming: true))
         XCTAssertNil(map.delayedReviewSchedule(sessions: [future]).status(at: clock))
+        let upcoming = try XCTUnwrap(map.delayedReviewSchedule(sessions: [future]).status(at: clock, includingUpcoming: true))
+        XCTAssertEqual(upcoming.dueCount, 0)
+        XCTAssertEqual(upcoming.inProgressCount, 0)
+        XCTAssertEqual(upcoming.upcomingCount, 1)
+        XCTAssertEqual(upcoming.nextDueDate, future.reviewDueAt)
+        XCTAssertEqual(upcoming.earliestDate, future.reviewDueAt)
+        XCTAssertTrue(map.delayedReviews(sessions: [future], now: clock).isEmpty)
         XCTAssertEqual(map.delayedReviewSchedule(sessions: [future]).status(at: clock.addingTimeInterval(86_400))?.dueCount, 1)
+    }
+
+    func testUpcomingSchedulesKeepEvidenceAndSourceGatesWithoutMakingAReviewAvailableEarly() throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        var saved = passedSession(target: unit.targets[0]); saved.reviewDueAt = clock.addingTimeInterval(60)
+        let original = saved
+        var map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        XCTAssertEqual(map.delayedReviewSchedule(sessions: [saved]).status(at: clock, includingUpcoming: true)?.upcomingCount, 1)
+        XCTAssertNil(map.nextDelayedReview(sessions: [saved], now: clock))
+        XCTAssertNil(map.nextDelayedReview(sessions: [saved], now: clock, targetID: saved.studyTarget?.id))
+        XCTAssertEqual(map.nextDelayedReview(sessions: [saved], now: saved.reviewDueAt!)?.previous.id, saved.id)
+        saved.attempts[0].setAsideAt = clock
+        XCTAssertNil(map.delayedReviewSchedule(sessions: [saved]).status(at: clock, includingUpcoming: true))
+        saved = passedSession(target: unit.targets[0], help: true); saved.reviewDueAt = original.reviewDueAt
+        XCTAssertNil(map.delayedReviewSchedule(sessions: [saved]).status(at: clock, includingUpcoming: true))
+        saved = original
+        map.units[0].pendingSourceCorrection = true
+        XCTAssertNil(map.delayedReviewSchedule(sessions: [saved]).status(at: clock, includingUpcoming: true))
+        map.units[0].pendingSourceCorrection = nil
+        var changed = try XCTUnwrap(saved.studyTarget); changed.revisionID = UUID(); saved.studyTarget = changed
+        XCTAssertNil(map.delayedReviewSchedule(sessions: [saved]).status(at: clock, includingUpcoming: true))
+        XCTAssertEqual(original.reviewDueAt, clock.addingTimeInterval(60))
     }
 
     func testDelayedReviewIsDueOnlyAfterSavedTimeAndKeepsEachRequirementSeparate() async throws {

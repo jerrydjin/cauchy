@@ -642,14 +642,14 @@ private struct LearningReviewOverviewView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var hidden: Set<UUID> { Set(hiddenRecents.split(separator: ",").compactMap { UUID(uuidString: String($0)) }) }
-    private var reviews: [LearningLibraryReview] { overviewPrepared ? library.reviewOverview(at: clock, excluding: hidden) : [] }
+    private var reviews: [LearningLibraryReview] { overviewPrepared ? library.reviewOverview(at: clock, excluding: hidden, includingUpcoming: true) : [] }
     private var isPreparing: Bool { !overviewPrepared || library.isLoadingReviews }
     private var selected: LearningLibraryReview? { reviews.first { $0.id == selection } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Review across notes").font(.title2.weight(.semibold))
-            Text("Return to an unfinished review or revisit an idea after a delay.").font(.callout).foregroundStyle(.secondary)
+            Text("Return to a review, or see when your next checks are scheduled.").font(.callout).foregroundStyle(.secondary)
             if isPreparing, !reviews.isEmpty {
                 ProgressView("Checking saved notes…").controlSize(.small)
             }
@@ -665,25 +665,32 @@ private struct LearningReviewOverviewView: View {
             }
             if reviews.isEmpty {
                 ContentUnavailableView(isPreparing ? "Checking your reviews"
-                    : library.unreadableReviewNotes > 0 ? "Some notes couldn’t be checked" : "No reviews due",
+                    : library.unreadableReviewNotes > 0 ? "Some notes couldn’t be checked" : "No reviews scheduled",
                     systemImage: "calendar.badge.clock", description: Text(isPreparing
                         ? "Reading saved learning progress."
-                        : library.unreadableReviewNotes > 0 ? "No due reviews were found in the notes that could be checked."
+                        : library.unreadableReviewNotes > 0 ? "No scheduled reviews were found in the notes that could be checked."
                         : "A review is scheduled after an independent exit check. Your learning paths remain available."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(selection: $selection) {
-                    ForEach(reviews) { review in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(review.title).font(.headline)
-                            Text(status(review)).font(.callout)
-                            Text("Earliest scheduled check: \(review.earliestDate.formatted(date: .abbreviated, time: .omitted))")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }.padding(.vertical, 6).tag(review.id)
+                    let current = reviews.filter(\.hasCurrentReview)
+                    let upcoming = reviews.filter { !$0.hasCurrentReview }
+                    if !current.isEmpty {
+                        Section("Due and in progress") {
+                            ForEach(current) { reviewRow($0) }
+                        }
                     }
-                }.accessibilityLabel("Notes with due or unfinished reviews")
+                    if !upcoming.isEmpty {
+                        Section("Scheduled for later") {
+                            ForEach(upcoming) { reviewRow($0) }
+                        }
+                    }
+                }.accessibilityLabel("Notes with due, unfinished or upcoming reviews")
             }
-            Text("Open a learning path to review its current requirements and source.").font(.caption).foregroundStyle(.secondary)
+            Text(selected?.hasCurrentReview == false
+                 ? "This review isn’t due yet. Open its learning path to continue other work."
+                 : "Open a learning path to review its current requirements and source.")
+                .font(.caption).foregroundStyle(.secondary)
             if let openError { Text(openError).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
             HStack {
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
@@ -728,6 +735,22 @@ private struct LearningReviewOverviewView: View {
 
     private func status(_ review: LearningLibraryReview) -> String {
         [review.inProgressCount > 0 ? "\(review.inProgressCount) in progress" : nil,
-         review.dueCount > 0 ? "\(review.dueCount) due" : nil].compactMap { $0 }.joined(separator: " · ")
+         review.dueCount > 0 ? "\(review.dueCount) due" : nil,
+         review.upcomingCount > 0 ? "\(review.upcomingCount) upcoming" : nil].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    private func reviewRow(_ review: LearningLibraryReview) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(review.title).font(.headline)
+            Text(status(review)).font(.callout)
+            if review.hasCurrentReview {
+                Text("Earliest scheduled check: \(review.earliestDate.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let next = review.nextDueDate {
+                Text("Next upcoming check: \(next.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }.padding(.vertical, 6).tag(review.id)
     }
 }

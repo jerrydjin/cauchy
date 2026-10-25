@@ -21,7 +21,11 @@ struct LearningLibraryReview: Identifiable, Equatable {
     let title: String
     let dueCount: Int
     let inProgressCount: Int
+    let upcomingCount: Int
+    let nextDueDate: Date?
     let earliestDate: Date
+
+    var hasCurrentReview: Bool { dueCount > 0 || inProgressCount > 0 }
 }
 
 /// Learning owns its PDF and tutor state independently of reader windows.
@@ -200,15 +204,17 @@ final class LearningLibraryStore: Equatable {
         return schedule
     }
 
-    func reviewOverview(at date: Date, excluding hidden: Set<UUID> = []) -> [LearningLibraryReview] {
+    func reviewOverview(at date: Date, excluding hidden: Set<UUID> = [], includingUpcoming: Bool = false) -> [LearningLibraryReview] {
         summaries.compactMap { summary -> LearningLibraryReview? in
             guard !hidden.contains(summary.workspaceID) else { return nil }
             let schedule = documents[summary.workspaceID].map { liveReviewSchedule(for: $0) } ?? reviewProgress[summary.workspaceID]
-            guard let status = schedule?.status(at: date) else { return nil }
+            guard let status = schedule?.status(at: date, includingUpcoming: includingUpcoming) else { return nil }
             return .init(workspaceID: summary.workspaceID, title: summary.documentURL.deletingPathExtension().lastPathComponent,
-                dueCount: status.dueCount, inProgressCount: status.inProgressCount, earliestDate: status.earliestDate)
+                dueCount: status.dueCount, inProgressCount: status.inProgressCount,
+                upcomingCount: status.upcomingCount, nextDueDate: status.nextDueDate, earliestDate: status.earliestDate)
         }.sorted {
             if ($0.inProgressCount > 0) != ($1.inProgressCount > 0) { return $0.inProgressCount > 0 }
+            if $0.hasCurrentReview != $1.hasCurrentReview { return $0.hasCurrentReview }
             if $0.earliestDate != $1.earliestDate { return $0.earliestDate < $1.earliestDate }
             return $0.workspaceID.uuidString < $1.workspaceID.uuidString
         }

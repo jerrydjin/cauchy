@@ -764,6 +764,86 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertTrue(library.reviewOverview(at: now, excluding: [document.id]).isEmpty)
     }
 
+    func testUpcomingReviewOverviewOrdersClosedNotesAndFollowsLiveChangesWithoutOpeningEarlyChecks() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        try await controller.flush()
+        let original = document.learning.sessions
+        let originalMap = document.studyMap.map
+        let destination = library.destination
+        let selectedSession = document.learning.selectedSessionID
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        var records: [DocumentWorkspace] = []
+        var savedBytes: [UUID: Data] = [:]
+        for (name, delay) in [("Sooner-notes", 60.0), ("Later-notes", 120.0)] {
+            let url = root.appendingPathComponent(name + ".pdf")
+            XCTAssertTrue(document.pdfDocument.write(to: url))
+            var saved = try LearningUIFixture.makeWorkspace(document: document.pdfDocument, url: url)
+            saved.id = UUID()
+            for index in saved.learningSessions.indices where saved.learningSessions[index].reviewDueAt != nil {
+                saved.learningSessions[index].reviewDueAt = clock.addingTimeInterval(delay)
+            }
+            try await persistence.saveWorkspace(saved, bookmarkData: nil)
+            savedBytes[saved.id] = try Data(contentsOf: persistence.workspaceDirectory(for: saved.id).appendingPathComponent("learning.json"))
+            records.append(saved)
+        }
+        let sooner = records[0], later = records[1]
+        await library.refreshReviewOverview()
+        XCTAssertEqual(library.reviewOverview(at: clock).map(\.id), [document.id])
+        let overview = library.reviewOverview(at: clock, includingUpcoming: true)
+        XCTAssertEqual(overview.map(\.id), [document.id, sooner.id, later.id])
+        XCTAssertTrue(overview[0].hasCurrentReview)
+        XCTAssertEqual(overview[1].dueCount, 0)
+        XCTAssertEqual(overview[1].inProgressCount, 0)
+        XCTAssertEqual(overview[1].upcomingCount, 1)
+        XCTAssertFalse(overview[1].hasCurrentReview)
+        XCTAssertEqual(overview[1].nextDueDate, clock.addingTimeInterval(60))
+        XCTAssertEqual(library.reviewOverview(at: clock, excluding: [sooner.id], includingUpcoming: true).map(\.id), [document.id, later.id])
+        XCTAssertEqual(library.documents.count, 1)
+        XCTAssertEqual(library.destination, destination)
+        XCTAssertEqual(document.learning.selectedSessionID, selectedSession)
+        XCTAssertEqual(document.learning.sessions, original)
+        XCTAssertEqual(document.studyMap.map, originalMap)
+        XCTAssertNil(sooner.learningStudyMap?.nextDelayedReview(sessions: sooner.learningSessions, now: clock))
+        let boundary = clock.addingTimeInterval(60)
+        let nowDue = try XCTUnwrap(library.reviewOverview(at: boundary, includingUpcoming: true).first { $0.id == sooner.id })
+        XCTAssertTrue(nowDue.hasCurrentReview)
+        XCTAssertEqual(nowDue.dueCount, 1)
+        XCTAssertEqual(nowDue.upcomingCount, 0)
+        XCTAssertNil(nowDue.nextDueDate)
+        XCTAssertNotNil(sooner.learningStudyMap?.nextDelayedReview(sessions: sooner.learningSessions, now: boundary))
+        XCTAssertEqual(library.reviewOverview(at: clock, includingUpcoming: true), overview) // Moving back uses the same prepared schedule.
+        var futureLive = original
+        for index in futureLive.indices where futureLive[index].reviewDueAt != nil {
+            futureLive[index].reviewDueAt = clock.addingTimeInterval(180)
+        }
+        document.learning.restore(futureLive)
+        XCTAssertTrue(library.reviewOverview(at: clock).isEmpty)
+        XCTAssertEqual(library.reviewOverview(at: clock, includingUpcoming: true).map(\.id), [sooner.id, later.id, document.id])
+        let reviewed = try XCTUnwrap(futureLive.firstIndex { $0.latestExitAttempt != nil })
+        futureLive[reviewed].attempts[0].setAsideAt = clock
+        document.learning.restore(futureLive)
+        XCTAssertEqual(library.reviewOverview(at: clock, includingUpcoming: true).map(\.id), [sooner.id, later.id])
+        document.learning.restore(original)
+        await library.navigate(to: .studyMap(sooner.id))
+        XCTAssertEqual(library.selectedDocument?.id, sooner.id)
+        XCTAssertEqual(library.selectedDocument?.learning.sessions, sooner.learningSessions)
+        XCTAssertNil(library.selectedDocument?.studyMap.map?.nextDelayedReview(sessions: sooner.learningSessions, now: clock))
+        await library.navigate(to: try XCTUnwrap(destination))
+        XCTAssertEqual(document.learning.selectedSessionID, selectedSession)
+        XCTAssertEqual(document.learning.sessions, original)
+        XCTAssertEqual(document.studyMap.map, originalMap)
+        try await controller.flush()
+        for saved in records {
+            XCTAssertEqual(try Data(contentsOf: persistence.workspaceDirectory(for: saved.id).appendingPathComponent("learning.json")), savedBytes[saved.id])
+        }
+    }
+
     func testSavedFixtureNavigationRejectsRecordsOutsideItsAuthoredRoot() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }

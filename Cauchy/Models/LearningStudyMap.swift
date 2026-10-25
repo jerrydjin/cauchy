@@ -323,6 +323,8 @@ struct LearningReviewSchedule: Equatable, Sendable {
     struct Status: Equatable, Sendable {
         let dueCount: Int
         let inProgressCount: Int
+        let upcomingCount: Int
+        let nextDueDate: Date?
         let earliestDate: Date
     }
 
@@ -335,7 +337,7 @@ struct LearningReviewSchedule: Equatable, Sendable {
         self.scheduled = scheduled
     }
 
-    func status(at date: Date) -> Status? {
+    func status(at date: Date, includingUpcoming: Bool = false) -> Status? {
         // Dates arrive sorted from the shared candidate selector. Find the due
         // prefix without walking every saved requirement on each view update.
         var low = 0, high = scheduled.count
@@ -346,8 +348,11 @@ struct LearningReviewSchedule: Equatable, Sendable {
         let earliest: Date
         if let active = inProgress.first { earliest = low > 0 ? min(active, scheduled[0]) : active }
         else if low > 0 { earliest = scheduled[0] }
+        else if includingUpcoming, low < scheduled.count { earliest = scheduled[low] }
         else { return nil }
-        return .init(dueCount: low, inProgressCount: inProgress.count, earliestDate: earliest)
+        return .init(dueCount: low, inProgressCount: inProgress.count,
+            upcomingCount: scheduled.count - low, nextDueDate: low < scheduled.count ? scheduled[low] : nil,
+            earliestDate: earliest)
     }
 }
 

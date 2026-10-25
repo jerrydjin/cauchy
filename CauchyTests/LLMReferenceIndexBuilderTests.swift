@@ -545,6 +545,20 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .definition, number: "8.2")))
     }
 
+    func testParenthesizedStatementNumberIsADeclarationNotAnEquation() {
+        let page = """
+        Lemma (4). Suppose the group is finite.
+        Apply Lemma (4) in the estimate (5).
+        A = B + C (7)
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertEqual(declarations.filter { $0 == DetectedReference(kind: .lemma, number: "4") }.count, 1)
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "7")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "4")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "5")))
+    }
+
     func testProseSentenceDoesNotDeclareABareEquation() {
         let page = """
         Proof. By construction f = g, so the equivalence between (1) follows at once.

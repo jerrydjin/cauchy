@@ -1,6 +1,6 @@
 # Learning quality in Cauchy
 
-The [25 October review-overview performance follow-up](evaluation/learning-review-performance.md) groups histories and prepares compact schedules with revision-aware invalidation. The matched authored Debug profile reduces the largest prepared row median from 28,644 ms to 0.184 ms, with 784 ms of separate background preparation. All 445 normal macOS tests pass. Native verification is pending manual unlock; Release and closed-library startup performance are not established.
+The [25 October review-overview performance follow-up](evaluation/learning-review-performance.md) groups histories and prepares compact schedules with revision-aware invalidation. The matched authored Debug profile reduces the largest prepared row median from 28,644 ms to 0.184 ms, with 784 ms of separate background preparation. All 445 normal macOS tests pass. Native refresh, cross-notes navigation, draft return and cold-restart checks preserve all three authored learning records. Release and closed-library startup performance are not established by that profile.
 
 The [24–25 October cross-notes review overview](evaluation/learning-review-overview.md) exposes eligible due checks and unfinished reviews across saved notes. It uses current evidence rules, prefers live work, identifies unreadable records and opens the current path without starting a tutor. All 442 macOS tests and native multi-document navigation, missing-file explanation/retry, original-draft restoration and exact learning-state preservation through restart pass.
 

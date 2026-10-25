@@ -123,8 +123,9 @@ enum DocumentFind {
 
     /// Every indexed statement, or the subset whose label, printed name, or
     /// one-line preview contains `query` as a case-insensitive substring.
-    /// A kind-and-number query uses `search` unchanged. A bare number keeps
-    /// the dotted-number rule (`2` matches `2.1`, not `20`).
+    /// A kind-and-number query keeps the `search` rule (`2` matches `2.1`, not
+    /// `20`). Without a catalogue that rebuilds hits; with one it filters the
+    /// rows already built.
     ///
     /// `catalogue`, when present, is the full sorted list from an empty query.
     /// Filtering that list reuses the rows already built — it does not parse

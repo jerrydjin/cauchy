@@ -243,10 +243,29 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
 
     /// Saved checks lead the due queue so an unfinished answer keeps its place.
     func delayedReviews(sessions: [LearningSession], now: Date, targetID: UUID? = nil) -> [LearningReviewRecommendation] {
+        reviewCandidates(sessions: sessions, dueBy: now, targetID: targetID)
+    }
+
+    /// Retain eligible future dates so the overview can follow its clock without
+    /// rescanning saved answers. Evidence and source policy are shared with the queue.
+    func delayedReviewSchedule(sessions: [LearningSession]) -> LearningReviewSchedule {
+        let candidates = reviewCandidates(sessions: sessions, dueBy: nil, targetID: nil)
+        return .init(inProgress: candidates.filter { $0.activeSessionID != nil }.map(\.dueAt),
+                     scheduled: candidates.filter { $0.activeSessionID == nil }.map(\.dueAt))
+    }
+
+    private func reviewCandidates(sessions: [LearningSession], dueBy: Date?, targetID: UUID?) -> [LearningReviewRecommendation] {
+        // Narrow each target's history once. IDs select a bucket only; the
+        // complete requirement identity and evidence policy still apply below.
+        var histories: [UUID: [LearningSession]] = [:]
+        for session in sessions where session.chapter == nil {
+            guard let id = session.studyTarget?.id, targetID == nil || id == targetID else { continue }
+            histories[id, default: []].append(session)
+        }
         var candidates: [LearningReviewRecommendation] = []
         for unit in units {
             for target in unit.learningTargets where targetID == nil || target.id == targetID {
-                let related = sessions.filter { $0.chapter == nil && target.matchesRequirement($0.studyTarget) }
+                let related = (histories[target.id] ?? []).filter { target.matchesRequirement($0.studyTarget) }
                 if let active = related.filter({ $0.delayedReview != nil && $0.phase != .complete })
                     .max(by: { $0.updatedAt < $1.updatedAt }) {
                     candidates.append(.init(unit: unit, target: target, previous: active,
@@ -254,13 +273,14 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
                     continue
                 }
                 guard !unit.needsSourceReview,
-                      unit.evidence(for: target, sessions: sessions)?.hasIndependentCorrectResult == true else { continue }
+                      unit.evidence(for: target, sessions: related)?.hasIndependentCorrectResult == true else { continue }
                 let scheduled = related.filter { session in
                     session.reviewDueAt != nil
                         && session.latestExitAttempt?.setAsideAt == nil
                         && Set(unit.sourceCorrectionIDs ?? []).isSubset(of: Set(session.source.passages.compactMap { $0.correction?.id }))
                 }.max { ($0.latestExitAttempt?.createdAt ?? .distantPast) < ($1.latestExitAttempt?.createdAt ?? .distantPast) }
-                guard let previous = scheduled, let due = previous.reviewDueAt, due <= now else { continue }
+                guard let previous = scheduled, let due = previous.reviewDueAt else { continue }
+                if let dueBy, !(due <= dueBy) { continue }
                 candidates.append(.init(unit: unit, target: target, previous: previous, dueAt: due, activeSessionID: nil))
             }
         }
@@ -296,6 +316,39 @@ struct LearningReviewRecommendation {
     let previous: LearningSession
     let dueAt: Date
     let activeSessionID: UUID?
+}
+
+/// Small derived navigation data, never persisted evidence or a memory model.
+struct LearningReviewSchedule: Equatable, Sendable {
+    struct Status: Equatable, Sendable {
+        let dueCount: Int
+        let inProgressCount: Int
+        let earliestDate: Date
+    }
+
+    static let empty = LearningReviewSchedule(inProgress: [], scheduled: [])
+    private let inProgress: [Date]
+    private let scheduled: [Date]
+
+    fileprivate init(inProgress: [Date], scheduled: [Date]) {
+        self.inProgress = inProgress
+        self.scheduled = scheduled
+    }
+
+    func status(at date: Date) -> Status? {
+        // Dates arrive sorted from the shared candidate selector. Find the due
+        // prefix without walking every saved requirement on each view update.
+        var low = 0, high = scheduled.count
+        while low < high {
+            let middle = low + (high - low) / 2
+            if scheduled[middle] <= date { low = middle + 1 } else { high = middle }
+        }
+        let earliest: Date
+        if let active = inProgress.first { earliest = low > 0 ? min(active, scheduled[0]) : active }
+        else if low > 0 { earliest = scheduled[0] }
+        else { return nil }
+        return .init(dueCount: low, inProgressCount: inProgress.count, earliestDate: earliest)
+    }
 }
 
 struct LearningSyllabus: Codable, Equatable, Sendable {

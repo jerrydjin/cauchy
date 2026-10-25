@@ -638,17 +638,19 @@ private struct LearningReviewOverviewView: View {
     @State private var clock = Date()
     @State private var opening = false
     @State private var openError: String?
+    @State private var overviewPrepared = false
     @Environment(\.dismiss) private var dismiss
 
     private var hidden: Set<UUID> { Set(hiddenRecents.split(separator: ",").compactMap { UUID(uuidString: String($0)) }) }
-    private var reviews: [LearningLibraryReview] { library.reviewOverview(at: clock, excluding: hidden) }
+    private var reviews: [LearningLibraryReview] { overviewPrepared ? library.reviewOverview(at: clock, excluding: hidden) : [] }
+    private var isPreparing: Bool { !overviewPrepared || library.isLoadingReviews }
     private var selected: LearningLibraryReview? { reviews.first { $0.id == selection } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Review across notes").font(.title2.weight(.semibold))
             Text("Return to an unfinished review or revisit an idea after a delay.").font(.callout).foregroundStyle(.secondary)
-            if library.isLoadingReviews {
+            if isPreparing, !reviews.isEmpty {
                 ProgressView("Checking saved notes…").controlSize(.small)
             }
             if library.unreadableReviewNotes > 0 {
@@ -662,9 +664,9 @@ private struct LearningReviewOverviewView: View {
                 }
             }
             if reviews.isEmpty {
-                ContentUnavailableView(library.isLoadingReviews ? "Checking your reviews"
+                ContentUnavailableView(isPreparing ? "Checking your reviews"
                     : library.unreadableReviewNotes > 0 ? "Some notes couldn’t be checked" : "No reviews due",
-                    systemImage: "calendar.badge.clock", description: Text(library.isLoadingReviews
+                    systemImage: "calendar.badge.clock", description: Text(isPreparing
                         ? "Reading saved learning progress."
                         : library.unreadableReviewNotes > 0 ? "No due reviews were found in the notes that could be checked."
                         : "A review is scheduled after an independent exit check. Your learning paths remain available."))
@@ -710,7 +712,12 @@ private struct LearningReviewOverviewView: View {
         }
         .padding(24).frame(minWidth: 560, idealWidth: 640, minHeight: 460, idealHeight: 560)
         .multilineTextAlignment(.leading)
-        .task(id: hiddenRecents) { await library.refreshReviewOverview(excluding: hidden); selectFirstIfNeeded() }
+        .task(id: hiddenRecents) {
+            await library.refreshReviewOverview(excluding: hidden)
+            guard !Task.isCancelled else { return }
+            overviewPrepared = true
+            selectFirstIfNeeded()
+        }
         .onChange(of: reviews.map(\.id)) { selectFirstIfNeeded() }
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { clock = $0 }
     }

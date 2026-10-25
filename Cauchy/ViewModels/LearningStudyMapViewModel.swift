@@ -5,7 +5,10 @@ import PDFKit
 @MainActor
 @Observable
 final class LearningStudyMapViewModel {
-    private(set) var map: LearningStudyMap?
+    private(set) var map: LearningStudyMap? {
+        didSet { mapRevision &+= 1 }
+    }
+    private(set) var mapRevision: UInt64 = 0
     private(set) var isBusy = false
     private(set) var currentPage: Int?
     private(set) var isConnectingTopics = false

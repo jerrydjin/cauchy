@@ -410,6 +410,77 @@ final class LearningStudyMapTests: XCTestCase {
         XCTAssertEqual(vm.map?.syllabus?.coverage(in: vm.map!, sessions: []).sourceMapped, 0)
     }
 
+    func testGroupedReviewHistoryRetainsFullIdentityEvidenceAndActiveWork() throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let concept = unit.targets[0], proof = unit.targets[1], application = unit.targets[2]
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        var due = passedSession(target: concept); due.reviewDueAt = clock
+        due.attempts[0].createdAt = clock.addingTimeInterval(-100)
+        var active = passedSession(target: proof)
+        active.phase = .exitCheck; active.attempts = []; active.feedback = nil
+        active.answerDraft = "Keep this current proof review exactly."
+        active.updatedAt = clock
+        active.delayedReview = .init(previousSessionID: UUID(), scheduledFor: clock, startedAt: clock, round: 1)
+        var foreignUnit = active; foreignUnit.id = UUID(); foreignUnit.updatedAt = clock.addingTimeInterval(100)
+        foreignUnit.studyTarget = .init(id: proof.id, unitID: UUID(), kind: proof.kind, objective: proof.objective)
+        var foreignKind = foreignUnit; foreignKind.id = UUID()
+        foreignKind.studyTarget = .init(id: proof.id, unitID: proof.unitID, kind: .application, objective: proof.objective)
+        var oldWording = foreignUnit; oldWording.id = UUID()
+        oldWording.studyTarget = .init(id: proof.id, unitID: proof.unitID, kind: proof.kind, objective: "An earlier proof objective")
+        var oldVersion = foreignUnit; oldVersion.id = UUID()
+        var versioned = proof; versioned.revisionID = UUID(); oldVersion.studyTarget = versioned
+        var contextOnly = concept; contextOnly.courseContext = "Reorganized course context preserves identity."
+        due.studyTarget = contextOnly
+        var unbound = due; unbound.id = UUID(); unbound.studyTarget = nil
+        var oldCorrect = passedSession(target: application); oldCorrect.reviewDueAt = clock
+        oldCorrect.attempts[0].createdAt = clock.addingTimeInterval(-100)
+        var helped = passedSession(target: application, help: true); helped.reviewDueAt = clock
+        helped.attempts[0].createdAt = clock
+        var noise = (0..<80).map { _ in passedSession(target: .init(unitID: UUID(), kind: .concept, objective: "Unrelated authored requirement")) }
+        noise += [foreignUnit, foreignKind, oldWording, oldVersion, unbound, oldCorrect, helped, due, active]
+        let original = noise
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        let queue = map.delayedReviews(sessions: noise, now: clock)
+        XCTAssertEqual(queue.map { $0.target.id }, [proof.id, concept.id])
+        XCTAssertEqual(queue.first?.activeSessionID, active.id)
+        XCTAssertEqual(queue.first?.previous.answerDraft, active.answerDraft)
+        XCTAssertEqual(queue.last?.previous.id, due.id)
+        XCTAssertEqual(map.delayedReviews(sessions: noise, now: clock, targetID: proof.id).map { $0.previous.id }, [active.id])
+        XCTAssertEqual(map.delayedReviews(sessions: noise, now: clock, targetID: concept.id).map { $0.previous.id }, [due.id])
+        XCTAssertTrue(map.delayedReviews(sessions: noise, now: clock, targetID: UUID()).isEmpty)
+        var blocked = map; blocked.units[0].pendingSourceCorrection = true
+        XCTAssertEqual(blocked.delayedReviews(sessions: noise, now: clock).map { $0.previous.id }, [active.id])
+        XCTAssertEqual(noise, original)
+        XCTAssertEqual(unit.evidence(for: application, sessions: noise)?.id, helped.attempts[0].id)
+        XCTAssertFalse(unit.evidence(for: application, sessions: noise)?.hasIndependentCorrectResult == true)
+    }
+
+    func testReviewScheduleKeepsFutureChecksAndMatchesCurrentQueueAsTheClockMovesBothWays() throws {
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        let clock = Date(timeIntervalSince1970: 1_900_000_000)
+        var due = passedSession(target: unit.targets[0]); due.reviewDueAt = clock
+        var future = passedSession(target: unit.targets[1]); future.reviewDueAt = clock.addingTimeInterval(86_400)
+        var active = passedSession(target: unit.targets[2]); active.phase = .exitCheck; active.attempts = []; active.feedback = nil
+        active.delayedReview = .init(previousSessionID: UUID(), scheduledFor: clock.addingTimeInterval(2 * 86_400), startedAt: clock, round: 1)
+        let sessions = [future, active, due]
+        let map = LearningStudyMap(pageSignatures: [], pages: [], units: [unit])
+        let schedule = map.delayedReviewSchedule(sessions: sessions)
+        XCTAssertEqual(schedule.status(at: clock.addingTimeInterval(-1))?.dueCount, 0)
+        XCTAssertEqual(schedule.status(at: clock.addingTimeInterval(-1))?.inProgressCount, 1)
+        XCTAssertEqual(schedule.status(at: clock)?.dueCount, 1)
+        XCTAssertEqual(schedule.status(at: clock.addingTimeInterval(86_400))?.dueCount, 2)
+        for date in [clock.addingTimeInterval(-1), clock, clock.addingTimeInterval(86_400), clock.addingTimeInterval(-1)] {
+            let queue = map.delayedReviews(sessions: sessions, now: date)
+            let status = try XCTUnwrap(schedule.status(at: date))
+            XCTAssertEqual(status.inProgressCount, queue.filter { $0.activeSessionID != nil }.count)
+            XCTAssertEqual(status.dueCount, queue.filter { $0.activeSessionID == nil }.count)
+            XCTAssertEqual(status.earliestDate, queue.map(\.dueAt).min())
+        }
+        XCTAssertNil(LearningReviewSchedule.empty.status(at: clock))
+        XCTAssertNil(map.delayedReviewSchedule(sessions: [future]).status(at: clock))
+        XCTAssertEqual(map.delayedReviewSchedule(sessions: [future]).status(at: clock.addingTimeInterval(86_400))?.dueCount, 1)
+    }
+
     func testDelayedReviewIsDueOnlyAfterSavedTimeAndKeepsEachRequirementSeparate() async throws {
         let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
         let map = LearningStudyMap(pageSignatures: [], pages: [.init(pageIndex: 0, status: .mapped)], units: [unit])

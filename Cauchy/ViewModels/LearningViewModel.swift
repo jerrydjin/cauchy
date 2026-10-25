@@ -4,7 +4,10 @@ import Observation
 @MainActor
 @Observable
 final class LearningViewModel {
-    private(set) var sessions: [LearningSession] = []
+    private(set) var sessions: [LearningSession] = [] {
+        didSet { sessionsRevision &+= 1 }
+    }
+    private(set) var sessionsRevision: UInt64 = 0
     private(set) var selectedSessionID: UUID?
     enum Operation {
         case lesson, assessment, exitQuestion, chapter, clarification

@@ -1,6 +1,8 @@
 import XCTest
 import PDFKit
 import AppKit
+import Observation
+import os
 @testable import Cauchy
 
 #if DEBUG
@@ -783,6 +785,55 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertEqual(library.documents.count, 1)
         XCTAssertNotNil(library.errorMessage)
         XCTAssertEqual(library.selectedDocument?.id, document.id)
+    }
+
+    func testPreparedReviewCacheFollowsLiveRestorationAndMapChangesWithoutPersistingDerivedState() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let original = document.learning.sessions
+        await library.refreshReviewOverview()
+        let clock = Date()
+        XCTAssertEqual(library.reviewOverview(at: clock).first?.dueCount, 1)
+        let sessionRevision = document.learning.sessionsRevision
+        let mapRevision = document.studyMap.mapRevision
+        for _ in 0..<4 { XCTAssertEqual(library.reviewOverview(at: clock).first?.dueCount, 1) }
+        XCTAssertEqual(document.learning.sessionsRevision, sessionRevision)
+        XCTAssertEqual(document.studyMap.mapRevision, mapRevision)
+        let sessionNotice = OSAllocatedUnfairLock(initialState: false)
+        withObservationTracking {
+            _ = library.reviewOverview(at: clock) // A prepared cache hit must retain the UI's data dependency.
+        } onChange: { sessionNotice.withLock { $0 = true } }
+        var changed = original
+        let index = try XCTUnwrap(changed.firstIndex { $0.latestExitAttempt != nil })
+        changed[index].attempts[0].setAsideAt = clock
+        document.learning.restore(changed) // Restore has no persistence callback; the data revision must still invalidate the cache.
+        XCTAssertTrue(sessionNotice.withLock { $0 })
+        XCTAssertGreaterThan(document.learning.sessionsRevision, sessionRevision)
+        XCTAssertTrue(library.reviewOverview(at: clock).isEmpty)
+        document.learning.restore(original)
+        XCTAssertEqual(library.reviewOverview(at: clock).first?.dueCount, 1)
+        let mapNotice = OSAllocatedUnfairLock(initialState: false)
+        withObservationTracking {
+            _ = library.reviewOverview(at: clock)
+        } onChange: { mapNotice.withLock { $0 = true } }
+        let text = try XCTUnwrap(document.pdfDocument.page(at: 0)?.string)
+        try document.studyMap.saveCorrection(pageIndex: 0, originalText: text,
+            correctedText: text + "\nAuthored user-verified source clarification.", note: "Source review remains required.", confirmed: true)
+        XCTAssertGreaterThan(document.studyMap.mapRevision, mapRevision)
+        XCTAssertTrue(mapNotice.withLock { $0 })
+        XCTAssertTrue(library.reviewOverview(at: clock).isEmpty)
+        let nestedRevision = document.studyMap.mapRevision
+        document.studyMap.reconcile(document: document.pdfDocument, unitID: LearningUIFixture.imageID)
+        await document.studyMap.waitForOperation()
+        XCTAssertNil(document.studyMap.errorMessage)
+        XCTAssertGreaterThan(document.studyMap.mapRevision, nestedRevision)
+        XCTAssertTrue(library.reviewOverview(at: clock).isEmpty)
+        XCTAssertEqual(document.learning.sessions, original)
+        try await controller.flush()
     }
 
     func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {

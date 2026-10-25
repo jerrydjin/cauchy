@@ -114,11 +114,12 @@ final class LearningLibraryStore: Equatable {
     private(set) var isLoadingReviews = false
     private(set) var unreadableReviewTitles: [String] = []
     var unreadableReviewNotes: Int { unreadableReviewTitles.count }
-    private struct ReviewProgress {
-        let map: LearningStudyMap?
-        let sessions: [LearningSession]
+    private struct ReviewRevision: Equatable {
+        let sessions: UInt64
+        let map: UInt64
     }
-    private var reviewProgress: [UUID: ReviewProgress] = [:]
+    private var reviewProgress: [UUID: LearningReviewSchedule] = [:]
+    @ObservationIgnored private var liveReviewCache: [UUID: (revision: ReviewRevision, schedule: LearningReviewSchedule)] = [:]
     private var reviewRequestID: UUID?
     var errorMessage: String?
     private var openRequestID: UUID?
@@ -149,8 +150,8 @@ final class LearningLibraryStore: Equatable {
         summaries = await persistence.listWorkspaceSummaries()
     }
 
-    /// Load on explicit review, not on every sidebar refresh. Retain only Learn
-    /// fields after each read; closed PDFs and reader conversations stay closed.
+    /// Prepare small schedules on explicit review, not on every sidebar refresh.
+    /// Closed PDFs stay closed; full histories are not kept in the overview cache.
     func refreshReviewOverview(excluding hidden: Set<UUID> = []) async {
         let request = UUID()
         reviewRequestID = request
@@ -158,15 +159,23 @@ final class LearningLibraryStore: Equatable {
         defer { if reviewRequestID == request { isLoadingReviews = false } }
         await refreshLibrary()
         guard reviewRequestID == request, !Task.isCancelled else { return }
-        var progress: [UUID: ReviewProgress] = [:]
+        var progress: [UUID: LearningReviewSchedule] = [:]
         var unreadable: [String] = []
         for summary in summaries {
             guard reviewRequestID == request, !Task.isCancelled else { return }
             if hidden.contains(summary.workspaceID) { continue }
-            if documents[summary.workspaceID] != nil { continue }
+            if let live = documents[summary.workspaceID] {
+                let revision = reviewRevision(for: live)
+                if liveReviewCache[live.id]?.revision == revision { continue }
+                let schedule = await Self.prepareReviewSchedule(map: live.studyMap.map, sessions: live.learning.sessions)
+                guard reviewRequestID == request, !Task.isCancelled else { return }
+                if revision == reviewRevision(for: live) { liveReviewCache[live.id] = (revision, schedule) }
+                continue
+            }
             if let saved = await persistence.loadWorkspace(id: summary.workspaceID),
                saved.workspace.id == summary.workspaceID, saved.workspace.documentURL == summary.documentURL {
-                progress[summary.workspaceID] = .init(map: saved.workspace.learningStudyMap, sessions: saved.workspace.learningSessions)
+                progress[summary.workspaceID] = await Self.prepareReviewSchedule(map: saved.workspace.learningStudyMap,
+                    sessions: saved.workspace.learningSessions)
             } else { unreadable.append(summary.documentURL.deletingPathExtension().lastPathComponent) }
         }
         guard reviewRequestID == request, !Task.isCancelled else { return }
@@ -174,16 +183,30 @@ final class LearningLibraryStore: Equatable {
         unreadableReviewTitles = unreadable.sorted()
     }
 
+    private nonisolated static func prepareReviewSchedule(map: LearningStudyMap?, sessions: [LearningSession]) async -> LearningReviewSchedule {
+        await Task.detached(priority: .utility) { map?.delayedReviewSchedule(sessions: sessions) ?? .empty }.value
+    }
+
+    private func reviewRevision(for document: LearningDocument) -> ReviewRevision {
+        .init(sessions: document.learning.sessionsRevision, map: document.studyMap.mapRevision)
+    }
+
+    private func liveReviewSchedule(for document: LearningDocument) -> LearningReviewSchedule {
+        // Reading both revisions keeps observation connected even on a cache hit.
+        let revision = reviewRevision(for: document)
+        if let cached = liveReviewCache[document.id], cached.revision == revision { return cached.schedule }
+        let schedule = document.studyMap.map?.delayedReviewSchedule(sessions: document.learning.sessions) ?? .empty
+        liveReviewCache[document.id] = (revision, schedule)
+        return schedule
+    }
+
     func reviewOverview(at date: Date, excluding hidden: Set<UUID> = []) -> [LearningLibraryReview] {
         summaries.compactMap { summary -> LearningLibraryReview? in
             guard !hidden.contains(summary.workspaceID) else { return nil }
-            let live = documents[summary.workspaceID]
-            let map = live?.studyMap.map ?? (live == nil ? reviewProgress[summary.workspaceID]?.map : nil)
-            let sessions = live?.learning.sessions ?? reviewProgress[summary.workspaceID]?.sessions ?? []
-            guard let reviews = map?.delayedReviews(sessions: sessions, now: date), !reviews.isEmpty else { return nil }
-            let active = reviews.filter { $0.activeSessionID != nil }.count
+            let schedule = documents[summary.workspaceID].map { liveReviewSchedule(for: $0) } ?? reviewProgress[summary.workspaceID]
+            guard let status = schedule?.status(at: date) else { return nil }
             return .init(workspaceID: summary.workspaceID, title: summary.documentURL.deletingPathExtension().lastPathComponent,
-                dueCount: reviews.count - active, inProgressCount: active, earliestDate: reviews.map(\.dueAt).min()!)
+                dueCount: status.dueCount, inProgressCount: status.inProgressCount, earliestDate: status.earliestDate)
         }.sorted {
             if ($0.inProgressCount > 0) != ($1.inProgressCount > 0) { return $0.inProgressCount > 0 }
             if $0.earliestDate != $1.earliestDate { return $0.earliestDate < $1.earliestDate }

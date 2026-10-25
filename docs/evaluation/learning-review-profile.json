@@ -1,0 +1,113 @@
+{
+  "scope": "Local authored Debug test-host measurements; not Release or complete startup latency.",
+  "baselineInputs": {
+    "revision": "31a62d084dd8be1d764d2fefd38511c37f640ca0",
+    "swiftMath": "fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7",
+    "workingTreeOverlay": false,
+    "harnessSHA256": "e35ef9a3498ba248543f0bb7a4c133352833ac2bb40e0bedfbba3e8b594fa150",
+    "sources": {
+      "Cauchy/Models/LearningStudyMap.swift": "f46184ec0ca011b44e11d3d6b2c948a877e8f89bde605fafeed0d0c215205576",
+      "Cauchy/ViewModels/LearningLibraryStore.swift": "02dd0a3b88ca4c6e72cdbb9c7a5c83cdc6ebcb9f7f3be9a82a3e6002c1f784b8",
+      "Cauchy/ViewModels/LearningViewModel.swift": "ce7722eb1ef3d8679af183b4e546f5c55b3d8c6f9ff54da9ba8dda815d949012",
+      "Cauchy/ViewModels/LearningStudyMapViewModel.swift": "170958c3deb4ec1343ff15182ce7c4d06dddc7257fcab41427454e16ae8aa1f8",
+      "Cauchy/Views/Learning/LearningWorkspaceView.swift": "9e864bcc2104e1b3df4701ea6c58cfb111a1cfa0ea0f7e5ed4115871d30fd522"
+    }
+  },
+  "candidateInputs": {
+    "revision": "31a62d084dd8be1d764d2fefd38511c37f640ca0",
+    "swiftMath": "fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7",
+    "workingTreeOverlay": true,
+    "harnessSHA256": "e35ef9a3498ba248543f0bb7a4c133352833ac2bb40e0bedfbba3e8b594fa150",
+    "sources": {
+      "Cauchy/Models/LearningStudyMap.swift": "ebec407678d9cc9a44c18ac3465322eb08d3f4b19666f0d9a387ea50327391ee",
+      "Cauchy/ViewModels/LearningLibraryStore.swift": "883ec87ad5e3b38153dd41dc966951bcfa0aa835528ce29a4d59e841d79394e1",
+      "Cauchy/ViewModels/LearningViewModel.swift": "b422db2d47cbd2f6ef186c3df288f47186437cfbb1fc95fe8f0687859c3e8031",
+      "Cauchy/ViewModels/LearningStudyMapViewModel.swift": "d8550f36ab6868625bde1069bdb663b494c2cb7275a9bbf23a8dedf94c2757f3",
+      "Cauchy/Views/Learning/LearningWorkspaceView.swift": "34396b3be6d11a8fcba940c63cac0349212a3a34e491cca3f11611e69b806dd7"
+    }
+  },
+  "baseline": {
+    "cases": [
+      {
+        "documents": 1,
+        "preparationMilliseconds": 0.352417,
+        "projectionMilliseconds": [
+          13.325041,
+          12.984292,
+          12.851666
+        ],
+        "sessionsPerDocument": 144,
+        "targetsPerDocument": 36,
+        "unitsPerDocument": 12
+      },
+      {
+        "documents": 12,
+        "preparationMilliseconds": 0.85925,
+        "projectionMilliseconds": [
+          2254.654625,
+          2204.338416,
+          2194.0675
+        ],
+        "sessionsPerDocument": 720,
+        "targetsPerDocument": 120,
+        "unitsPerDocument": 40
+      },
+      {
+        "documents": 30,
+        "preparationMilliseconds": 4.495916,
+        "projectionMilliseconds": [
+          28793.859542,
+          28643.600375,
+          28628.759584
+        ],
+        "sessionsPerDocument": 1920,
+        "targetsPerDocument": 240,
+        "unitsPerDocument": 80
+      }
+    ],
+    "configuration": "Standard unoptimized Debug test host",
+    "scope": "Authored live-library overview preparation and row projection; excludes PDF loading and closed-history decoding"
+  },
+  "candidate": {
+    "cases": [
+      {
+        "documents": 1,
+        "preparationMilliseconds": 2.995792,
+        "projectionMilliseconds": [
+          0.033333,
+          0.006959,
+          0.004666
+        ],
+        "sessionsPerDocument": 144,
+        "targetsPerDocument": 36,
+        "unitsPerDocument": 12
+      },
+      {
+        "documents": 12,
+        "preparationMilliseconds": 129.216334,
+        "projectionMilliseconds": [
+          0.087083,
+          0.05775,
+          0.056375
+        ],
+        "sessionsPerDocument": 720,
+        "targetsPerDocument": 120,
+        "unitsPerDocument": 40
+      },
+      {
+        "documents": 30,
+        "preparationMilliseconds": 784.486875,
+        "projectionMilliseconds": [
+          0.217375,
+          0.183791,
+          0.18225
+        ],
+        "sessionsPerDocument": 1920,
+        "targetsPerDocument": 240,
+        "unitsPerDocument": 80
+      }
+    ],
+    "configuration": "Standard unoptimized Debug test host",
+    "scope": "Authored live-library overview preparation and row projection; excludes PDF loading and closed-history decoding"
+  }
+}

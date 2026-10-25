@@ -354,7 +354,6 @@ private struct JumpPaletteRow: View {
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.interaction, Rectangle())
-            .contentShape(.hoverEffect, Rectangle())
         }
         .buttonStyle(.plain)
         .background {

@@ -132,9 +132,7 @@ extension LearningDocument {
               target.unitID == unit.id, unit.learningTargets.contains(where: { $0.matchesRequirement(target) }) else { return }
         // Existing lessons and drafts remain available for inspection, but
         // damaged source text cannot silently generate another lesson.
-        if !prepareNew, let session = learning.sessions.first(where: {
-            $0.chapter == nil && $0.delayedReview == nil && target.matchesRequirement($0.studyTarget)
-        }) {
+        if !prepareNew, let session = target.savedLesson(in: learning.sessions) {
             learning.select(session.id)
             return
         }

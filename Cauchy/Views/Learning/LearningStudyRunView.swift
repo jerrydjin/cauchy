@@ -175,9 +175,11 @@ struct LearningStudyRunCard: View {
                             .buttonStyle(.borderless).disabled(document.isBusy)
                     }
                     finishButton
-                } else if let blocker = run.blocker(in: map, sessions: document.learning.sessions), case .earlierRequirement = blocker {
+                } else if let blocker = run.blocker(in: map, sessions: document.learning.sessions),
+                          case .earlierRequirement(_, let target, _) = blocker {
                     Text(blocker.message).font(.callout).foregroundStyle(.secondary)
-                    continueButton("Open earlier requirement", symbol: "arrow.left", needsAssistant: true)
+                    continueButton("Open earlier requirement", symbol: "arrow.left",
+                        needsAssistant: target.savedLesson(in: document.learning.sessions) == nil)
                     finishButton
                 } else {
                     continueButton(run.state == .paused ? "Resume session" : "Continue session", symbol: "arrow.right",

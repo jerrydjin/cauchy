@@ -35,6 +35,12 @@ struct LearningStudyTarget: Identifiable, Codable, Equatable, Sendable {
         return id == other.id && unitID == other.unitID && kind == other.kind
             && objective == other.objective && revisionID == other.revisionID
     }
+
+    /// Local teaching can be inspected without preparing a new lesson. Delayed
+    /// checks and chapter work do not substitute for this exact requirement.
+    func savedLesson(in sessions: [LearningSession]) -> LearningSession? {
+        sessions.first { $0.chapter == nil && $0.delayedReview == nil && matchesRequirement($0.studyTarget) }
+    }
 }
 
 /// A learner's wording decision, separate from the generated source inventory.

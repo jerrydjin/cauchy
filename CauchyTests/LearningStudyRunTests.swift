@@ -12,6 +12,15 @@ private final class FailingStudyRunPlanner: LearningStudyPlannerProtocol {
 }
 
 @MainActor
+private final class UnavailableStudyRunTutor: LearningTutorProtocol {
+    let providerID = "offline"
+    let modelID: String? = "authored"
+    func makeLesson(source: LearningSource) async throws -> LearningLesson { throw LearningError.invalidResponse }
+    func assess(question: LearningQuestion, answer: String, source: LearningSource) async throws -> LearningAssessment { throw LearningError.invalidResponse }
+    func newExitQuestion(lesson: LearningLesson, source: LearningSource, previous: [String]) async throws -> LearningQuestion { throw LearningError.invalidResponse }
+}
+
+@MainActor
 final class LearningStudyRunTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
     private let source = LearningSource(passages: [.init(pageIndex: 0,
@@ -484,6 +493,89 @@ final class LearningStudyRunTests: XCTestCase {
     }
 
 #if DEBUG
+    func testSavedEarlierRequirementOpensLocallyWithoutChangingActiveOrPausedPlans() async throws {
+        for paused in [false, true] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-offline-earlier-\(UUID())")
+            defer { try? FileManager.default.removeItem(at: root) }
+            let pdf = try LearningUIFixture.makePDF()
+            var workspace = try LearningUIFixture.makeWorkspace(document: pdf, url: root.appendingPathComponent("authored.pdf"))
+            var map = try XCTUnwrap(workspace.learningStudyMap)
+            let unit = map.units[0]
+            var earlier = try XCTUnwrap(workspace.learningSessions.first { $0.studyTarget?.unitID == unit.id })
+            earlier.answerDraft = "Keep this saved prerequisite reasoning exactly."
+            let target = unit.targets[1]
+            var current = LearningSession(source: earlier.source, lesson: LearningUIFixture.lesson(source: earlier.source, target: target),
+                providerID: "authored-offline-fixture", modelID: "deterministic-v1")
+            current.studyTarget = target
+            current.answerDraft = "Keep the later proof draft while reviewing its prerequisite."
+            var run = LearningStudyRun(pageSignatures: map.pageSignatures, items: [
+                .init(unitID: unit.id, title: unit.title, target: target, mode: .lesson,
+                    existingSessionID: current.id, earlierAttemptIDs: [])
+            ], startedAt: now)
+            if paused { run.pause(at: now) }
+            map.studyRuns = [run]
+            workspace.learningStudyMap = map
+            workspace.learningSessions = [current, earlier]
+            let persistence = DocumentPersistenceService(root: root)
+            try await persistence.saveWorkspace(workspace, bookmarkData: nil)
+            let file = persistence.workspaceDirectory(for: workspace.id).appendingPathComponent("learning.json")
+            let originalBytes = try Data(contentsOf: file)
+            let loaded = await persistence.loadWorkspace(id: workspace.id)
+            let restored = try XCTUnwrap(loaded).workspace
+            var tutorRequests = 0
+            let learning = LearningViewModel(makeTutor: { tutorRequests += 1; return UnavailableStudyRunTutor() })
+            let document = LearningDocument(workspace: restored, document: pdf, bookmarkData: nil, learning: learning)
+            learning.select(current.id)
+            var learningWrites = 0, mapWrites = 0
+            learning.onChange = { _ in learningWrites += 1 }
+            document.studyMap.onChange = { _ in mapWrites += 1 }
+            XCTAssertNil(document.studyRunRecovery(for: run))
+            let blocker = try XCTUnwrap(run.blocker(in: map, sessions: learning.sessions))
+            guard case .earlierRequirement(_, let prerequisite, _) = blocker else { return XCTFail("Expected the earlier concept requirement") }
+            // The card requires an assistant only if this exact local lookup is empty.
+            XCTAssertEqual(prerequisite.savedLesson(in: learning.sessions)?.id, earlier.id)
+            document.continueStudyRun()
+            await learning.waitForOperation()
+            XCTAssertEqual(learning.selectedSessionID, earlier.id)
+            XCTAssertEqual(learning.answerDraft, earlier.answerDraft)
+            XCTAssertNil(learning.errorMessage)
+            XCTAssertEqual(tutorRequests, 0)
+            XCTAssertEqual(learningWrites, 0)
+            XCTAssertEqual(mapWrites, 0)
+            XCTAssertEqual(learning.sessions, restored.learningSessions)
+            XCTAssertEqual(document.studyMap.map, restored.learningStudyMap)
+            XCTAssertEqual(document.studyMap.currentStudyRun, run)
+            XCTAssertEqual(try Data(contentsOf: file), originalBytes)
+        }
+    }
+
+    func testSavedLessonLookupRejectsOtherVersionsKindsUnitsAndReviewActivities() throws {
+        let pdf = try LearningUIFixture.makePDF()
+        let workspace = try LearningUIFixture.makeWorkspace(document: pdf, url: URL(fileURLWithPath: "/tmp/authored.pdf"))
+        let map = try XCTUnwrap(workspace.learningStudyMap)
+        let ordinary = try XCTUnwrap(workspace.learningSessions.first { $0.phase == .practice })
+        let target = try XCTUnwrap(ordinary.studyTarget)
+        var targets: [LearningStudyTarget] = []
+        var changed = target; changed.revisionID = UUID(); targets.append(changed)
+        targets.append(.init(id: target.id, unitID: target.unitID, kind: target.kind, objective: "Earlier wording"))
+        targets.append(.init(id: target.id, unitID: target.unitID, kind: .application, objective: target.objective))
+        targets.append(.init(id: target.id, unitID: UUID(), kind: target.kind, objective: target.objective))
+        targets.append(.init(unitID: target.unitID, kind: target.kind, objective: target.objective))
+        var noise = targets.map { other in var saved = ordinary; saved.id = UUID(); saved.studyTarget = other; return saved }
+        var delayed = ordinary; delayed.id = UUID()
+        delayed.delayedReview = .init(previousSessionID: UUID(), scheduledFor: now, startedAt: now, round: 1)
+        let request = try XCTUnwrap(map.course?.modules.first.flatMap { map.chapterRequest(for: $0) })
+        var chapter = ordinary; chapter.id = UUID(); chapter.chapter = .init(request: request, challenge: LearningUIFixture.challenge(request: request))
+        var unbound = ordinary; unbound.id = UUID(); unbound.studyTarget = nil
+        noise += [delayed, chapter, unbound]
+        XCTAssertNil(target.savedLesson(in: noise)) // Missing teaching must still require an assistant.
+        var contextOnly = ordinary
+        var contextual = target; contextual.courseContext = "Reorganized orientation only."
+        contextOnly.studyTarget = contextual
+        XCTAssertEqual(target.savedLesson(in: noise + [contextOnly])?.id, ordinary.id)
+        XCTAssertEqual(target.savedLesson(in: [ordinary] + noise), ordinary)
+    }
+
     func testChangedTranscriptionRecoveryPreservesActiveAndPausedPlansAcrossRestart() async throws {
         for paused in [false, true] {
             let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-ui-fixture-run-recovery-\(UUID())")

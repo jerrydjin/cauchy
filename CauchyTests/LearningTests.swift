@@ -657,6 +657,134 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertEqual(try encoder.encode(reloaded.library?.selectedDocument?.learning.sessions), expectedSessions)
     }
 
+    func testReviewOverviewReadsClosedNotesAndPrefersLiveWorkWithoutChangingTheCurrentTask() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let secondURL = root.appendingPathComponent("Second-notes.pdf")
+        XCTAssertTrue(document.pdfDocument.write(to: secondURL))
+        var second = try LearningUIFixture.makeWorkspace(document: document.pdfDocument, url: secondURL)
+        second.id = UUID()
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await controller.flush()
+        try await persistence.saveWorkspace(second, bookmarkData: nil)
+        let destination = library.destination
+        let selectedSession = document.learning.selectedSessionID
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let sessions = try encoder.encode(document.learning.sessions)
+        let map = try encoder.encode(document.studyMap.map)
+        await library.refreshReviewOverview()
+        let now = Date()
+        let queue = library.reviewOverview(at: now)
+        XCTAssertEqual(Set(queue.map(\.id)), [document.id, second.id])
+        XCTAssertTrue(queue.allSatisfy { $0.dueCount == 1 && $0.inProgressCount == 0 })
+        XCTAssertEqual(library.documents.count, 1) // Reading closed progress does not open its PDF or install a live document.
+        XCTAssertEqual(library.destination, destination)
+        XCTAssertEqual(document.learning.selectedSessionID, selectedSession)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), sessions)
+        XCTAssertEqual(try encoder.encode(document.studyMap.map), map)
+        XCTAssertFalse(library.isLoadingReviews)
+        XCTAssertEqual(library.unreadableReviewNotes, 0)
+        let review = try XCTUnwrap(document.studyMap.map?.nextDelayedReview(sessions: document.learning.sessions, now: now))
+        let attempt = try XCTUnwrap(review.previous.latestExitAttempt)
+        document.learning.setAssessmentAside(true, sessionID: review.previous.id, attemptID: attempt.id)
+        XCTAssertFalse(library.reviewOverview(at: now).contains { $0.id == document.id })
+        document.learning.setAssessmentAside(false, sessionID: review.previous.id, attemptID: attempt.id)
+        document.learning.startDelayedReview(review); await document.learning.waitForOperation()
+        document.learning.answerDraft = "Keep this unfinished review while checking other notes."
+        let live = try XCTUnwrap(library.reviewOverview(at: now).first)
+        XCTAssertEqual(live.id, document.id)
+        XCTAssertEqual(live.inProgressCount, 1)
+        XCTAssertEqual(live.dueCount, 0)
+        XCTAssertEqual(library.reviewOverview(at: now, excluding: [document.id]).map(\.id), [second.id])
+        let updatedMap = try XCTUnwrap(document.studyMap.map)
+        let unit = try XCTUnwrap(updatedMap.units.first { $0.id == review.unit.id })
+        try document.studyMap.reviseGoal(review.target, in: unit, objective: "A changed requirement for this same source.",
+            note: "Old review work stays saved, without leading the revised queue.", document: document.pdfDocument)
+        XCTAssertFalse(library.reviewOverview(at: now).contains { $0.id == document.id })
+        XCTAssertEqual(document.learning.answerDraft, "Keep this unfinished review while checking other notes.")
+        let heldPDF = secondURL.appendingPathExtension("held")
+        try FileManager.default.moveItem(at: secondURL, to: heldPDF)
+        let beforeMissingOpen = library.destination
+        await library.navigate(to: .studyMap(second.id))
+        XCTAssertEqual(library.destination, beforeMissingOpen)
+        XCTAssertEqual(document.learning.answerDraft, "Keep this unfinished review while checking other notes.")
+        XCTAssertNotNil(library.errorMessage)
+        XCTAssertNil(library.documents[second.id])
+        try FileManager.default.moveItem(at: heldPDF, to: secondURL)
+        library.errorMessage = nil
+        await library.navigate(to: .studyMap(second.id))
+        XCTAssertEqual(library.selectedDocument?.id, second.id)
+        XCTAssertEqual(library.destination, .studyMap(second.id))
+        XCTAssertEqual(try encoder.encode(library.selectedDocument?.learning.sessions), try encoder.encode(second.learningSessions))
+        XCTAssertEqual(try encoder.encode(library.selectedDocument?.studyMap.map), try encoder.encode(second.learningStudyMap))
+        XCTAssertEqual(document.learning.answerDraft, "Keep this unfinished review while checking other notes.")
+        try await controller.flush()
+    }
+
+    func testReviewOverviewDoesNotCountStaleOrFutureChecksAndReportsUnreadableSavedProgress() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let now = Date()
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        var stale = try LearningUIFixture.makeWorkspace(document: document.pdfDocument, url: root.appendingPathComponent("Revised-notes.pdf"))
+        stale.id = UUID()
+        let map = try XCTUnwrap(stale.learningStudyMap)
+        let review = try XCTUnwrap(map.nextDelayedReview(sessions: stale.learningSessions, now: now))
+        let index = try XCTUnwrap(stale.learningStudyMap?.units.firstIndex { $0.id == review.unit.id })
+        stale.learningStudyMap?.units[index].goalRevisions = [.init(previous: review.target, objective: "Revised goal with the same ID",
+            note: "Do not inherit earlier credit", unitTitle: review.unit.title, source: review.unit.teachingAnchor, createdAt: now)]
+        try await persistence.saveWorkspace(stale, bookmarkData: nil)
+        var future = try LearningUIFixture.makeWorkspace(document: document.pdfDocument, url: root.appendingPathComponent("Future-notes.pdf"))
+        future.id = UUID()
+        for i in future.learningSessions.indices where future.learningSessions[i].reviewDueAt != nil {
+            future.learningSessions[i].reviewDueAt = now.addingTimeInterval(86_400)
+        }
+        try await persistence.saveWorkspace(future, bookmarkData: nil)
+        var unreadable = future; unreadable.id = UUID(); unreadable.documentURL = root.appendingPathComponent("Unreadable-notes.pdf")
+        try await persistence.saveWorkspace(unreadable, bookmarkData: nil)
+        try Data("invalid authored workspace".utf8).write(to: persistence.workspaceFileURL(for: unreadable.id))
+        await library.refreshReviewOverview()
+        XCTAssertEqual(library.reviewOverview(at: now).map(\.id), [document.id])
+        XCTAssertEqual(library.unreadableReviewNotes, 1)
+        XCTAssertEqual(library.unreadableReviewTitles, ["Unreadable-notes"])
+        XCTAssertNil(library.documents[stale.id])
+        XCTAssertNil(library.documents[future.id])
+        await library.refreshReviewOverview(excluding: [unreadable.id, document.id])
+        XCTAssertEqual(library.unreadableReviewNotes, 0)
+        XCTAssertTrue(library.reviewOverview(at: now, excluding: [document.id]).isEmpty)
+    }
+
+    func testSavedFixtureNavigationRejectsRecordsOutsideItsAuthoredRoot() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let nested = root.appendingPathComponent("outside-allowed-pdf-location")
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        let url = nested.appendingPathComponent("notes.pdf")
+        XCTAssertTrue(document.pdfDocument.write(to: url))
+        var record = try LearningUIFixture.makeWorkspace(document: document.pdfDocument, url: url); record.id = UUID()
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await persistence.saveWorkspace(record, bookmarkData: nil)
+        await library.refreshLibrary()
+        let destination = library.destination
+        await library.navigate(to: .studyMap(record.id))
+        XCTAssertEqual(library.destination, destination)
+        XCTAssertEqual(library.documents.count, 1)
+        XCTAssertNotNil(library.errorMessage)
+        XCTAssertEqual(library.selectedDocument?.id, document.id)
+    }
+
     func testRequirementHistoryAndExplicitOpenPreserveCompleteWorkAcrossRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }

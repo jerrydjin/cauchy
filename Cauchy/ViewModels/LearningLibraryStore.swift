@@ -15,6 +15,15 @@ enum LearningDestination: Hashable {
     }
 }
 
+struct LearningLibraryReview: Identifiable, Equatable {
+    var id: UUID { workspaceID }
+    let workspaceID: UUID
+    let title: String
+    let dueCount: Int
+    let inProgressCount: Int
+    let earliestDate: Date
+}
+
 /// Learning owns its PDF and tutor state independently of reader windows.
 /// The saved document record remains shared, with one current learning model
 /// per document and a merged snapshot for every write.
@@ -102,6 +111,15 @@ final class LearningLibraryStore: Equatable {
     private(set) var documents: [UUID: LearningDocument] = [:]
     private(set) var summaries: [WorkspaceSummary] = []
     private(set) var isLoading = false
+    private(set) var isLoadingReviews = false
+    private(set) var unreadableReviewTitles: [String] = []
+    var unreadableReviewNotes: Int { unreadableReviewTitles.count }
+    private struct ReviewProgress {
+        let map: LearningStudyMap?
+        let sessions: [LearningSession]
+    }
+    private var reviewProgress: [UUID: ReviewProgress] = [:]
+    private var reviewRequestID: UUID?
     var errorMessage: String?
     private var openRequestID: UUID?
     private let persistence: DocumentPersistenceService
@@ -129,6 +147,48 @@ final class LearningLibraryStore: Equatable {
 
     func refreshLibrary() async {
         summaries = await persistence.listWorkspaceSummaries()
+    }
+
+    /// Load on explicit review, not on every sidebar refresh. Retain only Learn
+    /// fields after each read; closed PDFs and reader conversations stay closed.
+    func refreshReviewOverview(excluding hidden: Set<UUID> = []) async {
+        let request = UUID()
+        reviewRequestID = request
+        isLoadingReviews = true
+        defer { if reviewRequestID == request { isLoadingReviews = false } }
+        await refreshLibrary()
+        guard reviewRequestID == request, !Task.isCancelled else { return }
+        var progress: [UUID: ReviewProgress] = [:]
+        var unreadable: [String] = []
+        for summary in summaries {
+            guard reviewRequestID == request, !Task.isCancelled else { return }
+            if hidden.contains(summary.workspaceID) { continue }
+            if documents[summary.workspaceID] != nil { continue }
+            if let saved = await persistence.loadWorkspace(id: summary.workspaceID),
+               saved.workspace.id == summary.workspaceID, saved.workspace.documentURL == summary.documentURL {
+                progress[summary.workspaceID] = .init(map: saved.workspace.learningStudyMap, sessions: saved.workspace.learningSessions)
+            } else { unreadable.append(summary.documentURL.deletingPathExtension().lastPathComponent) }
+        }
+        guard reviewRequestID == request, !Task.isCancelled else { return }
+        reviewProgress = progress
+        unreadableReviewTitles = unreadable.sorted()
+    }
+
+    func reviewOverview(at date: Date, excluding hidden: Set<UUID> = []) -> [LearningLibraryReview] {
+        summaries.compactMap { summary -> LearningLibraryReview? in
+            guard !hidden.contains(summary.workspaceID) else { return nil }
+            let live = documents[summary.workspaceID]
+            let map = live?.studyMap.map ?? (live == nil ? reviewProgress[summary.workspaceID]?.map : nil)
+            let sessions = live?.learning.sessions ?? reviewProgress[summary.workspaceID]?.sessions ?? []
+            guard let reviews = map?.delayedReviews(sessions: sessions, now: date), !reviews.isEmpty else { return nil }
+            let active = reviews.filter { $0.activeSessionID != nil }.count
+            return .init(workspaceID: summary.workspaceID, title: summary.documentURL.deletingPathExtension().lastPathComponent,
+                dueCount: reviews.count - active, inProgressCount: active, earliestDate: reviews.map(\.dueAt).min()!)
+        }.sorted {
+            if ($0.inProgressCount > 0) != ($1.inProgressCount > 0) { return $0.inProgressCount > 0 }
+            if $0.earliestDate != $1.earliestDate { return $0.earliestDate < $1.earliestDate }
+            return $0.workspaceID.uuidString < $1.workspaceID.uuidString
+        }
     }
 
     @discardableResult
@@ -213,8 +273,26 @@ final class LearningLibraryStore: Equatable {
         }
         if documents[destination.documentID] == nil {
             guard let summary = summaries.first(where: { $0.workspaceID == destination.documentID }) else { return }
-            await open(summary.documentURL)
-            guard selectedDocument?.id == destination.documentID else { return }
+            if isVerificationFixture {
+                #if DEBUG
+                let root = persistence.applicationSupportRoot().deletingLastPathComponent()
+                guard let verifiedRoot = try? LearningUIFixture.validatedRoot(root.path),
+                      let saved = await persistence.loadWorkspace(id: summary.workspaceID),
+                      saved.workspace.id == summary.workspaceID,
+                      saved.workspace.documentURL.standardizedFileURL.resolvingSymlinksInPath().deletingLastPathComponent() == verifiedRoot,
+                      saved.workspace.documentURL == summary.documentURL,
+                      let pdf = PDFDocument(url: saved.workspace.documentURL) else {
+                    errorMessage = "Couldn’t open these saved authored fixture notes. The PDF or saved record is unavailable, or its location is outside the temporary root."
+                    return
+                }
+                _ = install(saved.workspace, document: pdf, bookmarkData: nil)
+                #else
+                return
+                #endif
+            } else {
+                await open(summary.documentURL)
+                guard selectedDocument?.id == destination.documentID else { return }
+            }
         }
         guard let entry = documents[destination.documentID] else { return }
         openRequestID = nil

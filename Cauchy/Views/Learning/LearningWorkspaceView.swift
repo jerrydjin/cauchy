@@ -28,6 +28,7 @@ struct LearningWorkspaceView: View {
     @State private var showingStudyPlan = false
     @State private var lessonDetails: LearningSession?
     @State private var showingHistorySearch = false
+    @State private var showingReviewOverview = false
     @AppStorage("library.hiddenRecents") private var hiddenRecents = ""
     // Learn has one window. Keep its last working location across window
     // closure and app termination, when scene storage may be discarded.
@@ -38,7 +39,7 @@ struct LearningWorkspaceView: View {
 
     private var canPlanStudySession: Bool {
         _ = assistantPreferenceRevision
-        guard lessonDetails == nil, !showingStudyPlan, !showingHistorySearch,
+        guard lessonDetails == nil, !showingStudyPlan, !showingHistorySearch, !showingReviewOverview,
               let document = library.selectedDocument, !document.isBusy,
               document.studyMap.map?.course != nil else { return false }
         let run = document.studyMap.currentStudyRun
@@ -47,7 +48,7 @@ struct LearningWorkspaceView: View {
     }
 
     private var canFindSavedLesson: Bool {
-        guard lessonDetails == nil, !showingStudyPlan, !showingHistorySearch,
+        guard lessonDetails == nil, !showingStudyPlan, !showingHistorySearch, !showingReviewOverview,
               let document = library.selectedDocument else { return false }
         return !document.isBusy && !document.learning.sessions.isEmpty
     }
@@ -161,6 +162,12 @@ struct LearningWorkspaceView: View {
                     }
                 }
                 ToolbarItem {
+                    Button("Review across notes", systemImage: "calendar.badge.clock") { showingReviewOverview = true }
+                        .keyboardShortcut("r", modifiers: [.command, .shift])
+                        .help("See due checks and unfinished reviews across your notes (⇧⌘R)")
+                        .disabled(lessonDetails != nil || showingStudyPlan || showingHistorySearch || showingReviewOverview)
+                }
+                ToolbarItem {
                     Button("Find a saved lesson", systemImage: "magnifyingglass") { showingHistorySearch = true }
                         .help("Find a saved lesson (⇧⌘F)")
                         .disabled(!canFindSavedLesson)
@@ -224,7 +231,7 @@ struct LearningWorkspaceView: View {
             }
             return true
         }
-        .alert("Couldn’t open your notes", isPresented: Binding(get: { library.errorMessage != nil }, set: { if !$0 { library.errorMessage = nil } })) {
+        .alert("Couldn’t open your notes", isPresented: Binding(get: { library.errorMessage != nil && !showingReviewOverview }, set: { if !$0 { library.errorMessage = nil } })) {
             Button("OK") { library.errorMessage = nil }
         } message: {
             Text(library.errorMessage ?? "")
@@ -233,6 +240,9 @@ struct LearningWorkspaceView: View {
             let id = library.selectedDocument?.id.uuidString ?? ""
             if restoredDocument != id { restoredSession = "" }
             restoredDocument = id
+        }
+        .sheet(isPresented: $showingReviewOverview) {
+            LearningReviewOverviewView(library: library, hiddenRecents: hiddenRecents)
         }
         .onChange(of: library.selectedDocument?.learning.selectedSessionID) {
             guard let document = library.selectedDocument else { return }
@@ -618,5 +628,99 @@ private struct LearningSourcePDFView: NSViewRepresentable {
     func updateNSView(_ view: PDFView, context: Context) {
         if view.document !== document { view.document = document }
         if let page = document.page(at: pageIndex), view.currentPage !== page { view.go(to: page) }
+    }
+}
+
+private struct LearningReviewOverviewView: View {
+    let library: LearningLibraryStore
+    let hiddenRecents: String
+    @State private var selection: UUID?
+    @State private var clock = Date()
+    @State private var opening = false
+    @State private var openError: String?
+    @Environment(\.dismiss) private var dismiss
+
+    private var hidden: Set<UUID> { Set(hiddenRecents.split(separator: ",").compactMap { UUID(uuidString: String($0)) }) }
+    private var reviews: [LearningLibraryReview] { library.reviewOverview(at: clock, excluding: hidden) }
+    private var selected: LearningLibraryReview? { reviews.first { $0.id == selection } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Review across notes").font(.title2.weight(.semibold))
+            Text("Return to an unfinished review or revisit an idea after a delay.").font(.callout).foregroundStyle(.secondary)
+            if library.isLoadingReviews {
+                ProgressView("Checking saved notes…").controlSize(.small)
+            }
+            if library.unreadableReviewNotes > 0 {
+                DisclosureGroup("\(library.unreadableReviewNotes) \(library.unreadableReviewNotes == 1 ? "set of notes couldn’t" : "sets of notes couldn’t") be checked") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(library.unreadableReviewTitles.enumerated()), id: \.offset) { _, title in
+                            Text(title).font(.callout).textSelection(.enabled)
+                        }
+                        Text("Try refreshing or open these notes from the sidebar.").font(.caption).foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                }
+            }
+            if reviews.isEmpty {
+                ContentUnavailableView(library.isLoadingReviews ? "Checking your reviews"
+                    : library.unreadableReviewNotes > 0 ? "Some notes couldn’t be checked" : "No reviews due",
+                    systemImage: "calendar.badge.clock", description: Text(library.isLoadingReviews
+                        ? "Reading saved learning progress."
+                        : library.unreadableReviewNotes > 0 ? "No due reviews were found in the notes that could be checked."
+                        : "A review is scheduled after an independent exit check. Your learning paths remain available."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(selection: $selection) {
+                    ForEach(reviews) { review in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(review.title).font(.headline)
+                            Text(status(review)).font(.callout)
+                            Text("Earliest scheduled check: \(review.earliestDate.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }.padding(.vertical, 6).tag(review.id)
+                    }
+                }.accessibilityLabel("Notes with due or unfinished reviews")
+            }
+            Text("Open a learning path to review its current requirements and source.").font(.caption).foregroundStyle(.secondary)
+            if let openError { Text(openError).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
+            HStack {
+                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Refresh", systemImage: "arrow.clockwise") {
+                    Task { await library.refreshReviewOverview(excluding: hidden); clock = Date() }
+                }.disabled(library.isLoadingReviews || opening)
+                Spacer()
+                Button("Open learning path") {
+                    guard let selected else { return }
+                    openError = nil
+                    library.errorMessage = nil
+                    opening = true
+                    Task {
+                        await library.navigate(to: .studyMap(selected.workspaceID))
+                        opening = false
+                        if library.selectedDocument?.id == selected.workspaceID { dismiss() }
+                        else {
+                            openError = library.errorMessage ?? "These notes couldn’t be opened. Refresh the overview or reopen the PDF from the sidebar."
+                            library.errorMessage = nil
+                        }
+                    }
+                }
+                .buttonStyle(.glassProminent).keyboardShortcut(.defaultAction)
+                .disabled(selected == nil || opening || library.isLoading)
+            }
+        }
+        .padding(24).frame(minWidth: 560, idealWidth: 640, minHeight: 460, idealHeight: 560)
+        .multilineTextAlignment(.leading)
+        .task(id: hiddenRecents) { await library.refreshReviewOverview(excluding: hidden); selectFirstIfNeeded() }
+        .onChange(of: reviews.map(\.id)) { selectFirstIfNeeded() }
+        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { clock = $0 }
+    }
+
+    private func selectFirstIfNeeded() {
+        if !reviews.contains(where: { $0.id == selection }) { selection = reviews.first?.id }
+    }
+
+    private func status(_ review: LearningLibraryReview) -> String {
+        [review.inProgressCount > 0 ? "\(review.inProgressCount) in progress" : nil,
+         review.dueCount > 0 ? "\(review.dueCount) due" : nil].compactMap { $0 }.joined(separator: " · ")
     }
 }

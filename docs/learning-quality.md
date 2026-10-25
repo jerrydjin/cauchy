@@ -1,5 +1,7 @@
 # Learning quality in Cauchy
 
+The [24–25 October cross-notes review overview](evaluation/learning-review-overview.md) exposes eligible due checks and unfinished reviews across saved notes. It uses current evidence rules, prefers live work, identifies unreadable records and opens the current path without starting a tutor. All 442 macOS tests and native multi-document navigation, missing-file explanation/retry, original-draft restoration and exact learning-state preservation through restart pass.
+
 The [24 October goal-history recovery fix](evaluation/learning-goal-history-recovery.md) keeps revision decisions readable before a course is available and beside blocked planned sessions. A focused history view distinguishes current goals, earlier goals and earlier-source references. All 439 macOS tests pass; native recovery/restart, long-history keyboard reading and exact read-only state preservation pass across three authored fixtures. A redundant timestamp assertion in the earlier persistence test was corrected without changing product persistence.
 
 The [24 October study-goal revision flow](evaluation/learning-goal-revision.md) lets learners correct generated wording with a reason and retained source provenance. Each revision starts unchecked, including a return to earlier wording; old lessons and answers remain readable while source/proof and syllabus obligations stay intact. All 437 macOS tests and native save/cancel, history, separate-lesson and exact cold-restart checks pass. No live model evaluation was performed.

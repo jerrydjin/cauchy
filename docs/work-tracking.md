@@ -20,6 +20,7 @@ These are entry points for investigating each issue, not claims that the planned
 
 | Issue | Relevant code and evidence |
 | --- | --- |
+| [JERRY-119: Review across saved notes](https://linear.app/jerryjin/issue/JERRY-119) | [On-demand overview and current-work policy](../Cauchy/ViewModels/LearningLibraryStore.swift), [native review sheet](../Cauchy/Views/Learning/LearningWorkspaceView.swift), [442-test and multi-document recovery/restart verification](evaluation/learning-review-overview.md) |
 | [JERRY-118: Read goal history during recovery](https://linear.app/jerryjin/issue/JERRY-118) | [Read-only history projection](../Cauchy/Models/LearningStudyMap.swift), [recovery and course access](../Cauchy/Views/Learning/LearningStudyMapView.swift), [439-test and native keyboard/restart verification](evaluation/learning-goal-history-recovery.md) |
 | [JERRY-117: Revise generated study goals](https://linear.app/jerryjin/issue/JERRY-117) | [Versioned local decisions](../Cauchy/Models/LearningStudyMap.swift), [native editor](../Cauchy/Views/Learning/LearningStudyMapView.swift), [437-test and native restart verification](evaluation/learning-goal-revision.md) |
 | [JERRY-116: Attribute replacement questions correctly](https://linear.app/jerryjin/issue/JERRY-116) | [Optional content attribution](../Cauchy/Models/LearningSession.swift), [history projection](../Cauchy/Models/LearningRequirementHistory.swift), [432-test and persistence/export verification](evaluation/learning-tutor-attribution.md) |

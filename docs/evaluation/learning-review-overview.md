@@ -1,0 +1,43 @@
+# Review across saved notes
+
+Tracked by [JERRY-119](https://linear.app/jerryjin/issue/JERRY-119). Each path already offered its next delayed check, but finding reviews across several sets of notes required opening each document. Learn now offers **Review across notes** in its toolbar and with **Shift-Command-R**.
+
+The overview lists notes with eligible checks, keeping **in progress** separate from **due**. Unfinished reviews lead the list, followed by the earliest scheduled date, with a stable workspace-ID tie-break. The date is a schedule reference, not a claim about mastery or forgetting. Selecting **Open learning path** opens the current path; it never submits an answer or starts a new tutor request. A document already busy retains the existing navigation protection for its running task.
+
+The store loads closed progress only when the overview is requested or refreshed. It uses the existing persistence API and retains only Learn maps/sessions after each read. PDFs are not opened and closed documents are not installed merely to calculate the overview. The existing persistence reader may decode a complete workspace temporarily; this is not a new lightweight disk index. No shared persistence format, reader behavior or workspace summary fields changed.
+
+The overview delegates eligibility to `LearningStudyMap.delayedReviews`: exact requirement versions, personal assessment exclusions, help/criteria gates, source obligations and saved review resumption retain their existing policy. Live documents override cached closed progress immediately. Hidden recent notes are excluded from both loading and display. Unreadable or mismatched saved records are counted and named in a disclosure; an incomplete read cannot produce an unqualified **No reviews due** state. The clock advances once a minute while open, and Refresh explicitly reloads saved records.
+
+File-open failures appear inside the overview. Native testing exposed that the window's existing alert could remain hidden behind the sheet, leaving no visible explanation until the sheet closed. The window alert is suppressed while this sheet is open; a failed selection is reported locally, leaves the sheet and current document intact, and allows a retry after the PDF becomes available. Opening a different path still uses current saved/live work rather than a cached review request.
+
+The debug verification library can now navigate to an additional saved fixture document. This is limited to records whose IDs/URLs match and whose resolved PDF is directly inside a validated, marked temporary fixture root. Arbitrary fixture imports remain refused; nested or escaping locations cannot be opened through this route. Production document opening is unchanged.
+
+## Verification — 24–25 October 2026
+
+The final complete macOS suite passes **442 tests, zero failures/skips and no reported runtime warnings**. Three added regressions cover:
+
+* an open document and closed saved notes in one overview, without installing the closed PDF or changing the current destination/selection/map/sessions; live assessment exclusion/reinstatement, starting an unfinished review, a changed requirement removing old eligibility, hidden notes, failed navigation when a disposable PDF is held aside, successful retry and exact preservation of the original draft;
+* closed notes whose goal version changed or whose scheduled check is still in the future, plus an unreadable record that is counted/named rather than presented as an empty complete queue; excluding hidden unreadable notes removes them from that read;
+* verification navigation rejecting a saved PDF outside the allowed direct fixture location, preserving the selected document and destination.
+
+The final source is an archive of `42aa5c9` plus three byte-identical Swift source/test inputs in `/tmp/cauchy-review119-validation`, hashed in `/tmp/cauchy-review119-inputs.json`. SwiftMath remains pinned at `fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7`; existing packages are used with automatic resolution disabled. Final results: `/tmp/cauchy-review119-recovery.xcresult`, `/tmp/cauchy-review119-recovery.log`, `/tmp/cauchy-review119-recovery-summary.json`. Earlier passing runs precede the native copy/alignment and error-recovery fixes; their results are retained separately. No new Swift files require project regeneration. `git diff --check` passes.
+
+### Native multi-document flow
+
+The known disposable app identity `/tmp/CauchyChapterFeedback112.app` was reused after confirmed process stops, with its original plist/dylib backed up. The final tested dylib is `/tmp/cauchy-review119-recovery-tested.dylib`, SHA-256 `e7ccb79516ca6c3efa77459193dd98d10ab79a36bb7c2be6de4c0fafae9716dd`. All native app interaction used the computer-use tool.
+
+Two separate authored roots, `/tmp/cauchy-ui-fixture-review119-native` and `/tmp/cauchy-ui-fixture-review119-missing`, each contain a primary document with an unfinished delayed check, a second saved document with a due application check, and a deliberately unreadable third workspace. These are composed fixture inputs, not a live model's output or learner outcomes. Their base embedded Learn fields are neutralized so their complete learning sidecars are authoritative.
+
+Observed:
+
+1. Shift-Command-R opens the overview from the path. It lists the primary notes as **1 in progress** and the closed second notes as **1 due**, with their scheduled dates. The unreadable third record is separately counted. The final disclosure names it, with leading-aligned readable text and a refresh/sidebar recovery route.
+2. Keyboard Down selects the closed second notes; Return opens their current learning path. Its due check remains a separate explicit action. No new question, session, assessment or help flag is produced by opening the overview or path.
+3. Reopening the overview returns to the primary notes. **Continue delayed check** restores the original `REVIEW119-IN-PROGRESS` draft exactly, with the same question and unchanged unchecked help control. All three learning states remain equal to their pre-interaction snapshots.
+4. In the separate missing-file root, the second PDF is temporarily renamed only after the overview reads its saved due state. The initial implementation leaves the sheet visible with no explanation; closing it exposes the deferred parent alert. This finding led to the local error fix before committing.
+5. On the final tested runtime, the same held-PDF action produces an explanation **inside the overview**, retains its selected record and preserves the current document. Restoring the exact PDF and pressing Return retries successfully, opens the second path and leaves no deferred alert. This exercises the debug fixture's unavailable-file message and the common overview error presentation; the installed app's normal file/bookmark flow is unchanged.
+6. Final Refresh retains the correct rows and unreadable-note disclosure. Opening the primary path and continuing its delayed check again restores the complete original draft. Screenshots `/tmp/cauchy-review119-final-overview.png`, `/tmp/cauchy-review119-missing-error-visible.png` and `/tmp/cauchy-review119-final-draft.png` were inspected for visible content and controls. Earlier captures retain the hidden-error and alignment findings.
+7. Actual Cmd-Q, confirmed process stop and cold reopen of the final runtime restore that same delayed draft. The overview again shows the same in-progress/due counts and separate unreadable record. Escape closes the overview; another quit completes the check. The final restart check occurred on 25 October with unchanged source/test hashes and unchanged learning state.
+
+The canonical complete learning records in all six workspace directories equal `/tmp/cauchy-review119-before.json` (with file paths mapped to the second root). This includes the deliberately unreadable workspace's retained learning sidecar, every earlier session field, all maps/source obligations, questions, drafts, grades and help flags. The held PDF is restored byte-for-byte. The app is left stopped and its previous plist/dylib restored byte-for-byte. Protected prerequisite and goal-revision fixtures remain equal to their earlier verified snapshots. No installed app, normal learner library, reader or system settings changed.
+
+The checks establish the stated eligibility, navigation, recovery and preservation behavior. They do not establish learning efficacy, general grading accuracy, an exhaustive accessibility audit, a large-library performance profile, native bookmarks for unavailable real notes, or every concurrent refresh/cancellation ordering. No live model evaluation, push, merge or release occurred.

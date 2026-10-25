@@ -316,6 +316,37 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("1", numbers)
         self.assertNotIn("2", numbers)
 
+    def test_parenthesized_statement_number_is_not_an_equation(self) -> None:
+        text = "Theorem (3.2) gives the bound used in (3.1)."
+        for profile in ("main", "hover"):
+            matches = all_references(text, profile)
+            self.assertEqual(
+                [(item.kind, item.number, item.text) for item in matches],
+                [("theorem", "3.2", "Theorem (3.2)"), ("equation", "3.1", "(3.1)")],
+                profile,
+            )
+            inside = text.index("(3.2)") + 1
+            self.assertEqual(best_reference(text, inside, profile).kind, "theorem")
+            self.assertEqual(
+                (first_reference("Definition (2.5) names the term.", profile).kind,
+                 first_reference("Definition (2.5) names the term.", profile).number),
+                ("definition", "2.5"),
+            )
+            self.assertEqual(all_references("By [12, Theorem (3.2)] the map is continuous.", profile), [])
+            self.assertEqual(first_reference("from Eq. (2.3) it follows", profile).kind, "equation")
+            self.assertEqual(first_reference("as shown by (1.2)", profile).kind, "equation")
+
+        page = "\n".join([
+            "Lemma (4). Suppose the group is finite.",
+            "Apply Lemma (4) in the estimate (5).",
+            "A = B + C (7)",
+        ])
+        found = [(item.kind, item.number) for item in declaration_matches(page)]
+        self.assertEqual(found.count(("lemma", "4")), 1)
+        self.assertIn(("equation", "7"), found)
+        self.assertNotIn(("equation", "4"), found)
+        self.assertNotIn(("equation", "5"), found)
+
     def test_line_start_and_number_first_match_the_app(self) -> None:
         page = "\n".join([
             "Theorem 1.1.1",

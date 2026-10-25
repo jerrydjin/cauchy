@@ -94,6 +94,35 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertNil(ReferenceDetector.firstReference(in: "Thm. 3.2 is abbreviated."))
     }
 
+    func testParenthesizedStatementNumberIsNotAnEquation() {
+        let text = "Theorem (3.2) gives the bound used in (3.1)."
+        let matches = ReferenceDetector.allReferences(in: text)
+        XCTAssertEqual(matches.map(\.reference), [
+            DetectedReference(kind: .theorem, number: "3.2"),
+            DetectedReference(kind: .equation, number: "3.1"),
+        ])
+        XCTAssertEqual(matches.map { String(text[$0.range]) }, ["Theorem (3.2)", "(3.1)"])
+
+        let inside = (text as NSString).range(of: "(3.2)").location + 1
+        XCTAssertEqual(
+            ReferenceDetector.bestReference(in: text, cursorOffset: inside),
+            DetectedReference(kind: .theorem, number: "3.2")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Definition (2.5) names the term."),
+            DetectedReference(kind: .definition, number: "2.5")
+        )
+        XCTAssertNil(ReferenceDetector.firstReference(in: "By [12, Theorem (3.2)] the map is continuous."))
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "from Eq. (2.3) it follows")?.kind,
+            .equation
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "as shown by (1.2)")?.kind,
+            .equation
+        )
+    }
+
     func testNoReferenceInPlainText() {
         XCTAssertNil(ReferenceDetector.firstReference(in: "This is ordinary text."))
     }

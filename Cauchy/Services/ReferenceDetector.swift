@@ -36,6 +36,10 @@ enum ReferenceDetector {
     private static let bracketKeyRegex = try! NSRegularExpression(
         pattern: #"^(?:see\s+)?(\#(ReferenceParsing.bibliographyKey))(?:\s*[-–—]\s*\d+)?(?:\s*,\s*(.+))?$"#
     )
+    /// "Theorem (3.2)" prints the statement number in parentheses.
+    private static let statementBeforeParenthesis = try! NSRegularExpression(
+        pattern: #"(?i)\b(\#(ReferenceParsing.namedBlockKeywords))\s*$"#
+    )
 
     static func allReferences(in text: String) -> [DetectedReferenceMatch] {
         detection(in: text).local
@@ -216,14 +220,41 @@ enum ReferenceDetector {
 
     private static func equationCiteMatches(in text: String) -> [DetectedReferenceMatch] {
         return matches(from: equationCiteRegex, in: text) { match, source in
-            guard let numberRange = Range(match.range(at: 1), in: source) else { return nil }
+            guard let numberRange = Range(match.range(at: 1), in: source),
+                  let range = Range(match.range, in: source) else { return nil }
             let number = String(source[numberRange])
-            let range = Range(match.range, in: source)!
+            // A bare parenthetical after a statement word is that statement.
+            // "Eq. (2.3)" and "by (1.2)" still start with the equation prefix.
+            if source[range].hasPrefix("("),
+               let keyword = statementKeyword(endingAt: range.lowerBound, in: source) {
+                return DetectedReferenceMatch(
+                    reference: DetectedReference(kind: keyword.kind, number: number),
+                    range: keyword.start..<range.upperBound
+                )
+            }
             return DetectedReferenceMatch(
                 reference: DetectedReference(kind: .equation, number: number),
                 range: range
             )
         }
+    }
+
+    /// The statement word immediately before a parenthesized number, if any.
+    private static func statementKeyword(
+        endingAt index: String.Index,
+        in source: String
+    ) -> (kind: ReferenceKind, start: String.Index)? {
+        let prefix = String(source[..<index])
+        let nsRange = NSRange(prefix.startIndex..., in: prefix)
+        guard let match = statementBeforeParenthesis.firstMatch(in: prefix, range: nsRange),
+              let kindRange = Range(match.range(at: 1), in: prefix),
+              let word = Range(match.range, in: prefix),
+              let kind = ReferenceKind.fromKeyword(String(prefix[kindRange])) else { return nil }
+        let start = source.index(
+            source.startIndex,
+            offsetBy: prefix.distance(from: prefix.startIndex, to: word.lowerBound)
+        )
+        return (kind, start)
     }
 
     private static func figureMatches(in text: String) -> [DetectedReferenceMatch] {

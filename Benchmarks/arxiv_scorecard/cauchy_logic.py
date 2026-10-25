@@ -4,7 +4,8 @@ This is a line-by-line port of the non-UI rules on the combined reader
 branch. Line-start statements and number-first headings follow main.
 A dotted equation tag on its own line is a declaration, and the display
 after a bare number is only read from the next four lines. A bare tag at
-the end of a prose sentence is not a declaration.
+the end of a prose sentence is not a declaration. A parenthesized number
+printed after a statement word, as in "Theorem (3.2)", is that statement.
 
 - main: Cauchy/Services/ReferenceParsing.swift, ReferenceDetector.swift,
   LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing.
@@ -54,6 +55,11 @@ AUTHOR_YEAR_BRACKET = re.compile(
 )
 BRACKET_KEY = re.compile(
     rf"^(?:see\s+)?({BIBLIOGRAPHY_KEY})(?:\s*[-–—]\s*\d+)?(?:\s*,\s*(.+))?$"
+)
+# "Theorem (3.2)" prints the statement number in parentheses. The equation
+# pattern would otherwise read the parentheses as equation 3.2.
+_STATEMENT_BEFORE_PAREN = re.compile(
+    rf"(?i)\b({SINGULAR_MAIN})\s*$"
 )
 
 KIND_FROM_KEYWORD = {
@@ -234,7 +240,16 @@ def detection(text: str, profile: str = "main") -> Detection:
                 raw.append(Match(kind, number.group(0), span_start, abs_end, text[span_start:abs_end]))
 
     for found in patterns["equation"].finditer(text):
-        raw.append(Match("equation", found.group(1), found.start(), found.end(), found.group(0)))
+        number = found.group(1)
+        if found.group(0).lstrip().startswith("("):
+            named = _STATEMENT_BEFORE_PAREN.search(text[: found.start()])
+            if named is not None:
+                kind = kind_for_keyword(named.group(1), profile)
+                if kind is not None:
+                    start = named.start()
+                    raw.append(Match(kind, number, start, found.end(), text[start : found.end()]))
+                    continue
+        raw.append(Match("equation", number, found.start(), found.end(), found.group(0)))
 
     for found in patterns["figure"].finditer(text):
         raw.append(Match("figure", found.group(1), found.start(), found.end(), found.group(0)))

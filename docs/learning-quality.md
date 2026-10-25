@@ -1,6 +1,6 @@
 # Learning quality in Cauchy
 
-The [25 October upcoming-review extension](evaluation/learning-upcoming-reviews.md) shows future schedules separately from due and unfinished work, including the next date/time for mixed notes. Actual checks stay due-only and share the same evidence/source gates. All 447 macOS tests pass, including exact clock boundaries and unchanged closed-note records; native verification is pending manual unlock.
+The [25 October upcoming-review extension](evaluation/learning-upcoming-reviews.md) shows future schedules separately from due and unfinished work, including the next date/time for mixed notes. Actual checks stay due-only and share the same evidence/source gates. All 447 macOS tests pass, including exact clock boundaries and unchanged closed-note records. Native layout, keyboard navigation, due-only plan gating, original-draft return and cold restart pass with all four authored learning records unchanged; final temporary-app cleanup awaits unlock.
 
 The [25 October closed-note refresh audit](evaluation/learning-review-closed-performance.md) measures actual saved-file reads, decoding and preparation separately from rows. The largest authored Debug case contains 11,520 sessions across 16 closed notes: first/repeat refresh takes about 1.5 seconds, while prepared rows take about 0.1 ms. Both refreshes preserve every learning sidecar byte-for-byte and open no document. These warm-file measurements do not establish OS cold-cache or Release startup performance.
 

@@ -391,6 +391,34 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(context.y <= nearTop.y && context.y + context.height >= nearTop.y + nearTop.height)
     }
 
+    func testFigureCropSitsAboveACaptionLowerOnThePage() {
+        let caption = NormalizedRect(x: 0.12, y: 0.30, width: 0.4, height: 0.02)
+        let crop = ReferenceEvidenceRegionResolver.figureRegion(forCaption: caption)
+
+        XCTAssertEqual(crop.x, 0)
+        XCTAssertEqual(crop.width, 1)
+        XCTAssertGreaterThanOrEqual(crop.y, caption.y + caption.height)
+        XCTAssertEqual(crop.height, 0.55, accuracy: 0.000_001)
+        XCTAssertLessThanOrEqual(crop.y + crop.height, 1)
+    }
+
+    func testFigureCropDropsBelowACaptionAtTheTopOfThePage() {
+        let caption = NormalizedRect(x: 0.1, y: 0.94, width: 0.5, height: 0.03)
+        let crop = ReferenceEvidenceRegionResolver.figureRegion(forCaption: caption)
+
+        XCTAssertLessThanOrEqual(crop.y + crop.height, caption.y)
+        XCTAssertEqual(crop.height, 0.55, accuracy: 0.000_001)
+        XCTAssertGreaterThanOrEqual(crop.y, 0)
+        XCTAssertEqual(crop.width, 1)
+    }
+
+    func testFigureCropUsesTheWholePageWhenTheLabelFillsIt() {
+        let caption = NormalizedRect(x: 0, y: 0.10, width: 1, height: 0.80)
+        let crop = ReferenceEvidenceRegionResolver.figureRegion(forCaption: caption)
+
+        XCTAssertEqual(crop, NormalizedRect(x: 0, y: 0, width: 1, height: 1))
+    }
+
     func testEvidenceRejectsUnsupportedModelReference() {
         XCTAssertNil(
             LLMReferenceIndexSupport.evidence(
@@ -1343,7 +1371,8 @@ final class DocumentBlockExtractorTests: XCTestCase {
         let indexed = IndexedReference(
             reference: DetectedReference(kind: .equation, number: "9.9"),
             formattedBody: "$$a=b$$",
-            pageIndex: 7
+            pageIndex: 7,
+            name: "Pythagoras"
         )
 
         let block = DocumentBlockExtractor.block(from: indexed)
@@ -1351,6 +1380,97 @@ final class DocumentBlockExtractorTests: XCTestCase {
         XCTAssertEqual(block.reference.number, "9.9")
         XCTAssertEqual(block.formattedBody, "$$a=b$$")
         XCTAssertEqual(block.pageIndex, 7)
+        XCTAssertEqual(block.name, "Pythagoras")
+        XCTAssertEqual(indexed.documentBlock.name, "Pythagoras")
+    }
+}
+
+final class ReferencePreviewPresentationTests: XCTestCase {
+    func testHeadingIsKindNumberAndParentheticalName() {
+        let block = DocumentBlock(
+            reference: DetectedReference(kind: .theorem, number: "3.2"),
+            formattedBody: "Every open cover has a finite subcover.",
+            pageIndex: 40,
+            name: "Compactness"
+        )
+
+        let model = ReferencePreviewPresentation.model(for: block)
+
+        XCTAssertEqual(model.heading, "Theorem 3.2 (Compactness)")
+        XCTAssertEqual(model.body, .statement("Every open cover has a finite subcover."))
+    }
+
+    func testHeadingOmitsABlankName() {
+        let block = DocumentBlock(
+            reference: DetectedReference(kind: .lemma, number: "1.1"),
+            formattedBody: "A lemma.",
+            pageIndex: 0,
+            name: "   "
+        )
+
+        XCTAssertEqual(ReferencePreviewPresentation.heading(for: block), "Lemma 1.1")
+    }
+
+    func testEquationHeadingIsTheParentheticalNumber() {
+        let block = DocumentBlock(
+            reference: DetectedReference(kind: .equation, number: "1.4"),
+            formattedBody: "$$x + y = z$$",
+            pageIndex: 2
+        )
+
+        let model = ReferencePreviewPresentation.model(for: block)
+
+        XCTAssertEqual(model.heading, "(1.4)")
+        XCTAssertEqual(model.body, .statement("$$x + y = z$$"))
+    }
+
+    func testModelAndCleanedTextAreTheSameStatementBody() {
+        let origins: [ReferenceContentOrigin] = [.modelTranscription, .sourceFallback, .ocrCandidate]
+        for origin in origins {
+            let block = DocumentBlock(
+                reference: DetectedReference(kind: .definition, number: "2"),
+                formattedBody: "A clean statement.",
+                pageIndex: 1,
+                contentOrigin: origin
+            )
+            XCTAssertEqual(
+                ReferencePreviewPresentation.body(for: block),
+                .statement("A clean statement."),
+                "origin \(origin) must not introduce a second preview mode"
+            )
+        }
+    }
+
+    func testFigureHeadingStaysKindAndNumberAndCaptionSitsInTheBody() {
+        let block = DocumentBlock(
+            reference: DetectedReference(kind: .figure, number: "3"),
+            formattedBody: "Scaling learned interatomic potentials",
+            pageIndex: 4,
+            name: "Scaling learned interatomic potentials"
+        )
+
+        let model = ReferencePreviewPresentation.model(for: block)
+
+        XCTAssertEqual(model.heading, "Figure 3")
+        XCTAssertEqual(model.body, .figure(caption: "Scaling learned interatomic potentials"))
+    }
+
+    func testFigureCaptionFallsBackToTheNameAndCanBeAbsent() {
+        let named = DocumentBlock(
+            reference: DetectedReference(kind: .figure, number: "2"),
+            formattedBody: "  ",
+            pageIndex: 1,
+            name: "A contour"
+        )
+        let blank = DocumentBlock(
+            reference: DetectedReference(kind: .figure, number: "2"),
+            formattedBody: " ",
+            pageIndex: 1,
+            name: " "
+        )
+
+        XCTAssertEqual(ReferencePreviewPresentation.body(for: named), .figure(caption: "A contour"))
+        XCTAssertEqual(ReferencePreviewPresentation.body(for: blank), .figure(caption: nil))
     }
 }
 

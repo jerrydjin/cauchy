@@ -115,13 +115,7 @@ struct IndexedReference: Equatable, Sendable, Codable {
     }
 
     var documentBlock: DocumentBlock {
-        DocumentBlock(
-            reference: reference,
-            formattedBody: formattedBody,
-            pageIndex: pageIndex,
-            evidence: evidence,
-            contentOrigin: contentOrigin
-        )
+        DocumentBlock(from: self)
     }
 
     /// "Definition 3.2 (Compactness), p. 41" — used when injecting the
@@ -144,6 +138,10 @@ struct DocumentBlock: Equatable, Sendable {
     let reference: DetectedReference
     let formattedBody: String
     let pageIndex: Int
+    /// Printed name, e.g. "Compactness" in "Definition 3.2 (Compactness)".
+    /// nil when the notes give no name. For a figure this is the caption title,
+    /// which the preview shows under the image rather than in the heading.
+    let name: String?
     let evidence: ReferenceEvidence?
     let contentOrigin: ReferenceContentOrigin
 
@@ -153,12 +151,14 @@ struct DocumentBlock: Equatable, Sendable {
         reference: DetectedReference,
         formattedBody: String,
         pageIndex: Int,
+        name: String? = nil,
         evidence: ReferenceEvidence? = nil,
         contentOrigin: ReferenceContentOrigin = .modelTranscription
     ) {
         self.reference = reference
         self.formattedBody = formattedBody
         self.pageIndex = pageIndex
+        self.name = name
         self.evidence = evidence
         self.contentOrigin = contentOrigin
     }
@@ -167,7 +167,51 @@ struct DocumentBlock: Equatable, Sendable {
         self.reference = indexed.reference
         self.formattedBody = indexed.formattedBody
         self.pageIndex = indexed.pageIndex
+        self.name = indexed.name
         self.evidence = indexed.evidence
         self.contentOrigin = indexed.contentOrigin
+    }
+}
+
+/// What the reference pane shows for one hovered or selected entry.
+/// One body: the clean statement, or the figure. Evidence is not a mode.
+struct ReferencePreviewModel: Equatable, Sendable {
+    enum Body: Equatable, Sendable {
+        case statement(String)
+        case figure(caption: String?)
+    }
+
+    /// Kind and number, plus a parenthetical name when the entry has one.
+    /// "Theorem 3.2" or "Theorem 3.2 (Compactness)".
+    let heading: String
+    let body: Body
+}
+
+enum ReferencePreviewPresentation {
+    static func model(for block: DocumentBlock) -> ReferencePreviewModel {
+        ReferencePreviewModel(heading: heading(for: block), body: body(for: block))
+    }
+
+    /// Figures keep the caption under the image, so the heading stays
+    /// "Figure 3.2" even when a caption title was stored as the name.
+    static func heading(for block: DocumentBlock) -> String {
+        let base = block.reference.displayName
+        guard block.reference.kind != .figure, let name = cleaned(block.name) else {
+            return base
+        }
+        return "\(base) (\(name))"
+    }
+
+    static func body(for block: DocumentBlock) -> ReferencePreviewModel.Body {
+        if block.reference.kind == .figure {
+            return .figure(caption: cleaned(block.formattedBody) ?? cleaned(block.name))
+        }
+        return .statement(block.formattedBody)
+    }
+
+    private static func cleaned(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        return trimmed
     }
 }

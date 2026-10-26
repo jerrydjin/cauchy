@@ -162,6 +162,156 @@ private final class ConcurrentStudyPlannerStub: LearningStudyPlannerProtocol {
 final class LearningStudyMapTests: XCTestCase {
     private var source: LearningSource { .init(passages: [.init(pageIndex: 0, text: studyText)]) }
 
+    func testAddedGoalsHaveDistinctUncheckedRequirementsAndRetainTheSourceInventory() async throws {
+        let pdf = try studyPDF(pages: 1)
+        let vm = LearningStudyMapViewModel { StudyPlannerStub() }
+        vm.build(document: pdf); await vm.waitForOperation()
+        let original = try XCTUnwrap(vm.map?.units.first)
+        let sessions = original.learningTargets.map { passedSession(target: $0) }
+        XCTAssertTrue(original.hasEvidenceForEveryTarget(sessions: sessions))
+        for kind in LearningStudyKind.allCases {
+            let unit = try XCTUnwrap(vm.map?.units.first)
+            try vm.addGoal(in: unit, kind: kind, objective: "  Added \(kind.rawValue): explain the assumptions.  ",
+                note: "  The source inventory omitted this ability.  ", document: pdf,
+                at: Date(timeIntervalSince1970: 1_800_000_000))
+        }
+        let current = try XCTUnwrap(vm.map?.units.first)
+        let additions = try XCTUnwrap(current.addedGoals)
+        XCTAssertEqual(additions.count, 3)
+        XCTAssertEqual(Set(current.learningTargets.map(\.id)).count, original.learningTargets.count + 3)
+        XCTAssertEqual(current.targets, original.targets)
+        XCTAssertEqual(current.proofRequired, original.proofRequired)
+        XCTAssertEqual(current.proofQuote, original.proofQuote)
+        XCTAssertEqual(current.gaps, original.gaps)
+        for addition in additions {
+            XCTAssertEqual(addition.source, original.teachingAnchor)
+            XCTAssertEqual(addition.note, "The source inventory omitted this ability.")
+            XCTAssertEqual(addition.target.objective, "Added \(addition.target.kind.rawValue): explain the assumptions.")
+            XCTAssertNil(addition.target.revisionID)
+            XCTAssertNil(current.evidence(for: addition.target, sessions: sessions))
+            XCTAssertTrue(vm.map!.availableStudyChoices(sessions: sessions).contains { $0.target.id == addition.id })
+        }
+        XCTAssertFalse(current.hasEvidenceForEveryTarget(sessions: sessions))
+        let roundTrip = try JSONDecoder().decode(LearningStudyMap.self, from: JSONEncoder().encode(vm.map))
+        XCTAssertEqual(roundTrip.units, vm.map?.units)
+        XCTAssertEqual(LearningGoalHistory.entries(in: roundTrip).map(\.status), [.current, .current, .current])
+        let legacy = try JSONDecoder().decode(LearningStudyUnit.self, from: JSONEncoder().encode(original))
+        XCTAssertNil(legacy.addedGoals)
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(original), as: UTF8.self).contains("addedGoals"))
+    }
+
+    func testGoalAdditionCannotSupplyMissingProofsOrWaiveSourceGaps() throws {
+        let pdf = try studyPDF(pages: 1)
+        var unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0], proof: false,
+            gaps: ["The argument is omitted from the notes."]), source: source, corePages: [0]).first)
+        let signatures = [LearningStudyInput.signature(pdf.page(at: 0)!.string!)]
+        let vm = LearningStudyMapViewModel(map: .init(pageSignatures: signatures, pages: [], units: [unit]))
+        XCTAssertFalse(unit.canAddProofGoal)
+        XCTAssertThrowsError(try vm.addGoal(in: unit, kind: .proof, objective: "Supply the missing argument", note: "Needed for study", document: pdf))
+        try vm.addGoal(in: unit, kind: .concept, objective: "State every assumption", note: "Make the statement precise", document: pdf)
+        let current = try XCTUnwrap(vm.map?.units.first)
+        XCTAssertTrue(current.hasUnlocatedProof)
+        XCTAssertEqual(current.openGapCount, 1)
+        XCTAssertEqual(current.gaps, unit.gaps)
+        // Even imported metadata cannot turn a learner addition into a located source proof.
+        unit.addedGoals = [.init(target: .init(unitID: unit.id, kind: .proof, objective: "An imported proof goal"),
+            note: "Retain this decision", unitTitle: unit.title, source: unit.teachingAnchor, createdAt: Date())]
+        XCTAssertTrue(unit.hasUnlocatedProof)
+        XCTAssertFalse(unit.learningTargets.contains { $0.kind == .proof })
+        XCTAssertFalse(unit.hasEvidenceForEveryTarget(sessions: unit.learningTargets.map { passedSession(target: $0) }))
+        let history = LearningGoalHistory.entries(in: .init(pageSignatures: signatures, pages: [], units: [unit]))
+        XCTAssertEqual(history.first?.status, .earlierGoal)
+        var pending = current; pending.pendingSourceCorrection = true
+        let blocked = LearningStudyMapViewModel(map: .init(pageSignatures: signatures, pages: [], units: [pending]))
+        XCTAssertThrowsError(try blocked.addGoal(in: pending, kind: .application, objective: "Apply the statement", note: "An omitted ability", document: pdf))
+        XCTAssertEqual(blocked.map?.units, [pending])
+    }
+
+    func testGoalAdditionValidatesCurrentSourceAndUsesActualTranscriptionProvenance() throws {
+        let pdf = try studyPDF(pages: 1)
+        let original = try XCTUnwrap(pdf.page(at: 0)?.string)
+        let unit = try XCTUnwrap(LearningStudyPlannerService.validate(planResponse(source: source, core: [0]), source: source, corePages: [0]).first)
+        var map = LearningStudyMap(pageSignatures: [LearningStudyInput.signature(original)], pages: [], units: [unit])
+        let correction = LearningSourceCorrection(pageIndex: 0, originalText: original, correctedText: original + "\nThe domain is a real vector space.",
+            note: "Compared with the visible page", previousID: nil)
+        map.sourceCorrections = [correction]
+        map.units[0].sourceCorrectionIDs = [correction.id]
+        let vm = LearningStudyMapViewModel(map: map)
+        try vm.addGoal(in: map.units[0], kind: .concept, objective: "Explain the role of the domain", note: "An omitted source detail", document: pdf)
+        let addition = try XCTUnwrap(vm.map?.units.first?.addedGoals?.first)
+        XCTAssertEqual(addition.source.correctionID, correction.id)
+        XCTAssertEqual(addition.source.pageIndex, unit.anchorPage)
+        XCTAssertEqual(addition.source.quote, unit.sourceQuote)
+        var forged = unit
+        forged.reconciliation = .init(issues: [], inspectedPageIndices: [0], searchedPageCount: 1,
+            proofEvidence: [.init(pageIndex: 0, quote: "An argument not present on this page.")],
+            proofTarget: nil, providerID: "fixture", modelID: nil)
+        let invalid = LearningStudyMapViewModel(map: .init(pageSignatures: map.pageSignatures, pages: [], units: [forged]))
+        XCTAssertTrue(forged.canAddProofGoal)
+        XCTAssertThrowsError(try invalid.addGoal(in: forged, kind: .proof, objective: "Explain the missing argument", note: "Cannot accept forged evidence", document: pdf))
+        XCTAssertNil(invalid.map?.units.first?.addedGoals)
+    }
+
+    func testGoalAdditionRejectsInvalidDuplicateStaleBusyAndChangedSourceInputsWithoutSaving() async throws {
+        let pdf = try studyPDF(pages: 1)
+        let vm = LearningStudyMapViewModel { StudyPlannerStub() }
+        vm.build(document: pdf); await vm.waitForOperation()
+        let unit = try XCTUnwrap(vm.map?.units.first)
+        var writes = 0; vm.onChange = { _ in writes += 1 }
+        let before = vm.map
+        for (objective, note) in [(" ", "Reason"), ("Unique goal", " "),
+            (String(repeating: "x", count: 2_001), "Reason"), ("Unique goal", String(repeating: "x", count: 2_001)),
+            (unit.targets[0].objective.uppercased() + "  ", "Duplicate")] {
+            XCTAssertThrowsError(try vm.addGoal(in: unit, kind: unit.targets[0].kind, objective: objective, note: note, document: pdf))
+        }
+        var stale = unit; stale.pendingSourceCorrection = true
+        XCTAssertThrowsError(try vm.addGoal(in: stale, kind: .concept, objective: "Unique goal", note: "Reason", document: pdf))
+        XCTAssertThrowsError(try vm.addGoal(in: unit, kind: .concept, objective: "Unique goal", note: "Reason",
+            document: studyPDF(pages: 1, extra: "Changed PDF text")))
+        vm.build(document: pdf)
+        XCTAssertThrowsError(try vm.addGoal(in: unit, kind: .concept, objective: "Unique goal", note: "Reason", document: pdf))
+        vm.cancel(); await vm.waitForOperation()
+        XCTAssertEqual(vm.map, before); XCTAssertEqual(writes, 0)
+        try vm.addGoal(in: unit, kind: .concept, objective: "Unique goal", note: "Reason", document: pdf)
+        let after = vm.map
+        XCTAssertEqual(writes, 1)
+        XCTAssertThrowsError(try vm.addGoal(in: unit, kind: .application, objective: "Second goal", note: "Stale editor", document: pdf))
+        let current = try XCTUnwrap(vm.map?.units.first)
+        XCTAssertThrowsError(try vm.addGoal(in: current, kind: .concept, objective: " UNIQUE   GOAL ", note: "Duplicate", document: pdf))
+        XCTAssertEqual(vm.map, after); XCTAssertEqual(writes, 1)
+    }
+
+    func testAddedAndRevisedGoalsRetainHistoryAcrossRetriesAndArchiveOnSourceChange() async throws {
+        let pdf = try studyPDF(pages: 1)
+        let vm = LearningStudyMapViewModel { StudyPlannerStub() }
+        vm.build(document: pdf); await vm.waitForOperation()
+        try vm.addGoal(in: vm.map!.units[0], kind: .concept, objective: "Explain the omitted assumption", note: "Keep this addition reason",
+            document: pdf, at: Date(timeIntervalSince1970: 1_800_000_000))
+        let added = try XCTUnwrap(vm.map?.units.first)
+        let target = try XCTUnwrap(added.addedGoals?.first?.target)
+        try vm.reviseGoal(target, in: added, objective: "Explain each omitted assumption", note: "Keep this revision reason",
+            document: pdf, at: Date(timeIntervalSince1970: 1_800_000_001))
+        let edited = try XCTUnwrap(vm.map?.units.first)
+        let history = LearningGoalHistory.entries(in: vm.map!)
+        XCTAssertEqual(history.map(\.status), [.current, .earlierGoal])
+        XCTAssertNotNil(history[0].previous); XCTAssertNil(history[1].previous)
+        var pending = vm.map!; pending.pages[0].status = .pending
+        let resumed = LearningStudyMapViewModel(map: pending) { StudyPlannerStub() }
+        resumed.build(document: pdf); await resumed.waitForOperation()
+        XCTAssertEqual(resumed.map?.units.first?.addedGoals, edited.addedGoals)
+        XCTAssertEqual(resumed.map?.units.first?.learningTargets, edited.learningTargets)
+        XCTAssertEqual(LearningGoalHistory.entries(in: resumed.map!), history)
+        let changed = try studyPDF(pages: 1, extra: "An added source condition.")
+        resumed.build(document: changed); await resumed.waitForOperation()
+        XCTAssertEqual(resumed.map?.earlierGoalAdditions, edited.addedGoals)
+        XCTAssertEqual(resumed.map?.earlierGoalRevisions, edited.goalRevisions)
+        XCTAssertTrue(resumed.map!.units.allSatisfy { $0.addedGoals == nil && $0.goalRevisions == nil })
+        XCTAssertEqual(LearningGoalHistory.entries(in: resumed.map!).map(\.status), [.earlierSource, .earlierSource])
+        resumed.build(document: changed); await resumed.waitForOperation()
+        XCTAssertEqual(resumed.map?.earlierGoalAdditions?.count, 1)
+        XCTAssertEqual(resumed.map?.earlierGoalRevisions?.count, 1)
+    }
+
     func testGoalRevisionsKeepEvidenceAndSchedulesSeparateEvenWhenWordingIsRestored() async throws {
         let pdf = try studyPDF(pages: 1)
         let vm = LearningStudyMapViewModel { StudyPlannerStub() }
@@ -326,9 +476,9 @@ final class LearningStudyMapTests: XCTestCase {
         let entries = LearningGoalHistory.entries(in: map)
         XCTAssertEqual(entries.map(\.id), [latest.id, first.id, unapplied.id, archived.id])
         XCTAssertEqual(entries.map(\.status), [.current, .earlierGoal, .earlierGoal, .earlierSource])
-        XCTAssertEqual(entries.last?.revision.source, unit.teachingAnchor)
-        XCTAssertEqual(entries.first?.revision.note, latest.note)
-        XCTAssertEqual(entries.first?.revision.previous, first.target)
+        XCTAssertEqual(entries.last?.source, unit.teachingAnchor)
+        XCTAssertEqual(entries.first?.note, latest.note)
+        XCTAssertEqual(entries.first?.previous, first.target)
         XCTAssertEqual(unit.learningTargets[0].objective, original.objective)
         XCTAssertEqual(unit.learningTargets[0].revisionID, latest.id)
         XCTAssertEqual(LearningGoalHistory.entries(in: map), entries)

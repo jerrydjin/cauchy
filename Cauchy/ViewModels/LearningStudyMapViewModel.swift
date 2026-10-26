@@ -32,6 +32,46 @@ final class LearningStudyMapViewModel {
 
     var currentStudyRun: LearningStudyRun? { map?.studyRuns?.last }
 
+    func addGoal(in unit: LearningStudyUnit, kind: LearningStudyKind, objective: String, note: String,
+                 document: PDFDocument, at date: Date = Date()) throws {
+        guard !isBusy, var updated = map,
+              let index = updated.units.firstIndex(where: { $0.id == unit.id }), updated.units[index] == unit,
+              !unit.needsSourceReview,
+              (0..<document.pageCount).map({ LearningStudyInput.signature(document.page(at: $0)?.string ?? "") }) == updated.pageSignatures else {
+            throw LearningStudyValidationError(reason: "This topic or its source needs review. Close the editor and reopen the current topic before adding a goal.")
+        }
+        let wording = objective.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reason = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !wording.isEmpty, wording.count <= 2_000, !reason.isEmpty, reason.count <= 2_000,
+              !unit.learningTargets.contains(where: { $0.kind == kind && LearningSource.normalized($0.objective).lowercased() == LearningSource.normalized(wording).lowercased() }) else {
+            throw LearningStudyValidationError(reason: "Enter a distinct study goal and a brief reason, each within 2,000 characters.")
+        }
+        let passages = try unit.learningPageIndices.map { page -> LearningSourcePassage in
+            guard let text = document.page(at: page)?.string else { throw LearningError.sourceChanged }
+            return try updated.passage(pageIndex: page, originalText: text)
+        }
+        let source = LearningSource(passages: passages)
+        guard let anchor = source.passages.first(where: { $0.pageIndex == unit.teachingAnchor.pageIndex
+            && LearningSource(passages: [$0]).contains(quote: unit.teachingAnchor.quote) }) else { throw LearningError.sourceChanged }
+        if kind == .proof {
+            let evidence = unit.reconciliation?.proofEvidence ?? []
+            let supported = evidence.isEmpty ? unit.proofQuote.map { source.contains(quote: $0) } == true
+                : evidence.allSatisfy { reference in source.passages.contains { passage in
+                    passage.pageIndex == reference.pageIndex && passage.correction?.id == reference.correctionID
+                        && LearningSource(passages: [passage]).contains(quote: reference.quote)
+                } }
+            guard unit.canAddProofGoal, supported else {
+                throw LearningStudyValidationError(reason: "Review this topic’s source proof before adding another proof goal. An added goal cannot replace a missing argument.")
+            }
+        }
+        let addition = LearningGoalAddition(target: .init(unitID: unit.id, kind: kind, objective: wording), note: reason,
+            unitTitle: unit.title, source: .init(pageIndex: anchor.pageIndex, quote: unit.teachingAnchor.quote,
+                correctionID: anchor.correction?.id), createdAt: date)
+        updated.units[index].addedGoals = (unit.addedGoals ?? []) + [addition]
+        map = updated
+        save()
+    }
+
     func reviseGoal(_ target: LearningStudyTarget, in unit: LearningStudyUnit, objective: String, note: String,
                     document: PDFDocument, at date: Date = Date()) throws {
         guard !isBusy, var updated = map,
@@ -300,8 +340,10 @@ final class LearningStudyMapViewModel {
             let syllabus = map?.syllabus
             let runs = map?.studyRuns
             let revisions = (map?.earlierGoalRevisions ?? []) + (map?.units.flatMap { $0.goalRevisions ?? [] } ?? [])
+            let additions = (map?.earlierGoalAdditions ?? []) + (map?.units.flatMap { $0.addedGoals ?? [] } ?? [])
             map = LearningStudyMap(pageSignatures: signatures, pages: pages.indices.map { .init(pageIndex: $0) },
-                syllabus: syllabus, studyRuns: runs, earlierGoalRevisions: revisions.isEmpty ? nil : revisions)
+                syllabus: syllabus, studyRuns: runs, earlierGoalRevisions: revisions.isEmpty ? nil : revisions,
+                earlierGoalAdditions: additions.isEmpty ? nil : additions)
             save()
         }
         let pending = map?.unresolvedPages.map(\.pageIndex) ?? []
@@ -419,7 +461,7 @@ final class LearningStudyMapViewModel {
                             ? previous.reconciliation : nil,
                         pendingSourceCorrection: previous.pendingSourceCorrection,
                         sourceCorrectionIDs: previous.sourceCorrectionIDs,
-                        goalRevisions: previous.goalRevisions)
+                        goalRevisions: previous.goalRevisions, addedGoals: previous.addedGoals)
                 } else { merged.append(candidate) }
             }
             map?.units = merged.sorted { $0.anchorPage < $1.anchorPage }

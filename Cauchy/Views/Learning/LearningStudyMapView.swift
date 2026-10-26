@@ -22,6 +22,7 @@ struct LearningStudyMapView: View {
     @State private var syllabusMapping: LearningSyllabusSelection?
     @State private var historyTarget: LearningStudyTarget?
     @State private var goalSelection: LearningGoalSelection?
+    @State private var goalAdditionUnit: LearningStudyUnit?
     @State private var goalHistoryVisible = false
     @State private var studyHistoryVisible = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -70,6 +71,9 @@ struct LearningStudyMapView: View {
         }
         .sheet(item: $goalSelection) { selection in
             LearningGoalEditor(document: document, unit: selection.unit, target: selection.target)
+        }
+        .sheet(item: $goalAdditionUnit) { unit in
+            LearningGoalAdditionEditor(document: document, unit: unit)
         }
         .sheet(isPresented: $goalHistoryVisible) {
             LearningGoalHistoryView(document: document)
@@ -435,7 +439,7 @@ struct LearningStudyMapView: View {
     @ViewBuilder private func goalHistoryButton(_ map: LearningStudyMap) -> some View {
         let count = LearningGoalHistory.entries(in: map).count
         if count > 0 {
-            Button("Review goal revisions (\(count))", systemImage: "clock.arrow.circlepath") {
+            Button("Review goal changes (\(count))", systemImage: "clock.arrow.circlepath") {
                 goalHistoryVisible = true
             }.buttonStyle(.borderless)
         }
@@ -705,7 +709,10 @@ struct LearningStudyMapView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(target.kind.label).font(.subheadline.weight(.semibold))
                         MessageContentView(content: target.objective)
-                        if target.revisionID != nil {
+                        if unit.addedGoals?.contains(where: { $0.id == target.id }) == true {
+                            Text(target.revisionID == nil ? "Goal added by you" : "Goal added and revised by you")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else if target.revisionID != nil {
                             Text("Goal revised by you").font(.caption).foregroundStyle(.secondary)
                         }
                         Text(status(target, unit: unit)).font(.caption).foregroundStyle(.secondary)
@@ -737,6 +744,9 @@ struct LearningStudyMapView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+            Button("Add study goal", systemImage: "plus") { goalAdditionUnit = unit }
+                .buttonStyle(.borderless).disabled(document.isBusy || unit.needsSourceReview)
+                .help(unit.needsSourceReview ? "Review this topic’s source before adding a goal." : "Record a source-supported goal the path missed")
             DisclosureGroup("Source reference") {
                 Text(unit.teachingAnchor.quote).font(.callout).textSelection(.enabled).padding(.top, 8)
                 if let anchor = unit.reconciliation?.revisedAnchor {
@@ -1010,27 +1020,100 @@ private struct LearningGoalSelection: Identifiable {
     let target: LearningStudyTarget
 }
 
-private struct LearningGoalRevisionRecord: View {
-    let revision: LearningGoalRevision
+private struct LearningGoalDecisionRecord: View {
+    let entry: LearningGoalHistory.Entry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(revision.unitTitle) · \(revision.previous.kind.label)").font(.subheadline.weight(.medium))
-            Text("Revised by you · \(revision.createdAt.formatted(date: .abbreviated, time: .shortened))")
+            Text("\(entry.unitTitle) · \(entry.target.kind.label)").font(.subheadline.weight(.medium))
+            Text("\(entry.previous == nil ? "Added" : "Revised") by you · \(entry.createdAt.formatted(date: .abbreviated, time: .shortened))")
                 .font(.caption).foregroundStyle(.secondary)
-            MessageContentView(content: revision.objective)
-            Text(revision.note).font(.callout).textSelection(.enabled)
-            DisclosureGroup("Previous goal and source reference") {
+            MessageContentView(content: entry.target.objective)
+            Text(entry.note).font(.callout).textSelection(.enabled)
+            DisclosureGroup(entry.previous == nil ? "Source reference" : "Previous goal and source reference") {
                 VStack(alignment: .leading, spacing: 8) {
-                    MessageContentView(content: revision.previous.objective)
-                    Text("PDF page \(revision.source.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
-                    Text(revision.source.quote).font(.callout).textSelection(.enabled)
-                    if revision.source.correctionID != nil {
+                    if let previous = entry.previous { MessageContentView(content: previous.objective) }
+                    Text("PDF page \(entry.source.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
+                    Text(entry.source.quote).font(.callout).textSelection(.enabled)
+                    if entry.source.correctionID != nil {
                         Text("Source reference uses a user-verified transcription.").font(.caption).foregroundStyle(.secondary)
                     }
                 }.padding(.top, 8)
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct LearningGoalAdditionEditor: View {
+    let document: LearningDocument
+    let unit: LearningStudyUnit
+    @State private var kind = LearningStudyKind.concept
+    @State private var objective = ""
+    @State private var note = ""
+    @State private var error: String?
+    @Environment(\.dismiss) private var dismiss
+
+    private var duplicate: Bool {
+        unit.learningTargets.contains { $0.kind == kind
+            && LearningSource.normalized($0.objective).lowercased() == LearningSource.normalized(objective).lowercased() }
+    }
+    private var canSave: Bool {
+        !document.isBusy && !unit.needsSourceReview && (kind != .proof || unit.canAddProofGoal) && !duplicate
+            && !objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && objective.count <= 2_000
+            && !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && note.count <= 2_000
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Add study goal").font(.title2.weight(.semibold))
+            Text(unit.title).font(.subheadline).foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Record an ability you need to learn from this topic’s source.").font(.callout)
+                    Picker("Goal kind", selection: $kind) {
+                        ForEach(LearningStudyKind.allCases.filter { $0 != .proof || unit.canAddProofGoal }, id: \.self) { kind in
+                            Text(kind.label).tag(kind)
+                        }
+                    }.pickerStyle(.menu)
+                    if !unit.canAddProofGoal {
+                        Text("Another proof goal needs an existing source-supported proof requirement with no open source issues. Review missing arguments first.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("Study goal").font(.headline)
+                    TextEditor(text: $objective).font(.body).frame(minHeight: 100, idealHeight: 140)
+                        .padding(6).background(.background, in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator))
+                        .accessibilityLabel("Added study goal")
+                    TextField("Why does this goal need adding?", text: $note, axis: .vertical)
+                        .textFieldStyle(.roundedBorder).lineLimit(2...4).accessibilityLabel("Goal addition reason")
+                    if duplicate { Text("A goal of this kind already uses that wording.").font(.caption).foregroundStyle(.secondary) }
+                    if objective.count > 2_000 || note.count > 2_000 {
+                        Text("Keep each field within 2,000 characters.").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("Your goal starts unchecked. Adding it does not verify the source, remove missing proofs or change earlier lessons and answers.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    DisclosureGroup("Source reference") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("PDF page \(unit.teachingAnchor.pageIndex + 1)").font(.caption).foregroundStyle(.secondary)
+                            Text(unit.teachingAnchor.quote).font(.callout).textSelection(.enabled)
+                        }.padding(.top, 8)
+                    }
+                    if let error { Text(error).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
+                }.padding(2)
+            }
+            HStack {
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Add goal") {
+                    guard canSave else { return }
+                    do {
+                        try document.studyMap.addGoal(in: unit, kind: kind, objective: objective, note: note, document: document.pdfDocument)
+                        dismiss()
+                    } catch { self.error = error.localizedDescription }
+                }
+                .buttonStyle(.glassProminent).keyboardShortcut(.return, modifiers: .command).disabled(!canSave)
+            }
+        }.padding(24).frame(minWidth: 560, idealWidth: 640, minHeight: 480, idealHeight: 600)
     }
 }
 
@@ -1085,7 +1168,7 @@ private struct LearningGoalEditor: View {
                     if !revisions.isEmpty {
                         DisclosureGroup("Previous goal revisions (\(revisions.count))") {
                             ForEach(revisions.reversed()) { revision in
-                                LearningGoalRevisionRecord(revision: revision).padding(.top, 12)
+                                LearningGoalDecisionRecord(entry: .init(revision: revision, status: .earlierGoal)).padding(.top, 12)
                             }
                         }
                     }
@@ -1124,21 +1207,21 @@ private struct LearningGoalHistoryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Your goal revisions").font(.title2.weight(.semibold))
-            Text("Saved wording decisions, most recent first.").font(.callout).foregroundStyle(.secondary)
+            Text("Your goal changes").font(.title2.weight(.semibold))
+            Text("Saved additions and wording decisions, most recent first.").font(.callout).foregroundStyle(.secondary)
             HSplitView {
                 List(selection: $selection) {
                     ForEach(entries) { entry in
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(entry.revision.unitTitle).font(.subheadline.weight(.medium))
-                            Text(entry.revision.previous.kind.label).font(.callout)
+                            Text(entry.unitTitle).font(.subheadline.weight(.medium))
+                            Text(entry.target.kind.label).font(.callout)
                             Text(entry.status.label).font(.caption)
-                            Text(entry.revision.createdAt.formatted(date: .abbreviated, time: .shortened))
+                            Text(entry.createdAt.formatted(date: .abbreviated, time: .shortened))
                                 .font(.caption).foregroundStyle(.secondary)
                         }.padding(.vertical, 4).tag(entry.id)
                     }
                 }
-                .accessibilityLabel("Saved goal revisions").focused($focusedPane, equals: .list)
+                .accessibilityLabel("Saved goal changes").focused($focusedPane, equals: .list)
                 .frame(minWidth: 210, idealWidth: 230, maxWidth: 280)
                 ScrollView {
                     if let selected {
@@ -1151,10 +1234,10 @@ private struct LearningGoalHistoryView: View {
                                 Text("This decision is kept for reference. It does not replace the current goal.")
                                     .font(.callout).foregroundStyle(.secondary)
                             }
-                            LearningGoalRevisionRecord(revision: selected.revision)
+                            LearningGoalDecisionRecord(entry: selected)
                         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        Text("No saved goal revisions.").foregroundStyle(.secondary).padding(24)
+                        Text("No saved goal changes.").foregroundStyle(.secondary).padding(24)
                     }
                 }
                 .scrollPosition($detailScroll)
@@ -1172,11 +1255,11 @@ private struct LearningGoalHistoryView: View {
             HStack {
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
                 Spacer()
-                Button(focusedPane == .details ? "Choose another revision" : "Read selected revision") {
+                Button(focusedPane == .details ? "Choose another change" : "Read selected change") {
                     focusedPane = focusedPane == .details ? .list : .details
                 }
                 .buttonStyle(.borderless).keyboardShortcut("r", modifiers: .command)
-                .help(focusedPane == .details ? "Choose another revision (⌘R)" : "Read and scroll the selected revision (⌘R)")
+                .help(focusedPane == .details ? "Choose another change (⌘R)" : "Read and scroll the selected change (⌘R)")
                 .disabled(selected == nil)
             }
         }

@@ -560,6 +560,84 @@ final class LearningUIFixtureTests: XCTestCase {
         try await restart.flush()
     }
 
+    func testAddedGoalCreatesSeparateLearningWorkAndSurvivesRealPersistenceRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let seed = LearningUIFixtureController(rootPath: root.path)
+        await seed.load(); try await seed.flush()
+        // Compare canonical saved timestamps and ordering, not a pre-save seed.
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let document = try XCTUnwrap(controller.library?.selectedDocument)
+        let map = try XCTUnwrap(document.studyMap.map)
+        let unit = try XCTUnwrap(map.units.first { $0.id == LearningUIFixture.imageID })
+        let oldRequest = try XCTUnwrap(map.chapterRequest(for: map.course!.modules[0]))
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let previousSessions = try encoder.encode(document.learning.sessions)
+        let selectedSession = document.learning.session?.id
+        let destination = controller.library?.destination
+        try document.studyMap.addGoal(in: unit, kind: .application,
+            objective: "Give a counterexample when continuity is absent.", note: "The source-supported goal was omitted from my path.",
+            document: document.pdfDocument, at: Date(timeIntervalSince1970: 1_800_000_000))
+        let updated = try XCTUnwrap(document.studyMap.map)
+        let currentUnit = try XCTUnwrap(updated.units.first { $0.id == unit.id })
+        let addition = try XCTUnwrap(currentUnit.addedGoals?.first)
+        XCTAssertEqual(document.learning.session?.id, selectedSession)
+        XCTAssertEqual(controller.library?.destination, destination)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), previousSessions)
+        XCTAssertEqual(currentUnit.targets, unit.targets)
+        XCTAssertEqual(currentUnit.gaps, unit.gaps)
+        XCTAssertEqual(currentUnit.reconciliation, unit.reconciliation)
+        XCTAssertFalse(updated.isCurrentChapterRequest(oldRequest))
+        XCTAssertNil(currentUnit.evidence(for: addition.target, sessions: document.learning.sessions))
+        XCTAssertTrue(updated.availableStudyChoices(sessions: document.learning.sessions).contains { $0.target.id == addition.id })
+        let inventory = try LearningTutorService.chapterInventory(XCTUnwrap(updated.chapterRequest(for: map.course!.modules[0])))
+        XCTAssertTrue(inventory.contains(addition.target.objective))
+        XCTAssertFalse(inventory.contains(addition.note))
+        try await controller.flush()
+        let restart = LearningUIFixtureController(rootPath: root.path)
+        await restart.load()
+        let restored = try XCTUnwrap(restart.library?.selectedDocument)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions), previousSessions)
+        XCTAssertEqual(try encoder.encode(restored.studyMap.map), try encoder.encode(document.studyMap.map))
+        let restoredUnit = try XCTUnwrap(restored.studyMap.map?.units.first { $0.id == unit.id })
+        restored.study(addition.target, unit: restoredUnit)
+        await restored.learning.waitForOperation()
+        let newLesson = try XCTUnwrap(restored.learning.session)
+        XCTAssertTrue(addition.target.matchesRequirement(newLesson.studyTarget))
+        XCTAssertNil(newLesson.latestExitAttempt)
+        XCTAssertEqual(try encoder.encode(restored.learning.sessions.filter { $0.id != newLesson.id }), previousSessions)
+        restored.learning.answerDraft = "Separate unsent answer for the added goal."
+        try await restart.flush()
+        let finalRestart = LearningUIFixtureController(rootPath: root.path)
+        await finalRestart.load()
+        let final = try XCTUnwrap(finalRestart.library?.selectedDocument)
+        XCTAssertEqual(try encoder.encode(final.learning.sessions), try encoder.encode(restored.learning.sessions))
+        XCTAssertEqual(try encoder.encode(final.studyMap.map), try encoder.encode(restored.studyMap.map))
+        final.study(addition.target, unit: try XCTUnwrap(final.studyMap.map?.units.first { $0.id == unit.id }))
+        XCTAssertEqual(final.learning.session?.id, newLesson.id)
+        XCTAssertEqual(final.learning.answerDraft, "Separate unsent answer for the added goal.")
+        // Source rebuild recovery can expose the retained addition without a course or tutor.
+        var recovery = try XCTUnwrap(final.studyMap.map)
+        recovery.earlierGoalAdditions = [addition]
+        recovery.units = []; recovery.course = nil; recovery.updatedAt = recovery.updatedAt.addingTimeInterval(1)
+        var workspace = final.snapshot
+        workspace.learningSessions = final.learning.sessions; workspace.learningStudyMap = recovery
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await persistence.saveWorkspace(workspace, bookmarkData: nil)
+        let recoveryRestart = LearningUIFixtureController(rootPath: root.path)
+        await recoveryRestart.load()
+        let recovered = try XCTUnwrap(recoveryRestart.library?.selectedDocument)
+        let history = LearningGoalHistory.entries(in: try XCTUnwrap(recovered.studyMap.map))
+        XCTAssertEqual(history.count, 1)
+        XCTAssertNil(history[0].previous)
+        XCTAssertEqual(history[0].status, .earlierSource)
+        XCTAssertEqual(history[0].source, addition.source)
+        XCTAssertEqual(history[0].note, addition.note)
+        XCTAssertEqual(try encoder.encode(recovered.learning.sessions), try encoder.encode(final.learning.sessions))
+        XCTAssertNil(recovered.studyMap.map?.course)
+    }
+
     func testGoalRevisionAndSeparateCurrentLessonSurviveRealPersistenceRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -646,9 +724,9 @@ final class LearningUIFixtureTests: XCTestCase {
         let entries = LearningGoalHistory.entries(in: savedMap)
         XCTAssertEqual(entries.count, 1)
         XCTAssertEqual(entries.first?.status, .earlierSource)
-        XCTAssertEqual(entries.first?.revision.note, "Keep this reason while rebuilding.")
-        XCTAssertEqual(entries.first?.revision.previous.objective, unit.learningTargets[0].objective)
-        XCTAssertEqual(entries.first?.revision.source, unit.teachingAnchor)
+        XCTAssertEqual(entries.first?.note, "Keep this reason while rebuilding.")
+        XCTAssertEqual(entries.first?.previous?.objective, unit.learningTargets[0].objective)
+        XCTAssertEqual(entries.first?.source, unit.teachingAnchor)
         XCTAssertFalse(restored.isBusy)
         XCTAssertEqual(try encoder.encode(restored.learning.sessions), expectedSessions)
         XCTAssertEqual(try encoder.encode(restored.studyMap.map), expectedMap)

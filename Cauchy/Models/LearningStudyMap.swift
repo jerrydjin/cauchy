@@ -62,6 +62,16 @@ struct LearningGoalRevision: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
+/// A learner-authored requirement, separate from the generated inventory.
+struct LearningGoalAddition: Identifiable, Codable, Equatable, Sendable {
+    var id: UUID { target.id }
+    let target: LearningStudyTarget
+    let note: String
+    let unitTitle: String
+    let source: LearningSourceEvidence
+    let createdAt: Date
+}
+
 /// Read-only history remains available without a composed course. A retained
 /// decision is current only when its exact version is still an effective goal.
 enum LearningGoalHistory {
@@ -78,23 +88,44 @@ enum LearningGoalHistory {
             }
         }
 
-        var id: UUID { revision.id }
-        let revision: LearningGoalRevision
+        let id: UUID
+        let target: LearningStudyTarget
+        let previous: LearningStudyTarget?
+        let note: String
+        let unitTitle: String
+        let source: LearningSourceEvidence
+        let createdAt: Date
         let status: Status
+
+        init(revision: LearningGoalRevision, status: Status) {
+            id = revision.id; target = revision.target; previous = revision.previous
+            note = revision.note; unitTitle = revision.unitTitle; source = revision.source
+            createdAt = revision.createdAt; self.status = status
+        }
+
+        init(addition: LearningGoalAddition, status: Status) {
+            id = addition.id; target = addition.target; previous = nil
+            note = addition.note; unitTitle = addition.unitTitle; source = addition.source
+            createdAt = addition.createdAt; self.status = status
+        }
     }
 
     static func entries(in map: LearningStudyMap) -> [Entry] {
         let archived = (map.earlierGoalRevisions ?? []).map { Entry(revision: $0, status: .earlierSource) }
+            + (map.earlierGoalAdditions ?? []).map { Entry(addition: $0, status: .earlierSource) }
         let retained = map.units.flatMap { unit in
             let current = unit.learningTargets
             return (unit.goalRevisions ?? []).map { revision in
                 Entry(revision: revision, status: current.contains { $0.matchesRequirement(revision.target) }
                     ? .current : .earlierGoal)
+            } + (unit.addedGoals ?? []).map { addition in
+                Entry(addition: addition, status: current.contains { $0.matchesRequirement(addition.target) }
+                    ? .current : .earlierGoal)
             }
         }
         return (archived + retained).sorted {
-            $0.revision.createdAt == $1.revision.createdAt ? $0.id.uuidString < $1.id.uuidString
-                : $0.revision.createdAt > $1.revision.createdAt
+            $0.createdAt == $1.createdAt ? $0.id.uuidString < $1.id.uuidString
+                : $0.createdAt > $1.createdAt
         }
     }
 }
@@ -114,9 +145,19 @@ struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
     var pendingSourceCorrection: Bool? = nil
     var sourceCorrectionIDs: [UUID]? = nil
     var goalRevisions: [LearningGoalRevision]? = nil
+    var addedGoals: [LearningGoalAddition]? = nil
+
+    private var sourceTargets: [LearningStudyTarget] { targets + (reconciliation?.proofTarget.map { [$0] } ?? []) }
+
+    var canAddProofGoal: Bool {
+        !needsSourceReview && openGapCount == 0 && sourceTargets.contains { $0.unitID == id && $0.kind == .proof }
+            && (proofQuote?.isEmpty == false || reconciliation?.proofEvidence.isEmpty == false)
+    }
 
     var learningTargets: [LearningStudyTarget] {
-        (targets + (reconciliation?.proofTarget.map { [$0] } ?? [])).map { original in
+        (sourceTargets + (addedGoals ?? []).map(\.target).filter {
+            $0.unitID == id && ($0.kind != .proof || canAddProofGoal)
+        }).map { original in
             (goalRevisions ?? []).reduce(original) { current, revision in
                 current.matchesRequirement(revision.previous) ? revision.target : current
             }
@@ -140,7 +181,7 @@ struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
             || reconciliation?.issues.contains { $0.disposition == .extractionProblem } == true
     }
 
-    var hasUnlocatedProof: Bool { proofRequired && !learningTargets.contains { $0.kind == .proof } }
+    var hasUnlocatedProof: Bool { proofRequired && !sourceTargets.contains { $0.kind == .proof } }
 
     var learningPageIndices: [Int] {
         Array(Set(pageIndices + [teachingAnchor.pageIndex] + (reconciliation?.issues.filter { $0.disposition == .foundElsewhere }
@@ -168,7 +209,7 @@ struct LearningStudyUnit: Identifiable, Codable, Equatable, Sendable {
     }
 
     func hasEvidenceForEveryTarget(sessions: [LearningSession]) -> Bool {
-        !learningTargets.isEmpty && !needsSourceReview && openGapCount == 0 && (!proofRequired || learningTargets.contains { $0.kind == .proof })
+        !learningTargets.isEmpty && !needsSourceReview && openGapCount == 0 && !hasUnlocatedProof
             && checkedTargetCount(sessions: sessions) == learningTargets.count
     }
 }
@@ -209,6 +250,7 @@ struct LearningStudyMap: Codable, Equatable, Sendable {
     var syllabus: LearningSyllabus? = nil
     var studyRuns: [LearningStudyRun]? = nil
     var earlierGoalRevisions: [LearningGoalRevision]? = nil
+    var earlierGoalAdditions: [LearningGoalAddition]? = nil
 
     func latestCorrection(for pageIndex: Int) -> LearningSourceCorrection? {
         sourceCorrections?.last { $0.pageIndex == pageIndex }

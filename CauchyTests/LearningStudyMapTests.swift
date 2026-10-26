@@ -745,7 +745,7 @@ final class LearningStudyMapTests: XCTestCase {
         XCTAssertEqual(map.delayedEvidence(for: target, sessions: vm.sessions).first?.setAsideAt, clock)
         XCTAssertFalse(map.delayedEvidence(for: target, sessions: vm.sessions).first!.hasIndependentCorrectResult)
         XCTAssertTrue(unit.evidence(for: target, sessions: vm.sessions)!.hasIndependentCorrectResult)
-        XCTAssertTrue(run.items[0].outcome!.isSetAside(in: vm.sessions))
+        XCTAssertEqual(run.items[0].recordStatus(in: vm.sessions), .setAside)
         XCTAssertEqual(run, originalRun) // The historical grade/outcome is retained, with a live qualification.
         run.items[0].outcome = nil; run.state = .active; run.endedAt = nil
         XCTAssertFalse(run.advance(map: map, sessions: vm.sessions, at: clock))

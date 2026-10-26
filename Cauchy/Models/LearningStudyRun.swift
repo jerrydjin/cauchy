@@ -32,6 +32,29 @@ struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
                   attempt.question.kind == target.kind, !earlierAttemptIDs.contains(attempt.id) else { return nil }
             return (session, attempt)
         }
+
+        /// Outcome snapshots are historical navigation records, not independent
+        /// evidence. Check their exact saved assessment before labelling them.
+        func recordStatus(in sessions: [LearningSession]) -> RecordStatus {
+            guard let outcome else { return .noNewCheck }
+            guard let saved = sessions.first(where: { $0.id == outcome.sessionID }),
+                  let attempt = saved.attempts.first(where: { $0.id == outcome.attemptID }) else { return .assessmentUnavailable }
+            guard saved.chapter == nil, target.unitID == unitID, target.matchesRequirement(saved.studyTarget),
+                  (saved.delayedReview != nil) == (mode == .delayedReview),
+                  saved.id == existingSessionID || saved.studyRunItemID == id,
+                  attempt.phase == .exitCheck, attempt.question.kind == target.kind,
+                  !earlierAttemptIDs.contains(attempt.id) else { return .assessmentMismatch }
+            if attempt.setAsideAt != nil { return .setAside }
+            guard let checked = try? LearningAssessmentPolicy.checked(attempt.assessment, question: attempt.question),
+                  checked.grade == attempt.assessment.grade else { return .assessmentNeedsChecking }
+            guard outcome.grade == attempt.assessment.grade, outcome.assistanceUsed == attempt.assistanceUsed else { return .assessmentMismatch }
+            if outcome.independentCorrect && !attempt.hasIndependentCorrectResult { return .assessmentNeedsChecking }
+            return .verified
+        }
+    }
+
+    enum RecordStatus: Equatable {
+        case noNewCheck, assessmentUnavailable, assessmentMismatch, assessmentNeedsChecking, setAside, verified
     }
     struct Outcome: Codable, Equatable, Sendable {
         let sessionID: UUID
@@ -40,10 +63,6 @@ struct LearningStudyRun: Identifiable, Codable, Equatable, Sendable {
         let assistanceUsed: Bool
         let independentCorrect: Bool
         let assessedAt: Date
-
-        func isSetAside(in sessions: [LearningSession]) -> Bool {
-            sessions.first { $0.id == sessionID }?.attempts.first { $0.id == attemptID }?.setAsideAt != nil
-        }
     }
     enum Blocker: Equatable {
         case changedSource, changedRequirement

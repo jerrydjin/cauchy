@@ -74,6 +74,153 @@ final class LearningStudyRunTests: XCTestCase {
             pendingSourceCorrection: unit.pendingSourceCorrection, sourceCorrectionIDs: unit.sourceCorrectionIDs)
     }
 
+    private func recordedItem(for saved: LearningSession) throws -> LearningStudyRun.Item {
+        let target = try XCTUnwrap(saved.studyTarget), attempt = try XCTUnwrap(saved.latestExitAttempt)
+        var item = LearningStudyRun.Item(unitID: target.unitID, title: "Recorded requirement", target: target,
+            mode: saved.delayedReview == nil ? .lesson : .delayedReview, existingSessionID: saved.id, earlierAttemptIDs: [])
+        item.outcome = .init(sessionID: saved.id, attemptID: attempt.id, grade: attempt.assessment.grade,
+            assistanceUsed: attempt.assistanceUsed, independentCorrect: attempt.hasIndependentCorrectResult, assessedAt: attempt.createdAt)
+        return item
+    }
+
+    private func replacingAssessment(_ attempt: LearningAttempt, with assessment: LearningAssessment, helped: Bool? = nil) -> LearningAttempt {
+        var replacement = LearningAttempt(phase: attempt.phase, question: attempt.question, answer: attempt.answer,
+            assessment: assessment, assistanceUsed: helped ?? attempt.assistanceUsed, providerID: attempt.providerID, modelID: attempt.modelID)
+        replacement.id = attempt.id; replacement.createdAt = attempt.createdAt; replacement.setAsideAt = attempt.setAsideAt
+        return replacement
+    }
+
+    func testRecordedOutcomesRejectOptimisticRubricsAndCachedFlagsWithoutRewritingWork() throws {
+        for target in map().units[0].targets {
+            let original = session(target: target), item = try recordedItem(for: original)
+            XCTAssertEqual(item.recordStatus(in: [original]), .verified)
+            XCTAssertTrue(item.outcome?.independentCorrect == true)
+            let attempt = try XCTUnwrap(original.latestExitAttempt)
+            var incomplete = attempt.assessment
+            // Keep the original optimistic outcome while its linked legacy assessment is inconsistent.
+            let variants = [
+                LearningAssessment(grade: .correct, feedback: incomplete.feedback, nextStep: incomplete.nextStep,
+                    criteria: [.init(index: 0, outcome: .met, feedback: "One supplied criterion only.")]),
+                LearningAssessment(grade: .correct, feedback: incomplete.feedback, nextStep: incomplete.nextStep,
+                    criteria: attempt.assessment.criteria!.map { .init(index: $0.index, outcome: $0.index == 1 ? .notMet : .met, feedback: $0.feedback) }),
+                LearningAssessment(grade: .correct, feedback: incomplete.feedback, nextStep: incomplete.nextStep,
+                    criteria: attempt.assessment.criteria!.map { .init(index: $0.index, outcome: $0.index == 1 ? .uncertain : .met, feedback: $0.feedback) })
+            ]
+            for assessment in variants {
+                var legacy = original; legacy.attempts[0] = replacingAssessment(attempt, with: assessment)
+                let before = legacy
+                XCTAssertFalse(legacy.attempts[0].hasIndependentCorrectResult)
+                XCTAssertEqual(item.recordStatus(in: [legacy]), .assessmentNeedsChecking)
+                XCTAssertEqual(legacy, before)
+                XCTAssertEqual(item.outcome?.grade, .correct)
+                XCTAssertTrue(item.outcome?.independentCorrect == true)
+            }
+            incomplete = .init(grade: .partial, feedback: attempt.assessment.feedback, nextStep: attempt.assessment.nextStep,
+                criteria: attempt.assessment.criteria)
+            var changed = original; changed.attempts[0] = replacingAssessment(attempt, with: incomplete)
+            XCTAssertEqual(item.recordStatus(in: [changed]), .assessmentMismatch)
+            changed = original; changed.attempts[0] = replacingAssessment(attempt, with: attempt.assessment, helped: true)
+            XCTAssertEqual(item.recordStatus(in: [changed]), .assessmentMismatch)
+            let assisted = session(target: target, helped: true)
+            var impossible = try recordedItem(for: assisted)
+            let captured = try XCTUnwrap(impossible.outcome)
+            impossible.outcome = .init(sessionID: captured.sessionID, attemptID: captured.attemptID, grade: captured.grade,
+                assistanceUsed: true, independentCorrect: true, assessedAt: captured.assessedAt)
+            XCTAssertEqual(impossible.recordStatus(in: [assisted]), .assessmentNeedsChecking)
+        }
+    }
+
+    func testRecordedOutcomeRequiresExactAssessmentRequirementAndActivity() throws {
+        let target = map().units[0].targets[0]
+        let saved = session(target: target), item = try recordedItem(for: saved)
+        XCTAssertEqual(item.recordStatus(in: []), .assessmentUnavailable)
+        var unattached = LearningStudyRun.Item(unitID: target.unitID, title: item.title, target: target,
+            mode: .lesson, existingSessionID: nil, earlierAttemptIDs: [])
+        unattached.outcome = item.outcome
+        XCTAssertEqual(unattached.recordStatus(in: [saved]), .assessmentMismatch)
+        var assigned = saved; assigned.studyRunItemID = unattached.id
+        XCTAssertEqual(unattached.recordStatus(in: [assigned]), .verified)
+        var priorWork = LearningStudyRun.Item(unitID: target.unitID, title: item.title, target: target,
+            mode: .lesson, existingSessionID: saved.id, earlierAttemptIDs: [saved.attempts[0].id])
+        priorWork.outcome = item.outcome
+        XCTAssertEqual(priorWork.recordStatus(in: [saved]), .assessmentMismatch)
+        var otherAttempt = saved; otherAttempt.attempts[0].id = UUID()
+        XCTAssertEqual(item.recordStatus(in: [otherAttempt]), .assessmentUnavailable)
+        var changes: [LearningStudyTarget] = []
+        var revised = target; revised.revisionID = UUID(); changes.append(revised)
+        changes += [.init(id: target.id, unitID: target.unitID, kind: target.kind, objective: "Earlier goal"),
+            .init(id: target.id, unitID: UUID(), kind: target.kind, objective: target.objective),
+            .init(id: target.id, unitID: target.unitID, kind: .application, objective: target.objective)]
+        for changed in changes {
+            var foreign = saved; foreign.studyTarget = changed
+            XCTAssertEqual(item.recordStatus(in: [foreign]), .assessmentMismatch)
+        }
+        var unbound = saved; unbound.studyTarget = nil
+        XCTAssertEqual(item.recordStatus(in: [unbound]), .assessmentMismatch)
+        var delayed = saved; delayed.delayedReview = .init(previousSessionID: UUID(), scheduledFor: now, startedAt: now, round: 1)
+        XCTAssertEqual(item.recordStatus(in: [delayed]), .assessmentMismatch)
+        let delayedItem = try recordedItem(for: delayed)
+        XCTAssertEqual(delayedItem.recordStatus(in: [delayed]), .verified)
+        XCTAssertEqual(delayedItem.recordStatus(in: [saved]), .assessmentMismatch)
+        var noOutcome = item; noOutcome.outcome = nil
+        XCTAssertEqual(noOutcome.recordStatus(in: [saved]), .noNewCheck)
+        var contextOnly = target; contextOnly.courseContext = "Reorganized course orientation."
+        var reorganized = saved; reorganized.studyTarget = contextOnly
+        XCTAssertEqual(item.recordStatus(in: [reorganized]), .verified)
+        var draft = saved
+        let attempt = saved.attempts[0]
+        var wrongPhase = LearningAttempt(phase: .practice, question: attempt.question, answer: attempt.answer,
+            assessment: attempt.assessment, assistanceUsed: false, providerID: attempt.providerID, modelID: attempt.modelID)
+        wrongPhase.id = attempt.id; draft.attempts = [wrongPhase]
+        XCTAssertEqual(item.recordStatus(in: [draft]), .assessmentMismatch)
+        draft = saved; var wrongQuestion = attempt.question; wrongQuestion.kind = .application
+        var wrongKind = LearningAttempt(phase: .exitCheck, question: wrongQuestion, answer: attempt.answer,
+            assessment: attempt.assessment, assistanceUsed: false, providerID: attempt.providerID, modelID: attempt.modelID)
+        wrongKind.id = attempt.id; draft.attempts = [wrongKind]
+        XCTAssertEqual(item.recordStatus(in: [draft]), .assessmentMismatch)
+        #if DEBUG
+        let pdf = try LearningUIFixture.makePDF()
+        let workspace = try LearningUIFixture.makeWorkspace(document: pdf, url: URL(fileURLWithPath: "/tmp/authored.pdf"))
+        let fixtureMap = try XCTUnwrap(workspace.learningStudyMap)
+        let module = try XCTUnwrap(fixtureMap.course?.modules.first)
+        let request = try XCTUnwrap(fixtureMap.chapterRequest(for: module))
+        var chapter = saved; chapter.chapter = .init(request: request, challenge: LearningUIFixture.challenge(request: request))
+        XCTAssertEqual(item.recordStatus(in: [chapter]), .assessmentMismatch)
+        #endif
+    }
+
+    func testRecordedOutcomeExclusionAndPersistenceRemainReadOnlyWithoutACourse() async throws {
+        let target = map().units[0].targets[0]
+        var saved = session(target: target)
+        let item = try recordedItem(for: saved)
+        saved.attempts[0].setAsideAt = now
+        XCTAssertEqual(item.recordStatus(in: [saved]), .setAside)
+        let originallyExcluded = try recordedItem(for: saved)
+        XCTAssertFalse(originallyExcluded.outcome?.independentCorrect == true)
+        saved.attempts[0].setAsideAt = nil
+        XCTAssertEqual(item.recordStatus(in: [saved]), .verified)
+        XCTAssertEqual(originallyExcluded.recordStatus(in: [saved]), .verified)
+        XCTAssertFalse(originallyExcluded.outcome?.independentCorrect == true) // Reinstatement does not rewrite the old snapshot.
+        var map = map(); map.course = nil
+        var run = LearningStudyRun(pageSignatures: map.pageSignatures, items: [item], startedAt: now)
+        run.state = .finished; run.endedAt = now; map.studyRuns = [run]
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cauchy-record-integrity-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let persistence = DocumentPersistenceService(root: root)
+        let workspace = DocumentWorkspace(documentURL: root.appendingPathComponent("authored.pdf"), learningSessions: [saved], learningStudyMap: map)
+        try await persistence.saveWorkspace(workspace, bookmarkData: nil)
+        let file = persistence.workspaceDirectory(for: workspace.id).appendingPathComponent("learning.json")
+        let bytes = try Data(contentsOf: file)
+        let loaded = await persistence.loadWorkspace(id: workspace.id)
+        let restored = try XCTUnwrap(loaded).workspace
+        let restoredRun = try XCTUnwrap(restored.learningStudyMap?.studyRuns?.first)
+        XCTAssertNil(restored.learningStudyMap?.course)
+        XCTAssertEqual(restoredRun.items[0].recordStatus(in: restored.learningSessions), .verified)
+        XCTAssertEqual(restoredRun.items[0].outcome, item.outcome)
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        XCTAssertEqual(run.items[0], item)
+    }
+
     func testPlanHasBoundedConceptProofApplicationOrderWithoutDuplicateUnits() throws {
         var map = map()
         // A chapter may refer to an earlier idea again; it is not another task.

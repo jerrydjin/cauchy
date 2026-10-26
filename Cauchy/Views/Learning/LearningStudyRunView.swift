@@ -227,7 +227,14 @@ struct LearningStudyRunRecord: View {
     private func result(_ item: LearningStudyRun.Item) -> String {
         guard let outcome = item.outcome else { return "No new exit check · requirement left open" }
         let work = item.mode == .delayedReview ? "Delayed check" : "Exit check"
-        if outcome.isSetAside(in: sessions) { return "\(work) · assessment set aside by you · excluded from progress" }
+        switch item.recordStatus(in: sessions) {
+        case .noNewCheck: return "No new exit check · requirement left open"
+        case .assessmentUnavailable: return "\(work) · recorded grade: \(outcome.grade.label) · saved assessment unavailable"
+        case .assessmentMismatch: return "\(work) · recorded grade: \(outcome.grade.label) · saved assessment does not match this record"
+        case .assessmentNeedsChecking: return "\(work) · recorded grade: \(outcome.grade.label) · assessment needs checking"
+        case .setAside: return "\(work) · assessment set aside by you · excluded from progress"
+        case .verified: break
+        }
         if outcome.independentCorrect { return "\(work) · correct without help" }
         let grade: String = switch outcome.grade {
         case .correct: "correct"

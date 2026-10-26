@@ -50,7 +50,7 @@ struct LearningWorkspaceView: View {
     private var canFindSavedLesson: Bool {
         guard lessonDetails == nil, !showingStudyPlan, !showingHistorySearch, !showingReviewOverview,
               let document = library.selectedDocument else { return false }
-        return !document.isBusy && !document.learning.sessions.isEmpty
+        return !document.isBusy
     }
 
     private var sidebarSelection: Binding<LearningDestination?> {
@@ -211,10 +211,7 @@ struct LearningWorkspaceView: View {
         .focusedSceneValue(\.findSavedLearningLesson, canFindSavedLesson ? { showingHistorySearch = true } : nil)
         .sheet(isPresented: $showingHistorySearch) {
             if let document = library.selectedDocument {
-                LearningHistorySearchView(document: document) { id in
-                    guard library.selectedDocument?.id == document.id else { return }
-                    Task { await library.navigate(to: .session(document: document.id, session: id)) }
-                }
+                LearningHistorySearchView(document: document, library: library, hiddenRecents: hiddenRecents)
             }
         }
         .sheet(isPresented: $showingStudyPlan) {
@@ -231,7 +228,7 @@ struct LearningWorkspaceView: View {
             }
             return true
         }
-        .alert("Couldn’t open your notes", isPresented: Binding(get: { library.errorMessage != nil && !showingReviewOverview }, set: { if !$0 { library.errorMessage = nil } })) {
+        .alert("Couldn’t open your notes", isPresented: Binding(get: { library.errorMessage != nil && !showingReviewOverview && !showingHistorySearch }, set: { if !$0 { library.errorMessage = nil } })) {
             Button("OK") { library.errorMessage = nil }
         } message: {
             Text(library.errorMessage ?? "")
@@ -342,33 +339,66 @@ private struct LearningHistoryRow: View {
 
 private struct LearningHistorySearchView: View {
     @Bindable var document: LearningDocument
-    let onOpen: (UUID) -> Void
+    let library: LearningLibraryStore
+    let hiddenRecents: String
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
-    @State private var selection: UUID?
-    private var results: [LearningHistorySearch.Match] {
-        LearningHistorySearch.results(in: document.learning.sessions, query: query)
+    @State private var allNotes = false
+    @State private var selection: LearningLibrarySearchPage.Item.ID?
+    @State private var page: LearningLibrarySearchPage?
+    @State private var preparedQuery: String?
+    @State private var searchGeneration = UUID()
+    @State private var opening = false
+    @State private var openError: String?
+    @State private var openTask: Task<Void, Never>?
+    private struct SearchRequest: Equatable {
+        let query: String
+        let allNotes: Bool
+        let revision: UInt64
+        let hidden: String
+    }
+    private var request: SearchRequest { .init(query: query, allNotes: allNotes, revision: document.learning.sessionsRevision, hidden: hiddenRecents) }
+    private var isSearching: Bool { allNotes && preparedQuery != query }
+    private var results: [LearningLibrarySearchPage.Item] {
+        if allNotes { return preparedQuery == query ? page?.items ?? [] : [] }
+        return LearningHistorySearch.results(in: document.learning.sessions, query: query).map {
+            .init(workspaceID: document.id, title: document.title, match: $0)
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Find a saved lesson").font(.title2.weight(.semibold))
-            Text(document.title).font(.callout).foregroundStyle(.secondary).lineLimit(1).help(document.title)
-            LearningHistorySearchField(text: $query, onMove: moveSelection, onOpen: {
+            Picker("Search scope", selection: $allNotes) {
+                Text("These notes").tag(false)
+                Text("All saved notes").tag(true)
+            }.pickerStyle(.segmented).disabled(opening)
+            Text(allNotes ? "Search lesson titles, questions and your work across saved notes." : document.title)
+                .font(.callout).foregroundStyle(.secondary).lineLimit(2)
+            LearningHistorySearchField(text: $query, allNotes: allNotes, onMove: moveSelection, onOpen: {
                 if let selection { open(selection) }
-            }, onCancel: { dismiss() }).frame(height: 24)
+            }, onCancel: { openTask?.cancel(); dismiss() }).frame(height: 24).disabled(opening)
+            if allNotes, let titles = page?.unreadableTitles, preparedQuery == query, !titles.isEmpty {
+                DisclosureGroup("\(titles.count) \(titles.count == 1 ? "set of notes couldn’t" : "sets of notes couldn’t") be searched") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(titles.enumerated()), id: \.offset) { _, title in Text(title).font(.callout) }
+                        Text("Open these notes from the sidebar to check their saved record.").font(.caption).foregroundStyle(.secondary)
+                    }.padding(.top, 6)
+                }
+            }
             if results.isEmpty {
-                ContentUnavailableView(query.isEmpty ? "No saved lessons" : "No matching lessons", systemImage: "magnifyingglass",
-                    description: Text("Try a title, a question, or part of your own answer."))
+                ContentUnavailableView(isSearching ? "Searching saved notes" : query.isEmpty ? "No saved lessons" : "No matching lessons", systemImage: "magnifyingglass",
+                    description: Text(isSearching ? "Reading saved learning work locally." : "Try a title, a question, or part of your own answer."))
                     .frame(maxWidth: .infinity).frame(height: 320)
             } else {
                 ScrollViewReader { scroll in
                     List(selection: $selection) {
                         ForEach(results) { result in
                             VStack(alignment: .leading, spacing: 5) {
-                                LearningHistoryRow(session: result.session)
-                                if let snippet = result.snippet { Text(snippet).font(.callout).lineLimit(2) }
-                                Text("Started \(LearningHistoryMetadata(session: result.session).startedLabel)")
+                                if allNotes { Text(result.title).font(.caption.weight(.medium)).foregroundStyle(.secondary).lineLimit(1).help(result.title) }
+                                LearningHistoryRow(session: result.match.session)
+                                if let snippet = result.match.snippet { Text(snippet).font(.callout).lineLimit(2) }
+                                Text("Started \(LearningHistoryMetadata(session: result.match.session).startedLabel)")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             .contentShape(Rectangle()).tag(result.id).id(result.id)
@@ -381,21 +411,37 @@ private struct LearningHistorySearchView: View {
                     }
                 }.frame(height: 320)
             }
+            if let openError { Text(openError).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
             HStack {
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Text("\(results.count) \(results.count == 1 ? "lesson" : "lessons")")
+                Button("Cancel") { openTask?.cancel(); dismiss() }.keyboardShortcut(.cancelAction)
+                Text(allNotes && (page?.totalCount ?? 0) > results.count && !isSearching
+                     ? "Showing \(results.count) of \(page!.totalCount) lessons — refine your search"
+                     : "\(results.count) \(results.count == 1 ? "lesson" : "lessons")")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
+                if opening { ProgressView().controlSize(.small) }
                 Button("Open lesson") { if let selection { open(selection) } }
                     .buttonStyle(.glassProminent).keyboardShortcut(.defaultAction)
-                    .disabled(document.isBusy || !results.contains { $0.id == selection })
+                    .disabled(opening || isSearching || document.isBusy || !results.contains { $0.id == selection })
             }
         }
         .padding(24).frame(width: 560)
-        .onAppear { selection = document.learning.selectedSessionID ?? results.first?.id }
-        .onChange(of: query) {
+        .onAppear { selection = document.learning.selectedSessionID.map { .init(workspaceID: document.id, sessionID: $0) } ?? results.first?.id }
+        .onChange(of: results.map(\.id)) {
             if !results.contains(where: { $0.id == selection }) { selection = results.first?.id }
         }
+        .task(id: request) {
+            let generation = UUID(); searchGeneration = generation
+            preparedQuery = nil; page = nil; openError = nil
+            guard allNotes else { return }
+            let captured = query
+            do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
+            let hidden = Set(hiddenRecents.split(separator: ",").compactMap { UUID(uuidString: String($0)) })
+            guard let found = await library.searchSavedLessons(query: captured, excluding: hidden),
+                  !Task.isCancelled, searchGeneration == generation else { return }
+            page = found; preparedQuery = captured
+        }
+        .onDisappear { openTask?.cancel() }
     }
 
     private func moveSelection(backwards: Bool) {
@@ -404,10 +450,16 @@ private struct LearningHistorySearchView: View {
         selection = results[min(max(index + (backwards ? -1 : 1), 0), results.count - 1)].id
     }
 
-    private func open(_ id: UUID) {
-        guard !document.isBusy, results.contains(where: { $0.id == id }) else { return }
-        onOpen(id)
-        dismiss()
+    private func open(_ id: LearningLibrarySearchPage.Item.ID) {
+        guard !opening, !isSearching, !document.isBusy, results.contains(where: { $0.id == id }) else { return }
+        opening = true; openError = nil
+        openTask = Task { @MainActor in
+            let opened = await library.openSavedLesson(workspaceID: id.workspaceID, sessionID: id.sessionID)
+            guard !Task.isCancelled else { return }
+            opening = false
+            if opened { dismiss() }
+            else { openError = library.errorMessage ?? "This lesson couldn’t be opened. Search again to refresh the results."; library.errorMessage = nil }
+        }
     }
 }
 
@@ -415,6 +467,7 @@ private struct LearningHistorySearchView: View {
 /// Handle its native movement commands while preserving ordinary text editing.
 private struct LearningHistorySearchField: NSViewRepresentable {
     @Binding var text: String
+    let allNotes: Bool
     let onMove: (Bool) -> Void
     let onOpen: () -> Void
     let onCancel: () -> Void
@@ -426,13 +479,16 @@ private struct LearningHistorySearchField: NSViewRepresentable {
         field.placeholderString = "Titles, questions and your work"
         field.maximumRecents = 0
         field.sendsSearchStringImmediately = true
+        field.isEnabled = context.environment.isEnabled
         field.delegate = context.coordinator
-        field.setAccessibilityLabel("Search saved lessons in these notes")
+        field.setAccessibilityLabel(allNotes ? "Search lessons in all saved notes" : "Search saved lessons in these notes")
         return field
     }
 
     func updateNSView(_ field: NSSearchField, context: Context) {
         context.coordinator.parent = self
+        field.isEnabled = context.environment.isEnabled
+        field.setAccessibilityLabel(allNotes ? "Search lessons in all saved notes" : "Search saved lessons in these notes")
         if field.stringValue != text { field.stringValue = text }
     }
 

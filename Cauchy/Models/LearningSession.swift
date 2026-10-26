@@ -293,19 +293,20 @@ struct LearningDelayedReview: Codable, Equatable, Sendable {
 /// A local read-only projection. Hidden keys, hints and future assessment
 /// prompts are deliberately absent from the searchable fields.
 enum LearningHistorySearch {
-    struct Match: Identifiable {
+    struct Match: Identifiable, Sendable {
         let session: LearningSession
         let snippet: String?
         var id: UUID { session.id }
     }
 
-    static func results(in sessions: [LearningSession], query: String) -> [Match] {
+    static func results(in sessions: [LearningSession], query: String, context: String = "") -> [Match] {
         let terms = query.split(whereSeparator: \.isWhitespace).map(String.init)
         return sessions.sorted {
             $0.updatedAt == $1.updatedAt ? $0.id.uuidString < $1.id.uuidString : $0.updatedAt > $1.updatedAt
         }.compactMap { session in
+            guard !Task.isCancelled else { return nil }
             if terms.isEmpty { return Match(session: session, snippet: nil) }
-            let fields = fields(in: session)
+            let fields = fields(in: session) + [Field(label: nil, text: context)]
             guard terms.allSatisfy({ term in fields.contains { range(of: term, in: $0.text) != nil } }) else { return nil }
             let matching = fields.filter { $0.label != nil }.max { lhs, rhs in
                 terms.filter { range(of: $0, in: lhs.text) != nil }.count

@@ -243,6 +243,176 @@ final class LearningUIFixtureTests: XCTestCase {
         XCTAssertNotNil(controller.error)
     }
 
+    private func search(_ library: LearningLibraryStore, query: String, excluding hidden: Set<UUID> = [], limit: Int = 100) async throws -> LearningLibrarySearchPage {
+        let page = await library.searchSavedLessons(query: query, excluding: hidden, limit: limit)
+        return try XCTUnwrap(page)
+    }
+
+    func testCrossNotesSearchUsesClosedRecordsLiveDraftsAndCompositeIdentitiesWithoutNavigation() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let seed = LearningUIFixtureController(rootPath: root.path)
+        await seed.load(); try await seed.flush()
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        let secondURL = root.appendingPathComponent("Second-notes.pdf")
+        XCTAssertTrue(document.pdfDocument.write(to: secondURL))
+        var second = document.snapshot; second.id = UUID(); second.documentURL = secondURL
+        second.learningSessions = document.learning.sessions
+        try await persistence.saveWorkspace(second, bookmarkData: nil)
+        let directory = root.appendingPathComponent("workspaces").appendingPathComponent(second.id.uuidString)
+        let record = directory.appendingPathComponent("learning.json")
+        let savedBytes = try Data(contentsOf: record)
+        let summaryBytes = try Data(contentsOf: directory.appendingPathComponent("summary.json"))
+        let writable = try XCTUnwrap(document.learning.sessions.first { $0.phase == .practice && $0.feedback == nil })
+        document.learning.select(writable.id)
+        document.learning.answerDraft = "Unflushed live draft about an amber subsequence."
+        XCTAssertEqual(document.learning.answerDraft, "Unflushed live draft about an amber subsequence.")
+        let destination = library.destination
+        let selected = document.learning.selectedSessionID
+        let moved = secondURL.appendingPathExtension("held")
+        try FileManager.default.moveItem(at: secondURL, to: moved)
+        let all = try await search(library, query: "closed")
+        XCTAssertTrue(all.items.contains { $0.workspaceID == document.id })
+        XCTAssertTrue(all.items.contains { $0.workspaceID == second.id })
+        XCTAssertEqual(Set(all.items.map(\.id)).count, all.items.count) // Session IDs intentionally match across notes.
+        let scoped = try await search(library, query: "second closed")
+        XCTAssertFalse(scoped.items.isEmpty)
+        XCTAssertTrue(scoped.items.allSatisfy { $0.workspaceID == second.id && $0.title == "Second-notes" })
+        let live = try await search(library, query: "amber subsequence")
+        XCTAssertEqual(live.items.map(\.workspaceID), [document.id])
+        XCTAssertTrue(live.items.first?.match.snippet?.contains("amber") == true)
+        let hidden = try await search(library, query: "closed", excluding: [second.id])
+        XCTAssertFalse(hidden.items.contains { $0.workspaceID == second.id })
+        XCTAssertEqual(library.destination, destination)
+        XCTAssertEqual(document.learning.selectedSessionID, selected)
+        XCTAssertNil(library.documents[second.id])
+        XCTAssertEqual(try Data(contentsOf: record), savedBytes)
+        XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent("summary.json")), summaryBytes)
+        try FileManager.default.moveItem(at: moved, to: secondURL)
+        try await controller.flush()
+    }
+
+    func testCrossNotesSearchCapsStableResultsReportsUnreadableRecordsAndCancels() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await controller.flush()
+        var closed = document.snapshot
+        closed.id = UUID(); closed.documentURL = root.appendingPathComponent("Closed-notes.pdf")
+        closed.learningSessions = document.learning.sessions
+        try await persistence.saveWorkspace(closed, bookmarkData: nil)
+        let page = try await search(library, query: "", limit: 2)
+        XCTAssertEqual(page.items.count, 2)
+        XCTAssertEqual(page.totalCount, document.learning.sessions.count * 2)
+        let repeated = try await search(library, query: "", limit: 2)
+        XCTAssertEqual(page.items.map(\.id), repeated.items.map(\.id))
+        let cancelled = Task { await library.searchSavedLessons(query: "closed") }
+        cancelled.cancel()
+        let cancelledPage = await cancelled.value
+        XCTAssertNil(cancelledPage)
+        let missing = root.appendingPathComponent("workspaces").appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: missing, withIntermediateDirectories: true)
+        let summary = WorkspaceSummary(workspaceID: UUID(uuidString: missing.lastPathComponent)!, documentURL: root.appendingPathComponent("Unreadable-notes.pdf"),
+            lastOpenedAt: Date(), highlightCount: 0, bookmarkData: nil)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(summary).write(to: missing.appendingPathComponent("summary.json"))
+        let unreadable = try await search(library, query: "closed")
+        XCTAssertEqual(unreadable.unreadableTitles, ["Unreadable-notes"])
+        XCTAssertFalse(unreadable.items.isEmpty)
+        XCTAssertEqual(library.documents.count, 1)
+    }
+
+    func testCrossNotesSearchOpenResolvesExactSessionAndPreservesRecordsAcrossRestart() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let seed = LearningUIFixtureController(rootPath: root.path)
+        await seed.load(); try await seed.flush()
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        let secondURL = root.appendingPathComponent("Second-search-notes.pdf")
+        XCTAssertTrue(document.pdfDocument.write(to: secondURL))
+        var second = document.snapshot; second.id = UUID(); second.documentURL = secondURL
+        second.learningSessions = document.learning.sessions
+        try await persistence.saveWorkspace(second, bookmarkData: nil)
+        let page = try await search(library, query: "second-search application")
+        let result = try XCTUnwrap(page.items.first)
+        let destination = library.destination
+        let failed = await library.openSavedLesson(workspaceID: second.id, sessionID: UUID())
+        XCTAssertFalse(failed); XCTAssertEqual(library.destination, destination); XCTAssertNil(library.documents[second.id])
+        XCTAssertNotNil(library.errorMessage)
+        let held = secondURL.appendingPathExtension("held")
+        try FileManager.default.moveItem(at: secondURL, to: held)
+        let unavailable = await library.openSavedLesson(workspaceID: second.id, sessionID: result.match.id)
+        XCTAssertFalse(unavailable); XCTAssertEqual(library.destination, destination); XCTAssertNil(library.documents[second.id])
+        try FileManager.default.moveItem(at: held, to: secondURL)
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .secondsSince1970; encoder.outputFormatting = [.sortedKeys]
+        let originalSessions = try encoder.encode(document.learning.sessions)
+        let opened = await library.openSavedLesson(workspaceID: second.id, sessionID: result.match.id)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(library.destination, .session(document: second.id, session: result.match.id))
+        XCTAssertEqual(library.selectedDocument?.learning.selectedSessionID, result.match.id)
+        XCTAssertEqual(try encoder.encode(library.selectedDocument?.learning.sessions), originalSessions)
+        XCTAssertEqual(try encoder.encode(document.learning.sessions), originalSessions)
+        XCTAssertEqual(library.selectedDocument?.studyMap.map, document.studyMap.map)
+        let returned = await library.openSavedLesson(workspaceID: document.id, sessionID: document.learning.sessions[0].id)
+        XCTAssertTrue(returned)
+        XCTAssertEqual(library.selectedDocument?.id, document.id)
+        try await controller.flush()
+        let restart = LearningUIFixtureController(rootPath: root.path)
+        await restart.load()
+        let restored = try XCTUnwrap(restart.library)
+        let restoredPage = try await search(restored, query: "second-search application")
+        XCTAssertEqual(restoredPage.items.map(\.id), page.items.map(\.id))
+        XCTAssertEqual(try encoder.encode(restored.selectedDocument?.learning.sessions), originalSessions)
+        let loadedSecond = await persistence.loadWorkspace(id: second.id)
+        let savedSecond = try XCTUnwrap(loadedSecond)
+        XCTAssertEqual(try encoder.encode(savedSecond.workspace.learningSessions), originalSessions)
+        XCTAssertEqual(savedSecond.workspace.learningStudyMap, document.studyMap.map)
+    }
+
+    func testSavedSearchOpenHonorsCancellationAndFixtureBoundaryWhileNormalLocalRecordsRemainUsable() async throws {
+        let root = root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let seed = LearningUIFixtureController(rootPath: root.path)
+        await seed.load(); try await seed.flush()
+        let controller = LearningUIFixtureController(rootPath: root.path)
+        await controller.load()
+        let library = try XCTUnwrap(controller.library)
+        let document = try XCTUnwrap(library.selectedDocument)
+        let destination = library.destination
+        let cancelled = Task { await library.openSavedLesson(workspaceID: document.id, sessionID: document.learning.sessions[0].id) }
+        cancelled.cancel()
+        let didOpen = await cancelled.value
+        XCTAssertFalse(didOpen); XCTAssertEqual(library.destination, destination)
+        let nested = root.appendingPathComponent("nested")
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        let url = nested.appendingPathComponent("Outside-fixture-scope.pdf")
+        XCTAssertTrue(document.pdfDocument.write(to: url))
+        var saved = document.snapshot; saved.id = UUID(); saved.documentURL = url; saved.learningSessions = document.learning.sessions
+        let persistence = DocumentPersistenceService(root: root.appendingPathComponent("workspaces"))
+        try await persistence.saveWorkspace(saved, bookmarkData: nil)
+        _ = try await search(library, query: "outside-fixture-scope")
+        let rejected = await library.openSavedLesson(workspaceID: saved.id, sessionID: saved.learningSessions[0].id)
+        XCTAssertFalse(rejected); XCTAssertEqual(library.destination, destination); XCTAssertNil(library.documents[saved.id])
+        let normal = LearningLibraryStore(persistence: persistence)
+        await normal.refreshLibrary()
+        let opened = await normal.openSavedLesson(workspaceID: saved.id, sessionID: saved.learningSessions[0].id)
+        XCTAssertTrue(opened)
+        XCTAssertEqual(normal.destination, .session(document: saved.id, session: saved.learningSessions[0].id))
+        XCTAssertEqual(normal.selectedDocument?.learning.sessions, saved.learningSessions)
+    }
+
     func testLocalHistorySearchAndOpeningResultPreserveRecordsAcrossRestart() async throws {
         let root = root()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -1268,6 +1438,14 @@ final class LearningHistorySearchTests: XCTestCase {
         XCTAssertEqual(LearningHistorySearch.results(in: [saved], query: "  CAFE\nEIGENBASIS ").map(\.id), [saved.id])
         XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "cafe nonexistent").isEmpty)
         XCTAssertEqual(LearningHistorySearch.results(in: [saved], query: "current diagnostic").first?.snippet, "Question: Current diagnostic question")
+    }
+
+    func testNotesTitleContextCombinesWithVisibleWorkWithoutExposingHiddenContent() {
+        let saved = session()
+        XCTAssertEqual(LearningHistorySearch.results(in: [saved], query: "analysis eigenbasis", context: "Analysis notes").map(\.id), [saved.id])
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "analysis HIDDEN_ANSWER_KEY", context: "Analysis notes").isEmpty)
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "analysis FUTURE_EXIT_PROMPT", context: "Analysis notes").isEmpty)
+        XCTAssertTrue(LearningHistorySearch.results(in: [saved], query: "analysis UNREVEALED_HINT", context: "Analysis notes").isEmpty)
     }
 
     func testKeysHintsAndFutureAssessmentPromptsAreNotSearchable() {

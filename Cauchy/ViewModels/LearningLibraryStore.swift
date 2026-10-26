@@ -105,6 +105,28 @@ final class LearningDocument: Identifiable {
     }
 }
 
+struct LearningLibrarySearchPage: Sendable {
+    struct Item: Identifiable, Sendable {
+        struct ID: Hashable, Sendable {
+            let workspaceID: UUID
+            let sessionID: UUID
+        }
+        let workspaceID: UUID
+        let title: String
+        let match: LearningHistorySearch.Match
+        var id: ID { .init(workspaceID: workspaceID, sessionID: match.id) }
+    }
+    let items: [Item]
+    let totalCount: Int
+    let unreadableTitles: [String]
+
+    static func precedes(_ lhs: Item, _ rhs: Item) -> Bool {
+        if lhs.match.session.updatedAt != rhs.match.session.updatedAt { return lhs.match.session.updatedAt > rhs.match.session.updatedAt }
+        if lhs.workspaceID != rhs.workspaceID { return lhs.workspaceID.uuidString < rhs.workspaceID.uuidString }
+        return lhs.match.id.uuidString < rhs.match.id.uuidString
+    }
+}
+
 @MainActor
 @Observable
 final class LearningLibraryStore: Equatable {
@@ -152,6 +174,100 @@ final class LearningLibraryStore: Equatable {
 
     func refreshLibrary() async {
         summaries = await persistence.listWorkspaceSummaries()
+    }
+
+    /// Search saved learning records without opening PDFs or retaining a library-wide index.
+    /// A cancelled query never supplies a partial page to its replacement.
+    func searchSavedLessons(query: String, excluding hidden: Set<UUID> = [], limit: Int = 100) async -> LearningLibrarySearchPage? {
+        await refreshLibrary()
+        guard !Task.isCancelled else { return nil }
+        var notes = summaries.reduce(into: [UUID: URL]()) { $0[$1.workspaceID] = $1.documentURL }
+        for live in documents.values { notes[live.id] = live.snapshot.documentURL }
+        var matches: [LearningLibrarySearchPage.Item] = []
+        var total = 0
+        var unreadable: [String] = []
+        for id in notes.keys.sorted(by: { $0.uuidString < $1.uuidString }) where !hidden.contains(id) {
+            guard !Task.isCancelled, let url = notes[id] else { return nil }
+            let title = url.deletingPathExtension().lastPathComponent
+            let sessions: [LearningSession]
+            if let live = documents[id] { sessions = live.learning.sessions }
+            else if let saved = await persistence.loadWorkspace(id: id), saved.workspace.id == id, saved.workspace.documentURL == url {
+                sessions = documents[id]?.learning.sessions ?? saved.workspace.learningSessions
+            } else { unreadable.append(title); continue }
+            guard !Task.isCancelled else { return nil }
+            var revision = documents[id]?.learning.sessionsRevision
+            var found = await Self.searchSessions(sessions, query: query, title: title)
+            // A live draft can change while background matching is running.
+            while let live = documents[id], live.learning.sessionsRevision != revision {
+                guard !Task.isCancelled else { return nil }
+                revision = live.learning.sessionsRevision
+                found = await Self.searchSessions(live.learning.sessions, query: query, title: title)
+            }
+            guard !Task.isCancelled else { return nil }
+            total += found.count
+            matches += found.prefix(max(1, limit)).map { .init(workspaceID: id, title: title, match: $0) }
+            matches.sort(by: LearningLibrarySearchPage.precedes)
+            matches = Array(matches.prefix(max(1, limit)))
+        }
+        return .init(items: matches, totalCount: total, unreadableTitles: unreadable.sorted())
+    }
+
+    private nonisolated static func searchSessions(_ sessions: [LearningSession], query: String, title: String) async -> [LearningHistorySearch.Match] {
+        let task = Task.detached(priority: .userInitiated) { LearningHistorySearch.results(in: sessions, query: query, context: title) }
+        return await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+    }
+
+    /// Resolve the exact current record before committing navigation. Missing work
+    /// must not fall back to a different saved lesson or create a new workspace.
+    func openSavedLesson(workspaceID: UUID, sessionID: UUID) async -> Bool {
+        guard !Task.isCancelled else { return false }
+        let previousDestination = destination
+        guard selectedDocument?.isBusy != true else { errorMessage = "Wait for the current learning task to finish before opening another lesson."; return false }
+        let request = UUID()
+        openRequestID = request
+        defer {
+            if openRequestID == request { openRequestID = nil; isLoading = false }
+        }
+        errorMessage = nil
+        var entry = documents[workspaceID]
+        if entry == nil {
+            guard let summary = summaries.first(where: { $0.workspaceID == workspaceID }) else {
+                errorMessage = "These saved notes are no longer available. Search again to refresh the results."; return false
+            }
+            let saved = await persistence.loadWorkspace(id: workspaceID)
+            guard openRequestID == request, !Task.isCancelled, destination == previousDestination, selectedDocument?.isBusy != true else { return false }
+            guard let saved, saved.workspace.id == workspaceID,
+                  saved.workspace.documentURL == summary.documentURL,
+                  saved.workspace.learningSessions.contains(where: { $0.id == sessionID }) else {
+                errorMessage = "This saved lesson is no longer available. Search again to refresh the results."
+                return false
+            }
+            guard openRequestID == request, !Task.isCancelled, destination == previousDestination else { return false }
+            let resolved = saved.bookmarkData.flatMap { try? persistence.resolveBookmark($0) } ?? summary.documentURL
+            if isVerificationFixture {
+                #if DEBUG
+                let root = persistence.applicationSupportRoot().deletingLastPathComponent()
+                guard let verified = try? LearningUIFixture.validatedRoot(root.path),
+                      resolved.standardizedFileURL.resolvingSymlinksInPath().deletingLastPathComponent() == verified else {
+                    errorMessage = "These authored fixture notes are outside the temporary verification directory."; return false
+                }
+                #else
+                return false
+                #endif
+            }
+            guard let pdf = PDFDocument(url: resolved) else { errorMessage = "The source PDF for this lesson couldn’t be opened. Your current work is still in place."; return false }
+            guard openRequestID == request, !Task.isCancelled, destination == previousDestination else { return false }
+            entry = documents[workspaceID] ?? install(saved.workspace, document: pdf, bookmarkData: saved.bookmarkData)
+        }
+        guard openRequestID == request, !Task.isCancelled, destination == previousDestination,
+              selectedDocument?.isBusy != true, let entry, !entry.isBusy, entry.learning.sessions.contains(where: { $0.id == sessionID }) else {
+            if openRequestID == request, !Task.isCancelled { errorMessage = "This lesson changed or is busy. Search again before opening it." }
+            return false
+        }
+        entry.requestsNewSection = false
+        entry.learning.select(sessionID)
+        destination = .session(document: workspaceID, session: sessionID)
+        return true
     }
 
     /// Prepare small schedules on explicit review, not on every sidebar refresh.

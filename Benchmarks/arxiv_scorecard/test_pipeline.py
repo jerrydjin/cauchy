@@ -691,6 +691,68 @@ class CitationScoreTests(unittest.TestCase):
         self.assertGreaterEqual(card["correct"], 1)
 
 
+class PluralListScoreTests(unittest.TestCase):
+    def test_a_later_number_in_a_plural_list_resolves_on_its_own(self) -> None:
+        from ground_truth import Declaration, Mention, PaperTruth, SectionInfo
+        from score import score_profile
+
+        truth = PaperTruth(
+            mentions=[
+                Mention("lemma", "3.1", "named", "Lemmas", False, "Lemmas 3.1, 3.2 and 3.4"),
+                Mention("lemma", "3.2", "named", "Lemmas", False, "Lemmas 3.1, 3.2 and 3.4"),
+                Mention("lemma", "3.4", "named", "Lemmas", False, "Lemmas 3.1, 3.2 and 3.4"),
+            ],
+            declarations=[
+                Declaration("lemma", "3.1", None, 0),
+                Declaration("lemma", "3.2", None, 1),
+                Declaration("lemma", "3.4", None, 2),
+            ],
+            sections=[SectionInfo("1", "Introduction", 1)],
+        )
+        pages = [{
+            "page_index": 0,
+            "text": (
+                "1. Introduction\n"
+                "Lemma 3.1. The first claim is short.\n"
+                "Lemma 3.2. The second claim is short.\n"
+                "Lemma 3.4. The fourth claim is short.\n"
+                "By Lemmas 3.1,\n3.2 and 3.4 the claim follows."
+            ),
+            "width": 100,
+            "blocks": [],
+        }]
+        card = score_profile(truth, pages, "main", use_structure=False)
+        self.assertEqual(card["wrong_links"], 0)
+        self.assertEqual(card["missed"], 0)
+        self.assertEqual(card["extraction_misses"], 0)
+        self.assertGreaterEqual(card["correct"], 3)
+
+    def test_an_unindexed_list_tail_does_not_open_the_first_number(self) -> None:
+        from ground_truth import Declaration, Mention, PaperTruth, SectionInfo
+        from score import score_profile
+
+        truth = PaperTruth(
+            mentions=[
+                Mention("theorem", "3.4", "named", "Theorems", False, "Theorems 3.1 and 3.4"),
+            ],
+            declarations=[Declaration("theorem", "3.1", None, 0)],
+            sections=[SectionInfo("1", "Introduction", 1)],
+        )
+        pages = [{
+            "page_index": 0,
+            "text": (
+                "1. Introduction\n"
+                "Theorem 3.1. The first claim is short.\n"
+                "Theorems 3.1 and 3.4 remain open."
+            ),
+            "width": 100,
+            "blocks": [],
+        }]
+        card = score_profile(truth, pages, "main", use_structure=False)
+        self.assertEqual(card["wrong_links"], 0)
+        self.assertGreaterEqual(card["missed"], 1)
+
+
 class HtmlReferenceTests(unittest.TestCase):
     def test_enumerated_item_link_is_not_a_section(self) -> None:
         html = """

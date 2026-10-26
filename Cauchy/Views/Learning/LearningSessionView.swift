@@ -22,6 +22,7 @@ struct LearningSessionView: View {
     @State private var returningToFeedback = false
     @State private var chapterScroll = ScrollPosition()
     @State private var answerEditRequest = 0
+    @State private var startingQuestionsShown: Set<UUID> = []
 
     private enum SourceMode: Hashable { case currentPage, selection, pages }
     private var learning: LearningViewModel { document.learning }
@@ -220,8 +221,8 @@ struct LearningSessionView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("How you’ll learn").font(.headline)
-                Label("Try a question to find your starting point.", systemImage: "questionmark.circle")
-                Label("Study the idea and practise with hints.", systemImage: "book")
+                Label("Explore the idea and a worked example.", systemImage: "book")
+                Label("Practise with hints when you need them.", systemImage: "lightbulb")
                 Label("Apply it to a different problem on your own.", systemImage: "pencil.and.outline")
             }
             .font(.callout).foregroundStyle(.secondary)
@@ -262,30 +263,24 @@ struct LearningSessionView: View {
             }
         }
         if session.delayedReview == nil && session.phase != .complete {
-            HStack(spacing: 20) {
-                ForEach(Array([LearningPhase.diagnostic, .lesson, .practice, .exitCheck].enumerated()), id: \.offset) { index, phase in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(index + 1)").font(.caption.monospacedDigit())
-                        Text(["Start", "Study", "Practise", "Check"][index]).font(.callout.weight(session.phase == phase ? .semibold : .regular))
-                    }
-                    .foregroundStyle(session.phase == phase ? .primary : .secondary)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Current step: \(session.phase.label)")
-            .accessibilityAddTraits(.isStaticText)
+            Label(lessonStageTitle(session), systemImage: lessonStageSymbol(session))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.accentColor)
         }
 
         VStack(alignment: .leading, spacing: 10) {
             Text(session.lesson.title).font(.title.weight(.semibold))
                 .lineLimit(2).accessibilityLabel(session.lesson.title)
-            if session.phase != .diagnostic && (session.phase != .lesson || session.currentLessonPartIndex > 0) {
+            if showsLessonIntroduction(session) {
+                Text("What you’ll learn").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+                MessageContentView(content: session.lesson.objective, textColor: .secondary)
+            } else if session.phase != .diagnostic && (session.phase != .lesson || session.currentLessonPartIndex > 0) {
                 DisclosureGroup("Learning goal") {
-                    Text(session.lesson.objective).font(.body)
+                    MessageContentView(content: session.lesson.objective)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                 }
             } else {
-                Text(session.lesson.objective).font(.body)
+                MessageContentView(content: session.lesson.objective, textColor: .secondary)
             }
             if session.phase != .exitCheck {
                 Button(session.source.label, systemImage: "doc.text") { openSource(session) }
@@ -297,8 +292,56 @@ struct LearningSessionView: View {
 
         switch session.phase {
         case .lesson: lessonContent(session)
-        case .diagnostic, .practice, .exitCheck: questionContent(session)
+        case .diagnostic:
+            if showsLessonIntroduction(session) { lessonIntroduction }
+            else { questionContent(session) }
+        case .practice, .exitCheck: questionContent(session)
         case .complete: evidenceContent(session)
+        }
+    }
+
+    private func showsLessonIntroduction(_ session: LearningSession) -> Bool {
+        // Resuming work must reveal the original question, draft and help.
+        session.phase == .diagnostic && session.chapter == nil && session.delayedReview == nil
+            && session.answerDraft.isEmpty && session.feedback == nil && session.attempts.isEmpty
+            && session.clarifications?.isEmpty != false
+            && session.clarificationDrafts?.values.contains(where: { !$0.isEmpty }) != true
+            && !startingQuestionsShown.contains(session.id)
+    }
+
+    private var lessonIntroduction: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            RoundedRectangle(cornerRadius: 2).fill(Color.accentColor).frame(width: 40, height: 3)
+                .accessibilityHidden(true)
+            Text("Let’s build the idea together.").font(.title2.weight(.semibold))
+            Text("Start with an explanation and a worked example. Then try it yourself, with hints whenever you need them.")
+                .font(.body).foregroundStyle(.secondary)
+            Label("Finish with a different problem to see what you can do on your own.", systemImage: "pencil.and.outline")
+                .font(.callout).foregroundStyle(.secondary)
+            Text("Already know some of this? Try the optional starting question first. It helps decide where to begin.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func lessonStageTitle(_ session: LearningSession) -> String {
+        switch session.phase {
+        case .diagnostic: showsLessonIntroduction(session) ? "A new idea" : "Find your starting point"
+        case .lesson: "Explore the idea"
+        case .practice: "Guided practice"
+        case .exitCheck: "Check your understanding"
+        case .complete: "Your progress"
+        }
+    }
+
+    private func lessonStageSymbol(_ session: LearningSession) -> String {
+        switch session.phase {
+        case .diagnostic: showsLessonIntroduction(session) ? "sparkle" : "questionmark.circle"
+        case .lesson: "book"
+        case .practice: "pencil.and.outline"
+        case .exitCheck: "checkmark.circle"
+        case .complete: "checkmark.seal"
         }
     }
 
@@ -621,6 +664,13 @@ struct LearningSessionView: View {
     private func questionContent(_ session: LearningSession) -> some View {
         if let question = session.question {
             VStack(alignment: .leading, spacing: 16) {
+                if session.phase == .diagnostic && session.feedback == nil {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("A question before we begin").font(.title2.weight(.semibold))
+                        Text("Try the question below and explain your thinking. It’s okay to be unsure — this helps choose your starting point. You can also go straight to the explanation.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+                }
                 MessageContentView(content: question.prompt)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -870,7 +920,13 @@ struct LearningSessionView: View {
                     }
                 }
             case .diagnostic, .practice, .exitCheck:
-                if session.feedback == nil {
+                if showsLessonIntroduction(session) {
+                    primaryAction("Start with the explanation") { learning.studyInstead() }
+                    Button("Try a question first") {
+                        startingQuestionsShown.insert(session.id)
+                        focusAnswerIfNeeded()
+                    }.buttonStyle(.borderless)
+                } else if session.feedback == nil {
                     if session.phase == .exitCheck {
                         if document.notesVisible {
                             Text("Your source notes are open. This check will record that help was available.")
@@ -886,7 +942,7 @@ struct LearningSessionView: View {
                     primaryAction("Check my reasoning") { answerFocused = false; learning.submitAnswer() }
                         .disabled(session.answerDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     if session.phase == .diagnostic {
-                        Button("Study the idea first") { learning.studyInstead() }
+                        Button("Go straight to the explanation") { learning.studyInstead() }
                     }
                 } else if session.phase == .practice && !session.feedbackSupportsProgress {
                     primaryAction("Revise my answer") { learning.tryAgain() }
@@ -967,6 +1023,7 @@ struct LearningSessionView: View {
     private func focusAnswerIfNeeded() {
         answerFocused = learning.session?.question != nil && learning.session?.feedback == nil && !learning.isBusy
             && learning.session?.chapter?.rescueVisible != true && clarificationContext == nil && !sourceNeedsReview
+            && learning.session.map { !showsLessonIntroduction($0) } == true
     }
 
     @ViewBuilder private func clarificationAction(_ session: LearningSession) -> some View {

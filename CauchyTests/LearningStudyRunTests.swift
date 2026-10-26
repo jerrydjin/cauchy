@@ -886,14 +886,23 @@ final class LearningStudyRunTests: XCTestCase {
     func testRebuildingChangedNotesRetainsThePlanAsBlockedHistory() async throws {
         var map = map()
         let run = try XCTUnwrap(LearningStudyRun.plan(map: map, sessions: [], now: now))
-        map.studyRuns = [run]
+        var finished = run
+        finished.id = UUID()
+        let saved = session(target: finished.items[0].target, itemID: finished.items[0].id, helped: true)
+        finished.finish(sessions: [saved], at: now)
+        finished.summaryAcknowledgedAt = now
+        map.studyRuns = [finished, run]
         let planner = FailingStudyRunPlanner()
         let vm = LearningStudyMapViewModel(map: map, makePlanner: { planner })
         vm.build(document: try LearningUIFixture.makePDF())
         await vm.waitForOperation()
         XCTAssertNil(vm.map?.course)
         XCTAssertEqual(vm.map?.unresolvedPages.count, 2)
-        XCTAssertEqual(vm.map?.studyRuns, [run])
+        XCTAssertEqual(vm.map?.studyRuns, [finished, run])
+        let restored = try JSONDecoder().decode(LearningStudyMap.self, from: JSONEncoder().encode(try XCTUnwrap(vm.map)))
+        XCTAssertEqual(restored.studyRuns?.filter { $0.state == .finished }, [finished])
+        XCTAssertEqual(restored.studyRuns?.first?.items[0].outcome?.attemptID, saved.latestExitAttempt?.id)
+        XCTAssertTrue(restored.studyRuns?.first?.items[0].outcome?.assistanceUsed == true)
         XCTAssertEqual(run.blocker(in: try XCTUnwrap(vm.map), sessions: []), .changedSource)
     }
 #endif

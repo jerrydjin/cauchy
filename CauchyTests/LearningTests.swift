@@ -790,7 +790,8 @@ final class LearningUIFixtureTests: XCTestCase {
             }
             try await persistence.saveWorkspace(saved, bookmarkData: nil)
             savedBytes[saved.id] = try Data(contentsOf: persistence.workspaceDirectory(for: saved.id).appendingPathComponent("learning.json"))
-            records.append(saved)
+            let stored = await persistence.loadWorkspace(id: saved.id)
+            records.append(try XCTUnwrap(stored).workspace)
         }
         let sooner = records[0], later = records[1]
         await library.refreshReviewOverview()

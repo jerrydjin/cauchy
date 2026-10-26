@@ -20,6 +20,7 @@ These are entry points for investigating each issue, not claims that the planned
 
 | Issue | Relevant code and evidence |
 | --- | --- |
+| [JERRY-129: Read past sessions during recovery](https://linear.app/jerryjin/issue/JERRY-129) | [Read-only session history](../Cauchy/Views/Learning/LearningStudyRunView.swift), [recovery/preparation entry points](../Cauchy/Views/Learning/LearningStudyMapView.swift), [449-test and native keyboard/restart checks](evaluation/learning-study-session-history.md) |
 | [JERRY-128: Open saved prerequisites offline](https://linear.app/jerryjin/issue/JERRY-128) | [Shared exact lesson lookup](../Cauchy/Models/LearningStudyMap.swift), [session action availability](../Cauchy/Views/Learning/LearningStudyRunView.swift), [449-test and native offline/restart verification](evaluation/learning-offline-prerequisites.md) |
 | [JERRY-127: Show upcoming reviews](https://linear.app/jerryjin/issue/JERRY-127) | [Compact future counts and dates](../Cauchy/Models/LearningStudyMap.swift), [grouped native overview](../Cauchy/Views/Learning/LearningWorkspaceView.swift), [447-test and native restart verification](evaluation/learning-upcoming-reviews.md) |
 | [JERRY-126: Measure closed-note review refresh](https://linear.app/jerryjin/issue/JERRY-126) | [Opt-in closed-file harness](../scripts/fixtures/learning_review_closed_profile.swift), [actual persistence-read timing and unchanged learning-file checks](evaluation/learning-review-closed-performance.md) |

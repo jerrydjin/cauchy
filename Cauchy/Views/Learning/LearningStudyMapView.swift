@@ -23,6 +23,7 @@ struct LearningStudyMapView: View {
     @State private var historyTarget: LearningStudyTarget?
     @State private var goalSelection: LearningGoalSelection?
     @State private var goalHistoryVisible = false
+    @State private var studyHistoryVisible = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var planner: LearningStudyMapViewModel { document.studyMap }
     private var nextStudy: LearningStudyRecommendation? {
@@ -45,6 +46,7 @@ struct LearningStudyMapView: View {
                         errors
                         LearningStudyRunCard(document: document, run: run, map: map, assistantAvailable: assistantAvailable)
                         goalHistoryButton(map)
+                        studyHistoryButton(map)
                     }
                     .padding(32).frame(maxWidth: 824, alignment: .leading).frame(maxWidth: .infinity)
                 }
@@ -71,6 +73,9 @@ struct LearningStudyMapView: View {
         }
         .sheet(isPresented: $goalHistoryVisible) {
             LearningGoalHistoryView(document: document)
+        }
+        .sheet(isPresented: $studyHistoryVisible) {
+            LearningStudyRunHistoryView(document: document)
         }
     }
 
@@ -133,6 +138,7 @@ struct LearningStudyMapView: View {
                             if let map = planner.map {
                                 Text("\(map.units.count) topics identified").font(.callout)
                                 goalHistoryButton(map)
+                                studyHistoryButton(map)
                                 let attention = map.pages.filter { $0.status != .pending && !$0.status.isResolved }
                                 if !attention.isEmpty {
                                     DisclosureGroup("\(attention.count) pages to review") {
@@ -402,15 +408,7 @@ struct LearningStudyMapView: View {
                 sourceReview(map)
                 syllabusReview(map)
                 goalHistoryButton(map)
-                if let runs = map.studyRuns?.filter({ $0.state == .finished }), !runs.isEmpty {
-                    DisclosureGroup("Past study sessions") {
-                        ForEach(runs.reversed()) { run in
-                            DisclosureGroup(run.startedAt.formatted(date: .abbreviated, time: .shortened)) {
-                                LearningStudyRunRecord(run: run, sessions: document.learning.sessions).padding(.top, 10)
-                            }.padding(.top, 8)
-                        }
-                    }
-                }
+                studyHistoryButton(map)
                 DisclosureGroup("Coverage details") {
                     coverage(map).padding(.top, 12)
                     if !map.unresolvedPages.isEmpty {
@@ -439,6 +437,15 @@ struct LearningStudyMapView: View {
         if count > 0 {
             Button("Review goal revisions (\(count))", systemImage: "clock.arrow.circlepath") {
                 goalHistoryVisible = true
+            }.buttonStyle(.borderless)
+        }
+    }
+
+    @ViewBuilder private func studyHistoryButton(_ map: LearningStudyMap) -> some View {
+        let count = (map.studyRuns ?? []).filter { $0.state == .finished }.count
+        if count > 0 {
+            Button("Review past study sessions (\(count))", systemImage: "clock.arrow.circlepath") {
+                studyHistoryVisible = true
             }.buttonStyle(.borderless)
         }
     }

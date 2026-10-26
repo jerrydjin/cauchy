@@ -207,12 +207,16 @@ struct LearningStudyRunCard: View {
 struct LearningStudyRunRecord: View {
     let run: LearningStudyRun
     let sessions: [LearningSession]
+    var showsRequirements = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(run.items) { item in
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(item.title) · \(item.target.kind.label)").font(.subheadline.weight(.medium))
+                    if showsRequirements {
+                        MessageContentView(content: item.target.objective)
+                    }
                     Text(result(item)).font(.callout).foregroundStyle(.secondary)
                 }
             }
@@ -233,5 +237,83 @@ struct LearningStudyRunRecord: View {
         }
         if outcome.assistanceUsed { return "\(work) · \(grade) with help · requirement left open" }
         return "\(work) · \(grade) · requirement left open"
+    }
+}
+
+struct LearningStudyRunHistoryView: View {
+    @Bindable var document: LearningDocument
+    @Environment(\.dismiss) private var dismiss
+    @State private var selection: UUID?
+    private enum Pane: Hashable { case list, details }
+    @FocusState private var focusedPane: Pane?
+    @State private var detailScroll = ScrollPosition()
+    @State private var detailOffset: CGFloat = 0
+
+    private var runs: [LearningStudyRun] {
+        (document.studyMap.map?.studyRuns ?? []).filter { $0.state == .finished }.sorted {
+            $0.startedAt == $1.startedAt ? $0.id.uuidString < $1.id.uuidString : $0.startedAt > $1.startedAt
+        }
+    }
+    private var selected: LearningStudyRun? { runs.first { $0.id == selection } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Past study sessions").font(.title2.weight(.semibold))
+            Text("Recorded goals and outcomes stay available when your learning path changes.")
+                .font(.callout).foregroundStyle(.secondary)
+            HSplitView {
+                List(selection: $selection) {
+                    ForEach(runs) { run in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(run.startedAt.formatted(date: .abbreviated, time: .shortened)).font(.subheadline.weight(.medium))
+                            Text("\(run.attemptedCount) \(run.attemptedCount == 1 ? "check" : "checks") recorded · \(run.items.count) planned")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }.padding(.vertical, 4).tag(run.id)
+                    }
+                }
+                .accessibilityLabel("Finished study sessions").focused($focusedPane, equals: .list)
+                .frame(minWidth: 200, idealWidth: 220, maxWidth: 260)
+                ScrollView {
+                    if let selected {
+                        VStack(alignment: .leading, spacing: 18) {
+                            Text("Started \(selected.startedAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.headline).textSelection(.enabled)
+                            if let ended = selected.endedAt {
+                                Text("Finished \(ended.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            LearningStudyRunRecord(run: selected, sessions: document.learning.sessions, showsRequirements: true)
+                            Text("These are the goals and outcomes recorded for this session. They do not establish your current requirements or lasting retention.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }.padding(16)
+                    } else {
+                        Text("No finished study sessions are saved.").foregroundStyle(.secondary).padding(24)
+                    }
+                }
+                .scrollPosition($detailScroll)
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in detailOffset = offset }
+                .focusable().focused($focusedPane, equals: .details)
+                .onKeyPress(keys: [.space, .pageUp, .pageDown], phases: [.down, .repeat]) { key in
+                    guard key.modifiers.isEmpty || (key.key == .space && key.modifiers == .shift) else { return .ignored }
+                    let backwards = key.key == .pageUp || key.modifiers.contains(.shift)
+                    detailScroll.scrollTo(y: max(0, detailOffset + (backwards ? -340 : 340)))
+                    return .handled
+                }
+                .onChange(of: selection) { detailScroll.scrollTo(edge: .top) }
+                .frame(minWidth: 340)
+            }.frame(height: 400)
+            HStack {
+                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(focusedPane == .details ? "Choose another session" : "Read selected session") {
+                    focusedPane = focusedPane == .details ? .list : .details
+                }.buttonStyle(.borderless).keyboardShortcut("r", modifiers: .command).disabled(selected == nil)
+                Spacer()
+            }
+        }
+        .padding(24).frame(width: 760)
+        .onAppear { selection = runs.first?.id; focusedPane = .list }
+        .onChange(of: runs.map(\.id)) {
+            if !runs.contains(where: { $0.id == selection }) { selection = runs.first?.id }
+        }
     }
 }

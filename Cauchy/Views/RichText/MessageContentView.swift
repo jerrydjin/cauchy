@@ -4,6 +4,9 @@ struct MessageContentView: View {
     let content: String
     var font: Font = .body
     var textColor: Color = .primary
+    /// Chat keeps code and failed math in a monospace chip. The reference
+    /// card turns this off so a broken span stays in the body font.
+    var allowsMonospace = true
 
     var body: some View {
         let parsed = MessageRenderCache.parsed(for: content)
@@ -27,7 +30,7 @@ struct MessageContentView: View {
             plainText(value)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .displayMath(let latex):
-            MathSegmentView(latex: latex, mode: .display, fontSize: 17, textColor: textColor)
+            mathView(latex: latex, mode: .display, fontSize: 17)
                 .frame(maxWidth: .infinity, alignment: .center)
         case .inlineLine(let segments):
             inlineLineView(segments)
@@ -53,10 +56,10 @@ struct MessageContentView: View {
                 codeText(value)
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .inlineMath(let latex):
-                MathSegmentView(latex: latex, mode: .inline, fontSize: 15, textColor: textColor)
+                mathView(latex: latex, mode: .inline, fontSize: 15)
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .displayMath(let latex):
-                MathSegmentView(latex: latex, mode: .display, fontSize: 17, textColor: textColor)
+                mathView(latex: latex, mode: .display, fontSize: 17)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         } else if let mergedText = mergedText(from: merged) {
@@ -105,20 +108,22 @@ struct MessageContentView: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: true, vertical: true)
         case .code(let value):
-            Text(value)
-                .font(.system(.body, design: .monospaced))
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(Color.secondary.opacity(0.2))
-                .cornerRadius(4)
-                .foregroundStyle(textColor)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: true, vertical: true)
+            codeLabel(value, fixedWidth: true)
         case .inlineMath(let latex):
-            MathSegmentView(latex: latex, mode: .inline, fontSize: 15, textColor: textColor)
+            mathView(latex: latex, mode: .inline, fontSize: 15)
         case .displayMath(let latex):
-            MathSegmentView(latex: latex, mode: .display, fontSize: 17, textColor: textColor)
+            mathView(latex: latex, mode: .display, fontSize: 17)
         }
+    }
+
+    private func mathView(latex: String, mode: MathSegmentView.Mode, fontSize: CGFloat) -> MathSegmentView {
+        MathSegmentView(
+            latex: latex,
+            mode: mode,
+            fontSize: fontSize,
+            textColor: textColor,
+            fallbackFont: allowsMonospace ? .system(.callout, design: .monospaced) : font
+        )
     }
 
     private func plainText(_ value: String) -> some View {
@@ -131,15 +136,25 @@ struct MessageContentView: View {
     }
 
     private func codeText(_ value: String) -> some View {
-        Text(value)
-            .font(.system(.body, design: .monospaced))
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(Color.secondary.opacity(0.2))
-            .cornerRadius(4)
+        codeLabel(value, fixedWidth: false)
+    }
+
+    @ViewBuilder
+    private func codeLabel(_ value: String, fixedWidth: Bool) -> some View {
+        let label = Text(value)
+            .font(allowsMonospace ? .system(.body, design: .monospaced) : font)
             .foregroundStyle(textColor)
             .textSelection(.enabled)
             .multilineTextAlignment(.leading)
-            .fixedSize(horizontal: false, vertical: true)
+            .fixedSize(horizontal: fixedWidth, vertical: true)
+        if allowsMonospace {
+            label
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(Color.secondary.opacity(0.2))
+                .cornerRadius(4)
+        } else {
+            label
+        }
     }
 }

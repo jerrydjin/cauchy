@@ -1,21 +1,14 @@
 import SwiftUI
 
+/// Typeset statement for the reference pane. The pane supplies the heading;
+/// this view does not add a title or a second surface.
 struct ReadingBlockCard: View {
-    let block: DocumentBlock
     let displayBody: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if block.reference.kind != .equation {
-                Text(block.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-
-            MessageContentView(content: displayBody, font: .body)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(14)
-        .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 12))
+        // Statements are prose. A stray backtick or a formula SwiftMath cannot
+        // draw must not flip the rest of the sentence into monospace.
+        MessageContentView(content: displayBody, font: .body, allowsMonospace: false)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

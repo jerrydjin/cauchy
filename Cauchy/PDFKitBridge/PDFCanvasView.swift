@@ -2,6 +2,7 @@ import AppKit
 import CoreImage
 import PDFKit
 import QuartzCore
+import SwiftUI
 
 @MainActor
 protocol PDFCanvasViewDelegate: AnyObject {
@@ -93,6 +94,11 @@ final class PDFCanvasView: NSView {
     private var isOverReference = false
     private weak var bibliographyDocument: PDFDocument?
     private var bibliographyEntries: [BibliographyEntry] = []
+    /// View coordinates of the pointer. A system tooltip is plain text, so a
+    /// bibliography line that contains math is shown in a popover instead.
+    private var lastLocalHoverPoint = CGPoint.zero
+    private var citationPopover: NSPopover?
+    private var citationPopoverText: String?
 
     var referenceIndex: DocumentReferenceIndex?
     var referenceIndexReady = false
@@ -161,6 +167,7 @@ final class PDFCanvasView: NSView {
         guard !selectionModeActive else { return }
 
         let point = convert(event.locationInWindow, from: nil)
+        lastLocalHoverPoint = point
         let pointInPDF = convert(point, to: pdfView)
 
         pendingHoverDetection?.cancel()
@@ -194,7 +201,7 @@ final class PDFCanvasView: NSView {
             // Clicking still does nothing: opening the cited paper is later.
             if let hover = BibliographyIndex.hoverText(for: citation, in: bibliography()) {
                 lastHoveredReference = nil
-                toolTip = hover
+                showCitationHover(hover)
                 showReferenceCursor()
             } else {
                 clearReferenceHoverState()
@@ -209,6 +216,7 @@ final class PDFCanvasView: NSView {
             return
         }
         toolTip = nil
+        dismissCitationPopover()
 
         let block = DocumentBlockExtractor.block(from: indexed)
 
@@ -225,10 +233,46 @@ final class PDFCanvasView: NSView {
     private func clearReferenceHoverState() {
         lastHoveredReference = nil
         toolTip = nil
+        dismissCitationPopover()
         if isOverReference {
             isOverReference = false
             NSCursor.pop()
         }
+    }
+
+    /// Plain bibliography stays on the tooltip. Math in a title (`$K$-theory`,
+    /// `\emph`) goes through `ReferenceHoverLabel`, the same renderer as the
+    /// reference card. The tooltip cannot typeset.
+    private func showCitationHover(_ text: String) {
+        guard ReferenceMathRendering.needsTypesetting(text) else {
+            dismissCitationPopover()
+            toolTip = text
+            return
+        }
+        toolTip = nil
+        if citationPopoverText == text, citationPopover?.isShown == true {
+            return
+        }
+        let popover = citationPopover ?? NSPopover()
+        popover.behavior = .transient
+        popover.animates = false
+        if citationPopoverText != text {
+            popover.contentViewController = NSHostingController(
+                rootView: ReferenceHoverLabel(text: text)
+            )
+            citationPopoverText = text
+        }
+        citationPopover = popover
+        let rect = CGRect(origin: lastLocalHoverPoint, size: CGSize(width: 1, height: 1))
+        if popover.isShown {
+            return
+        }
+        popover.show(relativeTo: rect, of: self, preferredEdge: .minY)
+    }
+
+    private func dismissCitationPopover() {
+        citationPopover?.performClose(nil)
+        citationPopoverText = nil
     }
 
     private func bibliography() -> [BibliographyEntry] {

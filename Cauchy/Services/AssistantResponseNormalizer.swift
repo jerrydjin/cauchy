@@ -26,7 +26,10 @@ enum AssistantResponseNormalizer {
         text = stripCodeFences(text)
         text = replaceInlineDelimiters(text)
         text = replaceDisplayDelimiters(text)
-        // Last, so it only ever sees what the delimiter passes left behind.
+        // Commands that share a line with `$…$`, a single weak command such as
+        // `\gamma`, and `\begin{…}…\end{…}` never reach `wrapBareMath`. Delimit
+        // those before the whole-line pass, which bails out at the first `$`.
+        text = LaTeXNormalizer.delimitLooseMath(text)
         text = LaTeXNormalizer.wrapBareMath(text)
         return text
     }

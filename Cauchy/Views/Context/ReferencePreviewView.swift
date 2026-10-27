@@ -3,20 +3,15 @@ import PDFKit
 
 struct ReferencePreviewView: View {
     @Bindable var workspace: WorkspaceViewModel
-    @State private var showsTranscription = false
-    @State private var sourceImage: NSImage?
-    @State private var sourceRegionImage: NSImage?
-    @State private var isLoadingSource = false
-    @State private var laterMentions: ReferenceMentionSearchResult?
-    @State private var isSearchingLaterMentions = false
-    @State private var laterMentionsError: String?
-    @State private var showsLaterMentions = false
 
     var body: some View {
         VStack(spacing: 0) {
             Group {
                 if let block = workspace.contextEngine.passiveBlock {
-                    formattedView(block: block)
+                    // A new block is a new card, so Source starts closed
+                    // instead of staying open from the previous reference.
+                    ReferencePreviewCard(workspace: workspace, block: block)
+                        .id(block.reference.key)
                 } else if let error = workspace.referenceIndexError {
                     ContentUnavailableView {
                         Label("Reference Index Failed", systemImage: "exclamationmark.triangle")
@@ -100,101 +95,159 @@ struct ReferencePreviewView: View {
         .padding(.horizontal, 24)
     }
 
-    @ViewBuilder
-    private func formattedView(block: DocumentBlock) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Button("All references", systemImage: "chevron.left") {
-                        workspace.contextEngine.passiveBlock = nil
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Return to the indexed reference list")
-
-                    Text(block.title).font(.headline)
-                    Spacer()
-                    Button("Go to page \(block.pageIndex + 1)", systemImage: "arrow.up.forward") {
-                        workspace.goToPage(block.pageIndex + 1)
-                    }
-                    .buttonStyle(.borderless)
+    /// The index's own status line. A thin or wrong index is noticed here, on
+    /// the entries themselves, so the re-index controls belong here and not
+    /// only in the View menu.
+    private var indexFooter: some View {
+        HStack(spacing: 8) {
+            if workspace.contextEngine.passiveBlock != nil {
+                Button {
+                    workspace.contextEngine.passiveBlock = nil
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 12, weight: .semibold))
                 }
-                evidenceStatus(for: block)
-                if block.reference.kind == .figure {
-                    Text("Caption label only · inspect the figure on the original page.")
-                        .font(.caption)
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("Return to the indexed reference list")
+                .accessibilityLabel("All references")
+            }
+
+            // Silent while a build runs — the empty state above is already
+            // showing the bar, and saying it twice just crowds the panel.
+            Text(footerStatus)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 4)
+
+            if let block = workspace.contextEngine.passiveBlock {
+                Button("Page \(block.pageIndex + 1)", systemImage: "arrow.up.forward") {
+                    workspace.goToPage(block.pageIndex + 1)
+                }
+                .buttonStyle(.borderless)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .help("Open this reference on the page")
+            }
+
+            // Deliberately live during a build: a slow on-device index is the
+            // moment you most want to switch to the cloud, and rebuilding cancels
+            // the in-flight task before starting.
+            // Plain button style so nothing draws a rounded rect behind the
+            // label's own surface. The chevron is drawn in the label rather
+            // than left to `.menuIndicator`, which would sit outside it.
+            Menu {
+                ReferenceIndexMenuItems(workspace: workspace)
+            } label: {
+                // Same 32pt height and 14pt glyph as SidebarOptionsMenu and the
+                // toolbar's status pill, so every control in the app reads at
+                // one size. Only the width grows, for the chevron.
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
-                if block.contentOrigin != .ocrCandidate && block.reference.kind != .figure {
-                    Picker("Reference view", selection: $showsTranscription) {
-                        Text("Source evidence").tag(false)
-                        Text(block.contentOrigin == .modelTranscription ? "AI formatted" : "Cleaned text").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                }
-                if showsTranscription, block.contentOrigin != .ocrCandidate,
-                   block.reference.kind != .figure {
-                    Text(block.contentOrigin == .modelTranscription
-                        ? "Check symbols and meaning against the original page."
-                        : "Lightly cleaned PDF text; check against the original page.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    ReadingBlockCard(block: block, displayBody: block.formattedBody)
-                } else {
-                    if let evidence = block.evidence {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(evidence.effectiveSource == .visionOCR
-                                ? "On-device OCR transcript (verify)"
-                                : block.reference.kind == .figure
-                                    ? "Printed caption heading"
-                                    : "Verbatim PDF text")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Text(evidence.sourceExcerpt)
-                                .font(.body)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: 52, height: 32)
+                // Same interactive glass as SidebarOptionsMenu — this is a
+                // menu button and should feel like the app's other ones.
+                .glassEffect(.regular.interactive(), in: .capsule)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .accessibilityLabel("Re-index document")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .help(footerHelp)
+    }
+
+    private var footerStatus: String {
+        if workspace.isIndexingReferences {
+            return ""
+        }
+        if workspace.referenceIndexError != nil {
+            return "Index unavailable"
+        }
+        guard let provenance = workspace.referenceIndexProvenance else {
+            return "Not indexed yet"
+        }
+        return workspace.referenceIndexWarning == nil
+            ? provenance.summary
+            : "\(provenance.summary) · incomplete"
+    }
+
+    private var footerHelp: String {
+        if let error = workspace.referenceIndexError { return error }
+        if let warning = workspace.referenceIndexWarning { return warning }
+        guard let provenance = workspace.referenceIndexProvenance else { return footerStatus }
+        return provenance.summary
+    }
+}
+
+/// Quiet card: a secondary heading, then either the typeset statement or
+/// the figure. Raw text and the page scan live in Source, closed.
+private struct ReferencePreviewCard: View {
+    @Bindable var workspace: WorkspaceViewModel
+    let block: DocumentBlock
+
+    /// Raw extraction for debugging. Closed unless the reader opens it, so it
+    /// never sits beside the statement as another mode.
+    @State private var showsSource = false
+    @State private var sourceImage: NSImage?
+    @State private var sourceRegionImage: NSImage?
+    @State private var figureImage: NSImage?
+    @State private var isLoadingSource = false
+    @State private var laterMentions: ReferenceMentionSearchResult?
+    @State private var isSearchingLaterMentions = false
+    @State private var laterMentionsError: String?
+    @State private var showsLaterMentions = false
+
+    var body: some View {
+        let model = ReferencePreviewPresentation.model(for: block)
+        VStack(spacing: 0) {
+            ScrollView {
+                switch model.body {
+                case .statement(let text):
+                    ReferencePreviewStatementColumn(heading: model.heading, statement: text)
+                case .figure(let caption):
+                    ReferencePreviewBlockChrome.padded(
+                        VStack(alignment: .leading, spacing: 14) {
+                            ReferencePreviewHeading(text: model.heading)
+                            figurePreview(block: block, caption: caption)
                         }
-                        .padding(14)
-                        .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 12))
-                    } else {
-                        Text("This older index entry has no retained evidence. Re-index the document before relying on its transcription.")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider().padding(.vertical, 2)
-                    if let sourceRegionImage {
-                        Text("Matched location on the page")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Image(nsImage: sourceRegionImage)
-                            .resizable().scaledToFit()
-                            .accessibilityLabel("Original PDF region showing \(block.title)")
-                        Divider().padding(.vertical, 2)
-                    }
-                    laterMentionsView
-                    Divider().padding(.vertical, 2)
-                    Text("Original page")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    if let sourceImage {
-                        Image(nsImage: sourceImage)
-                            .resizable().scaledToFit()
-                            .accessibilityLabel("Original PDF page \(block.pageIndex + 1) for \(block.title)")
-                    } else if isLoadingSource {
-                        ProgressView("Loading original page…")
-                    } else {
-                        Text("Page preview unavailable. Open the source page to inspect this reference.")
-                            .foregroundStyle(.secondary)
-                    }
+                    )
                 }
             }
-            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            ReferencePreviewSourceDisclosure(isExpanded: $showsSource) {
+                ScrollView {
+                    sourceDetails(for: block)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 8)
+                }
+                .frame(maxHeight: 240)
+            }
         }
         .task(id: block) {
+            showsSource = false
             showsLaterMentions = false
             sourceImage = nil
             sourceRegionImage = nil
+            figureImage = nil
             isLoadingSource = true
-            defer { isLoadingSource = false }
+            defer {
+                if !Task.isCancelled {
+                    isLoadingSource = false
+                }
+            }
             guard let page = workspace.pdfDocument?.page(at: block.pageIndex),
                   let data = page.dataRepresentation else { return }
             // A page reconstructed from dataRepresentation can extract different text
@@ -203,9 +256,22 @@ struct ReferencePreviewView: View {
             let exact = block.evidence.flatMap {
                 ReferenceEvidenceRegionResolver.exactRegion(for: $0, on: page)
             }
-            let images = await Task.detached(priority: .userInitiated) { () -> (NSImage?, NSImage?) in
-                guard let sourcePage = PDFDocument(data: data)?.page(at: 0) else { return (nil, nil) }
+            let figureCrop = block.reference.kind == .figure
+                ? exact.map(ReferenceEvidenceRegionResolver.figureRegion(forCaption:))
+                : nil
+            let images = await Task.detached(priority: .userInitiated) { () -> (NSImage?, NSImage?, NSImage?) in
+                guard let sourcePage = PDFDocument(data: data)?.page(at: 0) else { return (nil, nil, nil) }
                 let full = sourcePage.thumbnail(of: NSSize(width: 1200, height: 1600), for: .mediaBox)
+                let figure: NSImage?
+                if let figureCrop,
+                   let rendered = PDFRegionRenderer.render(page: sourcePage, bounds: figureCrop) {
+                    figure = NSImage(
+                        cgImage: rendered,
+                        size: NSSize(width: CGFloat(rendered.width) / 2, height: CGFloat(rendered.height) / 2)
+                    )
+                } else {
+                    figure = nil
+                }
                 let region: NSImage?
                 if let exact,
                    let rendered = PDFRegionRenderer.render(
@@ -220,11 +286,15 @@ struct ReferencePreviewView: View {
                 } else {
                     region = nil
                 }
-                return (full, region)
+                return (full, region, figure)
             }.value
             guard !Task.isCancelled else { return }
             sourceImage = images.0
             sourceRegionImage = images.1
+            figureImage = images.2
+        }
+        .onChange(of: block) {
+            showsSource = false
         }
         .task(id: block) {
             laterMentions = nil
@@ -268,6 +338,104 @@ struct ReferencePreviewView: View {
                 isSearchingLaterMentions = false
             }
         }
+    }
+
+    private func figurePreview(block: DocumentBlock, caption: String?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let image = figureImage ?? sourceImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .accessibilityLabel(block.reference.displayName)
+            } else if isLoadingSource {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 160)
+                    .accessibilityLabel("Loading \(block.reference.displayName)")
+            } else {
+                Text("Figure preview unavailable. Open the source page to inspect it.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let caption {
+                referenceBody(caption, font: .body)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sourceDetails(for block: DocumentBlock) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            evidenceStatus(for: block)
+            if let evidence = block.evidence {
+                Text(sourceKindLabel(for: block, evidence: evidence))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                referenceBody(evidence.sourceExcerpt, font: .callout)
+            } else {
+                Text("This older index entry has no retained evidence. Re-index the document before relying on its transcription.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let sourceRegionImage {
+                Text("Matched location on the page")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Image(nsImage: sourceRegionImage)
+                    .resizable()
+                    .scaledToFit()
+                    .accessibilityLabel("Original PDF region showing \(block.title)")
+            }
+
+            laterMentionsView
+
+            Text("Original page")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            if let sourceImage {
+                Image(nsImage: sourceImage)
+                    .resizable()
+                    .scaledToFit()
+                    .accessibilityLabel("Original PDF page \(block.pageIndex + 1) for \(block.title)")
+            } else if isLoadingSource {
+                ProgressView("Loading original page…")
+            } else {
+                Text("Page preview unavailable. Open the source page to inspect this reference.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Source excerpt and a figure caption share the statement renderer.
+    /// Prose stays `Text`. A `$`, `\frac`, or `\begin{` in that string used to
+    /// be drawn as-is because this disclosure never called SwiftMath.
+    @ViewBuilder
+    private func referenceBody(_ text: String, font: Font) -> some View {
+        if ReferenceMathRendering.needsTypesetting(text) {
+            MessageContentView(content: text, font: font, allowsMonospace: false)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Text(text)
+                .font(font)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func sourceKindLabel(for block: DocumentBlock, evidence: ReferenceEvidence) -> String {
+        if evidence.effectiveSource == .visionOCR {
+            return "On-device OCR transcript (verify)"
+        }
+        if block.reference.kind == .figure {
+            return "Printed caption heading"
+        }
+        return "Verbatim PDF text"
     }
 
     @ViewBuilder
@@ -357,77 +525,5 @@ struct ReferencePreviewView: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.orange)
         }
-    }
-
-    /// The index's own status line. A thin or wrong index is noticed here, on
-    /// the entries themselves, so the re-index controls belong here and not
-    /// only in the View menu.
-    private var indexFooter: some View {
-        HStack(spacing: 8) {
-            // Silent while a build runs — the empty state above is already
-            // showing the bar, and saying it twice just crowds the panel.
-            Text(footerStatus)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            Spacer(minLength: 4)
-
-            // Deliberately live during a build: a slow on-device index is the
-            // moment you most want to switch to the cloud, and rebuilding cancels
-            // the in-flight task before starting.
-            // Plain button style so nothing draws a rounded rect behind the
-            // label's own surface. The chevron is drawn in the label rather
-            // than left to `.menuIndicator`, which would sit outside it.
-            Menu {
-                ReferenceIndexMenuItems(workspace: workspace)
-            } label: {
-                // Same 32pt height and 14pt glyph as SidebarOptionsMenu and the
-                // toolbar's status pill, so every control in the app reads at
-                // one size. Only the width grows, for the chevron.
-                HStack(spacing: 3) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14, weight: .medium))
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(width: 52, height: 32)
-                // Same interactive glass as SidebarOptionsMenu — this is a
-                // menu button and should feel like the app's other ones.
-                .glassEffect(.regular.interactive(), in: .capsule)
-            }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .accessibilityLabel("Re-index document")
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .help(footerHelp)
-    }
-
-    private var footerStatus: String {
-        if workspace.isIndexingReferences {
-            return ""
-        }
-        if workspace.referenceIndexError != nil {
-            return "Index unavailable"
-        }
-        guard let provenance = workspace.referenceIndexProvenance else {
-            return "Not indexed yet"
-        }
-        return workspace.referenceIndexWarning == nil
-            ? provenance.summary
-            : "\(provenance.summary) · incomplete"
-    }
-
-    private var footerHelp: String {
-        if let error = workspace.referenceIndexError { return error }
-        if let warning = workspace.referenceIndexWarning { return warning }
-        guard let provenance = workspace.referenceIndexProvenance else { return footerStatus }
-        return provenance.summary
     }
 }

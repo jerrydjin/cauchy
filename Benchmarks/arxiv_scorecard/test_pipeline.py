@@ -43,6 +43,12 @@ class DetectorTests(unittest.TestCase):
             self.assertEqual((by_paren.kind, by_paren.number), ("equation", "1.2"))
             eq = first_reference("from Eq. (2.3) it follows", profile)
             self.assertEqual((eq.kind, eq.number), ("equation", "2.3"))
+            parts = all_references("Compare (2.7a) with (2.7b), and ignore (1a).", profile)
+            self.assertEqual([(item.kind, item.number) for item in parts], [("equation", "2.7"), ("equation", "2.7")])
+            self.assertEqual([item.text for item in parts], ["(2.7a)", "(2.7b)"])
+            part = first_reference("from Eq. (3.1c) the bound follows", profile)
+            self.assertEqual((part.kind, part.number), ("equation", "3.1"))
+            self.assertIsNone(first_reference("The label (1a) is not an equation.", profile))
             figure = first_reference("See Fig. 3a,b for the comparison.", profile)
             self.assertEqual((figure.kind, figure.number), ("figure", "3"))
             self.assertIsNone(first_reference("This is ordinary text.", profile))
@@ -378,6 +384,25 @@ class DeclarationTests(unittest.TestCase):
         numbers = [item.number for item in declaration_matches(page)]
         self.assertIn("2.4", numbers)
         self.assertNotIn("3", numbers)
+
+    def test_dotted_subequation_part_is_the_base_equation(self) -> None:
+        page = "\n".join([
+            "The two parts of the display are tagged separately.",
+            "(4.2a)",
+            "(4.2b)",
+            "A bare letter on an integer is a label, not an equation.",
+            "(1a)",
+        ])
+        numbers = [item.number for item in declaration_matches(page)]
+        self.assertEqual(numbers.count("4.2"), 2)
+        self.assertNotIn("1", numbers)
+        self.assertFalse(any("a" in number or "b" in number for number in numbers))
+        from score import _hits_for  # noqa: E402
+
+        pages = [{"page_index": 0, "text": page}]
+        hits = _hits_for(pages, "equation", "4.2")
+        self.assertEqual(sorted(item[3] for item in hits), ["(4.2a)", "(4.2b)"])
+        self.assertEqual(_hits_for(pages, "equation", "1"), [])
 
 
 class StructureTests(unittest.TestCase):

@@ -305,12 +305,12 @@ enum RenderReferencePreview {
         return inkCount(in: rep)
     }
 
-    /// Fixed step, not `pixels / 32`. A taller card (display math under a short
-    /// paragraph) was sampled on a coarser grid than the proposition card, so
-    /// `colorAt` reported 14 dark hits and the write was rejected even though
-    /// the bitmap held the heading, the prose, and the formula.
+    /// A card is sampled every 4 pixels. Dividing by 32 made the taller math
+    /// card coarser than the proposition card, and `colorAt` then reported 14
+    /// hits. A formula bitmap such as `$t_0$` is only a few dozen pixels tall,
+    /// so that same step of 4 walks past the strokes; those are read pixel by pixel.
     fileprivate static func inkCount(in rep: NSBitmapImageRep) -> Int {
-        let step = 4
+        let step = (rep.pixelsWide < 96 || rep.pixelsHigh < 96) ? 1 : 4
         if let data = rep.bitmapData {
             let bytesPerPixel = max(rep.bitsPerPixel / 8, 1)
             guard bytesPerPixel >= 3 else { return inkCountByColor(in: rep, step: step) }

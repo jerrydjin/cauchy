@@ -60,6 +60,7 @@ struct ReaderWorkspaceView: View {
                                     palette: workspace.jump,
                                     isIndexing: workspace.isIndexingReferences
                                 )
+                                .fixedSize(horizontal: false, vertical: true)
                                 .padding(.top, JumpPaletteMetrics.searchFieldTopInset(windowHeight: geometry.size.height))
                                 .frame(maxWidth: .infinity)
                                 .animation(nil, value: workspace.jump.hits.count)

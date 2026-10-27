@@ -347,17 +347,33 @@ enum RenderFindList {
         }
         let downward = longGuide < long.pixelsHigh / 2
         let below = downward ? longGuide + 440 : longGuide - 440
-        guard below > 0, below < long.pixelsHigh else {
+        let backdropY = downward ? 8 : long.pixelsHigh - 8
+        guard below > 0, below < long.pixelsHigh, backdropY != below else {
             throw SnapshotError("\(label) field guide \(longGuide) leaves no room to sample the list")
         }
-        let longIsPage = try isPagePixel(in: long.data, x: long.pixelsWide / 2, y: below)
-        let missIsPage = try isPagePixel(in: miss.data, x: miss.pixelsWide / 2, y: below)
-        guard missIsPage else {
-            throw SnapshotError("\(label) miss is still glass \(below)px under the field")
+        let x = long.pixelsWide / 2
+        let backdrop = try rgb(in: miss.data, x: x, y: backdropY)
+        let missSample = try rgb(in: miss.data, x: x, y: below)
+        let longSample = try rgb(in: long.data, x: x, y: below)
+        guard near(missSample, backdrop) else {
+            throw SnapshotError("\(label) miss is still glass at \(below) (guide \(longGuide)): \(missSample) vs backdrop \(backdrop)")
         }
-        guard !longIsPage else {
-            throw SnapshotError("\(label) long list collapsed where it should still be glass")
+        guard !near(longSample, backdrop) else {
+            throw SnapshotError("\(label) long list collapsed at \(below): \(longSample) vs backdrop \(backdrop)")
         }
+    }
+
+    private static func rgb(in data: Data, x: Int, y: Int) throws -> (CGFloat, CGFloat, CGFloat) {
+        guard let rep = NSBitmapImageRep(data: data),
+              let raw = rep.colorAt(x: x, y: y) else {
+            throw SnapshotError("could not sample \(x),\(y)")
+        }
+        let color = raw.usingColorSpace(.sRGB) ?? raw
+        return (color.redComponent, color.greenComponent, color.blueComponent)
+    }
+
+    private static func near(_ a: (CGFloat, CGFloat, CGFloat), _ b: (CGFloat, CGFloat, CGFloat)) -> Bool {
+        abs(a.0 - b.0) < 0.06 && abs(a.1 - b.1) < 0.06 && abs(a.2 - b.2) < 0.06
     }
 
     private static func guideRow(in data: Data) throws -> Int {
@@ -373,25 +389,6 @@ enum RenderFindList {
             }
         }
         throw SnapshotError("search-field guide was not drawn")
-    }
-
-    /// Flat window colour behind the palette. Glass and the red guide are not this.
-    private static func isPagePixel(in data: Data, x: Int, y: Int) throws -> Bool {
-        guard let rep = NSBitmapImageRep(data: data),
-              let raw = rep.colorAt(x: x, y: y) else {
-            throw SnapshotError("could not sample \(x),\(y)")
-        }
-        let color = raw.usingColorSpace(.sRGB) ?? raw
-        // Same flats as AnchoredJumpWindow. Frost blends toward white and
-        // does not land on these.
-        let page = (red: CGFloat(0.69), green: CGFloat(0.78), blue: CGFloat(0.88))
-        let dark = (red: CGFloat(0.12), green: CGFloat(0.12), blue: CGFloat(0.12))
-        func near(_ sample: (red: CGFloat, green: CGFloat, blue: CGFloat)) -> Bool {
-            abs(color.redComponent - sample.red) < 0.05
-                && abs(color.greenComponent - sample.green) < 0.05
-                && abs(color.blueComponent - sample.blue) < 0.05
-        }
-        return near(page) || near(dark)
     }
 
     /// A miss sits under the field. One hit and a short theorem list are taller
@@ -611,6 +608,7 @@ private struct AnchoredJumpWindow: View {
             .environment(\.snapshotCapsResultsHeight, true)
             .environment(\.snapshotHoveredHitID, hoveredHitID)
             .environment(\.colorScheme, dark ? .dark : .light)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.top, inset)
             .frame(width: 440, height: windowHeight, alignment: .top)
             .background(dark ? Color(white: 0.12) : Color(red: 0.69, green: 0.78, blue: 0.88))

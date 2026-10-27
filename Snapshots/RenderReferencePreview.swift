@@ -305,10 +305,40 @@ enum RenderReferencePreview {
         return inkCount(in: rep)
     }
 
+    /// Fixed step, not `pixels / 32`. A taller card (display math under a short
+    /// paragraph) was sampled on a coarser grid than the proposition card, so
+    /// `colorAt` reported 14 dark hits and the write was rejected even though
+    /// the bitmap held the heading, the prose, and the formula.
     fileprivate static func inkCount(in rep: NSBitmapImageRep) -> Int {
+        let step = 4
+        if let data = rep.bitmapData {
+            let bytesPerPixel = max(rep.bitsPerPixel / 8, 1)
+            guard bytesPerPixel >= 3 else { return inkCountByColor(in: rep, step: step) }
+            let rowBytes = rep.bytesPerRow
+            var ink = 0
+            var y = 0
+            while y < rep.pixelsHigh {
+                var x = 0
+                while x < rep.pixelsWide {
+                    let offset = y * rowBytes + x * bytesPerPixel
+                    let r = Int(data[offset])
+                    let g = Int(data[offset + 1])
+                    let b = Int(data[offset + 2])
+                    let a = bytesPerPixel >= 4 ? Int(data[offset + 3]) : 255
+                    if a > 30 && (r + g + b) / 3 < 210 {
+                        ink += 1
+                    }
+                    x += step
+                }
+                y += step
+            }
+            return ink
+        }
+        return inkCountByColor(in: rep, step: step)
+    }
+
+    private static func inkCountByColor(in rep: NSBitmapImageRep, step: Int) -> Int {
         var ink = 0
-        let stepX = max(rep.pixelsWide / 32, 1)
-        let stepY = max(rep.pixelsHigh / 32, 1)
         var y = 0
         while y < rep.pixelsHigh {
             var x = 0
@@ -319,30 +349,9 @@ enum RenderReferencePreview {
                         ink += 1
                     }
                 }
-                x += stepX
+                x += step
             }
-            y += stepY
-        }
-        if ink > 0 { return ink }
-        guard let data = rep.bitmapData else { return 0 }
-        let bytesPerPixel = max(rep.bitsPerPixel / 8, 1)
-        let rowBytes = rep.bytesPerRow
-        y = 0
-        while y < rep.pixelsHigh {
-            var x = 0
-            while x < rep.pixelsWide {
-                let offset = y * rowBytes + x * bytesPerPixel
-                guard bytesPerPixel >= 3 else { break }
-                let r = Int(data[offset])
-                let g = Int(data[offset + 1])
-                let b = Int(data[offset + 2])
-                let a = bytesPerPixel >= 4 ? Int(data[offset + 3]) : 255
-                if a > 30 && (r + g + b) / 3 < 210 {
-                    ink += 1
-                }
-                x += stepX
-            }
-            y += stepY
+            y += step
         }
         return ink
     }
@@ -418,7 +427,7 @@ private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int, minimu
           rep.pixelsWide > 800, rep.pixelsWide < 1100,
           rep.pixelsHigh > minimumHeight,
           ink > 20 else {
-        throw SnapshotError("PNG is \(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh), ink samples \(ink)")
+        throw SnapshotError("PNG \(url.lastPathComponent) is \(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh), ink samples \(ink)")
     }
     try png.write(to: url)
     fputs("wrote \(url.path) (\(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh))\n", stdout)

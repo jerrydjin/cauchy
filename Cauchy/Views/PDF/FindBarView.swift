@@ -150,6 +150,19 @@ enum JumpPaletteMetrics {
     static let animatesResultsHeight = false
     /// One callout line plus the empty-state padding. Not the cap.
     static let emptyResultsHeight: CGFloat = 44
+    /// Field and divider above the results. Used only to place the panel so a
+    /// full list sits where it did; the glass does not reserve this.
+    static let searchChromeAllowance: CGFloat = 44
+    /// Cap plus the field. The window pins the field from this height, so a
+    /// shorter list grows and collapses downward.
+    static var placementHeight: CGFloat { searchChromeAllowance + maxResultsHeight }
+    static let minimumSearchFieldTopInset: CGFloat = 8
+
+    /// Distance from the top of the page column to the search field. It does
+    /// not take the hit count, so filtering does not move the field.
+    static func searchFieldTopInset(windowHeight: CGFloat) -> CGFloat {
+        max(minimumSearchFieldTopInset, (windowHeight - placementHeight) / 2)
+    }
 
     /// Height of a one-section list of preview rows before the cap is applied.
     static func contentHeight(hitCount: Int) -> CGFloat {

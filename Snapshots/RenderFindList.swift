@@ -274,21 +274,45 @@ enum RenderFindList {
             throw SnapshotError("capped list is not taller than the theorem list")
         }
 
+        let windowHeight: CGFloat = 760
+        let inset = JumpPaletteMetrics.searchFieldTopInset(windowHeight: windowHeight)
+        guard inset == (windowHeight - JumpPaletteMetrics.placementHeight) / 2 else {
+            throw SnapshotError("search field inset follows the list: \(inset)")
+        }
+        let lightAnchoredLong = AnchoredJumpWindow(
+            palette: cappedMany, hoveredHitID: nil, dark: false, windowHeight: windowHeight
+        )
+        let lightAnchoredMiss = AnchoredJumpWindow(
+            palette: missed, hoveredHitID: nil, dark: false, windowHeight: windowHeight
+        )
+        let darkAnchoredLong = AnchoredJumpWindow(
+            palette: cappedMany, hoveredHitID: nil, dark: true, windowHeight: windowHeight
+        )
+        let darkAnchoredMiss = AnchoredJumpWindow(
+            palette: missed, hoveredHitID: nil, dark: true, windowHeight: windowHeight
+        )
+        let lightLongPNG = try renderedPNG(lightAnchoredLong)
+        let lightMissWindowPNG = try renderedPNG(lightAnchoredMiss)
+        let darkLongPNG = try renderedPNG(darkAnchoredLong)
+        let darkMissWindowPNG = try renderedPNG(darkAnchoredMiss)
+        try assertFieldStaysPut(lightLongPNG, lightMissWindowPNG, label: "light")
+        try assertFieldStaysPut(darkLongPNG, darkMissWindowPNG, label: "dark")
+
         let sheet = VStack(alignment: .leading, spacing: 28) {
-            Text("Cmd-K Jump · bottom follows the list, cap 420pt")
+            Text("Cmd-K Jump · search field stays put, list grows down")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ReservedJumpPair(
-                title: "theorem · selection and hover",
-                emptyTitle: "asdfajs;lfas · no matches",
-                matched: lightMatched,
-                missed: lightMissed
+                title: "40 hits · field top",
+                emptyTitle: "asdfajs;lfas · same field top",
+                matched: lightAnchoredLong,
+                missed: lightAnchoredMiss
             )
             ReservedJumpPair(
-                title: "theorem · dark",
+                title: "40 hits · dark",
                 emptyTitle: "asdfajs;lfas · dark",
-                matched: darkMatched,
-                missed: darkMissed
+                matched: darkAnchoredLong,
+                missed: darkAnchoredMiss
             )
             ReservedJumpPair(
                 title: "24 hits · capped",
@@ -301,9 +325,73 @@ enum RenderFindList {
         .background(Color(white: 0.94))
         try writePNG(sheet, to: output.appendingPathComponent("cmd-k-jump.png"), minimumBytes: 20_000)
         fputs(
-            "cmd-k cap \(Int(JumpPaletteMetrics.maxResultsHeight))pt  miss \(lightMissedPNG.pixelsWide)x\(lightMissedPNG.pixelsHigh)  one \(lightOnePNG.pixelsWide)x\(lightOnePNG.pixelsHigh)  theorem \(lightMatchedPNG.pixelsWide)x\(lightMatchedPNG.pixelsHigh)  capped \(lightCappedManyPNG.pixelsWide)x\(lightCappedManyPNG.pixelsHigh)\n",
+            "cmd-k cap \(Int(JumpPaletteMetrics.maxResultsHeight))pt  inset \(Int(inset))pt  miss \(lightMissedPNG.pixelsWide)x\(lightMissedPNG.pixelsHigh)  one \(lightOnePNG.pixelsWide)x\(lightOnePNG.pixelsHigh)  theorem \(lightMatchedPNG.pixelsWide)x\(lightMatchedPNG.pixelsHigh)  capped \(lightCappedManyPNG.pixelsWide)x\(lightCappedManyPNG.pixelsHigh)  field \(lightLongPNG.pixelsWide)x\(lightLongPNG.pixelsHigh)\n",
             stdout
         )
+    }
+
+    /// The red guide sits on the search field. A long list and a miss share
+    /// that row. Further down, the miss is page again and the long list is not.
+    private static func assertFieldStaysPut(
+        _ long: (data: Data, pixelsWide: Int, pixelsHigh: Int),
+        _ miss: (data: Data, pixelsWide: Int, pixelsHigh: Int),
+        label: String
+    ) throws {
+        guard long.pixelsWide == miss.pixelsWide, long.pixelsHigh == miss.pixelsHigh else {
+            throw SnapshotError("\(label) windows differ: \(long.pixelsWide)x\(long.pixelsHigh) vs \(miss.pixelsWide)x\(miss.pixelsHigh)")
+        }
+        let longGuide = try guideRow(in: long.data)
+        let missGuide = try guideRow(in: miss.data)
+        guard abs(longGuide - missGuide) <= 1 else {
+            throw SnapshotError("\(label) search field moved: long \(longGuide) miss \(missGuide)")
+        }
+        let downward = longGuide < long.pixelsHigh / 2
+        let below = downward ? longGuide + 440 : longGuide - 440
+        guard below > 0, below < long.pixelsHigh else {
+            throw SnapshotError("\(label) field guide \(longGuide) leaves no room to sample the list")
+        }
+        let longIsPage = try isPagePixel(in: long.data, x: long.pixelsWide / 2, y: below)
+        let missIsPage = try isPagePixel(in: miss.data, x: miss.pixelsWide / 2, y: below)
+        guard missIsPage else {
+            throw SnapshotError("\(label) miss is still glass \(below)px under the field")
+        }
+        guard !longIsPage else {
+            throw SnapshotError("\(label) long list collapsed where it should still be glass")
+        }
+    }
+
+    private static func guideRow(in data: Data) throws -> Int {
+        guard let rep = NSBitmapImageRep(data: data) else {
+            throw SnapshotError("field guide is not a bitmap")
+        }
+        let x = rep.pixelsWide / 2
+        for y in 0..<rep.pixelsHigh {
+            guard let color = rep.colorAt(x: x, y: y) else { continue }
+            let resolved = color.usingColorSpace(.sRGB) ?? color
+            if resolved.redComponent > 0.7, resolved.greenComponent < 0.35, resolved.blueComponent < 0.35 {
+                return y
+            }
+        }
+        throw SnapshotError("search-field guide was not drawn")
+    }
+
+    /// Flat window colour behind the palette. Glass and the red guide are not this.
+    private static func isPagePixel(in data: Data, x: Int, y: Int) throws -> Bool {
+        guard let rep = NSBitmapImageRep(data: data),
+              let raw = rep.colorAt(x: x, y: y) else {
+            throw SnapshotError("could not sample \(x),\(y)")
+        }
+        let color = raw.usingColorSpace(.sRGB) ?? raw
+        // Same flats as AnchoredJumpWindow. Frost blends toward white and
+        // does not land on these.
+        let page = (red: CGFloat(0.69), green: CGFloat(0.78), blue: CGFloat(0.88))
+        let dark = (red: CGFloat(0.12), green: CGFloat(0.12), blue: CGFloat(0.12))
+        func near(_ sample: (red: CGFloat, green: CGFloat, blue: CGFloat)) -> Bool {
+            abs(color.redComponent - sample.red) < 0.05
+                && abs(color.greenComponent - sample.green) < 0.05
+                && abs(color.blueComponent - sample.blue) < 0.05
+        }
+        return near(page) || near(dark)
     }
 
     /// A miss sits under the field. One hit and a short theorem list are taller
@@ -505,6 +593,35 @@ private struct BeforeFindBar: View {
     private var matchLabel: String {
         if hits.isEmpty { return "Not found" }
         return "\(hits.count) named"
+    }
+}
+
+/// The page column with the field pinned. The red guide is the field’s top
+/// edge; a miss and a long list share it, and only the list under it changes.
+private struct AnchoredJumpWindow: View {
+    var palette: JumpPaletteModel
+    var hoveredHitID: String?
+    var dark: Bool
+    var windowHeight: CGFloat
+
+    var body: some View {
+        let inset = JumpPaletteMetrics.searchFieldTopInset(windowHeight: windowHeight)
+        JumpPaletteView(palette: palette)
+            .environment(\.rendersForSnapshot, true)
+            .environment(\.snapshotCapsResultsHeight, true)
+            .environment(\.snapshotHoveredHitID, hoveredHitID)
+            .environment(\.colorScheme, dark ? .dark : .light)
+            .padding(.top, inset)
+            .frame(width: 440, height: windowHeight, alignment: .top)
+            .background(dark ? Color(white: 0.12) : Color(red: 0.69, green: 0.78, blue: 0.88))
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.red)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 2)
+                    .offset(y: inset - 20)
+            }
+            .clipped()
     }
 }
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Renders the citation hover, the plain Cmd-F bar, and the Cmd-K jump palette.
-# cmd-k-jump.png is the adaptive panel: a miss collapses under the field, and
-# a long list is clipped at the 420pt cap. Selection and hover share one fill.
+# cmd-k-jump.png pins the search field and lets the list grow downward.
+# A miss collapses under that field. A long list is clipped at the 420pt cap.
 # The app-hosted tests cannot launch here: the runner is macOS 26 and the app
 # requires macOS 27.
 set -euo pipefail

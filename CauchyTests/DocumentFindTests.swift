@@ -535,6 +535,20 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertEqual(Set(cappedHeights), [JumpPaletteMetrics.maxResultsHeight])
         XCTAssertTrue(cappedCounts.allSatisfy { JumpPaletteMetrics.locksResultsHeight(hitCount: $0) })
 
+        let window: CGFloat = 900
+        XCTAssertEqual(
+            JumpPaletteMetrics.placementHeight,
+            JumpPaletteMetrics.maxResultsHeight + JumpPaletteMetrics.searchChromeAllowance
+        )
+        XCTAssertEqual(
+            JumpPaletteMetrics.searchFieldTopInset(windowHeight: window),
+            (window - JumpPaletteMetrics.placementHeight) / 2
+        )
+        XCTAssertEqual(
+            JumpPaletteMetrics.searchFieldTopInset(windowHeight: 200),
+            JumpPaletteMetrics.minimumSearchFieldTopInset
+        )
+
         XCTAssertEqual(JumpPaletteMetrics.rowHighlightOpacity, 0.14)
         XCTAssertFalse(JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: false))
         XCTAssertTrue(JumpPaletteMetrics.rowIsHighlighted(isSelected: true, isHovered: false))

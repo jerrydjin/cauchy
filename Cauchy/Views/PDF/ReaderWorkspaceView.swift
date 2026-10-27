@@ -52,14 +52,17 @@ struct ReaderWorkspaceView: View {
                                     .transition(.move(edge: .top).combined(with: .opacity))
                             }
                         }
-                        .overlay {
+                        .overlay(alignment: .top) {
                             if workspace.jump.isVisible {
+                                // The field stays on this inset. The list under it
+                                // is what grows, collapses, and scrolls.
                                 JumpPaletteView(
                                     palette: workspace.jump,
                                     isIndexing: workspace.isIndexingReferences
                                 )
-                                .padding(24)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                .padding(.top, JumpPaletteMetrics.searchFieldTopInset(windowHeight: geometry.size.height))
+                                .frame(maxWidth: .infinity)
+                                .animation(nil, value: workspace.jump.hits.count)
                                 .transition(.opacity)
                             }
                         }

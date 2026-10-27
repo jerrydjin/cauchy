@@ -12,6 +12,9 @@ struct MathSegmentView: View {
     var mode: Mode = .inline
     var fontSize: CGFloat = 16
     var textColor: Color = .primary
+    /// Failed math in chat stays a monospace chip. The reference card passes
+    /// the body font so a broken span cannot change typeface mid-sentence.
+    var fallbackFont: Font = .system(.callout, design: .monospaced)
 
     var body: some View {
         Group {
@@ -36,7 +39,7 @@ struct MathSegmentView: View {
                 }
             } else {
                 Text(fallbackText)
-                    .font(.system(.callout, design: .monospaced))
+                    .font(fallbackFont)
                     .foregroundStyle(textColor.opacity(0.85))
                     .textSelection(.enabled)
                     .multilineTextAlignment(mode == .display ? .center : .leading)

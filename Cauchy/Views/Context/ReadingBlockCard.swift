@@ -6,7 +6,9 @@ struct ReadingBlockCard: View {
     let displayBody: String
 
     var body: some View {
-        MessageContentView(content: displayBody, font: .body)
+        // Statements are prose. A stray backtick or a formula SwiftMath cannot
+        // draw must not flip the rest of the sentence into monospace.
+        MessageContentView(content: displayBody, font: .body, allowsMonospace: false)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

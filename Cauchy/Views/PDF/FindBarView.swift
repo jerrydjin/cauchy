@@ -526,7 +526,6 @@ private struct SnapshotResultsFrame: ViewModifier {
             if reservesHeight {
                 content
                     .frame(
-                        maxWidth: .infinity,
                         height: JumpPaletteMetrics.resultsFrameHeight(hitCount: hitCount),
                         alignment: .top
                     )

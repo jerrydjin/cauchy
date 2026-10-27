@@ -357,33 +357,21 @@ enum MathMetrics {
             textAlignment: .left
         )
         math.contentInsets = contentInsets
-        guard let drawn = math.asImage().1 else { return nil }
-        let pointSize = drawn.size
-        guard pointSize.width > 0, pointSize.height > 0 else { return nil }
-
-        let scale: CGFloat = 2
-        let pixelsWide = max(Int((pointSize.width * scale).rounded(.up)), 1)
-        let pixelsHigh = max(Int((pointSize.height * scale).rounded(.up)), 1)
-        guard let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: pixelsWide,
-            pixelsHigh: pixelsHigh,
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ) else { return nil }
-        rep.size = pointSize
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        NSGraphicsContext.current?.cgContext.scaleBy(x: scale, y: scale)
-        drawn.draw(in: NSRect(origin: .zero, size: pointSize))
-        NSGraphicsContext.restoreGraphicsState()
-
-        let image = NSImage(size: pointSize)
+        let (error, drawn) = math.asImage()
+        guard let drawn, drawn.size.width > 0.5, drawn.size.height > 0.5 else {
+            fputs("SwiftMath asImage failed for \(latex): \(error?.localizedDescription ?? "no image")\n", stderr)
+            return nil
+        }
+        // Materialize the lazy drawing handler. A second bitmap context on the
+        // CI runner was staying blank; TIFF generation is the path AppKit uses
+        // for this image.
+        guard let tiff = drawn.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else {
+            fputs("SwiftMath image for \(latex) produced no TIFF (\(drawn.size))\n", stderr)
+            return nil
+        }
+        rep.size = drawn.size
+        let image = NSImage(size: drawn.size)
         image.addRepresentation(rep)
         return image
     }

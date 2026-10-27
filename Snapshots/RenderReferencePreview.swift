@@ -100,10 +100,11 @@ enum RenderReferencePreview {
             fontSize: 15,
             textColor: .primary
         ) else {
-            throw SnapshotError("SwiftMath drew no glyphs for \\gamma")
+            throw SnapshotError("SwiftMath asImage produced nothing for \\gamma")
         }
-        guard try inkCount(in: probe) > 0 else {
-            throw SnapshotError("SwiftMath drew no glyphs for \\gamma")
+        let probeInk = try inkCount(in: probe)
+        guard probeInk > 0 else {
+            throw SnapshotError("SwiftMath TIFF for \\gamma has no dark pixels (size \(probe.size))")
         }
 
         let card = SnapshotChrome(
@@ -174,17 +175,38 @@ enum RenderReferencePreview {
 
     fileprivate static func inkCount(in rep: NSBitmapImageRep) -> Int {
         var ink = 0
-        let stepX = max(rep.pixelsWide / 24, 1)
-        let stepY = max(rep.pixelsHigh / 24, 1)
+        let stepX = max(rep.pixelsWide / 32, 1)
+        let stepY = max(rep.pixelsHigh / 32, 1)
         var y = 0
         while y < rep.pixelsHigh {
             var x = 0
             while x < rep.pixelsWide {
                 if let color = rep.colorAt(x: x, y: y) {
                     let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
-                    if color.alphaComponent > 0.35 && brightness < 0.55 {
+                    if color.alphaComponent > 0.2 && brightness < 0.82 {
                         ink += 1
                     }
+                }
+                x += stepX
+            }
+            y += stepY
+        }
+        if ink > 0 { return ink }
+        guard let data = rep.bitmapData else { return 0 }
+        let bytesPerPixel = max(rep.bitsPerPixel / 8, 1)
+        let rowBytes = rep.bytesPerRow
+        y = 0
+        while y < rep.pixelsHigh {
+            var x = 0
+            while x < rep.pixelsWide {
+                let offset = y * rowBytes + x * bytesPerPixel
+                guard bytesPerPixel >= 3 else { break }
+                let r = Int(data[offset])
+                let g = Int(data[offset + 1])
+                let b = Int(data[offset + 2])
+                let a = bytesPerPixel >= 4 ? Int(data[offset + 3]) : 255
+                if a > 30 && (r + g + b) / 3 < 210 {
+                    ink += 1
                 }
                 x += stepX
             }

@@ -30,4 +30,17 @@ Native inspection used separately identified offline preview apps and isolated a
 - A separately named preview forced Aqua appearance through its own Info.plist, without changing system appearance. The same reading/writing hierarchy was inspected in light appearance. An appended draft marker appeared in the editor and persisted after a confirmed quit.
 - Both complete fixture files remained equal to their canonical snapshots after final quit. These observations preceded the final semantic-label, compact-header and feedback-transition refinements; final-source automated verification includes those refinements.
 
-The Mac locked before the final cold-restart and matched-code native recheck. Installation and reopening the final design remain pending manual unlock. The installed app and real learner data have not been replaced for this revision. Reduce Motion, Reduce Transparency, Increased Contrast, VoiceOver speech and animation frame pacing were not exercised at runtime; their code paths are present but are not certified by the screenshot checks. No new mathematical grading or learning-outcome evaluation was performed.
+The Mac initially locked before the final cold-restart and matched-code native recheck. The user subsequently unlocked it and the completion below supersedes that installation limit. Reduce Motion, Reduce Transparency, Increased Contrast, VoiceOver speech and animation frame pacing were not exercised at runtime; their code paths are present but are not certified by the screenshot checks. No new mathematical grading or learning-outcome evaluation was performed.
+
+## Completion after unlock
+
+The exact tested checkpoint `f0391a5` was installed in `/Applications/Cauchy.app` after a clean quit. The previous app and both normal/legacy Application Support locations were backed up in `build/LocalInstallBackup-before-surfaces-f0391a5`. The installed executable SHA-256 matches the staged tested build: `f52dfaa57605009aea2a5e3d8d1cb52f1650a0425db5e0c2342452e1cb480843`.
+
+Final-source native checks established:
+
+- The light preview cold-reopened the exact appended reasoning draft. Its compact header, semantic labels, question and writing surfaces were inspected; the complete fixture JSON matched its canonical baseline after final quit.
+- The dark preview reopened the exact original draft. A deliberate offline submission exposed partial feedback and revision actions while retaining that reasoning. After quit, only the intended practice session had one added partial attempt; the other session and full study map matched their originals. Native scroll-capture attempts returned `noWindowsAvailable`; rebinding confirmed the same app remained open. Those capture failures are not treated as a demonstrated product defect.
+- The installed app reopened Jerry’s Complex Analysis guided practice, with the exact question, original answer draft and selected GPT-6 Luna model. The actual installed dark screen was visually inspected for the compact tinted header, separated question/writing surfaces, focus outline, help disclosure and floating action area.
+- All three complete real learning records matched the pre-install backup as parsed JSON. Two files also matched byte-for-byte; the third was re-encoded without content changes. No answer was submitted to a live provider and the earlier transient tutor error was not reproduced or claimed fixed.
+
+The installed Learn window was left open on that original question and draft. Installation metadata is retained in `build/LearnDesignReady/checkpoint.json` and the rollback backup. Tracking remains local as requested.

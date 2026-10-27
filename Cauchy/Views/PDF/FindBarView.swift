@@ -12,6 +12,29 @@ extension EnvironmentValues {
         get { self[RendersForSnapshotKey.self] }
         set { self[RendersForSnapshotKey.self] = newValue }
     }
+
+    /// The live results frame. ImageRenderer cannot scroll, so the default
+    /// snapshot still paints every row. The reserved-height snapshot opts in
+    /// and uses the same fixed frame as the panel on screen.
+    var snapshotReservesResultsHeight: Bool {
+        get { self[SnapshotReservesResultsHeightKey.self] }
+        set { self[SnapshotReservesResultsHeightKey.self] = newValue }
+    }
+
+    /// ImageRenderer has no pointer. When set, that row paints the shared
+    /// hover fill. Ignored unless `rendersForSnapshot` is also set.
+    var snapshotHoveredHitID: String? {
+        get { self[SnapshotHoveredHitIDKey.self] }
+        set { self[SnapshotHoveredHitIDKey.self] = newValue }
+    }
+}
+
+private struct SnapshotReservesResultsHeightKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private struct SnapshotHoveredHitIDKey: EnvironmentKey {
+    static let defaultValue: String? = nil
 }
 
 struct FindBarView: View {
@@ -142,6 +165,8 @@ struct JumpPaletteView: View {
     var isIndexing: Bool = false
     @FocusState private var isFieldFocused: Bool
     @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+    @Environment(\.snapshotReservesResultsHeight) private var snapshotReservesResultsHeight
+    @Environment(\.snapshotHoveredHitID) private var snapshotHoveredHitID
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -198,21 +223,19 @@ struct JumpPaletteView: View {
         .padding(.vertical, 10)
     }
 
-    /// ImageRenderer drops `ScrollView` contents, so the snapshot paints every
-    /// row in a stack. The live palette always reserves `resultsAreaHeight`
+    /// ImageRenderer drops `ScrollView` contents, so the snapshot paints the
+    /// rows in a stack. The live palette always reserves `resultsAreaHeight`
     /// and scrolls inside that frame, including when there are no matches.
+    /// The reserved-height snapshot uses that same frame and clips only when
+    /// the rows would scroll.
     @ViewBuilder
     private var results: some View {
         if rendersForSnapshot {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(groupedHits, id: \.title) { group in
-                    groupHeader(group)
-                    ForEach(group.hits) { hit in
-                        paletteRow(hit)
-                    }
-                }
-            }
-            .padding(10)
+            snapshotResultStack
+                .modifier(SnapshotResultsFrame(
+                    reservesHeight: snapshotReservesResultsHeight,
+                    hitCount: palette.hits.count
+                ))
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
@@ -250,6 +273,26 @@ struct JumpPaletteView: View {
         }
     }
 
+    private var snapshotResultStack: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if palette.hits.isEmpty {
+                Text(emptyMessage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            } else {
+                ForEach(groupedHits, id: \.title) { group in
+                    groupHeader(group)
+                    ForEach(group.hits) { hit in
+                        paletteRow(hit)
+                    }
+                }
+            }
+        }
+        .padding(palette.hits.isEmpty ? 0 : 10)
+    }
+
     private func groupHeader(_ group: (title: String, hits: [DocumentFind.Hit])) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(group.title)
@@ -265,6 +308,7 @@ struct JumpPaletteView: View {
         JumpPaletteRow(
             hit: hit,
             isSelected: isSelected(hit),
+            isSnapshotHovered: rendersForSnapshot && snapshotHoveredHitID == hit.id,
             tracksPointer: !rendersForSnapshot
         ) {
             palette.jump(hit)
@@ -303,13 +347,14 @@ struct JumpPaletteView: View {
 private struct JumpPaletteRow: View {
     var hit: DocumentFind.Hit
     var isSelected: Bool
+    var isSnapshotHovered: Bool
     var tracksPointer: Bool
     var onJump: () -> Void
 
     @State private var pointerHover = false
     @State private var trackingHover = false
 
-    private var isHovered: Bool { pointerHover || trackingHover }
+    private var isHovered: Bool { pointerHover || trackingHover || isSnapshotHovered }
 
     var body: some View {
         let visible = DocumentFind.namesForDisplay(hit.nameCandidates)
@@ -464,6 +509,30 @@ private struct JumpHoverTracker: NSViewRepresentable {
             lastHovered = hovered
             MainActor.assumeIsolated {
                 coordinator?.onHover(hovered)
+            }
+        }
+    }
+}
+
+/// Fixed results frame for the designer snapshot. The live scroll view uses
+/// the same height; this stack cannot scroll, so a list taller than the
+/// reservation is clipped instead of growing the glass.
+private struct SnapshotResultsFrame: ViewModifier {
+    var reservesHeight: Bool
+    var hitCount: Int
+
+    func body(content: Content) -> some View {
+        Group {
+            if reservesHeight {
+                content
+                    .frame(
+                        maxWidth: .infinity,
+                        height: JumpPaletteMetrics.resultsFrameHeight(hitCount: hitCount),
+                        alignment: .top
+                    )
+                    .clipped()
+            } else {
+                content
             }
         }
     }

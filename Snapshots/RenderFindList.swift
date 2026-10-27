@@ -116,6 +116,7 @@ enum RenderFindList {
             caption: "Cmd-K Jump to",
             content: JumpPaletteView(palette: palette)
                 .environment(\.rendersForSnapshot, true)
+                .environment(\.snapshotReservesResultsHeight, true)
                 .environment(\.colorScheme, .light)
                 .padding(16)
                 .background(PagePaper(dark: false))
@@ -124,6 +125,7 @@ enum RenderFindList {
             caption: "Cmd-K Jump to · dark",
             content: JumpPaletteView(palette: palette)
                 .environment(\.rendersForSnapshot, true)
+                .environment(\.snapshotReservesResultsHeight, true)
                 .environment(\.colorScheme, .dark)
                 .padding(16)
                 .background(PagePaper(dark: true))
@@ -161,9 +163,104 @@ enum RenderFindList {
         .padding(8)
         .background(Color(white: 0.94))
         try writePNG(combined, to: output.appendingPathComponent("find-and-jump.png"), minimumBytes: 12_000)
+        try renderReservedJumpPalette(catalogue: catalogue, output: output)
         for hit in catalogue {
             fputs("\(hit.label)  p.\(hit.pageIndex + 1)  \(hit.firstLine)\n", stdout)
         }
+    }
+
+    /// Two hit counts, one chrome. A short query and a miss both keep the
+    /// 420pt results frame, so the glass cannot grow or shrink with the list.
+    /// The first row is the keyboard selection. The second row is the shared
+    /// hover fill; ImageRenderer has no pointer, so the snapshot names that row.
+    @MainActor
+    private static func renderReservedJumpPalette(catalogue: [DocumentFind.Hit], output: URL) throws {
+        guard JumpPaletteMetrics.resultsAreaHeight == 420 else {
+            throw SnapshotError("reserved height is \(JumpPaletteMetrics.resultsAreaHeight), expected 420")
+        }
+        guard JumpPaletteMetrics.animatesResultsHeight == false else {
+            throw SnapshotError("results height still animates")
+        }
+        guard JumpPaletteMetrics.rowHighlightOpacity == 0.14 else {
+            throw SnapshotError("row highlight opacity changed")
+        }
+        let heights = [0, 1, catalogue.count].map { JumpPaletteMetrics.resultsFrameHeight(hitCount: $0) }
+        guard Set(heights).count == 1, heights[0] == 420 else {
+            throw SnapshotError("results frame follows the hit count: \(heights)")
+        }
+        guard JumpPaletteMetrics.rowIsHighlighted(isSelected: true, isHovered: false),
+              JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: true),
+              !JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: false) else {
+            throw SnapshotError("selection and hover no longer share one highlight")
+        }
+
+        let matchedHits = DocumentFind.filterCatalogue(catalogue, query: "theorem")
+        let matchedLabels = matchedHits.map(\.label)
+        guard matchedLabels == [
+            "Theorem 1.3.3",
+            "Theorem 2.3.1 (Cauchy or Cauchy-Goursat Theorem)",
+            "Theorem 3.5.27 (Residue theorem)",
+            "Theorem 9",
+            "Definition 3.2.1 (Homotopy Version of Cauchy's Theorem)",
+        ] else {
+            throw SnapshotError("unexpected theorem rows: \(matchedLabels)")
+        }
+        guard DocumentFind.filterCatalogue(catalogue, query: "zzzz").isEmpty else {
+            throw SnapshotError("zzzz should miss every indexed statement")
+        }
+
+        let hovered = matchedHits[1]
+        let matched = JumpPaletteModel()
+        matched.showSnapshot(query: "theorem", hits: matchedHits, selection: 0)
+        let missed = JumpPaletteModel()
+        missed.showSnapshot(query: "zzzz", hits: [], selection: 0)
+
+        let lightMatched = JumpPaletteCard(palette: matched, hoveredHitID: hovered.id, dark: false)
+        let lightMissed = JumpPaletteCard(palette: missed, hoveredHitID: nil, dark: false)
+        let darkMatched = JumpPaletteCard(palette: matched, hoveredHitID: hovered.id, dark: true)
+        let darkMissed = JumpPaletteCard(palette: missed, hoveredHitID: nil, dark: true)
+
+        let lightMatchedPNG = try renderedPNG(lightMatched)
+        let lightMissedPNG = try renderedPNG(lightMissed)
+        let darkMatchedPNG = try renderedPNG(darkMatched)
+        let darkMissedPNG = try renderedPNG(darkMissed)
+        let minimumHeight = Int(JumpPaletteMetrics.resultsAreaHeight * 2)
+        guard lightMatchedPNG.pixelsHigh >= minimumHeight else {
+            throw SnapshotError("theorem palette is \(lightMatchedPNG.pixelsHigh)px tall, under the 420pt results frame")
+        }
+        guard lightMatchedPNG.pixelsWide == lightMissedPNG.pixelsWide,
+              lightMatchedPNG.pixelsHigh == lightMissedPNG.pixelsHigh else {
+            throw SnapshotError("light chrome changed with hit count: \(lightMatchedPNG.pixelsWide)x\(lightMatchedPNG.pixelsHigh) vs \(lightMissedPNG.pixelsWide)x\(lightMissedPNG.pixelsHigh)")
+        }
+        guard darkMatchedPNG.pixelsWide == darkMissedPNG.pixelsWide,
+              darkMatchedPNG.pixelsHigh == darkMissedPNG.pixelsHigh else {
+            throw SnapshotError("dark chrome changed with hit count: \(darkMatchedPNG.pixelsWide)x\(darkMatchedPNG.pixelsHigh) vs \(darkMissedPNG.pixelsWide)x\(darkMissedPNG.pixelsHigh)")
+        }
+
+        let sheet = VStack(alignment: .leading, spacing: 28) {
+            Text("Cmd-K Jump · results stay 420pt")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ReservedJumpPair(
+                title: "theorem · selection and hover",
+                emptyTitle: "no matches · same glass",
+                matched: lightMatched,
+                missed: lightMissed
+            )
+            ReservedJumpPair(
+                title: "theorem · dark",
+                emptyTitle: "no matches · dark",
+                matched: darkMatched,
+                missed: darkMissed
+            )
+        }
+        .padding(28)
+        .background(Color(white: 0.94))
+        try writePNG(sheet, to: output.appendingPathComponent("cmd-k-jump.png"), minimumBytes: 20_000)
+        fputs(
+            "cmd-k reserved \(Int(JumpPaletteMetrics.resultsAreaHeight))pt  light \(lightMatchedPNG.pixelsWide)x\(lightMatchedPNG.pixelsHigh)  dark \(darkMatchedPNG.pixelsWide)x\(darkMatchedPNG.pixelsHigh)\n",
+            stdout
+        )
     }
 
     private static func jumpCatalogue() -> [DocumentFind.Hit] {
@@ -336,6 +433,48 @@ private struct BeforeFindBar: View {
     }
 }
 
+/// One Cmd-K panel over the page. The frost stands in for Liquid Glass, which
+/// ImageRenderer drops. The results frame is the reserved 420pt.
+private struct JumpPaletteCard: View {
+    var palette: JumpPaletteModel
+    var hoveredHitID: String?
+    var dark: Bool
+
+    var body: some View {
+        JumpPaletteView(palette: palette)
+            .environment(\.rendersForSnapshot, true)
+            .environment(\.snapshotReservesResultsHeight, true)
+            .environment(\.snapshotHoveredHitID, hoveredHitID)
+            .environment(\.colorScheme, dark ? .dark : .light)
+            .padding(16)
+            .background(PagePaper(dark: dark))
+    }
+}
+
+private struct ReservedJumpPair<Matched: View, Missed: View>: View {
+    var title: String
+    var emptyTitle: String
+    var matched: Matched
+    var missed: Missed
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 28) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                matched
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(emptyTitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                missed
+            }
+        }
+    }
+}
+
 /// The page behind the palette. ImageRenderer cannot sample `glassEffect`,
 /// so the snapshot frost is translucent and this paper colour shows through.
 private struct PagePaper: View {
@@ -386,8 +525,7 @@ private struct SnapshotError: Error, CustomStringConvertible {
 }
 
 @MainActor
-private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws {
-    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+private func renderedPNG<V: View>(_ view: V) throws -> (data: Data, pixelsWide: Int, pixelsHigh: Int) {
     let renderer = ImageRenderer(content: view)
     renderer.scale = 2
     renderer.isOpaque = true
@@ -397,9 +535,16 @@ private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws
           let png = rep.representation(using: .png, properties: [:]) else {
         throw SnapshotError("ImageRenderer produced no PNG")
     }
-    guard png.count >= minimumBytes, rep.pixelsWide > 40, rep.pixelsHigh > 40 else {
-        throw SnapshotError("PNG is \(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh)")
+    return (png, rep.pixelsWide, rep.pixelsHigh)
+}
+
+@MainActor
+private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws {
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let png = try renderedPNG(view)
+    guard png.data.count >= minimumBytes, png.pixelsWide > 40, png.pixelsHigh > 40 else {
+        throw SnapshotError("PNG is \(png.data.count) bytes, \(png.pixelsWide)x\(png.pixelsHigh)")
     }
-    try png.write(to: url)
-    fputs("wrote \(url.path) (\(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh))\n", stdout)
+    try png.data.write(to: url)
+    fputs("wrote \(url.path) (\(png.data.count) bytes, \(png.pixelsWide)x\(png.pixelsHigh))\n", stdout)
 }

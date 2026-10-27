@@ -36,7 +36,7 @@ struct MathSegmentView: View {
                                 ?? dimensions[.bottom]
                         }
                 } else {
-                    Text(fallbackText)
+                    Text(visibleFallback)
                         .font(fallbackFont)
                         .foregroundStyle(textColor.opacity(0.85))
                         .textSelection(.enabled)
@@ -62,7 +62,10 @@ struct MathSegmentView: View {
                     }
                 }
             } else {
-                Text(fallbackText)
+                // SwiftMath rejected every repair. The source string is the
+                // accessibility label; painting it here is how `\frac` and
+                // `\begin{align}` showed up as raw TeX.
+                Text(visibleFallback)
                     .font(fallbackFont)
                     .foregroundStyle(textColor.opacity(0.85))
                     .textSelection(.enabled)
@@ -76,13 +79,22 @@ struct MathSegmentView: View {
         // technology. Preserve the original expression, including commands
         // approximated for rendering, instead of leaving a silent gap.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Math expression: \(fallbackText)")
+        .accessibilityLabel("Math expression: \(sourceText)")
         .accessibilityAddTraits(.isStaticText)
     }
 
-    private var fallbackText: String {
+    /// Spoken form. VoiceOver gets the formula even when the glyphs are a bitmap.
+    private var sourceText: String {
         let trimmed = latex.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "…" : trimmed
+    }
+
+    /// Drawn only when nothing buildable remains. Never the raw source: a
+    /// backslash or a dollar in this string is the fall-through the card,
+    /// the hover, and Source used to show.
+    private var visibleFallback: String {
+        if sourceText.contains("\\") || sourceText.contains("$") { return "…" }
+        return sourceText
     }
 }
 
@@ -122,6 +134,8 @@ enum LaTeXValidator {
         ("\\bmod", "\\mathrm{mod}"),
         ("\\implies", "\\Longrightarrow"),
         ("\\impliedby", "\\Longleftarrow"),
+        ("\\boldsymbol", "\\mathbf"),
+        ("\\pmb", "\\mathbf"),
     ]
 
     /// Delimiter-size hints SwiftMath lacks. Dropping them leaves the plain
@@ -129,6 +143,8 @@ enum LaTeXValidator {
     private static let droppedCommands = [
         "\\biggl", "\\biggr", "\\bigl", "\\bigr", "\\Biggl", "\\Biggr", "\\Bigl", "\\Bigr",
         "\\bigg", "\\Bigg", "\\big", "\\Big",
+        "\\substack", "\\middle",
+        "\\notag", "\\nonumber", "\\qedhere", "\\allowdisplaybreaks",
     ]
 
     static func sanitize(_ latex: String) -> String {
@@ -169,13 +185,18 @@ enum LaTeXValidator {
 
     static func renderableLatex(from latex: String) -> String? {
         let base = sanitize(latex)
-        // The model's own markup is tried first; the substituted forms are a
-        // last resort before falling back to showing raw LaTeX source.
-        let substituted = substitutingUnsupportedCommands(base)
+        // The model's own markup is tried first. Substitutions and environment
+        // rewrites are what keep one unknown command (`\label`, `\begin{align}`)
+        // from dropping the whole formula to raw source.
+        let prepared = prepareForTypesetting(base)
+        let substituted = substitutingUnsupportedCommands(prepared)
         let candidates = uniqueCandidates([
             base,
             normalizePlainBars(base),
             normalizeEscapedBars(base),
+            prepared,
+            normalizePlainBars(prepared),
+            normalizeEscapedBars(prepared),
             substituted,
             normalizePlainBars(substituted),
             normalizeEscapedBars(substituted),
@@ -184,7 +205,317 @@ enum LaTeXValidator {
         for candidate in candidates where buildsSuccessfully(candidate) {
             return candidate
         }
+        return repairUntilBuildable(substituted)
+    }
+
+    /// Rewrites the environments and decorations SwiftMath 1.7.3 rejects.
+    /// `\begin{align}` is "Unknown environment"; `\begin{align*}` fails earlier
+    /// because the `*` is not part of the environment name the parser reads.
+    private static func prepareForTypesetting(_ latex: String) -> String {
+        rewriteEnvironments(stripDecorations(latex))
+    }
+
+    private static let decorationsWithArgument = [
+        "label", "tag", "eqref", "ref", "cite", "footnote", "marginpar",
+    ]
+
+    private static let decorationsWithoutArgument = [
+        "notag", "nonumber", "qedhere", "allowdisplaybreaks",
+    ]
+
+    /// `align` with an alignment tab becomes `aligned` (SwiftMath knows that
+    /// name). A one-column `equation` / `align` is unwrapped. The star in
+    /// `align*` is removed as part of the rename.
+    private static let environmentTargets: [(String, String)] = [
+        ("align*", "aligned"),
+        ("flalign*", "aligned"),
+        ("flalign", "aligned"),
+        ("alignat*", "aligned"),
+        ("alignat", "aligned"),
+        ("align", "aligned"),
+        ("eqnarray*", "eqnarray"),
+        ("gather*", "gather"),
+        ("gathered", "gather"),
+        ("multline*", "gather"),
+        ("multline", "gather"),
+        ("equation*", ""),
+        ("equation", ""),
+        ("displaymath", ""),
+        ("math", ""),
+    ]
+
+    private static func stripDecorations(_ latex: String) -> String {
+        var output = ""
+        var index = latex.startIndex
+        while index < latex.endIndex {
+            guard latex[index] == "\\",
+                  let commandEnd = endOfCommandName(in: latex, from: index) else {
+                output.append(latex[index])
+                index = latex.index(after: index)
+                continue
+            }
+            var name = String(latex[latex.index(after: index)..<commandEnd])
+            var cursor = commandEnd
+            if cursor < latex.endIndex, latex[cursor] == "*" {
+                name.append("*")
+                cursor = latex.index(after: cursor)
+            }
+            let baseName = name.hasSuffix("*") ? String(name.dropLast()) : name
+            if decorationsWithArgument.contains(baseName) {
+                let afterSpace = skipSpaces(in: latex, from: cursor)
+                if afterSpace < latex.endIndex, latex[afterSpace] == "{" {
+                    let innerStart = latex.index(after: afterSpace)
+                    let end = endOfBraceGroup(in: latex, open: afterSpace)
+                    let innerEnd = end > innerStart ? latex.index(before: end) : innerStart
+                    if (baseName == "eqref" || baseName == "ref"), innerStart < innerEnd {
+                        output.append("(")
+                        output.append(contentsOf: latex[innerStart..<innerEnd])
+                        output.append(")")
+                    }
+                    index = end
+                } else {
+                    index = cursor
+                }
+                continue
+            }
+            if decorationsWithoutArgument.contains(baseName) {
+                index = cursor
+                continue
+            }
+            if baseName == "ensuremath" {
+                let afterSpace = skipSpaces(in: latex, from: cursor)
+                if afterSpace < latex.endIndex, latex[afterSpace] == "{" {
+                    let innerStart = latex.index(after: afterSpace)
+                    let end = endOfBraceGroup(in: latex, open: afterSpace)
+                    let innerEnd = end > innerStart ? latex.index(before: end) : innerStart
+                    if innerStart < innerEnd {
+                        output.append(contentsOf: latex[innerStart..<innerEnd])
+                    }
+                    index = end
+                    continue
+                }
+            }
+            output.append(contentsOf: latex[index..<cursor])
+            index = cursor
+        }
+        return output
+    }
+
+    private static func rewriteEnvironments(_ latex: String) -> String {
+        var output = ""
+        var index = latex.startIndex
+        while index < latex.endIndex {
+            if let span = environmentSpan(in: latex, from: index) {
+                // JSON `\n` inside an environment becomes real newlines before
+                // this runs. SwiftMath treats some of those as extra rows and
+                // then rejects `aligned`. A row break is `\\`, not a newline.
+                let body = collapseMathWhitespace(rewriteEnvironments(span.body))
+                let target = environmentTarget(name: span.name, body: body)
+                if target.isEmpty {
+                    output.append(body)
+                } else if target == span.name {
+                    output.append("\\begin{\(span.name)}")
+                    output.append(body)
+                    output.append("\\end{\(span.name)}")
+                } else {
+                    output.append("\\begin{\(target)}")
+                    output.append(body)
+                    output.append("\\end{\(target)}")
+                }
+                index = span.end
+                continue
+            }
+            output.append(latex[index])
+            index = latex.index(after: index)
+        }
+        return output
+    }
+
+    private struct EnvironmentSpan {
+        var name: String
+        var body: String
+        var end: String.Index
+    }
+
+    private static func environmentSpan(in text: String, from index: String.Index) -> EnvironmentSpan? {
+        guard text[index...].hasPrefix("\\begin{") else { return nil }
+        let nameStart = text.index(index, offsetBy: "\\begin{".count)
+        guard let close = text[nameStart...].firstIndex(of: "}") else { return nil }
+        let name = String(text[nameStart..<close])
+        guard !name.isEmpty else { return nil }
+        let bodyStart = text.index(after: close)
+        let beginToken = "\\begin{\(name)}"
+        let endToken = "\\end{\(name)}"
+        var depth = 1
+        var cursor = bodyStart
+        while cursor < text.endIndex {
+            if text[cursor...].hasPrefix(beginToken) {
+                depth += 1
+                cursor = text.index(cursor, offsetBy: beginToken.count)
+                continue
+            }
+            if text[cursor...].hasPrefix(endToken) {
+                depth -= 1
+                if depth == 0 {
+                    return EnvironmentSpan(
+                        name: name,
+                        body: String(text[bodyStart..<cursor]),
+                        end: text.index(cursor, offsetBy: endToken.count)
+                    )
+                }
+                cursor = text.index(cursor, offsetBy: endToken.count)
+                continue
+            }
+            cursor = text.index(after: cursor)
+        }
         return nil
+    }
+
+    private static func collapseMathWhitespace(_ body: String) -> String {
+        var output = ""
+        var pendingSpace = false
+        for character in body {
+            if character == "\n" || character == "\t" || character == "\r" {
+                pendingSpace = !output.isEmpty
+                continue
+            }
+            if character == " " {
+                pendingSpace = !output.isEmpty
+                continue
+            }
+            if pendingSpace { output.append(" ") }
+            pendingSpace = false
+            output.append(character)
+        }
+        return output
+    }
+
+    private static func environmentTarget(name: String, body: String) -> String {
+        guard let mapped = environmentTargets.first(where: { $0.0 == name })?.1 else {
+            return name
+        }
+        if mapped == "aligned", !body.contains("&") {
+            return body.contains("\\\\") ? "gather" : ""
+        }
+        return mapped
+    }
+
+    /// Drops one failing command or environment at a time until SwiftMath builds
+    /// a list. Returning nil is what used to paint the raw source.
+    private static func repairUntilBuildable(_ latex: String) -> String? {
+        var current = latex.trimmingCharacters(in: .whitespacesAndNewlines)
+        var seen = Set<String>()
+        for _ in 0..<24 {
+            if current.isEmpty { return nil }
+            if buildsSuccessfully(current) { return current }
+            if !seen.insert(current).inserted { return nil }
+            var error: NSError?
+            _ = MTMathListBuilder.build(fromString: current, error: &error)
+            guard let message = error?.localizedDescription else { return nil }
+            let next: String
+            if let command = suffix(of: message, after: "Invalid command \\"), !command.isEmpty {
+                next = deletingCommand(command, in: current)
+            } else if let environment = suffix(of: message, after: "Unknown environment "), !environment.isEmpty {
+                next = strippingEnvironment(environment, in: current)
+            } else if let environment = firstEnvironmentName(in: current),
+                      message.contains("can only have") || message.contains("Missing") || message.contains("Mismatched") {
+                next = strippingEnvironment(environment, in: current)
+            } else if let command = firstCommandName(in: current) {
+                next = deletingCommand(command, in: current)
+            } else {
+                return nil
+            }
+            if next == current { return nil }
+            current = next
+        }
+        return buildsSuccessfully(current) ? current : nil
+    }
+
+    private static func suffix(of message: String, after prefix: String) -> String? {
+        guard message.hasPrefix(prefix) else { return nil }
+        let rest = message.dropFirst(prefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
+        return rest.isEmpty ? nil : String(rest)
+    }
+
+    private static func deletingCommand(_ name: String, in latex: String) -> String {
+        let escaped = NSRegularExpression.escapedPattern(for: name)
+        let pattern = "\\\\\(escaped)(?![A-Za-z])\\*?(?:\\s*\\{[^{}]*\\})?"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return latex }
+        let range = NSRange(latex.startIndex..., in: latex)
+        guard let match = regex.firstMatch(in: latex, range: range),
+              let full = Range(match.range, in: latex) else { return latex }
+        var output = latex
+        output.replaceSubrange(full, with: "")
+        return output
+    }
+
+    private static func strippingEnvironment(_ name: String, in latex: String) -> String {
+        let begin = "\\begin{\(name)}"
+        let end = "\\end{\(name)}"
+        guard let beginRange = latex.range(of: begin) else { return latex }
+        var output = latex
+        output.replaceSubrange(beginRange, with: "")
+        if let endRange = output.range(of: end) {
+            output.replaceSubrange(endRange, with: "")
+        }
+        return output
+    }
+
+    private static func firstEnvironmentName(in latex: String) -> String? {
+        guard let begin = latex.range(of: "\\begin{") else { return nil }
+        let nameStart = begin.upperBound
+        guard let close = latex[nameStart...].firstIndex(of: "}") else { return nil }
+        let name = String(latex[nameStart..<close])
+        return name.isEmpty ? nil : name
+    }
+
+    private static func firstCommandName(in latex: String) -> String? {
+        var index = latex.startIndex
+        while index < latex.endIndex {
+            if latex[index] == "\\", let commandEnd = endOfCommandName(in: latex, from: index) {
+                let name = String(latex[latex.index(after: index)..<commandEnd])
+                if name.allSatisfy(\.isLetter), !name.isEmpty { return name }
+            }
+            index = latex.index(after: index)
+        }
+        return nil
+    }
+
+    private static func endOfCommandName(in text: String, from index: String.Index) -> String.Index? {
+        guard index < text.endIndex, text[index] == "\\" else { return nil }
+        var cursor = text.index(after: index)
+        guard cursor < text.endIndex else { return nil }
+        if text[cursor].isLetter {
+            cursor = text.index(after: cursor)
+            while cursor < text.endIndex, text[cursor].isLetter {
+                cursor = text.index(after: cursor)
+            }
+            return cursor
+        }
+        return text.index(after: cursor)
+    }
+
+    private static func skipSpaces(in text: String, from index: String.Index) -> String.Index {
+        var cursor = index
+        while cursor < text.endIndex, text[cursor].isWhitespace {
+            cursor = text.index(after: cursor)
+        }
+        return cursor
+    }
+
+    private static func endOfBraceGroup(in text: String, open: String.Index) -> String.Index {
+        guard open < text.endIndex, text[open] == "{" else { return open }
+        var depth = 0
+        var cursor = open
+        while cursor < text.endIndex {
+            if text[cursor] == "{" { depth += 1 }
+            if text[cursor] == "}" {
+                depth -= 1
+                if depth == 0 { return text.index(after: cursor) }
+            }
+            cursor = text.index(after: cursor)
+        }
+        return cursor
     }
 
     // MARK: Main-actor render memo

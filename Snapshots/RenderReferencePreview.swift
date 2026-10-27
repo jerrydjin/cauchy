@@ -93,6 +93,7 @@ enum RenderReferencePreview {
         guard !math.contains(where: { $0.contains("Moreover") || $0.contains("functions") }) else {
             throw SnapshotError("prose is still inside a formula: \(math)")
         }
+        try assertTypeset(text, label: "Proposition 2.5.1")
 
         guard let probe = MathMetrics.snapshotImage(
             latex: "\\gamma",
@@ -118,6 +119,137 @@ enum RenderReferencePreview {
         try writePNG(card, to: url, minimumBytes: 12_000)
         fputs("heading: \(model.heading)\n", stdout)
         fputs("statement:\n\(text)\n", stdout)
+        try renderMathStatement(output: output)
+    }
+
+    /// Inline `\gamma`, a `\frac` beside an existing `$…$`, bold-wrapped
+    /// `$\frac{1}{2}$`, and a display `\begin{align}` that SwiftMath rejects
+    /// until the environment is rewritten. Before the fix each of those was
+    /// painted as source text.
+    @MainActor
+    private static func renderMathStatement(output: URL) throws {
+        let root = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[1] : FileManager.default.currentDirectoryPath)
+        let fixtureURL = root.appendingPathComponent("Snapshots/Fixtures/synthetic-statement-math.json")
+        let fixture = try JSONDecoder().decode(PropositionFixture.self, from: Data(contentsOf: fixtureURL))
+        guard fixture.kind == "lemma", fixture.number == "4.2", fixture.name == "Winding" else {
+            throw SnapshotError("math fixture is no longer Lemma 4.2 (Winding)")
+        }
+        let raw = fixture.formattedBody
+        guard raw.contains("\\begin{align}"),
+              raw.contains("\\frac"),
+              raw.contains("\\gamma"),
+              raw.contains("\\label"),
+              raw.contains("**$\\frac{1}{2}$**"),
+              raw.contains("\\n"),
+              !raw.contains("\n") else {
+            throw SnapshotError("math fixture no longer contains the raw-TeX fall-through: \(raw)")
+        }
+
+        guard let kind = ReferenceKind(rawValue: fixture.kind) else {
+            throw SnapshotError("unknown reference kind \(fixture.kind)")
+        }
+        let block = DocumentBlock(
+            reference: DetectedReference(kind: kind, number: fixture.number),
+            formattedBody: raw,
+            pageIndex: fixture.pageIndex,
+            name: fixture.name
+        )
+        let model = ReferencePreviewPresentation.model(for: block)
+        guard model.heading == "Lemma 4.2 (Winding)" else {
+            throw SnapshotError("math fixture heading changed: \(model.heading)")
+        }
+        guard case .statement(let text) = model.body else {
+            throw SnapshotError("expected a statement body")
+        }
+        guard text.contains("\n"), !text.contains("\\n"), text.contains("\\begin{align}"), text.contains("Moreover") else {
+            throw SnapshotError("math fixture was not unescaped: \(text)")
+        }
+        let dump = ReferenceMathRendering.plainTextDump(of: text)
+        guard dump.contains("Moreover"), dump.contains("closed curve"), dump.contains("residue") else {
+            throw SnapshotError("math fixture prose disappeared:\n\(dump)")
+        }
+        let sources = ReferenceMathRendering.mathSources(of: text)
+        guard sources.contains(where: { $0.contains("\\gamma") }),
+              sources.contains(where: { $0.contains("\\begin{align}") && $0.contains("\\frac") }),
+              sources.contains(where: { $0.contains("\\frac{1}{2}") }) else {
+            throw SnapshotError("math fixture did not reach SwiftMath: \(sources)")
+        }
+        try assertTypeset(text, label: "Lemma 4.2")
+
+        let card = SnapshotChrome(
+            caption: "Reference panel · Lemma 4.2",
+            content: ReferencePanelSnapshot(heading: model.heading, statement: text)
+        )
+        .environment(\.rendersForSnapshot, true)
+        .environment(\.colorScheme, .light)
+        try writePNG(
+            card,
+            to: output.appendingPathComponent("reference-preview-statement-math.png"),
+            minimumBytes: 8_000
+        )
+
+        let hover = SnapshotChrome(
+            caption: "Citation hover · same statement",
+            content: ReferenceHoverLabel(text: text, width: 360)
+        )
+        .environment(\.rendersForSnapshot, true)
+        .environment(\.colorScheme, .light)
+        try writePNG(
+            hover,
+            to: output.appendingPathComponent("reference-hover-statement-math.png"),
+            minimumBytes: 4_000,
+            minimumHeight: 200
+        )
+        fputs("math statement dump:\n\(ReferenceMathRendering.plainTextDump(of: text))\n", stdout)
+    }
+
+    /// Visible `Text` runs must not contain raw TeX, and every math run must
+    /// produce a SwiftMath bitmap. The PNG alone cannot tell a typeset glyph
+    /// from the source characters.
+    @MainActor
+    private static func assertTypeset(_ text: String, label: String) throws {
+        let dump = ReferenceMathRendering.plainTextDump(of: text)
+        if dump.contains("$") || dump.contains("\\frac") || dump.contains("\\begin{") || dump.contains("\\") {
+            throw SnapshotError("\(label) plain text still has raw TeX:\n\(dump)")
+        }
+        let sources = ReferenceMathRendering.mathSources(of: text)
+        guard !sources.isEmpty else {
+            throw SnapshotError("\(label) produced no math runs:\n\(text)")
+        }
+        for source in sources {
+            guard let rendered = LaTeXValidator.renderableLatex(from: source) else {
+                throw SnapshotError("\(label) math did not typeset:\n\(source)")
+            }
+            if containsRejectedAlign(rendered) || rendered.contains("\\label") {
+                throw SnapshotError("\(label) repair left a command SwiftMath rejects:\n\(rendered)")
+            }
+            guard let image = MathMetrics.snapshotImage(
+                latex: rendered,
+                mode: rendered.contains("\\frac") || rendered.contains("\\begin") ? .display : .inline,
+                fontSize: rendered.contains("\\frac") || rendered.contains("\\begin") ? 17 : 15,
+                textColor: .primary
+            ) else {
+                throw SnapshotError("\(label) SwiftMath drew nothing for:\n\(rendered)")
+            }
+            let ink = try inkCount(in: image)
+            guard ink > 0 else {
+                throw SnapshotError("\(label) formula bitmap is blank:\n\(rendered)")
+            }
+        }
+    }
+
+    /// `\begin{aligned}` contains the characters `\begin{align}`. Reject only
+    /// the environment SwiftMath 1.7.3 does not implement.
+    private static func containsRejectedAlign(_ latex: String) -> Bool {
+        var rest = latex[...]
+        while let range = rest.range(of: "\\begin{") {
+            let name = rest[range.upperBound...]
+            if name.hasPrefix("align}") || name.hasPrefix("align*") {
+                return true
+            }
+            rest = name
+        }
+        return false
     }
 
     private static func describe(_ block: MessageBlock) -> String {
@@ -269,7 +401,7 @@ private struct SnapshotError: Error, CustomStringConvertible {
 }
 
 @MainActor
-private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws {
+private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int, minimumHeight: Int = 400) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     let renderer = ImageRenderer(content: view)
     renderer.scale = 2
@@ -284,7 +416,7 @@ private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws
     let ink = RenderReferencePreview.inkCount(in: rep)
     guard png.count >= minimumBytes,
           rep.pixelsWide > 800, rep.pixelsWide < 1100,
-          rep.pixelsHigh > 400,
+          rep.pixelsHigh > minimumHeight,
           ink > 20 else {
         throw SnapshotError("PNG is \(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh), ink samples \(ink)")
     }

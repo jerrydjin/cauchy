@@ -93,10 +93,12 @@ enum MessageContentParser {
                         }
                     }
                 case "**":
-                    segments.append(.bold(innerText))
+                    segments.append(contentsOf: emphasizing(innerText, as: { .bold($0) }))
                 case "*", "_":
-                    segments.append(.italic(innerText))
+                    segments.append(contentsOf: emphasizing(innerText, as: { .italic($0) }))
                 case "`":
+                    // A code span stays literal. Reference statements strip
+                    // backticks before they reach this parser; chat keeps them.
                     segments.append(.code(innerText))
                 default:
                     break
@@ -115,6 +117,30 @@ enum MessageContentParser {
                 return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || value.contains("\n")
             default:
                 return true
+            }
+        }
+    }
+
+    /// Bold and italic are drawn with `Text`. Math inside them would never
+    /// reach SwiftMath — `**$\frac{1}{2}$**` showed up as the source characters.
+    /// Re-parse the inside and keep the emphasis only on the prose.
+    private static func emphasizing(
+        _ inner: String,
+        as wrap: (String) -> MessageSegment
+    ) -> [MessageSegment] {
+        guard inner.contains("$") || inner.contains("\\") else {
+            return [wrap(inner)]
+        }
+        return parseNormalized(inner).map { segment in
+            switch segment {
+            case .text(let value):
+                return wrap(value)
+            case .bold(let value):
+                return .bold(value)
+            case .italic(let value):
+                return .italic(value)
+            case .inlineMath, .displayMath, .code:
+                return segment
             }
         }
     }
@@ -345,5 +371,70 @@ enum MessageRenderCache {
             cache.removeValue(forKey: insertionOrder.removeFirst())
         }
         return parsed
+    }
+}
+
+/// What the reference card, the citation hover, and Source actually draw.
+/// `MessageContentView` uses the same normalize → parse → blocks pipeline
+/// (via `MessageRenderCache`). The plain-text dump is every string handed to
+/// SwiftUI `Text`. Math runs are omitted because they go to SwiftMath; if a
+/// dump still contains `$`, `\frac`, or `\begin{`, that run never typeset.
+enum ReferenceMathRendering {
+    static func needsTypesetting(_ text: String) -> Bool {
+        LaTeXNormalizer.normalizeForDisplay(text).contains("$")
+    }
+
+    static func plainTextDump(of content: String) -> String {
+        let normalized = LaTeXNormalizer.normalizeForDisplay(content)
+        guard normalized.contains("$") else { return normalized }
+        let blocks = MessageContentParser.blocks(
+            from: MessageContentParser.parseNormalized(normalized)
+        )
+        return blocks.map(visiblePlainText).joined(separator: "\n")
+    }
+
+    static func mathSources(of content: String) -> [String] {
+        let normalized = LaTeXNormalizer.normalizeForDisplay(content)
+        guard normalized.contains("$") else { return [] }
+        let blocks = MessageContentParser.blocks(
+            from: MessageContentParser.parseNormalized(normalized)
+        )
+        return blocks.flatMap(mathLatex)
+    }
+
+    private static func visiblePlainText(_ block: MessageBlock) -> String {
+        switch block {
+        case .text(let value):
+            return value
+        case .displayMath:
+            return ""
+        case .inlineLine(let segments):
+            return segments.map { segment in
+                switch segment {
+                case .text(let value), .bold(let value), .italic(let value), .code(let value):
+                    return value
+                case .inlineMath, .displayMath:
+                    return ""
+                }
+            }.joined()
+        }
+    }
+
+    private static func mathLatex(_ block: MessageBlock) -> [String] {
+        switch block {
+        case .displayMath(let latex):
+            return [latex]
+        case .inlineLine(let segments):
+            return segments.compactMap { segment in
+                switch segment {
+                case .inlineMath(let latex), .displayMath(let latex):
+                    return latex
+                case .text, .bold, .italic, .code:
+                    return nil
+                }
+            }
+        case .text:
+            return []
+        }
     }
 }

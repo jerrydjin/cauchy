@@ -42,6 +42,21 @@ struct ReferencePreviewStatementColumn: View {
     }
 }
 
+/// Citation hover for a string that contains math. Plain bibliography stays
+/// on the system tooltip; this is the same statement renderer as the card,
+/// so inline and display math are not drawn as source text.
+struct ReferenceHoverLabel: View {
+    var text: String
+    var width: CGFloat = 420
+
+    var body: some View {
+        MessageContentView(content: text, font: .callout, allowsMonospace: false)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .frame(width: width, alignment: .leading)
+    }
+}
+
 /// "Source", collapsed until the reader opens the verbatim page text.
 struct ReferencePreviewSourceDisclosure<Content: View>: View {
     @Binding var isExpanded: Bool

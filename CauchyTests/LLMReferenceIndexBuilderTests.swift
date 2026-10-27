@@ -1581,6 +1581,23 @@ final class ReferencePreviewPresentationTests: XCTestCase {
             return false
         })
     }
+
+    /// JERRY-134 at the render layer: the unescaped break is a paragraph, and
+    /// the strings handed to `Text` no longer contain the formula source.
+    func testUnescapedPropositionDoesNotPaintRawTeX() {
+        let raw = "such that $\\gamma(t) = |\\gamma(t)|e^{2\\pi i a(t)}\\nMoreover, if $a$ and $b$ are two such functions."
+        let text = ReferencePreviewPresentation.statementText(from: raw)
+
+        XCTAssertTrue(text.contains("\n"))
+        XCTAssertFalse(text.contains("\\n"))
+        XCTAssertTrue(text.contains("\\pi"))
+
+        let dump = ReferenceMathRendering.plainTextDump(of: text)
+        XCTAssertTrue(dump.contains("Moreover"))
+        XCTAssertFalse(dump.contains("\\"))
+        XCTAssertFalse(dump.contains("$"))
+        XCTAssertTrue(ReferenceMathRendering.mathSources(of: text).contains { $0.contains("\\pi") })
+    }
 }
 
 private struct AnchoredPassageIndexStub: DocumentIndexProtocol {

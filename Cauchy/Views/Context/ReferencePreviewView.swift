@@ -360,11 +360,7 @@ private struct ReferencePreviewCard: View {
             }
 
             if let caption {
-                Text(caption)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                referenceBody(caption, font: .body)
             }
         }
     }
@@ -377,11 +373,7 @@ private struct ReferencePreviewCard: View {
                 Text(sourceKindLabel(for: block, evidence: evidence))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(evidence.sourceExcerpt)
-                    .font(.callout)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                referenceBody(evidence.sourceExcerpt, font: .callout)
             } else {
                 Text("This older index entry has no retained evidence. Re-index the document before relying on its transcription.")
                     .font(.callout)
@@ -416,6 +408,23 @@ private struct ReferencePreviewCard: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    /// Source excerpt and a figure caption share the statement renderer.
+    /// Prose stays `Text`. A `$`, `\frac`, or `\begin{` in that string used to
+    /// be drawn as-is because this disclosure never called SwiftMath.
+    @ViewBuilder
+    private func referenceBody(_ text: String, font: Font) -> some View {
+        if ReferenceMathRendering.needsTypesetting(text) {
+            MessageContentView(content: text, font: font, allowsMonospace: false)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Text(text)
+                .font(font)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

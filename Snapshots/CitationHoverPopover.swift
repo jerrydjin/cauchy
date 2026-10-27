@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The citation hover, drawn as a popover. The reader shows this same string
-/// in the system tooltip; that panel cannot be captured on the CI runner.
+/// Plain bibliography hover. The reader shows this string in the system tooltip.
+/// A title that needs math uses `ReferenceHoverLabel` instead (see
+/// `reference-hover-statement-math.png`); this target is compiled without SwiftMath.
 struct CitationHoverPopover: View {
     var text: String
 

@@ -213,28 +213,28 @@ private struct ReferencePreviewCard: View {
         let model = ReferencePreviewPresentation.model(for: block)
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(model.heading)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    switch model.body {
-                    case .statement(let text):
-                        ReadingBlockCard(displayBody: text)
-                    case .figure(let caption):
-                        figurePreview(block: block, caption: caption)
-                    }
+                switch model.body {
+                case .statement(let text):
+                    ReferencePreviewStatementColumn(heading: model.heading, statement: text)
+                case .figure(let caption):
+                    ReferencePreviewBlockChrome.padded(
+                        VStack(alignment: .leading, spacing: 14) {
+                            ReferencePreviewHeading(text: model.heading)
+                            figurePreview(block: block, caption: caption)
+                        }
+                    )
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .padding(.bottom, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            sourceDisclosure(for: block)
+            ReferencePreviewSourceDisclosure(isExpanded: $showsSource) {
+                ScrollView {
+                    sourceDetails(for: block)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 8)
+                }
+                .frame(maxHeight: 240)
+            }
         }
         .task(id: block) {
             showsSource = false
@@ -366,26 +366,6 @@ private struct ReferencePreviewCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-        }
-    }
-
-    private func sourceDisclosure(for block: DocumentBlock) -> some View {
-        VStack(spacing: 0) {
-            Divider()
-            DisclosureGroup(isExpanded: $showsSource) {
-                ScrollView {
-                    sourceDetails(for: block)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 8)
-                }
-                .frame(maxHeight: 240)
-            } label: {
-                Text("Source")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
         }
     }
 

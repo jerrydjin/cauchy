@@ -16,9 +16,33 @@ struct MathSegmentView: View {
     /// the body font so a broken span cannot change typeface mid-sentence.
     var fallbackFont: Font = .system(.callout, design: .monospaced)
 
+    /// ImageRenderer does not paint `NSViewRepresentable`. The designer
+    /// snapshot sets this and we draw the same SwiftMath display list into
+    /// an image instead. The reader still uses the live label.
+    @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+
     var body: some View {
         Group {
-            if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
+            if rendersForSnapshot, let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
+                if let image = MathMetrics.snapshotImage(
+                    latex: rendered,
+                    mode: mode,
+                    fontSize: fontSize,
+                    textColor: textColor
+                ) {
+                    Image(nsImage: image)
+                        .alignmentGuide(.firstTextBaseline) { dimensions in
+                            MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                ?? dimensions[.bottom]
+                        }
+                } else {
+                    Text(fallbackText)
+                        .font(fallbackFont)
+                        .foregroundStyle(textColor.opacity(0.85))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
                 if mode == .display {
                     // Long equations scroll sideways inside the bubble rather
                     // than drawing past its edge.
@@ -306,6 +330,62 @@ enum MathMetrics {
             candidate = next
         }
         return candidate
+    }
+
+    /// SwiftMath display list drawn into a bitmap. `ImageRenderer` captures
+    /// this; it does not capture `MTMathUILabel`.
+    static func snapshotImage(
+        latex: String,
+        mode: MathSegmentView.Mode,
+        fontSize: CGFloat,
+        textColor: Color
+    ) -> NSImage? {
+        let appearance = NSAppearance(named: .aqua) ?? NSAppearance.currentDrawingAppearance
+        var resolved = NSColor.black
+        appearance.performAsCurrentDrawingAppearance {
+            let rgb = NSColor(textColor).usingColorSpace(.deviceRGB) ?? .black
+            let brightness = (rgb.redComponent + rgb.greenComponent + rgb.blueComponent) / 3
+            // A dynamic primary color can resolve white when the process has no
+            // light appearance. The snapshot card is light, so the glyphs stay dark.
+            resolved = brightness > 0.6 ? .black : rgb
+        }
+        let math = MTMathImage(
+            latex: latex,
+            fontSize: fontSize,
+            textColor: resolved,
+            labelMode: mode == .inline ? .text : .display,
+            textAlignment: .left
+        )
+        math.contentInsets = contentInsets
+        guard let drawn = math.asImage().1 else { return nil }
+        let pointSize = drawn.size
+        guard pointSize.width > 0, pointSize.height > 0 else { return nil }
+
+        let scale: CGFloat = 2
+        let pixelsWide = max(Int((pointSize.width * scale).rounded(.up)), 1)
+        let pixelsHigh = max(Int((pointSize.height * scale).rounded(.up)), 1)
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixelsWide,
+            pixelsHigh: pixelsHigh,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+        rep.size = pointSize
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.cgContext.scaleBy(x: scale, y: scale)
+        drawn.draw(in: NSRect(origin: .zero, size: pointSize))
+        NSGraphicsContext.restoreGraphicsState()
+
+        let image = NSImage(size: pointSize)
+        image.addRepresentation(rep)
+        return image
     }
 }
 

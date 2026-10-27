@@ -358,9 +358,46 @@ final class AssistantResponseValidatorTests: XCTestCase {
         XCTAssertFalse(dump.contains("\\begin{"))
         XCTAssertFalse(dump.contains("\\frac"))
         XCTAssertFalse(dump.contains("$"))
-        XCTAssertTrue(ReferenceMathRendering.mathSources(of: raw).contains {
-            $0.contains("\\begin{align}") && $0.contains("\\frac")
-        })
+        XCTAssertFalse(dump.contains("\\"))
+        let sources = ReferenceMathRendering.mathSources(of: raw)
+        XCTAssertEqual(sources.count, 1)
+        XCTAssertTrue(sources[0].contains("\\begin{align}"))
+        XCTAssertTrue(sources[0].contains("\\int"))
+        XCTAssertTrue(sources[0].contains("\\frac"))
+        XCTAssertTrue(sources[0].contains("\\end{align}"))
+    }
+
+    /// The reference card turns each JSON `\n` into a blank line before
+    /// normalizing. Those interior lines must stay inside the one align
+    /// source. `$n$` is the variable in "where $n$ satisfies", not a fragment
+    /// of the environment.
+    func testUnescapedAlignStaysOneMathSource() {
+        let raw = "Let \\gamma be a closed curve where $n$ satisfies \\frac{1}{2\\pi i}.\\n\\begin{align}\\n\\label{eq:sample}\\n\\int_{\\gamma} \\frac{dz}{z} &= 2\\pi i\\n\\end{align}\\nMoreover **$\\frac{1}{2}$** is the residue."
+        let text = ReferencePreviewPresentation.statementText(from: raw)
+        XCTAssertTrue(text.contains("\n"))
+        XCTAssertFalse(text.contains("\\n"))
+
+        let dump = ReferenceMathRendering.plainTextDump(of: text)
+        XCTAssertTrue(dump.contains("where"))
+        XCTAssertTrue(dump.contains("satisfies"))
+        XCTAssertTrue(dump.contains("Moreover"))
+        XCTAssertTrue(dump.contains("residue"))
+        XCTAssertFalse(dump.contains("\\"))
+        XCTAssertFalse(dump.contains("$"))
+
+        let sources = ReferenceMathRendering.mathSources(of: text)
+        XCTAssertTrue(sources.contains { $0 == "n" })
+        let fragments = sources.filter { source in
+            source == "\\end{align}" || (source.hasPrefix("\\begin{align}") && !source.contains("\\int"))
+        }
+        XCTAssertEqual(fragments, [])
+        guard let align = sources.first(where: { $0.contains("\\begin{align}") }) else {
+            return XCTFail("align environment was not one math source: \(sources)")
+        }
+        XCTAssertTrue(align.contains("\\label"))
+        XCTAssertTrue(align.contains("\\int"))
+        XCTAssertTrue(align.contains("\\frac"))
+        XCTAssertTrue(align.contains("\\end{align}"))
     }
 
     func testBoldWrappedFractionIsMathNotText() {

@@ -32,10 +32,41 @@ enum LaTeXNormalizer {
     /// the one failure the reader cannot work around.
     static func wrapBareMath(_ text: String) -> String {
         guard text.contains("\\") else { return text }
-        return text
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { wrapBareMathInLine(String($0)) }
-            .joined(separator: "\n")
+        // `delimitLooseMath` wraps a multi-line `\begin{align}…\end{align}` in
+        // one `$$` pair. The interior lines (`\int`, `\label`, the blank line
+        // left by a JSON `\n`) do not themselves contain `$`. Wrapping those
+        // lines again inserts `$$` in the middle and splits the environment
+        // into `\begin{align}`, the formula, and `\end{align}`.
+        var displayOpen = false
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map { piece -> String in
+            let line = String(piece)
+            if displayOpen {
+                displayOpen = displayRemainsOpen(line, currentlyOpen: true)
+                return line
+            }
+            displayOpen = displayRemainsOpen(line, currentlyOpen: false)
+            return wrapBareMathInLine(line)
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// `$$` toggles display math. A single `$` does not. Used so a display
+    /// span that already opened on an earlier line is not wrapped per line.
+    private static func displayRemainsOpen(_ line: String, currentlyOpen: Bool) -> Bool {
+        var open = currentlyOpen
+        var index = line.startIndex
+        while index < line.endIndex {
+            if line[index] == "$" {
+                let next = line.index(after: index)
+                if next < line.endIndex, line[next] == "$" {
+                    open.toggle()
+                    index = line.index(after: next)
+                    continue
+                }
+            }
+            index = line.index(after: index)
+        }
+        return open
     }
 
     static func wrapBareMathInLine(_ line: String) -> String {

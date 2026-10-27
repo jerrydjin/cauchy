@@ -14,11 +14,11 @@ extension EnvironmentValues {
     }
 
     /// The live results frame. ImageRenderer cannot scroll, so the default
-    /// snapshot still paints every row. The reserved-height snapshot opts in
-    /// and uses the same fixed frame as the panel on screen.
-    var snapshotReservesResultsHeight: Bool {
-        get { self[SnapshotReservesResultsHeightKey.self] }
-        set { self[SnapshotReservesResultsHeightKey.self] = newValue }
+    /// snapshot still paints every row. The capped snapshot opts in and clips
+    /// a long list at the same maximum the panel uses on screen.
+    var snapshotCapsResultsHeight: Bool {
+        get { self[SnapshotCapsResultsHeightKey.self] }
+        set { self[SnapshotCapsResultsHeightKey.self] = newValue }
     }
 
     /// ImageRenderer has no pointer. When set, that row paints the shared
@@ -29,7 +29,7 @@ extension EnvironmentValues {
     }
 }
 
-private struct SnapshotReservesResultsHeightKey: EnvironmentKey {
+private struct SnapshotCapsResultsHeightKey: EnvironmentKey {
     static let defaultValue = false
 }
 
@@ -135,21 +135,48 @@ private struct SnapshotIcon: View {
     }
 }
 
-/// Layout contract for the Cmd-K panel. Jony, Cauchy room 2026-10-25: the
-/// results area keeps one reserved height and scrolls inside it. The glass
-/// chrome does not grow, shrink, or animate when the match count changes.
+/// Layout contract for the Cmd-K panel. The results list follows the option
+/// count up to a cap, then scrolls inside that cap. “No matches” and a short
+/// list stay tight under the field. Height changes are not animated.
 enum JumpPaletteMetrics {
-    /// The old cap (`maxHeight: 420`) is now the reserved height. Short result
-    /// lists leave empty glass below the rows instead of pulling the field down.
-    static let resultsAreaHeight: CGFloat = 420
+    /// Long lists stop here and scroll. This is a maximum, not a reserved minimum.
+    static let maxResultsHeight: CGFloat = 420
+    /// The cap. This used to be a fixed frame; it is no longer a floor.
+    static let resultsAreaHeight: CGFloat = maxResultsHeight
     /// Selected and hovered rows use this fill. One state, not two treatments.
     static let rowHighlightOpacity: Double = 0.14
-    /// There is no animate-once path. Height does not follow the hit count.
+    /// There is no animate-once path. A list already at the cap keeps that
+    /// height when the hit count changes and still overflows.
     static let animatesResultsHeight = false
+    /// One callout line plus the empty-state padding. Not the cap.
+    static let emptyResultsHeight: CGFloat = 44
 
+    /// Height of a one-section list of preview rows before the cap is applied.
+    static func contentHeight(hitCount: Int) -> CGFloat {
+        if hitCount <= 0 { return emptyResultsHeight }
+        let padding: CGFloat = 20
+        let header: CGFloat = 16
+        let row: CGFloat = 38
+        let spacing: CGFloat = 8
+        return padding + header + CGFloat(hitCount) * (row + spacing)
+    }
+
+    /// Chrome height for `hitCount`. Counts that still overflow share the cap,
+    /// so a keystroke inside that range does not move the glass.
     static func resultsFrameHeight(hitCount: Int) -> CGFloat {
-        _ = hitCount
-        return resultsAreaHeight
+        min(maxResultsHeight, contentHeight(hitCount: hitCount))
+    }
+
+    /// The shortest plausible rows still overflow the cap. The live panel then
+    /// keeps `maxResultsHeight` and does not measure the list on the keystroke.
+    static func locksResultsHeight(hitCount: Int) -> Bool {
+        guard hitCount > 0 else { return false }
+        let padding: CGFloat = 20
+        let header: CGFloat = 12
+        let row: CGFloat = 36
+        let spacing: CGFloat = 8
+        let minimum = padding + header + CGFloat(hitCount) * row + CGFloat(hitCount) * spacing
+        return minimum > maxResultsHeight
     }
 
     static func rowIsHighlighted(isSelected: Bool, isHovered: Bool) -> Bool {
@@ -165,7 +192,7 @@ struct JumpPaletteView: View {
     var isIndexing: Bool = false
     @FocusState private var isFieldFocused: Bool
     @Environment(\.rendersForSnapshot) private var rendersForSnapshot
-    @Environment(\.snapshotReservesResultsHeight) private var snapshotReservesResultsHeight
+    @Environment(\.snapshotCapsResultsHeight) private var snapshotCapsResultsHeight
     @Environment(\.snapshotHoveredHitID) private var snapshotHoveredHitID
 
     var body: some View {
@@ -175,8 +202,8 @@ struct JumpPaletteView: View {
             results
         }
         .frame(width: 340)
-        // Match-count changes must not animate the panel. The results frame is
-        // reserved, and this opts that update out of any inherited animation.
+        // Under the cap the bottom edge follows the row count, without animation.
+        // At the cap the results frame does not change with the hit count.
         .animation(nil, value: palette.hits.count)
         .modifier(JumpPaletteChrome(snapshot: rendersForSnapshot))
         .onExitCommand { palette.dismiss() }
@@ -224,51 +251,76 @@ struct JumpPaletteView: View {
     }
 
     /// ImageRenderer drops `ScrollView` contents, so the snapshot paints the
-    /// rows in a stack. The live palette always reserves `resultsAreaHeight`
-    /// and scrolls inside that frame, including when there are no matches.
-    /// The reserved-height snapshot uses that same frame and clips only when
-    /// the rows would scroll.
+    /// rows in a stack and clips a long list at the cap. On screen, “No matches”
+    /// and a short list hug their rows. A list that cannot fit the cap scrolls
+    /// inside `maxResultsHeight`; that frame does not read the hit count.
     @ViewBuilder
     private var results: some View {
         if rendersForSnapshot {
             snapshotResultStack
                 .modifier(SnapshotResultsFrame(
-                    reservesHeight: snapshotReservesResultsHeight,
+                    capsHeight: snapshotCapsResultsHeight,
                     hitCount: palette.hits.count
                 ))
-        } else {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    if palette.hits.isEmpty {
-                        Text(emptyMessage)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12)
-                    } else {
-                        LazyVStack(alignment: .leading, spacing: 8) {
-                            ForEach(groupedHits, id: \.title) { group in
-                                groupHeader(group)
-                                ForEach(group.hits) { hit in
-                                    paletteRow(hit)
-                                }
-                            }
-                        }
-                        .padding(10)
-                    }
-                }
-                .scrollBounceBehavior(.basedOnSize)
-                .frame(
-                    height: JumpPaletteMetrics.resultsFrameHeight(hitCount: palette.hits.count),
-                    alignment: .top
-                )
+        } else if palette.hits.isEmpty {
+            emptyResults
+        } else if JumpPaletteMetrics.locksResultsHeight(hitCount: palette.hits.count) {
+            scrollableResults
+                .frame(height: JumpPaletteMetrics.maxResultsHeight, alignment: .top)
                 .transaction { transaction in
                     transaction.disablesAnimations = true
                 }
-                .onChange(of: palette.selection) {
-                    guard palette.hits.indices.contains(palette.selection) else { return }
-                    proxy.scrollTo(palette.hits[palette.selection].id, anchor: .center)
+        } else {
+            // Still under the lock. The stack hugs its rows. If those rows are
+            // taller than the cap anyway, scroll inside the cap instead.
+            ShortJumpResults(hitCount: palette.hits.count, maxHeight: JumpPaletteMetrics.maxResultsHeight) {
+                liveResultStack
+            } scrolling: {
+                scrollableResults
+            }
+        }
+    }
+
+    private var emptyResults: some View {
+        Text(emptyMessage)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+    }
+
+    /// Scrolls only once the rows need the cap. The height is applied by the caller.
+    private var scrollableResults: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    resultRows
                 }
+                .padding(10)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .onChange(of: palette.selection) {
+                guard palette.hits.indices.contains(palette.selection) else { return }
+                proxy.scrollTo(palette.hits[palette.selection].id, anchor: .center)
+            }
+        }
+    }
+
+    /// Short lists lay out in full so the panel can hug them. A long list uses
+    /// the lazy stack inside `scrollableResults` instead.
+    private var liveResultStack: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            resultRows
+        }
+        .padding(10)
+    }
+
+    @ViewBuilder
+    private var resultRows: some View {
+        ForEach(groupedHits, id: \.title) { group in
+            groupHeader(group)
+            ForEach(group.hits) { hit in
+                paletteRow(hit)
             }
         }
     }
@@ -514,25 +566,63 @@ private struct JumpHoverTracker: NSViewRepresentable {
     }
 }
 
-/// Fixed results frame for the designer snapshot. The live scroll view uses
-/// the same height; this stack cannot scroll, so a list taller than the
-/// reservation is clipped instead of growing the glass.
+/// A short jump list keeps the height of its rows. Measurement is ignored
+/// when it belongs to a previous hit count, so a keystroke does not reuse a
+/// tall sample. Past the cap, the list scrolls in a fixed frame.
+private struct ShortJumpResults<Hugging: View, Scrolling: View>: View {
+    var hitCount: Int
+    var maxHeight: CGFloat
+    @ViewBuilder var hugging: () -> Hugging
+    @ViewBuilder var scrolling: () -> Scrolling
+    @State private var sample: Sample?
+
+    private struct Sample {
+        var count: Int
+        var height: CGFloat
+    }
+
+    var body: some View {
+        let measured = sample?.count == hitCount ? sample?.height ?? 0 : 0
+        Group {
+            if measured > maxHeight {
+                scrolling()
+                    .frame(height: maxHeight, alignment: .top)
+            } else {
+                hugging()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { height in
+                        guard height > 1 else { return }
+                        guard sample?.count != hitCount || abs((sample?.height ?? 0) - height) > 0.5 else { return }
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            sample = Sample(count: hitCount, height: height)
+                        }
+                    }
+            }
+        }
+        .transaction { transaction in
+            transaction.disablesAnimations = true
+        }
+    }
+}
+
+/// Caps the designer snapshot the way the live panel caps a long list.
+/// ImageRenderer cannot scroll, so a list past the cap is clipped. A short
+/// list, including “No matches”, keeps its own height.
 private struct SnapshotResultsFrame: ViewModifier {
-    var reservesHeight: Bool
+    var capsHeight: Bool
     var hitCount: Int
 
     func body(content: Content) -> some View {
-        Group {
-            if reservesHeight {
-                content
-                    .frame(
-                        height: JumpPaletteMetrics.resultsFrameHeight(hitCount: hitCount),
-                        alignment: .top
-                    )
-                    .clipped()
-            } else {
-                content
-            }
+        if capsHeight, JumpPaletteMetrics.locksResultsHeight(hitCount: hitCount) {
+            content
+                .frame(height: JumpPaletteMetrics.maxResultsHeight, alignment: .top)
+                .clipped()
+        } else {
+            content
         }
     }
 }

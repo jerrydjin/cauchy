@@ -1,7 +1,7 @@
 #!/bin/bash
 # Renders the citation hover, the plain Cmd-F bar, and the Cmd-K jump palette.
-# cmd-k-jump.png is the reserved-height panel: the same 420pt glass for a hit
-# list and for no matches, with the shared selection and hover fill.
+# cmd-k-jump.png is the adaptive panel: a miss collapses under the field, and
+# a long list is clipped at the 420pt cap. Selection and hover share one fill.
 # The app-hosted tests cannot launch here: the runner is macOS 26 and the app
 # requires macOS 27.
 set -euo pipefail

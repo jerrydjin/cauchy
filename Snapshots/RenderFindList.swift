@@ -116,7 +116,7 @@ enum RenderFindList {
             caption: "Cmd-K Jump to",
             content: JumpPaletteView(palette: palette)
                 .environment(\.rendersForSnapshot, true)
-                .environment(\.snapshotReservesResultsHeight, true)
+                .environment(\.snapshotCapsResultsHeight, true)
                 .environment(\.colorScheme, .light)
                 .padding(16)
                 .background(PagePaper(dark: false))
@@ -125,7 +125,7 @@ enum RenderFindList {
             caption: "Cmd-K Jump to · dark",
             content: JumpPaletteView(palette: palette)
                 .environment(\.rendersForSnapshot, true)
-                .environment(\.snapshotReservesResultsHeight, true)
+                .environment(\.snapshotCapsResultsHeight, true)
                 .environment(\.colorScheme, .dark)
                 .padding(16)
                 .background(PagePaper(dark: true))
@@ -163,20 +163,24 @@ enum RenderFindList {
         .padding(8)
         .background(Color(white: 0.94))
         try writePNG(combined, to: output.appendingPathComponent("find-and-jump.png"), minimumBytes: 12_000)
-        try renderReservedJumpPalette(catalogue: catalogue, output: output)
+        try renderAdaptiveJumpPalette(catalogue: catalogue, output: output)
         for hit in catalogue {
             fputs("\(hit.label)  p.\(hit.pageIndex + 1)  \(hit.firstLine)\n", stdout)
         }
     }
 
-    /// Two hit counts, one chrome. A short query and a miss both keep the
-    /// 420pt results frame, so the glass cannot grow or shrink with the list.
-    /// The first row is the keyboard selection. The second row is the shared
-    /// hover fill; ImageRenderer has no pointer, so the snapshot names that row.
+    /// Jerry’s miss (`asdfajs;lfas`) collapses under the field. A handful of
+    /// rows stays under the cap. Two long lists share one 420pt results frame,
+    /// so a keystroke that stays in that range does not move the glass.
+    /// The first theorem row is the keyboard selection. The second row is the
+    /// shared hover fill; ImageRenderer has no pointer, so the snapshot names it.
     @MainActor
-    private static func renderReservedJumpPalette(catalogue: [DocumentFind.Hit], output: URL) throws {
-        guard JumpPaletteMetrics.resultsAreaHeight == 420 else {
-            throw SnapshotError("reserved height is \(JumpPaletteMetrics.resultsAreaHeight), expected 420")
+    private static func renderAdaptiveJumpPalette(catalogue: [DocumentFind.Hit], output: URL) throws {
+        guard JumpPaletteMetrics.maxResultsHeight == 420 else {
+            throw SnapshotError("results cap is \(JumpPaletteMetrics.maxResultsHeight), expected 420")
+        }
+        guard JumpPaletteMetrics.resultsAreaHeight == JumpPaletteMetrics.maxResultsHeight else {
+            throw SnapshotError("results cap and resultsAreaHeight diverged")
         }
         guard JumpPaletteMetrics.animatesResultsHeight == false else {
             throw SnapshotError("results height still animates")
@@ -184,9 +188,21 @@ enum RenderFindList {
         guard JumpPaletteMetrics.rowHighlightOpacity == 0.14 else {
             throw SnapshotError("row highlight opacity changed")
         }
-        let heights = [0, 1, catalogue.count].map { JumpPaletteMetrics.resultsFrameHeight(hitCount: $0) }
-        guard Set(heights).count == 1, heights[0] == 420 else {
-            throw SnapshotError("results frame follows the hit count: \(heights)")
+        let emptyHeight = JumpPaletteMetrics.resultsFrameHeight(hitCount: 0)
+        let oneHeight = JumpPaletteMetrics.resultsFrameHeight(hitCount: 1)
+        let fewHeight = JumpPaletteMetrics.resultsFrameHeight(hitCount: catalogue.count)
+        guard emptyHeight < oneHeight, oneHeight < fewHeight, fewHeight < JumpPaletteMetrics.maxResultsHeight else {
+            throw SnapshotError("short lists do not collapse under the cap: \(emptyHeight), \(oneHeight), \(fewHeight)")
+        }
+        guard !JumpPaletteMetrics.locksResultsHeight(hitCount: 0),
+              !JumpPaletteMetrics.locksResultsHeight(hitCount: 1) else {
+            throw SnapshotError("empty or one hit still locks the results frame")
+        }
+        let cappedCounts = [24, 40]
+        let cappedHeights = cappedCounts.map { JumpPaletteMetrics.resultsFrameHeight(hitCount: $0) }
+        guard Set(cappedHeights) == [JumpPaletteMetrics.maxResultsHeight],
+              cappedCounts.allSatisfy({ JumpPaletteMetrics.locksResultsHeight(hitCount: $0) }) else {
+            throw SnapshotError("capped lists do not share one height: \(cappedHeights)")
         }
         guard JumpPaletteMetrics.rowIsHighlighted(isSelected: true, isHovered: false),
               JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: true),
@@ -205,6 +221,10 @@ enum RenderFindList {
         ] else {
             throw SnapshotError("unexpected theorem rows: \(matchedLabels)")
         }
+        let jerryQuery = "asdfajs;lfas"
+        guard DocumentFind.filterCatalogue(catalogue, query: jerryQuery).isEmpty else {
+            throw SnapshotError("\(jerryQuery) should miss every indexed statement")
+        }
         guard DocumentFind.filterCatalogue(catalogue, query: "zzzz").isEmpty else {
             throw SnapshotError("zzzz should miss every indexed statement")
         }
@@ -212,55 +232,99 @@ enum RenderFindList {
         let hovered = matchedHits[1]
         let matched = JumpPaletteModel()
         matched.showSnapshot(query: "theorem", hits: matchedHits, selection: 0)
+        let oneHit = JumpPaletteModel()
+        oneHit.showSnapshot(query: "Lemma 2.4", hits: [matchedHits[0]], selection: 0)
         let missed = JumpPaletteModel()
-        missed.showSnapshot(query: "zzzz", hits: [], selection: 0)
+        missed.showSnapshot(query: jerryQuery, hits: [], selection: 0)
+        let cappedFew = JumpPaletteModel()
+        cappedFew.showSnapshot(query: "theorem", hits: repeatedHits(catalogue, count: 24), selection: 0)
+        let cappedMany = JumpPaletteModel()
+        cappedMany.showSnapshot(query: "theorem", hits: repeatedHits(catalogue, count: 40), selection: 0)
 
         let lightMatched = JumpPaletteCard(palette: matched, hoveredHitID: hovered.id, dark: false)
+        let lightOne = JumpPaletteCard(palette: oneHit, hoveredHitID: nil, dark: false)
         let lightMissed = JumpPaletteCard(palette: missed, hoveredHitID: nil, dark: false)
+        let lightCappedFew = JumpPaletteCard(palette: cappedFew, hoveredHitID: nil, dark: false)
+        let lightCappedMany = JumpPaletteCard(palette: cappedMany, hoveredHitID: nil, dark: false)
         let darkMatched = JumpPaletteCard(palette: matched, hoveredHitID: hovered.id, dark: true)
         let darkMissed = JumpPaletteCard(palette: missed, hoveredHitID: nil, dark: true)
 
         let lightMatchedPNG = try renderedPNG(lightMatched)
+        let lightOnePNG = try renderedPNG(lightOne)
         let lightMissedPNG = try renderedPNG(lightMissed)
+        let lightCappedFewPNG = try renderedPNG(lightCappedFew)
+        let lightCappedManyPNG = try renderedPNG(lightCappedMany)
         let darkMatchedPNG = try renderedPNG(darkMatched)
         let darkMissedPNG = try renderedPNG(darkMissed)
-        let minimumHeight = Int(JumpPaletteMetrics.resultsAreaHeight * 2)
-        guard lightMatchedPNG.pixelsHigh >= minimumHeight else {
-            throw SnapshotError("theorem palette is \(lightMatchedPNG.pixelsHigh)px tall, under the 420pt results frame")
+        try assertCompactMiss(lightMissedPNG, beside: lightOnePNG, and: lightMatchedPNG, label: "light")
+        try assertCompactMiss(darkMissedPNG, beside: lightOnePNG, and: darkMatchedPNG, label: "dark")
+        let capFloor = Int(JumpPaletteMetrics.maxResultsHeight * 2)
+        guard lightCappedFewPNG.pixelsHigh >= capFloor, lightCappedManyPNG.pixelsHigh >= capFloor else {
+            throw SnapshotError("long list is under the 420pt cap: \(lightCappedFewPNG.pixelsHigh), \(lightCappedManyPNG.pixelsHigh)")
         }
-        guard lightMatchedPNG.pixelsWide == lightMissedPNG.pixelsWide,
-              lightMatchedPNG.pixelsHigh == lightMissedPNG.pixelsHigh else {
-            throw SnapshotError("light chrome changed with hit count: \(lightMatchedPNG.pixelsWide)x\(lightMatchedPNG.pixelsHigh) vs \(lightMissedPNG.pixelsWide)x\(lightMissedPNG.pixelsHigh)")
+        guard lightCappedFewPNG.pixelsHigh <= capFloor + 360,
+              lightCappedManyPNG.pixelsHigh <= capFloor + 360 else {
+            throw SnapshotError("long list grew past the cap: \(lightCappedFewPNG.pixelsHigh), \(lightCappedManyPNG.pixelsHigh)")
         }
-        guard darkMatchedPNG.pixelsWide == darkMissedPNG.pixelsWide,
-              darkMatchedPNG.pixelsHigh == darkMissedPNG.pixelsHigh else {
-            throw SnapshotError("dark chrome changed with hit count: \(darkMatchedPNG.pixelsWide)x\(darkMatchedPNG.pixelsHigh) vs \(darkMissedPNG.pixelsWide)x\(darkMissedPNG.pixelsHigh)")
+        guard lightCappedFewPNG.pixelsWide == lightCappedManyPNG.pixelsWide,
+              lightCappedFewPNG.pixelsHigh == lightCappedManyPNG.pixelsHigh else {
+            throw SnapshotError("capped chrome jumped with hit count: \(lightCappedFewPNG.pixelsWide)x\(lightCappedFewPNG.pixelsHigh) vs \(lightCappedManyPNG.pixelsWide)x\(lightCappedManyPNG.pixelsHigh)")
+        }
+        guard lightCappedManyPNG.pixelsHigh > lightMatchedPNG.pixelsHigh else {
+            throw SnapshotError("capped list is not taller than the theorem list")
         }
 
         let sheet = VStack(alignment: .leading, spacing: 28) {
-            Text("Cmd-K Jump · results stay 420pt")
+            Text("Cmd-K Jump · bottom follows the list, cap 420pt")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ReservedJumpPair(
                 title: "theorem · selection and hover",
-                emptyTitle: "no matches · same glass",
+                emptyTitle: "asdfajs;lfas · no matches",
                 matched: lightMatched,
                 missed: lightMissed
             )
             ReservedJumpPair(
                 title: "theorem · dark",
-                emptyTitle: "no matches · dark",
+                emptyTitle: "asdfajs;lfas · dark",
                 matched: darkMatched,
                 missed: darkMissed
+            )
+            ReservedJumpPair(
+                title: "24 hits · capped",
+                emptyTitle: "40 hits · same cap",
+                matched: lightCappedFew,
+                missed: lightCappedMany
             )
         }
         .padding(28)
         .background(Color(white: 0.94))
         try writePNG(sheet, to: output.appendingPathComponent("cmd-k-jump.png"), minimumBytes: 20_000)
         fputs(
-            "cmd-k reserved \(Int(JumpPaletteMetrics.resultsAreaHeight))pt  light \(lightMatchedPNG.pixelsWide)x\(lightMatchedPNG.pixelsHigh)  dark \(darkMatchedPNG.pixelsWide)x\(darkMatchedPNG.pixelsHigh)\n",
+            "cmd-k cap \(Int(JumpPaletteMetrics.maxResultsHeight))pt  miss \(lightMissedPNG.pixelsWide)x\(lightMissedPNG.pixelsHigh)  one \(lightOnePNG.pixelsWide)x\(lightOnePNG.pixelsHigh)  theorem \(lightMatchedPNG.pixelsWide)x\(lightMatchedPNG.pixelsHigh)  capped \(lightCappedManyPNG.pixelsWide)x\(lightCappedManyPNG.pixelsHigh)\n",
             stdout
         )
+    }
+
+    /// A miss sits under the field. One hit and a short theorem list are taller
+    /// than that miss and still well under a panel whose results area is 420pt.
+    private static func assertCompactMiss(
+        _ miss: (data: Data, pixelsWide: Int, pixelsHigh: Int),
+        beside one: (data: Data, pixelsWide: Int, pixelsHigh: Int),
+        and few: (data: Data, pixelsWide: Int, pixelsHigh: Int),
+        label: String
+    ) throws {
+        guard miss.pixelsHigh < 520 else {
+            throw SnapshotError("\(label) miss is \(miss.pixelsHigh)px tall, still a cavern")
+        }
+        guard miss.pixelsHigh < one.pixelsHigh, one.pixelsHigh < few.pixelsHigh else {
+            throw SnapshotError("\(label) height does not follow the hit count: miss \(miss.pixelsHigh), one \(one.pixelsHigh), few \(few.pixelsHigh)")
+        }
+        // A results area held at 420pt makes this card about 960px. Five rows
+        // sit well under that; the miss check above is the cavern guard.
+        guard few.pixelsHigh < 900 else {
+            throw SnapshotError("\(label) theorem list is \(few.pixelsHigh)px, already at the cap")
+        }
     }
 
     private static func jumpCatalogue() -> [DocumentFind.Hit] {
@@ -317,6 +381,17 @@ enum RenderFindList {
             ),
         ]
         return DocumentFind.jumpHits(query: "", entries: entries, sections: [])
+    }
+
+    /// Copies catalogue rows until `count`, with distinct ids so the list can
+    /// paint a capped panel. Order follows the catalogue, then repeats.
+    private static func repeatedHits(_ hits: [DocumentFind.Hit], count: Int) -> [DocumentFind.Hit] {
+        guard !hits.isEmpty else { return [] }
+        return (0..<count).map { index in
+            var hit = hits[index % hits.count]
+            hit.id = "\(hit.id)#\(index)"
+            return hit
+        }
     }
 }
 
@@ -434,7 +509,7 @@ private struct BeforeFindBar: View {
 }
 
 /// One Cmd-K panel over the page. The frost stands in for Liquid Glass, which
-/// ImageRenderer drops. The results frame is the reserved 420pt.
+/// ImageRenderer drops. A long list is clipped at the 420pt cap; a miss is not.
 private struct JumpPaletteCard: View {
     var palette: JumpPaletteModel
     var hoveredHitID: String?
@@ -443,7 +518,7 @@ private struct JumpPaletteCard: View {
     var body: some View {
         JumpPaletteView(palette: palette)
             .environment(\.rendersForSnapshot, true)
-            .environment(\.snapshotReservesResultsHeight, true)
+            .environment(\.snapshotCapsResultsHeight, true)
             .environment(\.snapshotHoveredHitID, hoveredHitID)
             .environment(\.colorScheme, dark ? .dark : .light)
             .padding(16)

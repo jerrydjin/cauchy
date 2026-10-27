@@ -507,14 +507,35 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertLessThan(elapsed, .seconds(2))
     }
 
-    func testJumpPaletteReservesOneResultsHeightAndOneRowHighlight() {
+    func testJumpPaletteCollapsesShortListsAndCapsTheScrollingRange() {
         XCTAssertFalse(JumpPaletteMetrics.animatesResultsHeight)
-        let heights = [0, 1, 2, 40].map { JumpPaletteMetrics.resultsFrameHeight(hitCount: $0) }
-        XCTAssertEqual(Set(heights).count, 1)
-        XCTAssertEqual(heights[0], JumpPaletteMetrics.resultsAreaHeight)
-        XCTAssertGreaterThan(heights[0], 200)
-        XCTAssertEqual(JumpPaletteMetrics.rowHighlightOpacity, 0.14)
+        XCTAssertEqual(JumpPaletteMetrics.maxResultsHeight, 420)
+        XCTAssertEqual(JumpPaletteMetrics.resultsAreaHeight, JumpPaletteMetrics.maxResultsHeight)
 
+        let empty = JumpPaletteMetrics.resultsFrameHeight(hitCount: 0)
+        let one = JumpPaletteMetrics.resultsFrameHeight(hitCount: 1)
+        let two = JumpPaletteMetrics.resultsFrameHeight(hitCount: 2)
+        XCTAssertEqual(empty, JumpPaletteMetrics.emptyResultsHeight)
+        XCTAssertLessThan(empty, 80)
+        XCTAssertLessThan(empty, one)
+        XCTAssertLessThan(one, two)
+        XCTAssertLessThan(two, JumpPaletteMetrics.maxResultsHeight)
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 0))
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 1))
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 2))
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 8))
+        XCTAssertLessThan(
+            JumpPaletteMetrics.resultsFrameHeight(hitCount: 8),
+            JumpPaletteMetrics.maxResultsHeight
+        )
+
+        // Typing inside the scrolling range keeps one chrome height.
+        let cappedCounts = [9, 10, 15, 16, 24, 28, 40, 39, 80]
+        let cappedHeights = cappedCounts.map { JumpPaletteMetrics.resultsFrameHeight(hitCount: $0) }
+        XCTAssertEqual(Set(cappedHeights), [JumpPaletteMetrics.maxResultsHeight])
+        XCTAssertTrue(cappedCounts.allSatisfy { JumpPaletteMetrics.locksResultsHeight(hitCount: $0) })
+
+        XCTAssertEqual(JumpPaletteMetrics.rowHighlightOpacity, 0.14)
         XCTAssertFalse(JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: false))
         XCTAssertTrue(JumpPaletteMetrics.rowIsHighlighted(isSelected: true, isHovered: false))
         XCTAssertTrue(JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: true))

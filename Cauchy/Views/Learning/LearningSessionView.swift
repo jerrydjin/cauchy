@@ -23,6 +23,15 @@ struct LearningSessionView: View {
     @State private var chapterScroll = ScrollPosition()
     @State private var answerEditRequest = 0
     @State private var startingQuestionsShown: Set<UUID> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var lessonTint: Color {
+        switch learning.session?.phase {
+        case .practice: .teal
+        case .exitCheck, .complete: .purple
+        default: .indigo
+        }
+    }
 
     private enum SourceMode: Hashable { case currentPage, selection, pages }
     private var learning: LearningViewModel { document.learning }
@@ -47,13 +56,15 @@ struct LearningSessionView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 24) {
                     if let error = document.saveError {
                         Label(error, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.secondary).textSelection(.enabled)
                     }
                     if let page = document.selectedSourceReviewPage { changedSourceContent(page: page) }
-                    else if let error = learning.errorMessage { errorContent(error) }
+                    else if let error = learning.errorMessage, learning.session == nil || learning.session?.chapter != nil {
+                        errorContent(error)
+                    }
                     if let session = learning.session {
                         if let run = document.selectedStudyRun {
                             Text("Study session · \((run.currentIndex ?? 0) + 1) of \(run.items.count)")
@@ -65,8 +76,8 @@ struct LearningSessionView: View {
                         sections
                     }
                 }
-                .padding(32)
-                .frame(maxWidth: 824, alignment: .leading)
+                .padding(24)
+                .frame(maxWidth: 920, alignment: .leading)
                 .frame(maxWidth: .infinity)
                 .id("learningTop")
             }
@@ -107,7 +118,13 @@ struct LearningSessionView: View {
                 } else { proxy.scrollTo("learningTop", anchor: .top) }
             }
         }
+        .background { LearnAtmosphere(tint: lessonTint) }
         .safeAreaInset(edge: .bottom, spacing: 0) { actionBar }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: learning.session?.phase)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: learning.session?.currentLessonPartIndex)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: learning.session?.feedback != nil)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: showingPracticeHelp)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: startingQuestionsShown)
         .onAppear { assistantPreferenceRevision += 1; resetSource(); focusAnswerIfNeeded() }
         .onReceive(NotificationCenter.default.publisher(for: .assistantPreferencesChanged)) { _ in
             assistantPreferenceRevision += 1
@@ -150,19 +167,21 @@ struct LearningSessionView: View {
     }
 
     private func errorContent(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Couldn’t complete this step", systemImage: "exclamationmark.circle")
-                .font(.headline)
-            Text(message).font(.callout).textSelection(.enabled)
-            Text("Your notes and saved work are still here.")
-                .font(.caption).foregroundStyle(.secondary)
-            if learning.session == nil {
-                Button("Learn from all your notes", action: onShowStudyMap).buttonStyle(.borderless)
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "exclamationmark.bubble")
+                .font(.title2).foregroundStyle(.orange).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Couldn’t complete this step").font(.headline)
+                Text(message).font(.callout).textSelection(.enabled)
+                Text("Your notes and saved work are still here.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if learning.session == nil {
+                    Button("Learn from all your notes", action: onShowStudyMap).buttonStyle(.borderless)
+                }
             }
         }
-        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+        .modifier(LearnSurface(tint: .orange, padding: 18))
     }
 
     private func changedSourceContent(page: Int) -> some View {
@@ -262,41 +281,58 @@ struct LearningSessionView: View {
                 }
             }
         }
-        if session.delayedReview == nil && session.phase != .complete {
-            Label(lessonStageTitle(session), systemImage: lessonStageSymbol(session))
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color.accentColor)
-        }
-
-        VStack(alignment: .leading, spacing: 10) {
-            Text(session.lesson.title).font(.title.weight(.semibold))
-                .lineLimit(2).accessibilityLabel(session.lesson.title)
-            if showsLessonIntroduction(session) {
-                Text("What you’ll learn").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
-                MessageContentView(content: session.lesson.objective, textColor: .secondary)
-            } else if session.phase != .diagnostic && (session.phase != .lesson || session.currentLessonPartIndex > 0) {
-                DisclosureGroup("Learning goal") {
-                    MessageContentView(content: session.lesson.objective)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
-                }
-            } else {
-                MessageContentView(content: session.lesson.objective, textColor: .secondary)
-            }
-            if session.phase != .exitCheck {
-                Button(session.source.label, systemImage: "doc.text") { openSource(session) }
-                    .buttonStyle(.borderless)
-                    .help("Open the source page in your PDF")
-                    .disabled(learning.isBusy)
-            }
-        }
+        lessonHeader(session)
+        if document.selectedSourceReviewPage == nil, let error = learning.errorMessage { errorContent(error) }
 
         switch session.phase {
-        case .lesson: lessonContent(session)
+        case .lesson: lessonContent(session).modifier(LearnSurface(tint: lessonTint))
         case .diagnostic:
             if showsLessonIntroduction(session) { lessonIntroduction }
             else { questionContent(session) }
         case .practice, .exitCheck: questionContent(session)
-        case .complete: evidenceContent(session)
+        case .complete: evidenceContent(session).modifier(LearnSurface(tint: lessonTint))
+        }
+    }
+
+    private func lessonHeader(_ session: LearningSession) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 18) {
+                LearnEmblem(symbol: lessonStageSymbol(session), tint: lessonTint,
+                            size: showsLessonIntroduction(session) ? 64 : 52)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(lessonStageTitle(session).uppercased())
+                        .font(.system(size: 11, weight: .bold)).tracking(1.5)
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.opacity)
+                    Text(session.lesson.title)
+                        .font(.system(showsLessonIntroduction(session) ? .largeTitle : .title, design: .rounded).weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if showsLessonIntroduction(session) {
+                MessageContentView(content: session.lesson.objective, font: .system(size: 15))
+                lessonSourceAction(session)
+            } else {
+                HStack(alignment: .top, spacing: 16) {
+                    DisclosureGroup("Learning goal") {
+                        MessageContentView(content: session.lesson.objective)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
+                    }
+                    lessonSourceAction(session).fixedSize()
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(LearnSurface(tint: lessonTint, emphasized: true,
+                              padding: showsLessonIntroduction(session) ? 28 : 20))
+    }
+
+    @ViewBuilder private func lessonSourceAction(_ session: LearningSession) -> some View {
+        if session.phase != .exitCheck {
+            Button(session.source.label, systemImage: "doc.text") { openSource(session) }
+                .buttonStyle(.glass).controlSize(.small)
+                .help("Open the source page in your PDF")
+                .disabled(learning.isBusy)
         }
     }
 
@@ -311,18 +347,24 @@ struct LearningSessionView: View {
 
     private var lessonIntroduction: some View {
         VStack(alignment: .leading, spacing: 20) {
-            RoundedRectangle(cornerRadius: 2).fill(Color.accentColor).frame(width: 40, height: 3)
-                .accessibilityHidden(true)
-            Text("Let’s build the idea together.").font(.title2.weight(.semibold))
+            Text("Learn by working it out.").font(.title2.weight(.semibold))
             Text("Start with an explanation and a worked example. Then try it yourself, with hints whenever you need them.")
                 .font(.body).foregroundStyle(.secondary)
-            Label("Finish with a different problem to see what you can do on your own.", systemImage: "pencil.and.outline")
-                .font(.callout).foregroundStyle(.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 24) { lessonPreview }
+                VStack(alignment: .leading, spacing: 18) { lessonPreview }
+            }
             Text("Already know some of this? Try the optional starting question first. It helps decide where to begin.")
                 .font(.callout).foregroundStyle(.secondary)
         }
-        .padding(.vertical, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(LearnSurface(tint: lessonTint))
+    }
+
+    @ViewBuilder private var lessonPreview: some View {
+        LearnPreviewItem(symbol: "book.pages", title: "Explore", detail: "An idea and an example", tint: .indigo)
+        LearnPreviewItem(symbol: "pencil.and.outline", title: "Practise", detail: "Space to try, help nearby", tint: .teal)
+        LearnPreviewItem(symbol: "sparkle.magnifyingglass", title: "Apply", detail: "A different problem", tint: .purple)
     }
 
     private func lessonStageTitle(_ session: LearningSession) -> String {
@@ -663,18 +705,29 @@ struct LearningSessionView: View {
     @ViewBuilder
     private func questionContent(_ session: LearningSession) -> some View {
         if let question = session.question {
-            VStack(alignment: .leading, spacing: 16) {
-                if session.phase == .diagnostic && session.feedback == nil {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("A question before we begin").font(.title2.weight(.semibold))
-                        Text("Try the question below and explain your thinking. It’s okay to be unsure — this helps choose your starting point. You can also go straight to the explanation.")
-                            .font(.callout).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Label {
+                        Text(session.phase == .practice ? "Try it yourself" : "Your question")
+                    } icon: {
+                        Image(systemName: "text.bubble").foregroundStyle(lessonTint)
                     }
+                    .font(.subheadline.weight(.semibold))
+                    if session.phase == .diagnostic && session.feedback == nil {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("A question before we begin").font(.title2.weight(.semibold))
+                            Text("Try the question below and explain your thinking. It’s okay to be unsure — this helps choose your starting point. You can also go straight to the explanation.")
+                                .font(.callout).foregroundStyle(.secondary)
+                        }
+                    }
+                    MessageContentView(content: question.prompt, font: .system(size: 15))
                 }
-                MessageContentView(content: question.prompt)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(LearnSurface(tint: lessonTint))
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Your reasoning").font(.headline).id("chapter-reasoning")
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Your reasoning", systemImage: "pencil.line")
+                        .font(.headline).id("chapter-reasoning")
                     if sourceNeedsReview {
                         MessageContentView(content: session.answerDraft.isEmpty ? "No answer draft was saved." : session.answerDraft)
                     } else {
@@ -683,17 +736,15 @@ struct LearningSessionView: View {
                             learning.answerDraft = $0
                             answerEditRequest += 1
                         }))
-                            .font(.body)
+                            .font(.system(size: 15))
                             .scrollContentBackground(.hidden)
-                            .frame(minHeight: 140, maxHeight: 240)
-                            .padding(8)
-                            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)))
+                            .frame(minHeight: 112, maxHeight: 200)
                             .overlay(alignment: .topLeading) {
                                 if session.answerDraft.isEmpty {
                                     Text("Start with what you know, then explain each step…")
                                         .font(.body).foregroundStyle(.secondary)
-                                        .padding(12).allowsHitTesting(false).accessibilityHidden(true)
+                                        .padding(.horizontal, 5).padding(.vertical, 8)
+                                        .allowsHitTesting(false).accessibilityHidden(true)
                                 }
                             }
                             .focused($answerFocused)
@@ -705,9 +756,15 @@ struct LearningSessionView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                .modifier(LearnSurface(tint: lessonTint))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(lessonTint.opacity(answerFocused ? 0.65 : 0), lineWidth: 1.5)
+                        .allowsHitTesting(false)
+                }
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: answerFocused)
 
                 if let feedback = session.feedback {
-                    Divider()
                     VStack(alignment: .leading, spacing: 10) {
                         Label("\(feedback.grade == .correct && !session.feedbackSupportsProgress ? "Saved tutor grade" : "Tutor feedback") · \(feedback.grade.label)",
                               systemImage: feedback.grade == .correct && session.feedbackSupportsProgress ? "checkmark.circle" : "text.bubble")
@@ -743,9 +800,15 @@ struct LearningSessionView: View {
                             LearningAssessmentReviewControl(learning: learning, sessionID: session.id, attempt: attempt)
                         }
                     }
+                    .modifier(LearnSurface(tint: lessonTint))
+                    .transition(.opacity.combined(with: .offset(y: reduceMotion ? 0 : 8)))
                 }
 
-                if session.phase == .practice { practiceHelp(session, question: question) }
+                if session.phase == .practice {
+                    practiceHelp(session, question: question)
+                        .padding(16)
+                        .background(lessonTint.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
+                }
                 else { clarificationAction(session) }
             }
         }
@@ -862,8 +925,7 @@ struct LearningSessionView: View {
     }
 
     private var actionBar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Divider()
+        VStack(alignment: .leading, spacing: 0) {
             Group {
                 if let operation = learning.operation {
                     HStack(spacing: 10) {
@@ -884,12 +946,14 @@ struct LearningSessionView: View {
                     primaryAction("Start learning") { startLearning() }.disabled(!canStart)
                 }
             }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 20)
-            .frame(maxWidth: 824, alignment: .leading)
-            .frame(maxWidth: .infinity)
+            .controlSize(.large)
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .padding(.horizontal, 24).padding(.vertical, 12)
+        .frame(maxWidth: 920)
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -939,7 +1003,9 @@ struct LearningSessionView: View {
                         .toggleStyle(.checkbox)
                         .help("Try without notes or hints, and record any help used for this response.")
                     }
-                    primaryAction("Check my reasoning") { answerFocused = false; learning.submitAnswer() }
+                    primaryAction(learning.errorMessage == nil ? "Check my reasoning" : "Try checking again") {
+                        answerFocused = false; learning.submitAnswer()
+                    }
                         .disabled(session.answerDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     if session.phase == .diagnostic {
                         Button("Go straight to the explanation") { learning.studyInstead() }
@@ -1136,5 +1202,89 @@ struct LearningSessionView: View {
 
     private func openSource(_ session: LearningSession) {
         document.showNotes(at: session.source.passages.first?.pageIndex)
+    }
+}
+
+/// Solid reading surfaces keep the lesson distinct from its glass controls.
+private struct LearnSurface: ViewModifier {
+    var tint: Color
+    var emphasized = false
+    var padding: CGFloat = 24
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 24)
+        content
+            .padding(padding)
+            .background {
+                shape.fill(Color(nsColor: .windowBackgroundColor))
+                shape.fill(Color.primary.opacity(scheme == .dark ? 0.045 : 0.015))
+                if !reduceTransparency {
+                    shape.fill(LinearGradient(
+                        colors: [tint.opacity(emphasized ? 0.18 : 0.045), tint.opacity(0.015)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
+            }
+            .overlay {
+                shape.strokeBorder(Color.primary.opacity(contrast == .increased ? 0.3 : 0.09))
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: .black.opacity(scheme == .dark ? 0.12 : 0.04), radius: 16, y: 6)
+    }
+}
+
+private struct LearnAtmosphere: View {
+    var tint: Color
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    var body: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            if !reduceTransparency && contrast != .increased {
+                RadialGradient(colors: [tint.opacity(0.13), .clear],
+                               center: .topLeading, startRadius: 0, endRadius: 650)
+                RadialGradient(colors: [Color.teal.opacity(0.07), .clear],
+                               center: .bottomTrailing, startRadius: 0, endRadius: 500)
+            }
+        }
+        .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
+private struct LearnEmblem: View {
+    var symbol: String
+    var tint: Color
+    var size: CGFloat = 64
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.4, weight: .medium))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(tint.gradient, in: RoundedRectangle(cornerRadius: size / 3))
+            .overlay {
+                RoundedRectangle(cornerRadius: size / 3).strokeBorder(.white.opacity(0.25))
+            }
+            .shadow(color: tint.opacity(0.2), radius: 12, y: 5)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct LearnPreviewItem: View {
+    var symbol: String
+    var title: String
+    var detail: String
+    var tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: symbol).font(.title2).foregroundStyle(tint).accessibilityHidden(true)
+            Text(title).font(.headline)
+            Text(detail).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

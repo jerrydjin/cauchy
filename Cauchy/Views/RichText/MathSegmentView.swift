@@ -340,7 +340,7 @@ enum MathMetrics {
         fontSize: CGFloat,
         textColor: Color
     ) -> NSImage? {
-        let appearance = NSAppearance(named: .aqua) ?? NSAppearance.currentDrawingAppearance
+        let appearance = NSAppearance(named: .aqua)!
         var resolved = NSColor.black
         appearance.performAsCurrentDrawingAppearance {
             let rgb = NSColor(textColor).usingColorSpace(.deviceRGB) ?? .black

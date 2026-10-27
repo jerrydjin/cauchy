@@ -3,6 +3,20 @@ import Foundation
 import SwiftMath
 import SwiftUI
 
+/// Same flag as `FindBarView`. ImageRenderer drops AppKit-backed math, so the
+/// card draws SwiftMath into an image when this is set. Defined here because
+/// the snapshot tool does not compile the find bar.
+private struct RendersForSnapshotKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var rendersForSnapshot: Bool {
+        get { self[RendersForSnapshotKey.self] }
+        set { self[RendersForSnapshotKey.self] = newValue }
+    }
+}
+
 /// Renders the RHS reference card for a synthetic Proposition 2.5.1 whose
 /// stored body still has a JSON `\n` inside `$…$` and a name that repeats the
 /// label. The card is the fixed presentation: `ReferencePreviewPresentation`,

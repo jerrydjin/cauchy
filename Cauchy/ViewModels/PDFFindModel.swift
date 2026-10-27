@@ -219,6 +219,10 @@ final class JumpPaletteModel {
     }
 
     var source: (() -> DocumentFind.Source?)?
+    /// Identity of `source`'s catalogue. Keystrokes compare this and do not
+    /// call `source` while it is unchanged. `source` copies every indexed
+    /// statement (`searchEntries`) and, on a cold cache, every page string.
+    var catalogueID: (() -> Int)?
     var onJump: ((DocumentFind.Hit) -> Void)?
 
     private var suppressRefresh = false
@@ -227,6 +231,7 @@ final class JumpPaletteModel {
     private var cachedEntries: [DocumentFind.Entry] = []
     private var cachedSections: [DocumentFind.Section] = []
     private var cachedCatalogue: [DocumentFind.Hit] = []
+    private var cachedFilterKeys: [DocumentFind.JumpFilterKey] = []
 
     func present() {
         isVisible = true
@@ -269,40 +274,59 @@ final class JumpPaletteModel {
 
     func refresh() {
         guard loadCatalogue() else {
-            hits = []
+            if !hits.isEmpty { hits = [] }
             selection = 0
             return
         }
-        // `catalogue` is already sorted. Text queries filter those rows
-        // instead of rereading page text and rebuilding previews.
-        hits = DocumentFind.jumpHits(
+        // The catalogue is already sorted. This filters those rows in place:
+        // no page walk, no preview parse, no localized re-sort.
+        let next = DocumentFind.filterCatalogue(
+            cachedCatalogue,
             query: query,
-            entries: cachedEntries,
-            sections: cachedSections,
-            catalogue: cachedCatalogue
+            keys: cachedFilterKeys
         )
+        if next != hits { hits = next }
         if selection >= hits.count { selection = 0 }
     }
 
     private func loadCatalogue() -> Bool {
-        guard let source = source?() else {
-            cachedCatalogueID = nil
-            cachedEntries = []
-            cachedSections = []
-            cachedCatalogue = []
+        if let catalogueID {
+            let id = catalogueID()
+            if cachedCatalogueID == id { return true }
+            guard let loaded = source?() else {
+                clearCachedCatalogue()
+                return false
+            }
+            store(loaded, id: id)
+            return true
+        }
+        guard let loaded = source?() else {
+            clearCachedCatalogue()
             return false
         }
-        if cachedCatalogueID != source.catalogueID {
-            cachedEntries = source.entries
-            cachedSections = DocumentFind.sections(in: source.pages)
-            cachedCatalogue = DocumentFind.jumpHits(
-                query: "",
-                entries: cachedEntries,
-                sections: cachedSections
-            )
-            cachedCatalogueID = source.catalogueID
-        }
+        if cachedCatalogueID == loaded.catalogueID { return true }
+        store(loaded, id: loaded.catalogueID)
         return true
+    }
+
+    private func store(_ loaded: DocumentFind.Source, id: Int) {
+        cachedEntries = loaded.entries
+        cachedSections = DocumentFind.sections(in: loaded.pages)
+        cachedCatalogue = DocumentFind.jumpHits(
+            query: "",
+            entries: cachedEntries,
+            sections: cachedSections
+        )
+        cachedFilterKeys = DocumentFind.jumpFilterKeys(for: cachedCatalogue)
+        cachedCatalogueID = id
+    }
+
+    private func clearCachedCatalogue() {
+        cachedCatalogueID = nil
+        cachedEntries = []
+        cachedSections = []
+        cachedCatalogue = []
+        cachedFilterKeys = []
     }
 
     func refreshIfVisible() {

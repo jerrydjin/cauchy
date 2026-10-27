@@ -123,11 +123,14 @@ enum DocumentFind {
 
     /// Every indexed statement, or the subset whose label, printed name, or
     /// one-line preview contains `query` as a case-insensitive substring.
-    /// A kind-and-number query uses `search` unchanged. A bare number keeps
-    /// the dotted-number rule (`2` matches `2.1`, not `20`).
+    /// A kind-and-number query keeps the `search` rule (`2` matches `2.1`, not
+    /// `20`). Without a catalogue that rebuilds hits; with one it filters the
+    /// rows already built.
     ///
     /// `catalogue`, when present, is the full sorted list from an empty query.
-    /// Text queries filter those rows instead of parsing previews again.
+    /// Filtering that list reuses the rows already built — it does not parse
+    /// previews again and it does not re-sort. `localizedStandardCompare` on
+    /// every keystroke was the expensive part of an already-sorted catalogue.
     static func jumpHits(
         query: String,
         entries: [Entry],
@@ -135,15 +138,63 @@ enum DocumentFind {
         catalogue: [Hit]? = nil
     ) -> [Hit] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let catalogue {
+            if trimmed.isEmpty { return catalogue }
+            return filterCatalogue(catalogue, query: trimmed)
+        }
         if trimmed.isEmpty {
-            if let catalogue { return catalogue }
             return sort(entries.map(hit(for:)) + sections.map(sectionHit))
         }
         if numberedQuery(in: trimmed) != nil {
             return search(query: trimmed, entries: entries, sections: sections).hits
         }
-        let all = catalogue ?? (entries.map(hit(for:)) + sections.map(sectionHit))
+        let all = entries.map(hit(for:)) + sections.map(sectionHit)
         return sort(all.filter { matchesJump($0, query: trimmed) })
+    }
+
+    /// Folded fields for one catalogue row. Built once with the catalogue so a
+    /// keystroke is a substring check, not a case-insensitive scan and a sort.
+    struct JumpFilterKey: Equatable, Sendable {
+        var group: String
+        var number: String
+        var label: String
+        var jumpName: String
+        var title: String
+        var firstLine: String
+    }
+
+    /// Keys line up with `hits`. Group and number stay as indexed; the text
+    /// fields are lowercased the same way the query is folded at match time.
+    static func jumpFilterKeys(for hits: [Hit]) -> [JumpFilterKey] {
+        hits.map { hit in
+            JumpFilterKey(
+                group: hit.group,
+                number: hit.number,
+                label: hit.label.lowercased(),
+                jumpName: hit.jumpName.lowercased(),
+                title: hit.title.lowercased(),
+                firstLine: hit.firstLine.lowercased()
+            )
+        }
+    }
+
+    /// Rows of an already-sorted catalogue that match `query`, in that same
+    /// order. Kind-and-number queries use the numbered rule (`2` matches `2.1`,
+    /// not `20`) instead of rebuilding hits from the entry bodies.
+    static func filterCatalogue(
+        _ catalogue: [Hit],
+        query: String,
+        keys: [JumpFilterKey]? = nil
+    ) -> [Hit] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return catalogue }
+        if let numbered = numberedQuery(in: trimmed) {
+            return catalogue.filter { matchesNumbered($0, query: numbered) }
+        }
+        if let keys, keys.count == catalogue.count {
+            return filterFolded(catalogue, keys: keys, query: trimmed)
+        }
+        return catalogue.filter { matchesJump($0, query: trimmed) }
     }
 
     /// Cmd-F's count. "232 matches in the text", never a named-result count.
@@ -368,6 +419,89 @@ enum DocumentFind {
             if order != .orderedSame { return order == .orderedAscending }
             return lhs.pageIndex < rhs.pageIndex
         }
+    }
+
+    /// Same rows `search` would rebuild for a kind-and-number query, read off
+    /// the catalogue so the preview text is not parsed again.
+    private static func matchesNumbered(_ hit: Hit, query: NumberedQuery) -> Bool {
+        if let kind = query.kind {
+            guard hit.group == groupName(for: kind) else { return false }
+        } else {
+            guard hit.group == "Sections" else { return false }
+        }
+        guard number(hit.number, extends: query.number) else { return false }
+        if let name = query.name, !name.isEmpty {
+            guard nameMatches(hit.jumpName, query: name) else { return false }
+        }
+        return true
+    }
+
+    /// `matchesJump` for text, against fields folded once when the catalogue
+    /// was built. Kind and section words are decided once per keystroke.
+    private static func filterFolded(
+        _ catalogue: [Hit],
+        keys: [JumpFilterKey],
+        query: String
+    ) -> [Hit] {
+        let folded = query.lowercased()
+        let kindGroup = ReferenceKind.fromKeyword(folded).map { groupName(for: $0) }
+        let sectionWord = folded == "section" || folded == "sections"
+        let numeric = isNumberToken(query)
+        var matched: [Hit] = []
+        matched.reserveCapacity(min(catalogue.count, 64))
+        for (hit, key) in zip(catalogue, keys) {
+            if let kindGroup, key.group == kindGroup {
+                matched.append(hit)
+                continue
+            }
+            if sectionWord, key.group == "Sections" {
+                matched.append(hit)
+                continue
+            }
+            if numeric {
+                if containsWord(key.label, word: folded)
+                    || containsWord(key.jumpName, word: folded)
+                    || containsWord(key.title, word: folded)
+                    || number(key.number, extends: query) {
+                    matched.append(hit)
+                }
+                continue
+            }
+            guard folded.count >= 2 else { continue }
+            if key.label.contains(folded)
+                || key.jumpName.contains(folded)
+                || key.title.contains(folded)
+                || key.firstLine.contains(folded) {
+                matched.append(hit)
+            }
+        }
+        return matched
+    }
+
+    /// ASCII word boundary, matching the `\b` `nameMatches` uses for a number
+    /// token. The field and the word are already lowercased.
+    private static func containsWord(_ field: String, word: String) -> Bool {
+        guard word.count >= 2, !field.isEmpty else { return false }
+        var search = field.startIndex
+        while let found = field.range(of: word, range: search..<field.endIndex) {
+            let startsAtBoundary = found.lowerBound == field.startIndex
+                || !isRegexWord(field[field.index(before: found.lowerBound)])
+            let endsAtBoundary = found.upperBound == field.endIndex
+                || !isRegexWord(field[found.upperBound])
+            if startsAtBoundary && endsAtBoundary { return true }
+            guard let next = field.index(found.lowerBound, offsetBy: 1, limitedBy: field.endIndex) else { break }
+            search = next
+        }
+        return false
+    }
+
+    /// ICU `\w` without Unicode mode: ASCII letters, digits, and underscore.
+    private static func isRegexWord(_ character: Character) -> Bool {
+        guard character.unicodeScalars.count == 1, let value = character.unicodeScalars.first?.value else {
+            return false
+        }
+        if value == 95 { return true }
+        return (48...57).contains(value) || (65...90).contains(value) || (97...122).contains(value)
     }
 
     private static func matchesJump(_ hit: Hit, query: String) -> Bool {

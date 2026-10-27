@@ -1,7 +1,10 @@
 #!/bin/bash
 # Renders the citation hover, the plain Cmd-F bar, the Cmd-K jump palette,
-# and the RHS reference card. The app-hosted tests cannot launch here: the
-# runner is macOS 26 and the app requires macOS 27.
+# and the RHS reference card.
+# cmd-k-jump.png pins the search field and lets the list grow downward.
+# A miss collapses under that field. A long list is clipped at the 420pt cap.
+# The app-hosted tests cannot launch here: the runner is macOS 26 and the app
+# requires macOS 27.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 out="${1:-Snapshots/out}"

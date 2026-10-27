@@ -446,6 +446,153 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertEqual(palette.selection, 0)
     }
 
+    func testCachedCatalogueFilterMatchesAFullSearch() {
+        let entries = [
+            entry(.lemma, "2", "Let G be trivial."),
+            entry(.lemma, "2.1", "Let G be finite."),
+            entry(.lemma, "20", "This is a different lemma."),
+            entry(.lemma, "2.4", "Every chain has an upper bound.", name: "Zorn"),
+            entry(.theorem, "1.2.7", "A numbered theorem.", name: "Residue theorem"),
+            entry(.theorem, "1.2.70", "Not an extension of 1.2.7."),
+            entry(.theorem, "1.3.3", "Let U be open and suppose that f is holomorphic.", name: "Theorem 1.3.3"),
+            entry(.theorem, "3.6.3", "A classical result.", name: "Rouch\u{00E9}"),
+            entry(.definition, "3", "A compact space.", name: "Compactness"),
+        ]
+        let sections = [
+            DocumentFind.Section(number: "1.2", title: "Actions of a group", pageIndex: 4, anchor: "1.2. Actions"),
+        ]
+        let catalogue = DocumentFind.jumpHits(query: "", entries: entries, sections: sections)
+        let keys = DocumentFind.jumpFilterKeys(for: catalogue)
+        XCTAssertEqual(keys.count, catalogue.count)
+
+        let queries = [
+            "", "h", "ho", "HOLOMORPHIC", "theorem", "theorems", "THEOREM",
+            "lemma 2", "Lemma 2", "Lemma 2.4 (Zorn)", "1.2.7", "1.2", "1.2.70",
+            "20", "2", "section", "Sections", "Section 1", "Section 1.2",
+            "zorn", "actions", "rouch\u{00E9}", "ROUCH\u{00C9}",
+        ]
+        for query in queries {
+            let reference = DocumentFind.jumpHits(query: query, entries: entries, sections: sections)
+            let fromCatalogue = DocumentFind.jumpHits(
+                query: query,
+                entries: entries,
+                sections: sections,
+                catalogue: catalogue
+            )
+            let folded = DocumentFind.filterCatalogue(catalogue, query: query, keys: keys)
+            XCTAssertEqual(fromCatalogue, reference, query)
+            XCTAssertEqual(folded, reference, query)
+        }
+        XCTAssertFalse(
+            DocumentFind.filterCatalogue(catalogue, query: "Lemma 2", keys: keys).contains { $0.number == "20" }
+        )
+    }
+
+    func testFilteringACachedCatalogueStaysOnTheKeystrokeBudget() {
+        let entries = (0..<400).map { index in
+            entry(.theorem, "\(index)", "Statement \(index) mentions holomorphic maps and continuity.")
+        }
+        let catalogue = DocumentFind.jumpHits(query: "", entries: entries, sections: [])
+        let keys = DocumentFind.jumpFilterKeys(for: catalogue)
+        let clock = ContinuousClock()
+        let start = clock.now
+        var total = 0
+        for _ in 0..<20 {
+            total += DocumentFind.filterCatalogue(catalogue, query: "holo", keys: keys).count
+        }
+        let elapsed = start.duration(to: clock.now)
+        XCTAssertEqual(total, 400 * 20)
+        // Re-sorting this list with localizedStandardCompare, or reparsing
+        // previews, blows past a second in a debug build. Folded keys do not.
+        XCTAssertLessThan(elapsed, .seconds(2))
+    }
+
+    func testJumpPaletteCollapsesShortListsAndCapsTheScrollingRange() {
+        XCTAssertFalse(JumpPaletteMetrics.animatesResultsHeight)
+        XCTAssertEqual(JumpPaletteMetrics.maxResultsHeight, 420)
+        XCTAssertEqual(JumpPaletteMetrics.resultsAreaHeight, JumpPaletteMetrics.maxResultsHeight)
+
+        let empty = JumpPaletteMetrics.resultsFrameHeight(hitCount: 0)
+        let one = JumpPaletteMetrics.resultsFrameHeight(hitCount: 1)
+        let two = JumpPaletteMetrics.resultsFrameHeight(hitCount: 2)
+        XCTAssertEqual(empty, JumpPaletteMetrics.emptyResultsHeight)
+        XCTAssertLessThan(empty, 80)
+        XCTAssertLessThan(empty, one)
+        XCTAssertLessThan(one, two)
+        XCTAssertLessThan(two, JumpPaletteMetrics.maxResultsHeight)
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 0))
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 1))
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 2))
+        XCTAssertFalse(JumpPaletteMetrics.locksResultsHeight(hitCount: 8))
+        XCTAssertLessThan(
+            JumpPaletteMetrics.resultsFrameHeight(hitCount: 8),
+            JumpPaletteMetrics.maxResultsHeight
+        )
+
+        // Typing inside the scrolling range keeps one chrome height.
+        let cappedCounts = [9, 10, 15, 16, 24, 28, 40, 39, 80]
+        let cappedHeights = cappedCounts.map { JumpPaletteMetrics.resultsFrameHeight(hitCount: $0) }
+        XCTAssertEqual(Set(cappedHeights), [JumpPaletteMetrics.maxResultsHeight])
+        XCTAssertTrue(cappedCounts.allSatisfy { JumpPaletteMetrics.locksResultsHeight(hitCount: $0) })
+
+        let window: CGFloat = 900
+        XCTAssertEqual(
+            JumpPaletteMetrics.placementHeight,
+            JumpPaletteMetrics.maxResultsHeight + JumpPaletteMetrics.searchChromeAllowance
+        )
+        XCTAssertEqual(
+            JumpPaletteMetrics.searchFieldTopInset(windowHeight: window),
+            (window - JumpPaletteMetrics.placementHeight) / 2
+        )
+        XCTAssertEqual(
+            JumpPaletteMetrics.searchFieldTopInset(windowHeight: 200),
+            JumpPaletteMetrics.minimumSearchFieldTopInset
+        )
+
+        XCTAssertEqual(JumpPaletteMetrics.rowHighlightOpacity, 0.14)
+        XCTAssertFalse(JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: false))
+        XCTAssertTrue(JumpPaletteMetrics.rowIsHighlighted(isSelected: true, isHovered: false))
+        XCTAssertTrue(JumpPaletteMetrics.rowIsHighlighted(isSelected: false, isHovered: true))
+        XCTAssertTrue(JumpPaletteMetrics.rowIsHighlighted(isSelected: true, isHovered: true))
+    }
+
+    @MainActor
+    func testJumpPaletteDoesNotRebuildTheCatalogueOnEachKeystroke() {
+        let entries = [
+            entry(.theorem, "1.3.3", "Let f be holomorphic.", name: "Theorem 1.3.3"),
+            entry(.lemma, "2", "Let G be trivial."),
+            entry(.lemma, "20", "Not an extension of two."),
+        ]
+        var catalogueIdentity = 1
+        var loads = 0
+        let palette = JumpPaletteModel()
+        palette.catalogueID = { catalogueIdentity }
+        palette.source = {
+            loads += 1
+            let rows = catalogueIdentity == 1
+                ? entries
+                : [self.entry(.lemma, "9", "Rebuilt after the index changed.")]
+            return DocumentFind.Source(entries: rows, pages: [], catalogueID: catalogueIdentity)
+        }
+
+        palette.present()
+        XCTAssertEqual(loads, 1)
+        XCTAssertEqual(palette.hits.map(\.title), ["Theorem 1.3.3", "Lemma 2", "Lemma 20"])
+
+        palette.query = "h"
+        palette.query = "holomorphic"
+        palette.query = "Lemma 2"
+        XCTAssertEqual(loads, 1, "keystrokes must filter the cached rows")
+        XCTAssertEqual(palette.hits.map(\.number), ["2"])
+        XCTAssertFalse(palette.hits.contains { $0.number == "20" })
+
+        palette.query = ""
+        catalogueIdentity = 2
+        palette.refresh()
+        XCTAssertEqual(loads, 2)
+        XCTAssertEqual(palette.hits.map(\.title), ["Lemma 9"])
+    }
+
     func testTextLayerRepairTable() {
         XCTAssertEqual(TextLayerRepairs.table.map(\.broken), ["7→", #"∈(?=\S)"#])
         XCTAssertEqual(TextLayerRepairs.apply("7→"), "↦")

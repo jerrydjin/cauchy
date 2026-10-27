@@ -45,6 +45,8 @@ from pdf_extract import equation_label_x
 
 PASS_MIN_RESOLUTION = 0.90
 PASS_MIN_REFERENCES = 8
+# Same number token the detector uses inside a plural list.
+_REFERENCE_NUMBER = r"(?:\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"
 
 _KIND_PATTERN = {
     "theorem": r"theorems?|thm\.?",
@@ -80,9 +82,18 @@ def _patterns(kind: str, number: str) -> list[re.Pattern[str]]:
     word = _KIND_PATTERN.get(kind)
     if word is None:
         return []
+    # "Lemmas 3.1, 3.2 and 3.4" names 3.2 and 3.4. The kind word sits on the
+    # first number only. The captured group is that later number, so a hit
+    # does not cover the earlier numbers in the same list.
+    later = (
+        rf"(?i)\b(?:{word})\s*{_REFERENCE_NUMBER}"
+        rf"(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{_REFERENCE_NUMBER})*"
+        rf"\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?({token})"
+    )
     return [
         re.compile(rf"(?i)\b(?:{word})\s*{token}"),
         re.compile(rf"(?i)\b(?:{word})\s*\(\s*{re.escape(number)}\s*\)"),
+        re.compile(later),
     ]
 
 
@@ -222,10 +233,17 @@ def _hits_for(pages: list[dict], kind: str, number: str) -> list[tuple[int, int,
         occupied: list[tuple[int, int]] = []
         for pattern in patterns:
             for match in pattern.finditer(page["text"]):
-                if any(not (match.end() <= start or match.start() >= end) for start, end in occupied):
+                # A list tail captures the number itself. The whole match
+                # would also cover the earlier numbers and look like a link
+                # to those statements.
+                if match.lastindex:
+                    start_at, end_at = match.start(match.lastindex), match.end(match.lastindex)
+                else:
+                    start_at, end_at = match.start(), match.end()
+                if any(not (end_at <= start or start_at >= end) for start, end in occupied):
                     continue
-                occupied.append((match.start(), match.end()))
-                found.append((page["page_index"], match.start(), match.end(), match.group(0)))
+                occupied.append((start_at, end_at))
+                found.append((page["page_index"], start_at, end_at, page["text"][start_at:end_at]))
     return found
 
 

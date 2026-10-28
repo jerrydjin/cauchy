@@ -82,14 +82,15 @@ jobs:
             -destination 'platform=macOS'
 
   # The app target cannot be launched on this runner. This job compiles
-  # macOS 26 tools that draw the citation hover and the Cmd-F result list.
+  # macOS 26 tools that draw the citation hover, the Cmd-F bar, the Cmd-K panel,
+  # and the RHS reference card.
   designer-snapshots:
     runs-on: xcode-27
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Render citation hover and Cmd-F results
+      - name: Render citation hover, Cmd-F, Cmd-K, and the reference card
         run: bash Snapshots/render.sh Snapshots/out
 
       - name: Upload snapshots

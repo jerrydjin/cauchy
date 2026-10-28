@@ -1,0 +1,7 @@
+{
+  "kind": "lemma",
+  "number": "4.2",
+  "name": "Winding",
+  "pageIndex": 12,
+  "formattedBody": "Let \\gamma be a closed curve where $n$ satisfies \\frac{1}{2\\pi i}.\\n\\begin{align}\\n\\label{eq:sample}\\n\\int_{\\gamma} \\frac{dz}{z} &= 2\\pi i\\n\\end{align}\\nMoreover **$\\frac{1}{2}$** is the residue."
+}

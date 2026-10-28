@@ -1,0 +1,7 @@
+{
+  "kind": "proposition",
+  "number": "2.5.1",
+  "name": "Proposition 2.5.1",
+  "pageIndex": 41,
+  "formattedBody": "Let $\\gamma\\colon [0,1] \\to \\mathbb{C}\\setminus\\{0\\}$ be a path. Then there is a continuous function $a\\colon [0,1] \\to \\mathbb{R}$ such that $\\gamma(t) = |\\gamma(t)|e^{2\\pi i a(t)}\\nMoreover, if $a$ and $b$ are two such functions, then there exists $n \\in \\mathbb{Z}$ such that $a(t) = b(t) + n$ for all $t \\in [0,1]$. In particular, the $a(t_0)$ at any $t_0$ uniquely determines $a(t)$ for all $t$."
+}

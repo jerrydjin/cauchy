@@ -174,4 +174,29 @@ enum ReferenceEvidenceRegionResolver {
         let y = max(0, min(1 - height, center - height / 2))
         return NormalizedRect(x: 0, y: y, width: 1, height: height)
     }
+
+    /// A clear crop of the figure next to its printed caption label.
+    /// PDF y grows upward, so the graphic is usually the band above the
+    /// caption. A label parked at the top of the page is treated as a
+    /// caption-above-figure and the crop drops below it instead. This is a
+    /// page band, not a detected figure box.
+    static func figureRegion(forCaption caption: NormalizedRect) -> NormalizedRect {
+        let margin: CGFloat = 0.012
+        let minimum: CGFloat = 0.16
+        let preferred: CGFloat = 0.55
+
+        let aboveBottom = min(1, max(0, caption.y + caption.height + margin))
+        let roomAbove = 1 - aboveBottom
+        if roomAbove >= minimum {
+            return NormalizedRect(x: 0, y: aboveBottom, width: 1, height: min(preferred, roomAbove))
+        }
+
+        let belowTop = min(1, max(0, caption.y - margin))
+        if belowTop >= minimum {
+            let height = min(preferred, belowTop)
+            return NormalizedRect(x: 0, y: belowTop - height, width: 1, height: height)
+        }
+
+        return NormalizedRect(x: 0, y: 0, width: 1, height: 1)
+    }
 }

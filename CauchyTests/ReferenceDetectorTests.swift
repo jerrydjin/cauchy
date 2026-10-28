@@ -32,6 +32,21 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertEqual(reference?.number, "2.3")
     }
 
+    func testSubequationPartLetterUsesTheBaseNumber() {
+        let text = "Compare (2.7a) with (2.7b), and ignore (1a)."
+        let matches = ReferenceDetector.allReferences(in: text)
+        XCTAssertEqual(matches.map(\.reference), [
+            DetectedReference(kind: .equation, number: "2.7"),
+            DetectedReference(kind: .equation, number: "2.7"),
+        ])
+        XCTAssertEqual(matches.map { String(text[$0.range]) }, ["(2.7a)", "(2.7b)"])
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "from Eq. (3.1c) the bound follows")?.number,
+            "3.1"
+        )
+        XCTAssertNil(ReferenceDetector.firstReference(in: "The label (1a) is not an equation."))
+    }
+
     func testFigurePanelMentionResolvesToNumberedFigure() {
         let reference = ReferenceDetector.firstReference(in: "See Fig. 3a,b for the comparison.")
         XCTAssertEqual(reference, DetectedReference(kind: .figure, number: "3"))

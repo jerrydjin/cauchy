@@ -78,7 +78,10 @@ def _patterns(kind: str, number: str) -> list[re.Pattern[str]]:
             re.compile(rf"(?i)\bappendices\s+{token}|\bappendix\s*{token}\b"),
         ]
     if kind == "equation":
-        return [re.compile(rf"(?i)(?:\beq(?:uation)?\.?\s*)?\(\s*{re.escape(number)}\s*\)")]
+        # "(2.7a)" prints equation 2.7. A letter on a bare integer does not.
+        letter = r"[a-z]" if "." in number else ""
+        optional = f"{letter}?" if letter else ""
+        return [re.compile(rf"(?i)(?:\beq(?:uation)?\.?\s*)?\(\s*{re.escape(number)}{optional}\s*\)")]
     word = _KIND_PATTERN.get(kind)
     if word is None:
         return []

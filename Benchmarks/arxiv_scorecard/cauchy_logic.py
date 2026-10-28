@@ -4,8 +4,10 @@ This is a line-by-line port of the non-UI rules on the combined reader
 branch. Line-start statements and number-first headings follow main.
 A dotted equation tag on its own line is a declaration, and the display
 after a bare number is only read from the next four lines. A bare tag at
-the end of a prose sentence is not a declaration. A parenthesized number
-printed after a statement word, as in "Theorem (3.2)", is that statement.
+the end of a prose sentence is not a declaration. A part letter on a dotted
+tag, as in "(2.7a)", is that equation; a letter on a bare integer, "(1a)",
+is not. A parenthesized number printed after a statement word, as in
+"Theorem (3.2)", is that statement.
 
 - main: Cauchy/Services/ReferenceParsing.swift, ReferenceDetector.swift,
   LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing.
@@ -35,7 +37,9 @@ SINGULAR_HOVER = (
 PLURAL_HOVER = (
     r"theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
 )
-EQUATION = r"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)\s*\)"
+# Group 2 is a subequation part letter, as in "(2.7a)". It belongs to a
+# dotted number only. "(1a)" is not equation 1.
+EQUATION = r"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)([a-z])?\s*\)"
 FIGURE = r"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b"
 PAIRED_FIGURES = (
     r"(?i)\b(?:figures|figs\.)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\s*(?:and|&|,)\s*"
@@ -241,6 +245,9 @@ def detection(text: str, profile: str = "main") -> Detection:
 
     for found in patterns["equation"].finditer(text):
         number = found.group(1)
+        # "(2.7a)" is equation 2.7. A letter on a bare integer is not a number.
+        if found.group(2) and "." not in number:
+            continue
         if found.group(0).lstrip().startswith("("):
             named = _STATEMENT_BEFORE_PAREN.search(text[: found.start()])
             if named is not None:

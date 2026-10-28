@@ -223,6 +223,13 @@ enum ReferenceDetector {
             guard let numberRange = Range(match.range(at: 1), in: source),
                   let range = Range(match.range, in: source) else { return nil }
             let number = String(source[numberRange])
+            // "(2.7a)" and "(2.7b)" are parts of equation 2.7. A letter on a
+            // bare integer, "(1a)", is not an equation number. An unmatched
+            // optional group is NSNotFound; require a real letter either way.
+            let letter = match.range(at: 2)
+            if letter.location != NSNotFound, letter.length > 0, !number.contains(".") {
+                return nil
+            }
             // A bare parenthetical after a statement word is that statement.
             // "Eq. (2.3)" and "by (1.2)" still start with the equation prefix.
             if source[range].hasPrefix("("),

@@ -14,7 +14,9 @@ enum ReferenceParsing {
     /// "Lemmas 4.6" and "Lemmas 3.1, 3.2 and 3.4". Abbreviations stay out.
     static let pluralBlockPattern = #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
 
-    static let equationCitePattern = #"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)\s*\)"#
+    /// Group 2 is a subequation part letter, as in "(2.7a)". It belongs to a
+    /// dotted number only. "(1a)" is not equation 1.
+    static let equationCitePattern = #"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)([a-z])?\s*\)"#
 
     // The optional panel suffix belongs to the mention, not the figure's
     // identity: "Fig. 3a,b" links to the numbered Figure 3 object.

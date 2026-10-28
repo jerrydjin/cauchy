@@ -639,6 +639,24 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "3")))
     }
 
+    func testDottedSubequationPartOnItsOwnLineIsTheBaseEquation() {
+        let page = """
+        The two parts of the display are tagged separately.
+        (4.2a)
+        (4.2b)
+        A bare letter on an integer is a label, not an equation.
+        (1a)
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertEqual(
+            declarations.filter { $0 == DetectedReference(kind: .equation, number: "4.2") }.count,
+            2
+        )
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(declarations.contains { $0.number.contains("a") || $0.number.contains("b") })
+    }
+
     func testOwnLineEquationKeepsTheFormulaOnTheNextLine() {
         let page = """
         (2)

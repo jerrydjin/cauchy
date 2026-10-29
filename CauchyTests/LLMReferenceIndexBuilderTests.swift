@@ -573,6 +573,21 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .definition, number: "8.2")))
     }
 
+    func testLigatureDefinitionHeadingIsIndexedAndAMentionIsNot() {
+        let page = """
+        De\u{FB01}nition 2.1. A widget is a finite set.
+        By De\u{FB01}nition 2.1 every widget is nonempty.
+        6.1 De\u{FB01}nition. A gadget is a widget with a name.
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertEqual(
+            declarations.filter { $0 == DetectedReference(kind: .definition, number: "2.1") }.count,
+            1
+        )
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .definition, number: "6.1")))
+    }
+
     func testParenthesizedStatementNumberIsADeclarationNotAnEquation() {
         let page = """
         Lemma (4). Suppose the group is finite.

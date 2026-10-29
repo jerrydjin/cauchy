@@ -14,6 +14,24 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertEqual(reference?.number, "3.4")
     }
 
+    func testLigatureSpellingOfDefinitionAndFigure() {
+        // A PDF font stores "fi" as one character. The sentence is synthetic.
+        let definition = "De\u{FB01}nition 2.1. A widget is a finite set."
+        let named = ReferenceDetector.firstReference(in: definition)
+        XCTAssertEqual(named?.kind, .definition)
+        XCTAssertEqual(named?.number, "2.1")
+
+        let plural = ReferenceDetector.allReferences(in: "De\u{FB01}nitions 2.1 and 2.2 settle it.")
+        XCTAssertEqual(plural.map(\.reference), [
+            DetectedReference(kind: .definition, number: "2.1"),
+            DetectedReference(kind: .definition, number: "2.2"),
+        ])
+
+        let figure = ReferenceDetector.firstReference(in: "See \u{FB01}gure 4 beside the table.")
+        XCTAssertEqual(figure?.kind, .figure)
+        XCTAssertEqual(figure?.number, "4")
+    }
+
     func testAppendixReference() {
         let reference = ReferenceDetector.firstReference(in: "Remark A.0.5. This is an appendix statement.")
         XCTAssertEqual(reference?.kind, .remark)

@@ -53,6 +53,35 @@ class DetectorTests(unittest.TestCase):
             self.assertEqual((figure.kind, figure.number), ("figure", "3"))
             self.assertIsNone(first_reference("This is ordinary text.", profile))
 
+    def test_ligature_definition_and_figure(self) -> None:
+        # Synthetic. ﬁ is the one character a PDF font uses for "fi".
+        heading = "De\ufb01nition 2.1. A widget is a finite set."
+        self.assertEqual(
+            [(item.kind, item.number) for item in all_references(heading, "main")],
+            [("definition", "2.1")],
+        )
+        declared = declaration_matches(heading)
+        self.assertEqual([(item.kind, item.number) for item in declared], [("definition", "2.1")])
+        mention = "By De\ufb01nition 2.1 every widget is nonempty."
+        self.assertEqual(
+            [(item.kind, item.number) for item in all_references(mention, "main")],
+            [("definition", "2.1")],
+        )
+        self.assertEqual(declaration_matches(mention), [])
+        plural = all_references("De\ufb01nitions 2.1 and 2.2 settle it.", "main")
+        self.assertEqual([item.number for item in plural], ["2.1", "2.2"])
+        number_first = "6.1 De\ufb01nition. A gadget is a named widget."
+        self.assertEqual(
+            [(item.kind, item.number) for item in declaration_matches(number_first)],
+            [("definition", "6.1")],
+        )
+        figure = first_reference("See \ufb01gure 4 beside the table.", "main")
+        self.assertEqual((figure.kind, figure.number), ("figure", "4"))
+        from score import _hits_for  # noqa: E402
+
+        hits = _hits_for([{"page_index": 0, "text": mention}], "definition", "2.1")
+        self.assertEqual(hits[0][3].replace("\ufb01", "fi"), "Definition 2.1")
+
     def test_figure_ranges(self) -> None:
         text = "Fig. 2 | Results. Later, Figure 2a shows the trend."
         refs = [(item.kind, item.number) for item in all_references(text, "main")]

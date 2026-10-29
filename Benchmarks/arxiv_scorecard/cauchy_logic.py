@@ -7,7 +7,10 @@ after a bare number is only read from the next four lines. A bare tag at
 the end of a prose sentence is not a declaration. A part letter on a dotted
 tag, as in "(2.7a)", is that equation; a letter on a bare integer, "(1a)",
 is not. A parenthesized number printed after a statement word, as in
-"Theorem (3.2)", is that statement.
+"Theorem (3.2)", is that statement. A PDF font prints the letters "fi"
+inside "Definition" and "Figure" as one character, ﬁ. The keyword
+patterns accept that spelling, and the captured word is folded back
+to ASCII before it is looked up.
 
 - main: Cauchy/Services/ReferenceParsing.swift, ReferenceDetector.swift,
   LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing.
@@ -29,19 +32,65 @@ from dataclasses import dataclass, field
 
 
 REFERENCE_NUMBER = r"(?:\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"
-SINGULAR_MAIN = r"theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
-SINGULAR_HOVER = (
-    r"theorem|thm\.?|lemma|lem\.?|proposition|prop\.?|corollary|cor\.?|"
-    r"definition|def\.?|exercise|example|remark|proof"
+
+
+def fold_ligatures(pattern: str) -> str:
+    """Let a keyword match the Latin ligatures a PDF font uses for those letters.
+
+    ﬁ is one character, so a pattern written as "definition" does not match
+    "Deﬁnition". The replacement is non-capturing, so existing group numbers
+    stay put. Longer ligatures are tried first.
+    """
+    pairs = (
+        ("ffi", "(?:ffi|\ufb03)"),
+        ("ffl", "(?:ffl|\ufb04)"),
+        ("ff", "(?:ff|\ufb00)"),
+        ("fi", "(?:fi|\ufb01)"),
+        ("fl", "(?:fl|\ufb02)"),
+    )
+    pieces: list[str] = []
+    index = 0
+    while index < len(pattern):
+        for letters, replacement in pairs:
+            if pattern.startswith(letters, index):
+                pieces.append(replacement)
+                index += len(letters)
+                break
+        else:
+            pieces.append(pattern[index])
+            index += 1
+    return "".join(pieces)
+
+
+def ascii_ligatures(text: str) -> str:
+    """The inverse of fold_ligatures, for a word the pattern already captured."""
+    return (
+        text.replace("\ufb03", "ffi")
+        .replace("\ufb04", "ffl")
+        .replace("\ufb00", "ff")
+        .replace("\ufb01", "fi")
+        .replace("\ufb02", "fl")
+    )
+
+
+SINGULAR_MAIN = fold_ligatures(
+    "theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
 )
-PLURAL_HOVER = (
-    r"theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
+SINGULAR_HOVER = fold_ligatures(
+    "theorem|thm\\.?|lemma|lem\\.?|proposition|prop\\.?|corollary|cor\\.?|"
+    "definition|def\\.?|exercise|example|remark|proof"
+)
+PLURAL_MAIN = fold_ligatures(
+    "theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
+)
+PLURAL_HOVER = fold_ligatures(
+    "theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
 )
 # Group 2 is a subequation part letter, as in "(2.7a)". It belongs to a
 # dotted number only. "(1a)" is not equation 1.
 EQUATION = r"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)([a-z])?\s*\)"
-FIGURE = r"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b"
-PAIRED_FIGURES = (
+FIGURE = fold_ligatures(r"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b")
+PAIRED_FIGURES = fold_ligatures(
     r"(?i)\b(?:figures|figs\.)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\s*(?:and|&|,)\s*"
     r"((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\b"
 )
@@ -107,7 +156,7 @@ _MAIN_PLURAL = {
 
 
 def kind_for_keyword(keyword: str, profile: str) -> str | None:
-    normalized = keyword.lower().strip(".")
+    normalized = ascii_ligatures(keyword.lower()).strip(".")
     if profile == "main":
         if normalized in {
             "theorem", "lemma", "proposition", "corollary", "definition",
@@ -145,11 +194,7 @@ def _compile(profile: str) -> dict[str, re.Pattern[str]]:
         "figure": re.compile(FIGURE),
         "paired": re.compile(PAIRED_FIGURES),
     }
-    plural = (
-        r"theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
-        if profile == "main"
-        else PLURAL_HOVER
-    )
+    plural = PLURAL_MAIN if profile == "main" else PLURAL_HOVER
     # Main accepts one number ("Lemmas 4.6") or a list. Hover's list still
     # requires two or more, and hover also accepts abbreviations.
     repeat = "*" if profile == "main" else "+"
@@ -490,10 +535,10 @@ def _is_line_start_statement(after: str) -> bool:
 
 def _number_first_declarations(source_text: str) -> list[Match]:
     """"6.1 Definition." uses the same line-start test as "Definition 6.1."."""
-    pattern = re.compile(
+    pattern = re.compile(fold_ligatures(
         r"(?im)^[ \t]*(\d+(?:\.\d+)+)\.?\s+"
         r"(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\b"
-    )
+    ))
     found: list[Match] = []
     for match in pattern.finditer(source_text):
         kind = kind_for_keyword(match.group(2), "main")

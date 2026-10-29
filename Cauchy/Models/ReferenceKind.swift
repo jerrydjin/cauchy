@@ -30,7 +30,15 @@ enum ReferenceKind: String, CaseIterable, Equatable, Sendable, Codable {
     }
 
     static func fromKeyword(_ keyword: String) -> ReferenceKind? {
-        let normalized = keyword.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        // The same ligatures ReferenceParsing.foldingLigatures accepts.
+        // "Deﬁnition" is not the raw value "definition" until ﬁ is two letters.
+        let normalized = keyword.lowercased()
+            .replacingOccurrences(of: "\u{FB03}", with: "ffi")
+            .replacingOccurrences(of: "\u{FB04}", with: "ffl")
+            .replacingOccurrences(of: "\u{FB00}", with: "ff")
+            .replacingOccurrences(of: "\u{FB01}", with: "fi")
+            .replacingOccurrences(of: "\u{FB02}", with: "fl")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
         if let kind = ReferenceKind(rawValue: normalized) {
             return kind
         }

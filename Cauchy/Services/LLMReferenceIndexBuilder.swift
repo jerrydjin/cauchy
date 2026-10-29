@@ -425,7 +425,9 @@ enum LLMReferenceIndexSupport {
     /// "6.1 Definition." and "6.13 Theorem (Name)." Number-first headings use
     /// the same line-start test as "Definition 6.1."
     private static let numberFirstPattern = try! NSRegularExpression(
-        pattern: #"(?im)^[ \t]*(\d+(?:\.\d+)+)\.?\s+(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\b"#
+        pattern: ReferenceParsing.foldingLigatures(
+            #"(?im)^[ \t]*(\d+(?:\.\d+)+)\.?\s+(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\b"#
+        )
     )
 
     private static func numberFirstDeclarations(in sourceText: String) -> [DetectedReferenceMatch] {

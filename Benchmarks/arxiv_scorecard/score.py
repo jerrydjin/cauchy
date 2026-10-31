@@ -34,6 +34,7 @@ from cauchy_logic import (
     all_references,
     build_statement_index,
     _explicit_section_number,
+    fold_ligatures,
     heading_line,
     logical_lines,
     is_likely_table_of_contents,
@@ -51,7 +52,8 @@ _REFERENCE_NUMBER = r"(?:\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"
 _KIND_PATTERN = {
     "theorem": r"theorems?|thm\.?",
     "lemma": r"lemmas?|lem\.?",
-    "definition": r"definitions?|def\.?",
+    # "Deﬁnition" uses the ﬁ ligature. Same fold as the app keyword pattern.
+    "definition": fold_ligatures(r"definitions?|def\.?"),
     "proposition": r"propositions?|prop\.?",
     "corollary": r"corollar(?:y|ies)|cor\.?",
     "remark": r"remarks?",

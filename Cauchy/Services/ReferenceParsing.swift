@@ -1,18 +1,52 @@
 import Foundation
 
 enum ReferenceParsing {
-    static let namedBlockKeywords = "theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
+    /// PDF fonts print "fi" as the single character ﬁ, and the same for fl,
+    /// ff, ffi, and ffl. A keyword written with the two letters does not match
+    /// that spelling, so "Deﬁnition 2.1" would never be indexed. The inserted
+    /// group is non-capturing, so pattern group numbers stay the same.
+    /// `ReferenceKind.fromKeyword` folds the captured word back to ASCII.
+    static func foldingLigatures(_ pattern: String) -> String {
+        let pairs = [
+            ("ffi", "(?:ffi|\u{FB03})"),
+            ("ffl", "(?:ffl|\u{FB04})"),
+            ("ff", "(?:ff|\u{FB00})"),
+            ("fi", "(?:fi|\u{FB01})"),
+            ("fl", "(?:fl|\u{FB02})"),
+        ]
+        var result = ""
+        var index = pattern.startIndex
+        while index < pattern.endIndex {
+            let rest = pattern[index...]
+            if let pair = pairs.first(where: { rest.hasPrefix($0.0) }) {
+                result += pair.1
+                index = pattern.index(index, offsetBy: pair.0.count)
+            } else {
+                result.append(pattern[index])
+                index = pattern.index(after: index)
+            }
+        }
+        return result
+    }
+
+    static let namedBlockKeywords = foldingLigatures(
+        "theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
+    )
 
     // \s* (not \s+): PDF text extraction can join a line-wrapped
     // "Definition\n1.5.1" without any separator character.
     // Appendices also use labels such as "Remark A.0.5". Keep the letter form
     // scoped to dotted labels so an ordinary word after "Remark" is not a number.
-    static let namedBlockPattern = #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\s*(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"#
+    static let namedBlockPattern = foldingLigatures(
+        #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\s*(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"#
+    )
 
     static let referenceNumberPattern = #"\d+(?:\.\d+)*|[A-Z](?:\.\d+)+"#
 
     /// "Lemmas 4.6" and "Lemmas 3.1, 3.2 and 3.4". Abbreviations stay out.
-    static let pluralBlockPattern = #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
+    static let pluralBlockPattern = foldingLigatures(
+        #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
+    )
 
     /// Group 2 is a subequation part letter, as in "(2.7a)". It belongs to a
     /// dotted number only. "(1a)" is not equation 1.
@@ -20,11 +54,15 @@ enum ReferenceParsing {
 
     // The optional panel suffix belongs to the mention, not the figure's
     // identity: "Fig. 3a,b" links to the numbered Figure 3 object.
-    static let figurePattern = #"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b"#
+    static let figurePattern = foldingLigatures(
+        #"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b"#
+    )
 
     // Paired plural citations such as "Figures 1e and 3a,b" refer to two
     // distinct figures. Capture each printed number with its panel suffix.
-    static let pairedFiguresPattern = #"(?i)\b(?:figures|figs\.)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\s*(?:and|&|,)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\b"#
+    static let pairedFiguresPattern = foldingLigatures(
+        #"(?i)\b(?:figures|figs\.)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\s*(?:and|&|,)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\b"#
+    )
 
     /// A bracket label such as "12", "IK99", "CCC+18", "Ben17", or "BO09b".
     /// The optional trailing letter is the disambiguator some author–year keys use.

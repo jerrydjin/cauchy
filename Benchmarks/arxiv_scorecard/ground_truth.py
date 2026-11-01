@@ -181,6 +181,9 @@ def _kind_number_from_tag(text: str) -> tuple[str, str, str | None] | None:
 # LaTeXML numbers an enumerated item as #S4.I7.i2 or #S1.I1.ix2. The link
 # text is the item number. That is not a section.
 _ITEM_HREF = re.compile(r"(?:^|#|\.)(?:I\d+|ix?\d+)(?:\.|$)")
+# A float lives under a section id: #S2.F1 is Figure 1, #S3.T2 is Table 2.
+# The link text is the float's own number, not a section number.
+_FLOAT_HREF = re.compile(r"\.(?:F|T)\d+\b")
 
 
 def _target(title: str, href: str, link_text: str) -> tuple[str, str] | None:
@@ -193,6 +196,8 @@ def _target(title: str, href: str, link_text: str) -> tuple[str, str] | None:
         if number:
             return "equation", number.group(0)
     if _ITEM_HREF.search(href):
+        return None
+    if _FLOAT_HREF.search(href):
         return None
     if href.startswith("#S") and ".Thm" not in href and ".E" not in href:
         number = link_text.replace("\xa0", " ").strip().strip(".")

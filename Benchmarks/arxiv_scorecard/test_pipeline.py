@@ -281,6 +281,19 @@ class PrintedNumberTests(unittest.TestCase):
         self.assertIn(("remark", "2.1"), mentioned)
         self.assertIn(("equation", "1.1"), mentioned)
 
+    def test_figure_and_table_anchors_are_not_sections(self) -> None:
+        # Synthetic. A float's id hangs off a section (#S2.F1, #S4.T2) and the
+        # link text is the float number. A subsubsection id is still a section.
+        html = """
+        <p>See Section <a class="ltx_ref" href="#S2" title="2 Preliminaries">2</a>,
+        <a class="ltx_ref" href="#S2.F1" title="Figure 1">1</a>,
+        <a class="ltx_ref" href="#S4.T2" title="Table 2">2</a>,
+        and <a class="ltx_ref" href="#S2.SS1.SSS3" title="2.1.3 Details">2.1.3</a>.</p>
+        """
+        truth = parse_html(html)
+        mentioned = [(item.kind, item.number) for item in truth.mentions if not item.in_citation]
+        self.assertEqual(mentioned, [("section", "2"), ("section", "2.1.3")])
+
     def test_bare_equation_tag_stays_when_the_pdf_prints_it(self) -> None:
         html = """
         <div id="S1"><span class="ltx_tag ltx_tag_equation" id="S1.E1">(1)</span></div>

@@ -16,6 +16,11 @@ to ASCII before it is looked up.
   LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing.
   Main drops a local hit that sits inside a bracket or author–year citation
   ([12], [IK99, Lemma 1.15], (Smith 2019), Smith et al. [2019]).
+  Main also reads the period-marked abbreviations Thm. Lem. Prop. Cor. and
+  Def., including a list such as "Lem. 2, 3, and 4" and "Lem. (4)". The
+  period is required: "Thm 3.2" and "lem (11)" stay unresolved, so a
+  parenthesized equation is not read as a statement. Hover still allows
+  the period to be omitted.
 - cursor/reference-hover-detection-0cb7: abbreviated, plural, and
   numeric bibliography-qualified references
 - cursor/jerry-60-ask-highlight-da7d: AskStructureLocator
@@ -74,14 +79,16 @@ def ascii_ligatures(text: str) -> str:
 
 
 SINGULAR_MAIN = fold_ligatures(
-    "theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
+    r"theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof|"
+    r"thm\.|lem\.|prop\.|cor\.|def\."
 )
 SINGULAR_HOVER = fold_ligatures(
     "theorem|thm\\.?|lemma|lem\\.?|proposition|prop\\.?|corollary|cor\\.?|"
     "definition|def\\.?|exercise|example|remark|proof"
 )
 PLURAL_MAIN = fold_ligatures(
-    "theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
+    r"theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs|"
+    r"thm\.|lem\.|prop\.|cor\.|def\."
 )
 PLURAL_HOVER = fold_ligatures(
     "theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
@@ -163,6 +170,15 @@ def kind_for_keyword(keyword: str, profile: str) -> str | None:
             "exercise", "example", "remark", "proof",
         }:
             return normalized
+        abbreviated = {
+            "thm": "theorem",
+            "lem": "lemma",
+            "prop": "proposition",
+            "cor": "corollary",
+            "def": "definition",
+        }.get(normalized)
+        if abbreviated:
+            return abbreviated
         return _MAIN_PLURAL.get(normalized)
     return KIND_FROM_KEYWORD.get(normalized)
 
@@ -195,8 +211,9 @@ def _compile(profile: str) -> dict[str, re.Pattern[str]]:
         "paired": re.compile(PAIRED_FIGURES),
     }
     plural = PLURAL_MAIN if profile == "main" else PLURAL_HOVER
-    # Main accepts one number ("Lemmas 4.6") or a list. Hover's list still
-    # requires two or more, and hover also accepts abbreviations.
+    # Main accepts one number ("Lemmas 4.6") or a list, including a
+    # period-marked abbreviation ("Lem. 2, 3, and 4"). Hover's list still
+    # requires two or more, and hover also accepts the period to be omitted.
     repeat = "*" if profile == "main" else "+"
     patterns["list"] = re.compile(
         rf"(?i)\b({plural})\s*({REFERENCE_NUMBER}(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER}){repeat})"

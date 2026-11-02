@@ -183,7 +183,7 @@ enum ReferenceDetector {
         return matches(from: namedBlockRegex, in: text) { match, source in
             guard let kindRange = Range(match.range(at: 1), in: source),
                   let numberRange = Range(match.range(at: 2), in: source),
-                  let kind = ReferenceKind.fromKeyword(String(source[kindRange])) else {
+                  let kind = kind(forPrintedWord: String(source[kindRange])) else {
                 return nil
             }
             let number = String(source[numberRange])
@@ -199,7 +199,7 @@ enum ReferenceDetector {
         let full = NSRange(text.startIndex..., in: text)
         return pluralBlockRegex.matches(in: text, range: full).flatMap { match -> [DetectedReferenceMatch] in
             guard let kindRange = Range(match.range(at: 1), in: text),
-                  let kind = ReferenceKind.fromKeyword(String(text[kindRange])),
+                  let kind = kind(forPrintedWord: String(text[kindRange])),
                   let phrase = Range(match.range, in: text) else { return [] }
             let list = String(text[Range(match.range(at: 2), in: text)!])
             let numbers = pluralNumberRegex.matches(in: list, range: NSRange(list.startIndex..., in: list))
@@ -256,7 +256,7 @@ enum ReferenceDetector {
         guard let match = statementBeforeParenthesis.firstMatch(in: prefix, range: nsRange),
               let kindRange = Range(match.range(at: 1), in: prefix),
               let word = Range(match.range, in: prefix),
-              let kind = ReferenceKind.fromKeyword(String(prefix[kindRange])) else { return nil }
+              let kind = kind(forPrintedWord: String(prefix[kindRange])) else { return nil }
         let start = source.index(
             source.startIndex,
             offsetBy: prefix.distance(from: prefix.startIndex, to: word.lowerBound)
@@ -293,6 +293,29 @@ enum ReferenceDetector {
                     range: secondPanel
                 )
             ]
+        }
+    }
+
+    /// Period-marked abbreviations are reader words, not `fromKeyword` words.
+    /// Search still treats "def" and "thm" as ordinary query text.
+    private static func kind(forPrintedWord word: String) -> ReferenceKind? {
+        if let kind = ReferenceKind.fromKeyword(word) {
+            return kind
+        }
+        let normalized = word.lowercased()
+            .replacingOccurrences(of: "\u{FB03}", with: "ffi")
+            .replacingOccurrences(of: "\u{FB04}", with: "ffl")
+            .replacingOccurrences(of: "\u{FB00}", with: "ff")
+            .replacingOccurrences(of: "\u{FB01}", with: "fi")
+            .replacingOccurrences(of: "\u{FB02}", with: "fl")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        switch normalized {
+        case "thm": return .theorem
+        case "lem": return .lemma
+        case "prop": return .proposition
+        case "cor": return .corollary
+        case "def": return .definition
+        default: return nil
         }
     }
 

@@ -739,6 +739,7 @@ def _write_markdown(payload: dict) -> None:
         "A longer title with no following sentence, such as “6. Discriminants of minor-free graphs and completable cycles in the plane”, is still a heading. "
         "“Subsection 2.3” and “Subsubsection 6.2.1” are references to those units. "
         "An HTML link whose target is an enumerated item, such as #S4.I1.i2, is not a section. "
+        "A float anchor is not a section either: #S2.F1 is Figure 1 and #S3.T2 is Table 2, even though both ids sit under a section. "
         "A TeX annotation nested in a heading is not part of the title, and “SL 2” matches a bookmark “SL2”. "
         "Main also drops a local reference inside [12], [IK99, Lemma 1.15], (Smith 2019), or Smith et al. [2019]; "
         "an interval such as [0, 1] is not a citation. "

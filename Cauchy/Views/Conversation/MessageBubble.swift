@@ -103,8 +103,8 @@ struct MessageBubble: View {
 
 /// Closed on every new answer. Collapsed it is a hairline pill with no
 /// fill of its own, so the bubble colour shows through. The label is
-/// "Sources · N pages" with a chevron, in the link tint. Expanded, one
-/// line of page tags.
+/// "Sources · N pages" with a chevron, in the link tint. Expanded, the
+/// page tags sit on one line with one em of the caption face between them.
 struct CitedSourcesDisclosure: View {
     var pages: [CitedSourcePage]
     var startExpanded: Bool
@@ -169,7 +169,7 @@ struct CitedSourcesDisclosure: View {
                         } else {
                             Text(token.title)
                                 .font(.caption)
-                                .foregroundStyle(.primary)
+                                .accessibilityHidden(true)
                                 .fixedSize()
                         }
                     }
@@ -193,7 +193,9 @@ struct CitedSourcesDisclosure: View {
         var tokens: [(title: String, page: CitedSourcePage?)] = []
         for (index, page) in pages.enumerated() {
             if index > 0 {
-                tokens.append((", ", nil))
+                // One em of the caption face, in place of a comma. Hidden
+                // from VoiceOver so each page tag is announced on its own.
+                tokens.append(("\u{2003}", nil))
             }
             tokens.append((page.pageLabel, page))
         }

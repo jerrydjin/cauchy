@@ -281,29 +281,6 @@ struct SelectionThread: Equatable, Sendable {
             surroundingText: surroundingText
         )
     }
-
-    /// Session context for the next question. `includePassage` follows the
-    /// composer chip. Dismissing the chip drops the selected passage and
-    /// leaves the rest of the nearby paragraphs. The prompt template and
-    /// the retrieval query are unchanged.
-    func promptContext(documentTitle: String, includePassage: Bool) -> ReadingContext {
-        ReadingContext(
-            documentTitle: documentTitle,
-            selectedText: includePassage ? selectedText : "",
-            surroundingText: includePassage
-                ? surroundingText
-                : Self.surroundingText(surroundingText, omitting: selectedText),
-            retrievedPassages: []
-        )
-    }
-
-    /// Removes the selected passage from the nearby paragraphs so a
-    /// dismissed chip cannot still quote it inside the surrounding block.
-    static func surroundingText(_ surrounding: String, omitting passage: String) -> String {
-        let focus = passage.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !focus.isEmpty, surrounding.contains(focus) else { return surrounding }
-        return surrounding.replacingOccurrences(of: focus, with: "")
-    }
 }
 
 struct TextSelectionContext: Sendable, Equatable {

@@ -54,7 +54,8 @@ final class SelectionThreadViewModel {
     func reloadAssistant(documentTitle: String? = nil, includeSelectedPassage: Bool = true) {
         loadedAssistant = ReadingAssistantFactory.makeAssistant()
         guard let thread = activeThread, let documentTitle else { return }
-        let readingContext = thread.promptContext(
+        let readingContext = promptContext(
+            for: thread,
             documentTitle: documentTitle,
             includePassage: includeSelectedPassage
         )
@@ -139,7 +140,7 @@ final class SelectionThreadViewModel {
     /// passage it was sent with; the next question observes the chip.
     func omitSelectedPassageFromPrompt(documentTitle: String) {
         guard promptIncludesSelectedPassage, !isResponding, let thread = activeThread else { return }
-        let context = thread.promptContext(documentTitle: documentTitle, includePassage: false)
+        let context = promptContext(for: thread, documentTitle: documentTitle, includePassage: false)
         if thread.messages.isEmpty {
             assistant.resetSession(context: context)
         } else {
@@ -164,7 +165,8 @@ final class SelectionThreadViewModel {
         // send the new question twice.
         let includePassage = passage != nil
         if includePassage != promptIncludesSelectedPassage {
-            let context = thread.promptContext(
+            let context = promptContext(
+                for: thread,
                 documentTitle: documentTitle,
                 includePassage: includePassage
             )
@@ -269,6 +271,32 @@ final class SelectionThreadViewModel {
         thread.messages.removeLast()
         activeThread = thread
         return last.content
+    }
+
+    /// `includePassage` follows the composer chip. Dismissing the chip drops
+    /// the selected passage and leaves the rest of the nearby paragraphs.
+    /// The prompt template and the retrieval query are unchanged.
+    private func promptContext(
+        for thread: SelectionThread,
+        documentTitle: String,
+        includePassage: Bool
+    ) -> ReadingContext {
+        ReadingContext(
+            documentTitle: documentTitle,
+            selectedText: includePassage ? thread.selectedText : "",
+            surroundingText: includePassage
+                ? thread.surroundingText
+                : Self.surroundingText(thread.surroundingText, omitting: thread.selectedText),
+            retrievedPassages: []
+        )
+    }
+
+    /// Removes the selected passage from the nearby paragraphs so a
+    /// dismissed chip cannot still quote it inside the surrounding block.
+    private static func surroundingText(_ surrounding: String, omitting passage: String) -> String {
+        let focus = passage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !focus.isEmpty, surrounding.contains(focus) else { return surrounding }
+        return surrounding.replacingOccurrences(of: focus, with: "")
     }
 
     private func retrieveContext(

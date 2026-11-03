@@ -44,19 +44,48 @@ struct ReferenceLinkedText: View {
                 .foregroundStyle(textColor)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: true, vertical: true)
-        case .link(let label, let reference):
-            Button {
-                onOpenReference(reference)
-            } label: {
-                Text(label)
-                    .font(font)
-                    .foregroundStyle(CitationChrome.tint)
-                    .fixedSize(horizontal: true, vertical: true)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(reference.displayName)
-            .help(reference.displayName)
+        case .link(let label, let suffix, let reference):
+            InlineReferenceLink(
+                label: label,
+                suffix: suffix,
+                font: font,
+                textColor: textColor,
+                reference: reference,
+                action: { onOpenReference(reference) }
+            )
         }
+    }
+}
+
+/// The citation and the punctuation that follows it are one unbreakable
+/// token, so the comma cannot wrap onto its own line. Only the citation
+/// takes the link tint.
+struct InlineReferenceLink: View {
+    var label: String
+    var suffix: String = ""
+    var font: Font = .body
+    var textColor: Color = .primary
+    var reference: DetectedReference
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 0) {
+                if !label.isEmpty {
+                    Text(label)
+                        .foregroundStyle(CitationChrome.tint)
+                }
+                if !suffix.isEmpty {
+                    Text(suffix)
+                        .foregroundStyle(textColor)
+                }
+            }
+            .font(font)
+            .fixedSize()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(reference.displayName)
+        .help(reference.displayName)
     }
 }
 

@@ -139,14 +139,14 @@ final class AnswerCitationTests: XCTestCase {
         let labels = pieces.map { piece -> String in
             switch piece {
             case .text(let value): return "t:\(value)"
-            case .link(let label, _): return "l:\(label)"
+            case .link(let label, let suffix, _): return "l:\(label)|\(suffix)"
             }
         }
 
         XCTAssertEqual(labels, [
             "t:By ",
-            "l:Proposition ",
-            "l:5.3.1, ",
+            "l:Proposition |",
+            "l:5.3.1|, ",
             "t:f ",
             "t:is ",
             "t:continuous ",
@@ -168,7 +168,7 @@ final class AnswerCitationTests: XCTestCase {
             let label: String
             switch piece {
             case .text(let value): label = value
-            case .link(let value, _): label = value
+            case .link(let value, let suffix, _): label = value + suffix
             }
             return CGFloat(label.count) * 7
         }
@@ -181,8 +181,9 @@ final class AnswerCitationTests: XCTestCase {
 
         XCTAssertEqual(result.placements[0].y, result.placements[1].y, "By and Proposition share a line")
         XCTAssertGreaterThan(result.placements[2].y, result.placements[1].y)
-        if case .link(let label, _) = pieces[2] {
-            XCTAssertTrue(label.hasPrefix("5.3.1,"), "the wrapped number keeps its comma")
+        if case .link(let label, let suffix, _) = pieces[2] {
+            XCTAssertEqual(label, "5.3.1")
+            XCTAssertEqual(suffix, ", ", "the comma rides on the number but is not part of the link")
         } else {
             XCTFail("The wrapped token should still be the link, comma included")
         }
@@ -193,7 +194,7 @@ final class AnswerCitationTests: XCTestCase {
             let text = row.map { piece -> String in
                 switch piece {
                 case .text(let value): return value
-                case .link(let label, _): return label
+                case .link(let label, let suffix, _): return label + suffix
                 }
             }.joined()
             XCTAssertNotEqual(text.trimmingCharacters(in: .whitespaces), ",")

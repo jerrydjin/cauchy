@@ -265,7 +265,7 @@ struct MessageContentView: View {
 
     private enum CitedToken {
         case text(String)
-        case link(String, DetectedReference)
+        case link(String, String, DetectedReference)
         case segment(MessageSegment)
     }
 
@@ -276,7 +276,7 @@ struct MessageContentView: View {
             return InlineReferenceFlow.pieces(in: value, matches: matches).map { piece in
                 switch piece {
                 case .text(let text): return .text(text)
-                case .link(let label, let reference): return .link(label, reference)
+                case .link(let label, let suffix, let reference): return .link(label, suffix, reference)
                 }
             }
         }
@@ -291,17 +291,15 @@ struct MessageContentView: View {
                 .foregroundStyle(textColor)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: true, vertical: true)
-        case .link(let label, let reference):
-            Button {
-                onOpenReference(reference)
-            } label: {
-                Text(label)
-                    .font(font)
-                    .foregroundStyle(CitationChrome.tint)
-                    .fixedSize(horizontal: true, vertical: true)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(reference.displayName)
+        case .link(let label, let suffix, let reference):
+            InlineReferenceLink(
+                label: label,
+                suffix: suffix,
+                font: font,
+                textColor: textColor,
+                reference: reference,
+                action: { onOpenReference(reference) }
+            )
         case .segment(let segment):
             switch segment {
             case .bold(let value):

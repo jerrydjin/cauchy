@@ -327,7 +327,9 @@ enum AnswerCitationLayout {
 enum InlineReferenceFlow {
     enum Piece: Equatable, Sendable {
         case text(String)
-        case link(label: String, reference: DetectedReference)
+        /// `suffix` is the punctuation and space that must travel with the
+        /// last word. It stays in the body colour; only `label` is a link.
+        case link(label: String, suffix: String, reference: DetectedReference)
     }
 
     static func pieces(in text: String, matches: [DetectedReferenceMatch]) -> [Piece] {
@@ -351,10 +353,21 @@ enum InlineReferenceFlow {
             if end < text.endIndex, text[end] == " " {
                 end = text.index(after: end)
             }
-            let linked = String(text[start..<end])
-            pieces.append(contentsOf: wordPieces(linked).map {
-                .link(label: $0, reference: match.reference)
-            })
+            let bodyEnd = min(match.range.upperBound, end)
+            let linkBody = start < bodyEnd ? String(text[start..<bodyEnd]) : ""
+            let suffix = bodyEnd < end ? String(text[bodyEnd..<end]) : ""
+            let words = wordPieces(linkBody)
+            if words.isEmpty {
+                if !suffix.isEmpty { pieces.append(.text(suffix)) }
+            } else {
+                for (index, word) in words.enumerated() {
+                    pieces.append(.link(
+                        label: word,
+                        suffix: index == words.count - 1 ? suffix : "",
+                        reference: match.reference
+                    ))
+                }
+            }
             cursor = end
         }
         if cursor < text.endIndex {
@@ -364,8 +377,8 @@ enum InlineReferenceFlow {
             switch piece {
             case .text(let value):
                 return !value.isEmpty
-            case .link(let label, _):
-                return !label.isEmpty
+            case .link(let label, let suffix, _):
+                return !label.isEmpty || !suffix.isEmpty
             }
         }
     }

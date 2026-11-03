@@ -274,15 +274,13 @@ private enum PassageHighlight {
         context.beginPDFPage(nil)
         context.setFillColor(NSColor.white.cgColor)
         context.fill(mediaBox)
-        context.saveGState()
-        context.translateBy(x: 0, y: pageSize.height)
-        context.scaleBy(x: 1, y: -1)
-        let inset = CGRect(x: 36, y: 48, width: pageSize.width - 72, height: pageSize.height - 96)
+        // PDF space already grows upward, which is the space Core Text draws
+        // in. A flip here stores the sentence upside down.
+        let inset = CGRect(x: 36, y: 70, width: pageSize.width - 72, height: 110)
         let framesetter = CTFramesetterCreateWithAttributedString(text)
         let path = CGPath(rect: inset, transform: nil)
         let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
         CTFrameDraw(frame, context)
-        context.restoreGState()
         context.endPDFPage()
         context.closePDF()
 

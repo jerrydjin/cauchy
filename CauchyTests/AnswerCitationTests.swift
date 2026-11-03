@@ -209,6 +209,83 @@ final class AnswerCitationTests: XCTestCase {
         }
     }
 
+    func testLinkTintIsTheSharedOpaqueLightBlue() {
+        XCTAssertEqual(CitationChrome.linkRed, 138.0 / 255.0, accuracy: 1e-12)
+        XCTAssertEqual(CitationChrome.linkGreen, 180.0 / 255.0, accuracy: 1e-12)
+        XCTAssertEqual(CitationChrome.linkBlue, 248.0 / 255.0, accuracy: 1e-12)
+        let rendered = (
+            Int((CitationChrome.linkRed * 255).rounded()),
+            Int((CitationChrome.linkGreen * 255).rounded()),
+            Int((CitationChrome.linkBlue * 255).rounded())
+        )
+        XCTAssertEqual(rendered.0, 138)
+        XCTAssertEqual(rendered.1, 180)
+        XCTAssertEqual(rendered.2, 248)
+    }
+
+    func testPinnedPassageLineCollapsesWhitespace() {
+        let passage = PinnedPassage(
+            pageIndex: 38,
+            excerpt: "By taking\ncomplements,  one can show the following.",
+            fingerprint: "complements",
+            bounds: nil
+        )
+        XCTAssertEqual(passage.line, "p. 39 · By taking complements, one can show the following.")
+    }
+
+    func testChipStaysUntilDismissedOrReplacedAndIgnoresTheSameSelection() {
+        var chip = PinnedPassageChip()
+        let selected = samplePassage("By taking complements, one can show the following.", page: 38, fingerprint: "a")
+        XCTAssertTrue(chip.noteSelection(selected))
+        XCTAssertEqual(chip.messagePassage?.pageIndex, 38)
+        XCTAssertEqual(chip.messagePassage?.excerpt, selected.excerpt)
+
+        // Sending a follow-up does not touch the chip. Only dismiss or a new
+        // selection does.
+        XCTAssertEqual(chip.passage, selected)
+
+        chip.dismiss()
+        XCTAssertNil(chip.passage)
+        XCTAssertNil(chip.messagePassage)
+        XCTAssertFalse(chip.noteSelection(selected))
+        XCTAssertNil(chip.passage)
+
+        XCTAssertTrue(chip.noteSelection(selected, explicit: true))
+        XCTAssertEqual(chip.passage, selected)
+
+        chip.dismiss()
+        let replacement = samplePassage("A different sentence.", page: 10, fingerprint: "b")
+        XCTAssertTrue(chip.noteSelection(replacement))
+        XCTAssertEqual(chip.passage?.line, "p. 11 · A different sentence.")
+    }
+
+    func testOlderMessagesDecodeWithoutAPassage() throws {
+        let legacy = ThreadMessage(role: .user, content: "why?")
+        let data = try JSONEncoder().encode(legacy)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertNil(object["passage"])
+
+        let decoded = try JSONDecoder().decode(ThreadMessage.self, from: data)
+        XCTAssertNil(decoded.passage)
+        XCTAssertEqual(decoded.content, "why?")
+
+        let sent = ThreadMessage(
+            role: .user,
+            content: "What does this show?",
+            passage: MessagePassage(
+                pageIndex: 38,
+                excerpt: "By taking complements, one can show the following."
+            )
+        )
+        let roundTrip = try JSONDecoder().decode(ThreadMessage.self, from: try JSONEncoder().encode(sent))
+        XCTAssertEqual(roundTrip.passage?.pageIndex, 38)
+        XCTAssertEqual(roundTrip.passage?.pinned.line, "p. 39 · By taking complements, one can show the following.")
+    }
+
+    private func samplePassage(_ excerpt: String, page: Int, fingerprint: String) -> PinnedPassage {
+        PinnedPassage(pageIndex: page, excerpt: excerpt, fingerprint: fingerprint, bounds: nil)
+    }
+
     func testOnlyIndexedResultsBecomeLinks() {
         let text = "By Proposition 5.3.1, and not by Theorem 9.9."
         let known: Set<ReferenceKey> = [ReferenceKey(kind: .proposition, number: "5.3.1")]

@@ -128,13 +128,14 @@ final class SelectionThreadViewModel {
     func sendMessage(
         _ question: String,
         documentTitle: String,
+        passage: MessagePassage? = nil,
         onPersist: (SelectionThread) -> Void
     ) async throws {
         guard var thread = activeThread else { return }
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        thread.messages.append(ThreadMessage(role: .user, content: trimmed))
+        thread.messages.append(ThreadMessage(role: .user, content: trimmed, passage: passage))
         thread.streamingAssistantText = ""
         thread.failureNotice = nil
         activeThread = thread

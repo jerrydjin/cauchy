@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 extension CitationChrome {
-    static var tint: Color { Color.accentColor.opacity(tintOpacity) }
+    static var tint: Color { Color(red: linkRed, green: linkGreen, blue: linkBlue) }
     static var wash: Color { Color.accentColor.opacity(washOpacity) }
 }
 

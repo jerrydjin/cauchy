@@ -55,6 +55,9 @@ final class WorkspaceViewModel: Equatable {
     var highlightStore = HighlightStore()
     var contextEngine = ContextEngineViewModel()
     var selectionThread = SelectionThreadViewModel()
+    /// The passage the reader selected to ask about. A page tag never writes this.
+    private var pinnedPassageChip = PinnedPassageChip()
+    var pinnedPassage: PinnedPassage? { pinnedPassageChip.passage }
     var referenceIndex = DocumentReferenceIndex()
     var find = PDFFindModel()
     var jump = JumpPaletteModel()
@@ -275,6 +278,7 @@ final class WorkspaceViewModel: Equatable {
 
         contextEngine.reset()
         selectionThread.activeThread = nil
+        clearPinnedPassage()
         workspace?.lastOpenedAt = Date()
         applyRestoredViewport(isNewDocument: isNewDocument)
         syncHighlightAnnotations()
@@ -345,6 +349,7 @@ final class WorkspaceViewModel: Equatable {
         find.attach(to: nil)
         jump.dismiss()
         selectionThread.activeThread = nil
+        clearPinnedPassage()
         contextEngine.reset()
         viewportCoordinator = ViewportCoordinator()
         
@@ -363,6 +368,15 @@ final class WorkspaceViewModel: Equatable {
 
     func handleTextSelection(_ context: TextSelectionContext?) {
         if let context, !context.selectedText.isEmpty {
+            let passage = PinnedPassage(
+                pageIndex: context.pageIndex,
+                excerpt: context.selectedText,
+                fingerprint: context.fingerprint,
+                bounds: context.bounds
+            )
+            // The same selection that was just dismissed must not pin itself
+            // again when PDFKit repeats the selection notification.
+            guard notePinnedPassage(passage) else { return }
             selectionThread.updateSelection(
                 context,
                 documentTitle: documentTitle,
@@ -380,7 +394,40 @@ final class WorkspaceViewModel: Equatable {
                 documentTitle: documentTitle,
                 existingHighlights: highlightStore.highlights
             )
+            clearPinnedPassage()
         }
+    }
+
+    /// Pins a passage the reader selected. Returns false when that exact
+    /// selection was dismissed and this call is only PDFKit echoing it.
+    @discardableResult
+    func notePinnedPassage(_ passage: PinnedPassage, explicit: Bool = false) -> Bool {
+        var chip = pinnedPassageChip
+        let accepted = chip.noteSelection(passage, explicit: explicit)
+        pinnedPassageChip = chip
+        return accepted
+    }
+
+    func dismissPinnedPassage() {
+        var chip = pinnedPassageChip
+        chip.dismiss()
+        pinnedPassageChip = chip
+    }
+
+    func clearPinnedPassage() {
+        pinnedPassageChip = PinnedPassageChip()
+    }
+
+    /// Jump to the pinned passage and wash it, the same way a page tag does.
+    /// Does not replace the chip.
+    func openPinnedPassage() {
+        guard let passage = pinnedPassageChip.passage else { return }
+        let region = passage.bounds ?? NormalizedRect(x: 0, y: 0, width: 0, height: 0)
+        goToAnswerSource(AnswerSourceAnchor(
+            label: "Selected passage",
+            pageIndex: passage.pageIndex,
+            region: region
+        ))
     }
 
     func handleDetectedBlock(_ block: DocumentBlock?) {
@@ -420,6 +467,7 @@ final class WorkspaceViewModel: Equatable {
         // an Ask cannot resurrect the highlight through upsertFromThread.
         if selectionThread.activeThread?.anchorID == highlight.id {
             selectionThread.activeThread = nil
+            clearPinnedPassage()
         }
         syncHighlightAnnotations()
         persistWorkspace()
@@ -546,6 +594,18 @@ final class WorkspaceViewModel: Equatable {
     func selectHighlight(_ highlight: Highlight) {
         contextPanelVisible = true
         highlightStore.selectedHighlightID = highlight.id
+        notePinnedPassage(
+            PinnedPassage(
+                pageIndex: highlight.pageIndex,
+                excerpt: highlight.selectedText,
+                fingerprint: PDFTextExtractor.fingerprint(
+                    pageIndex: highlight.pageIndex,
+                    selectedText: highlight.selectedText
+                ),
+                bounds: highlight.bounds
+            ),
+            explicit: true
+        )
         contextEngine.showDetail(highlight.id)
         selectionThread.restoreThread(from: highlight, documentTitle: documentTitle)
         navigateToHighlight(highlight)
@@ -592,12 +652,20 @@ final class WorkspaceViewModel: Equatable {
     /// The user's message stays in the thread if the answer is stopped, so
     /// nothing they typed is lost.
     func sendThreadMessage(_ question: String) {
+        // Captured now, so dismissing the chip while the answer streams
+        // does not strip the passage off the question that was just sent.
+        // The prompt itself still uses the thread's selected text.
+        let passage = pinnedPassageChip.messagePassage
         askTask?.cancel()
         askTask = Task { [weak self] in
             guard let self else { return }
             defer { self.askTask = nil }
             do {
-                try await self.selectionThread.sendMessage(question, documentTitle: self.documentTitle) { [weak self] thread in
+                try await self.selectionThread.sendMessage(
+                    question,
+                    documentTitle: self.documentTitle,
+                    passage: passage
+                ) { [weak self] thread in
                     guard let self else { return }
                     let highlight = self.highlightStore.upsertFromThread(thread)
                     self.highlightStore.selectedHighlightID = highlight.id
@@ -963,6 +1031,8 @@ final class WorkspaceViewModel: Equatable {
     /// Open a source location retained with an answer. A measured passage gets
     /// a wash that stays until the reader scrolls it away. A page whose passage
     /// could not be located is opened with nothing painted.
+    /// Landing here does not pin or replace the composer chip. That chip is
+    /// only the passage the reader selected to ask about.
     func goToAnswerSource(_ source: AnswerSourceAnchor) {
         guard let document = pdfDocument else { return }
         switch AnswerSourceNavigation.resolve(source, pageCount: document.pageCount) {

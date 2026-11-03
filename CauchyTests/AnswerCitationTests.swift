@@ -259,6 +259,140 @@ final class AnswerCitationTests: XCTestCase {
         XCTAssertEqual(chip.passage?.line, "p. 11 · A different sentence.")
     }
 
+    /// Synthetic fixture. The passage string is invented for this test and
+    /// is also planted inside the surrounding paragraphs, which is how a
+    /// real selection window contains the selection.
+    @MainActor
+    func testOutgoingPromptContainsThePassageBeforeTheChipIsDismissedAndNotAfter() async throws {
+        let passage = "SYNTHETIC PASSAGE FIXTURE 148: the selected sentence stays out after dismiss."
+        let surrounding = "Nearby synthetic paragraphs. \(passage) The paragraph after the selection stays."
+        let title = "Synthetic Notes"
+        let assistant = PromptCaptureAssistant()
+        let model = SelectionThreadViewModel(assistant: assistant)
+        var chip = PinnedPassageChip()
+        let pinned = PinnedPassage(pageIndex: 38, excerpt: passage, fingerprint: "fixture-148", bounds: nil)
+        XCTAssertTrue(chip.noteSelection(pinned))
+
+        model.updateSelection(
+            TextSelectionContext(
+                pageIndex: 38,
+                selectedText: passage,
+                surroundingText: surrounding,
+                fingerprint: pinned.fingerprint,
+                bounds: nil,
+                lines: nil
+            ),
+            documentTitle: title,
+            existingHighlights: []
+        )
+
+        try await model.sendMessage(
+            "What does this show?",
+            documentTitle: title,
+            passage: chip.messagePassage
+        ) { _ in }
+        let before = try outgoingPrompt(
+            context: XCTUnwrap(assistant.contexts.last),
+            question: "What does this show?",
+            retrieval: XCTUnwrap(assistant.retrievals.last)
+        )
+        XCTAssertTrue(before.contains(passage))
+        XCTAssertEqual(assistant.contexts.count, 1, "A question sent while the chip is showing keeps the session")
+
+        try await model.sendMessage(
+            "Ask again while it is pinned.",
+            documentTitle: title,
+            passage: chip.messagePassage
+        ) { _ in }
+        XCTAssertEqual(assistant.contexts.count, 1)
+        XCTAssertTrue(try outgoingPrompt(
+            context: XCTUnwrap(assistant.contexts.last),
+            question: "Ask again while it is pinned.",
+            retrieval: XCTUnwrap(assistant.retrievals.last)
+        ).contains(passage))
+
+        chip.dismiss()
+        XCTAssertNil(chip.messagePassage)
+        model.omitSelectedPassageFromPrompt(documentTitle: title)
+        let dismissedContext = try XCTUnwrap(assistant.contexts.last)
+        XCTAssertFalse(
+            ReadingPromptBuilder.instructions(for: dismissedContext).contains(passage),
+            "× removes the passage from the session before the next question"
+        )
+
+        try await model.sendMessage(
+            "What remains in view?",
+            documentTitle: title,
+            passage: chip.messagePassage
+        ) { _ in }
+        let after = try outgoingPrompt(
+            context: XCTUnwrap(assistant.contexts.last),
+            question: "What remains in view?",
+            retrieval: XCTUnwrap(assistant.retrievals.last)
+        )
+        XCTAssertFalse(after.contains(passage))
+        XCTAssertTrue(after.contains("The paragraph after the selection stays."))
+        XCTAssertTrue(after.contains("[[CAUCHY_BASIS: PDF]]"))
+        XCTAssertEqual(assistant.contexts.count, 2, "The question after × reuses the session × installed")
+        XCTAssertNil(model.activeThread?.messages.last(where: { $0.role == .user })?.passage)
+
+        let broughtBack = "A different synthetic sentence brings the passage back."
+        XCTAssertTrue(chip.noteSelection(
+            PinnedPassage(pageIndex: 4, excerpt: broughtBack, fingerprint: "fixture-149", bounds: nil)
+        ))
+        model.updateSelection(
+            TextSelectionContext(
+                pageIndex: 4,
+                selectedText: broughtBack,
+                surroundingText: "Other synthetic paragraphs.",
+                fingerprint: "fixture-149",
+                bounds: nil,
+                lines: nil
+            ),
+            documentTitle: title,
+            existingHighlights: []
+        )
+        let restored = ReadingPromptBuilder.instructions(for: try XCTUnwrap(assistant.contexts.last))
+        XCTAssertTrue(restored.contains(broughtBack))
+        XCTAssertFalse(restored.contains(passage))
+
+        chip.dismiss()
+        let saved = Highlight(pageIndex: 38, selectedText: passage, surroundingText: surrounding)
+        XCTAssertTrue(chip.noteSelection(pinned, explicit: true))
+        model.restoreThread(from: saved, documentTitle: title)
+        let fromHighlight = ReadingPromptBuilder.instructions(for: try XCTUnwrap(assistant.contexts.last))
+        XCTAssertTrue(fromHighlight.contains(passage))
+        XCTAssertEqual(chip.messagePassage?.excerpt, passage)
+    }
+
+    /// The same assembly the reading assistants use: session instructions,
+    /// then the ask-time blocks, then the question. Retrieval stays empty
+    /// for this fixture; the passage is only in the selected-text block.
+    private func outgoingPrompt(
+        context: ReadingContext,
+        question: String,
+        retrieval: AskRetrieval
+    ) -> String {
+        var prompt = ReadingPromptBuilder.instructions(for: context)
+        let budgets = ReadingPromptBuilder.evidenceBudgets(for: .onDevice)
+        if let block = ReadingPromptBuilder.referencedStatementsBlock(
+            retrieval.statements,
+            characterBudget: budgets.statements
+        ) {
+            prompt += "\n\n" + block
+        }
+        if let block = ReadingPromptBuilder.retrievedPassagesBlock(
+            retrieval.passages,
+            characterBudget: budgets.passages
+        ) {
+            prompt += "\n\n" + block
+        }
+        if let block = ReadingPromptBuilder.citableSourcesBlock(retrieval.citableSources) {
+            prompt += "\n\n" + block
+        }
+        return prompt + "\n\n" + question
+    }
+
     func testOlderMessagesDecodeWithoutAPassage() throws {
         let legacy = ThreadMessage(role: .user, content: "why?")
         let data = try JSONEncoder().encode(legacy)
@@ -312,5 +446,31 @@ final class AnswerCitationTests: XCTestCase {
             linkedReferenceLinkID: nil,
             syncMode: .independent
         )
+    }
+}
+
+@MainActor
+private final class PromptCaptureAssistant: ReadingAssistantProtocol {
+    let provider = AssistantConnectorID.onDevice
+    let availability = ReadingAssistantAvailability.available(.onDevice)
+    var isResponding = false
+    private(set) var contexts: [ReadingContext] = []
+    private(set) var retrievals: [AskRetrieval] = []
+
+    func resetSession(context: ReadingContext) {
+        contexts.append(context)
+    }
+
+    func restoreSession(context: ReadingContext, messages: [ThreadMessage]) {
+        contexts.append(context)
+    }
+
+    func ask(
+        question: String,
+        retrieval: AskRetrieval,
+        onPartial: ((String) -> Void)?
+    ) async throws -> String {
+        retrievals.append(retrieval)
+        return "Synthetic reply.\n[[CAUCHY_BASIS: INSUFFICIENT]]"
     }
 }

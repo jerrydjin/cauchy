@@ -207,6 +207,8 @@ struct PinnedPassage: Equatable, Sendable {
 /// Composer chip. Dismiss hides it and keeps the same selection from
 /// pinning itself again. A different selection replaces it. An explicit
 /// choice, such as opening a saved highlight, pins even that same text.
+/// The chip is the source of truth for the next question: while it is
+/// showing, the passage is sent, and once it is dismissed, it is not.
 struct PinnedPassageChip: Equatable, Sendable {
     private(set) var passage: PinnedPassage?
     private var dismissedFingerprint: String?
@@ -278,6 +280,29 @@ struct SelectionThread: Equatable, Sendable {
             selectedText: selectedText,
             surroundingText: surroundingText
         )
+    }
+
+    /// Session context for the next question. `includePassage` follows the
+    /// composer chip. Dismissing the chip drops the selected passage and
+    /// leaves the rest of the nearby paragraphs. The prompt template and
+    /// the retrieval query are unchanged.
+    func promptContext(documentTitle: String, includePassage: Bool) -> ReadingContext {
+        ReadingContext(
+            documentTitle: documentTitle,
+            selectedText: includePassage ? selectedText : "",
+            surroundingText: includePassage
+                ? surroundingText
+                : Self.surroundingText(surroundingText, omitting: selectedText),
+            retrievedPassages: []
+        )
+    }
+
+    /// Removes the selected passage from the nearby paragraphs so a
+    /// dismissed chip cannot still quote it inside the surrounding block.
+    static func surroundingText(_ surrounding: String, omitting passage: String) -> String {
+        let focus = passage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !focus.isEmpty, surrounding.contains(focus) else { return surrounding }
+        return surrounding.replacingOccurrences(of: focus, with: "")
     }
 }
 

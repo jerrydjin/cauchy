@@ -42,18 +42,24 @@ final class SelectionThreadViewModel {
         activeThread != nil && !(activeThread?.selectedText.isEmpty ?? true)
     }
 
+    /// Whether the live session's instructions include the selected passage.
+    /// The composer chip decides this. A follow-up while the chip is showing
+    /// leaves the session alone; dismissing the chip rebuilds it without
+    /// the passage on the next question.
+    private var promptIncludesSelectedPassage = false
+
     /// Swaps in the newly selected provider. The active thread's session is
-    /// restored onto the new assistant so a mid-thread provider change keeps
-    /// the passage context instead of falling back to a generic prompt.
-    func reloadAssistant(documentTitle: String? = nil) {
+    /// restored onto the new assistant. `includeSelectedPassage` follows the
+    /// composer chip, so a dismissed chip does not put the passage back.
+    func reloadAssistant(documentTitle: String? = nil, includeSelectedPassage: Bool = true) {
         loadedAssistant = ReadingAssistantFactory.makeAssistant()
         guard let thread = activeThread, let documentTitle else { return }
-        let readingContext = ReadingContextBuilder.from(
-            anchor: thread.anchor,
+        let readingContext = thread.promptContext(
             documentTitle: documentTitle,
-            index: documentIndex
+            includePassage: includeSelectedPassage
         )
         assistant.restoreSession(context: readingContext, messages: thread.messages)
+        promptIncludesSelectedPassage = includeSelectedPassage
     }
 
     func updateSelection(
@@ -63,6 +69,7 @@ final class SelectionThreadViewModel {
     ) {
         guard let context, !context.selectedText.isEmpty else {
             activeThread = nil
+            promptIncludesSelectedPassage = false
             return
         }
 
@@ -103,6 +110,7 @@ final class SelectionThreadViewModel {
             index: documentIndex
         )
         assistant.resetSession(context: readingContext)
+        promptIncludesSelectedPassage = true
     }
 
     func restoreThread(from highlight: Highlight, documentTitle: String) {
@@ -123,6 +131,21 @@ final class SelectionThreadViewModel {
             index: documentIndex
         )
         assistant.restoreSession(context: readingContext, messages: highlight.messages)
+        promptIncludesSelectedPassage = true
+    }
+
+    /// × on the composer chip. Drops the selected passage from the live
+    /// session immediately. An ask that is already streaming keeps the
+    /// passage it was sent with; the next question observes the chip.
+    func omitSelectedPassageFromPrompt(documentTitle: String) {
+        guard promptIncludesSelectedPassage, !isResponding, let thread = activeThread else { return }
+        let context = thread.promptContext(documentTitle: documentTitle, includePassage: false)
+        if thread.messages.isEmpty {
+            assistant.resetSession(context: context)
+        } else {
+            assistant.restoreSession(context: context, messages: thread.messages)
+        }
+        promptIncludesSelectedPassage = false
     }
 
     func sendMessage(
@@ -134,6 +157,24 @@ final class SelectionThreadViewModel {
         guard var thread = activeThread else { return }
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+
+        // The chip captured by the caller is the source of truth. Rebuilding
+        // only when that changes leaves a follow-up on the same session, and
+        // it uses the messages from before this question so the ask does not
+        // send the new question twice.
+        let includePassage = passage != nil
+        if includePassage != promptIncludesSelectedPassage {
+            let context = thread.promptContext(
+                documentTitle: documentTitle,
+                includePassage: includePassage
+            )
+            if thread.messages.isEmpty {
+                assistant.resetSession(context: context)
+            } else {
+                assistant.restoreSession(context: context, messages: thread.messages)
+            }
+            promptIncludesSelectedPassage = includePassage
+        }
 
         thread.messages.append(ThreadMessage(role: .user, content: trimmed, passage: passage))
         thread.streamingAssistantText = ""

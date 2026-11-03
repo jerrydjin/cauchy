@@ -152,7 +152,10 @@ final class WorkspaceViewModel: Equatable {
     }
 
     func refreshReadingAssistant() {
-        selectionThread.reloadAssistant(documentTitle: documentTitle)
+        selectionThread.reloadAssistant(
+            documentTitle: documentTitle,
+            includeSelectedPassage: pinnedPassage != nil
+        )
         Task { await ProviderReadinessStore.shared.probeIfNeededCurrentSelection() }
     }
 
@@ -412,6 +415,7 @@ final class WorkspaceViewModel: Equatable {
         var chip = pinnedPassageChip
         chip.dismiss()
         pinnedPassageChip = chip
+        selectionThread.omitSelectedPassageFromPrompt(documentTitle: documentTitle)
     }
 
     func clearPinnedPassage() {
@@ -654,7 +658,7 @@ final class WorkspaceViewModel: Equatable {
     func sendThreadMessage(_ question: String) {
         // Captured now, so dismissing the chip while the answer streams
         // does not strip the passage off the question that was just sent.
-        // The prompt itself still uses the thread's selected text.
+        // Nil means the chip is gone, and the next prompt omits the passage.
         let passage = pinnedPassageChip.messagePassage
         askTask?.cancel()
         askTask = Task { [weak self] in

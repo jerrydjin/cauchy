@@ -28,6 +28,7 @@ struct MessageBubble: View {
                 bubbleRow
                 FollowUpPills(
                     followUps: followUps,
+                    maxWidth: maxBubbleWidth,
                     startsVisible: followUpsStartVisible,
                     onAsk: onAskFollowUp
                 )
@@ -125,12 +126,14 @@ struct MessageBubble: View {
 }
 
 /// Suggested questions sit under the bubble, on its left edge, one pill per
-/// line. They are the next thing to ask, not part of the answer. The whole
-/// pill is one button. A page mark inside it only shows where the question
+/// line. A pill is as wide as its question, and no wider than the bubble.
+/// They are the next thing to ask, not part of the answer. The whole pill
+/// is one button. A page mark inside it only shows where the question
 /// points. The pills take their height while they fade, so the answer does
 /// not jump when they appear.
 struct FollowUpPills: View {
     var followUps: [SuggestedFollowUp]
+    var maxWidth: CGFloat
     var startsVisible: Bool
     var onAsk: (String) -> Void
 
@@ -138,10 +141,12 @@ struct FollowUpPills: View {
 
     init(
         followUps: [SuggestedFollowUp],
+        maxWidth: CGFloat,
         startsVisible: Bool,
         onAsk: @escaping (String) -> Void
     ) {
         self.followUps = followUps
+        self.maxWidth = maxWidth
         self.startsVisible = startsVisible
         self.onAsk = onAsk
         _shown = State(initialValue: startsVisible)
@@ -150,7 +155,7 @@ struct FollowUpPills: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(followUps) { followUp in
-                FollowUpPill(followUp: followUp, onAsk: onAsk)
+                FollowUpPill(followUp: followUp, maxWidth: maxWidth, onAsk: onAsk)
             }
         }
         .opacity(shown ? 1 : 0)
@@ -166,20 +171,21 @@ struct FollowUpPills: View {
 
 struct FollowUpPill: View {
     var followUp: SuggestedFollowUp
+    var maxWidth: CGFloat
     var onAsk: (String) -> Void
 
     @State private var isHovered = false
 
     var body: some View {
-        Button {
-            onAsk(followUp.question)
-        } label: {
+        // The layout, not the button, decides the width. A button proposed the
+        // bubble's width would stretch a short question into a full-width bar.
+        FollowUpPillLayout(maxWidth: maxWidth) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 questionLabel
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityHidden(true)
                 if let pageLabel = followUp.pageLabel {
                     pageMark(pageLabel)
                 }
@@ -187,15 +193,22 @@ struct FollowUpPill: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .frame(minHeight: 28)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Capsule())
+            .background {
+                Capsule()
+                    .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
+            }
         }
-        .buttonStyle(.plain)
-        .citationLinkHover($isHovered)
-        .accessibilityLabel(followUp.voiceOverLabel)
-        .background {
-            Capsule()
-                .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
+        .overlay {
+            Button {
+                onAsk(followUp.question)
+            } label: {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .citationLinkHover($isHovered)
+            .accessibilityLabel(followUp.voiceOverLabel)
         }
     }
 
@@ -218,6 +231,31 @@ struct FollowUpPill: View {
         .foregroundStyle(CitationChrome.tint)
         .accessibilityHidden(true)
         .fixedSize()
+    }
+}
+
+/// Width of the question and its page mark, stopping at the bubble. A short
+/// question stays on one line. A longer one wraps inside that width.
+private struct FollowUpPillLayout: Layout {
+    var maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let subview = subviews.first else { return .zero }
+        let limit = min(proposal.width ?? maxWidth, maxWidth)
+        let ideal = subview.sizeThatFits(.unspecified)
+        if ideal.width <= limit || limit <= 0 {
+            return ideal
+        }
+        let wrapped = subview.sizeThatFits(ProposedViewSize(width: limit, height: nil))
+        return CGSize(width: min(wrapped.width, limit), height: wrapped.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let subview = subviews.first else { return }
+        subview.place(
+            at: CGPoint(x: bounds.minX, y: bounds.minY),
+            proposal: ProposedViewSize(width: bounds.width, height: bounds.height)
+        )
     }
 }
 

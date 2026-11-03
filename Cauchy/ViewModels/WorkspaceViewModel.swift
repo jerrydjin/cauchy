@@ -67,6 +67,10 @@ final class WorkspaceViewModel: Equatable {
     /// What built the loaded index, for the Reference panel footer. nil until
     /// a build finishes (or while one is running).
     var referenceIndexProvenance: ReferenceIndexProvenance?
+    /// Rebuilt when the index or the PDF changes. Not observed: writing it
+    /// from a view update must not schedule another update.
+    @ObservationIgnored private var followUpCacheKey = ""
+    @ObservationIgnored private var followUpCache: [ReaderFollowUpStatement] = []
 
     /// The window's own undo manager, handed down from the view layer. Using
     /// the window's rather than a private one is what puts these steps behind
@@ -983,6 +987,86 @@ final class WorkspaceViewModel: Equatable {
         case nil:
             return
         }
+    }
+
+    /// Questions the open document can actually support under this answer.
+    /// Reads the indexing flags so a view that calls it refreshes when the
+    /// index arrives, and shows nothing until a statement is grounded.
+    func suggestedFollowUps(for message: ThreadMessage) -> [SuggestedFollowUp] {
+        _ = isIndexingReferences
+        _ = referenceIndexProvenance
+        guard message.role == .assistant else { return [] }
+        let asked = selectionThread.activeThread?.messages
+            .filter { $0.role == .user }
+            .map(\.content) ?? []
+        return ReaderFollowUps.suggest(
+            answer: message.content,
+            anchors: message.answerEvidence?.sourceAnchors ?? [],
+            statements: followUpStatements(),
+            alreadyAsked: asked
+        )
+    }
+
+    /// The page tag on a follow-up. The question itself is sent by the pill.
+    func openFollowUp(_ followUp: SuggestedFollowUp) {
+        guard let pageIndex = followUp.pageIndex else { return }
+        goToAnswerSource(AnswerSourceAnchor(
+            label: followUp.question,
+            pageIndex: pageIndex,
+            region: followUp.region
+        ))
+    }
+
+    private func followUpStatements() -> [ReaderFollowUpStatement] {
+        let key = "\(referenceIndex.generation)|\(pdfDocument?.documentURL?.path ?? "")|\(pdfDocument?.pageCount ?? -1)"
+        if key == followUpCacheKey { return followUpCache }
+        let built = makeFollowUpStatements()
+        followUpCacheKey = key
+        followUpCache = built
+        return built
+    }
+
+    private func makeFollowUpStatements() -> [ReaderFollowUpStatement] {
+        let blocks = referenceIndex.allBlocks
+        guard let document = pdfDocument else {
+            return ReaderFollowUpCatalog.statements(from: blocks, pages: [])
+        }
+        var needed = Set<Int>()
+        for block in blocks {
+            needed.insert(block.pageIndex)
+            if block.pageIndex >= 0 { needed.insert(block.pageIndex + 1) }
+        }
+        var pages: [ReaderFollowUpCatalog.PageText] = []
+        for index in needed.sorted() where index >= 0 && index < document.pageCount {
+            guard let text = document.page(at: index)?.string, !text.isEmpty else { continue }
+            pages.append(ReaderFollowUpCatalog.PageText(pageIndex: index, text: text))
+        }
+        var statements = ReaderFollowUpCatalog.statements(from: blocks, pages: pages)
+        for index in statements.indices {
+            guard let page = document.page(at: statements[index].pageIndex) else { continue }
+            if let region = ReferenceEvidenceRegionResolver.exactRegion(
+                matchedText: statements[index].headingText,
+                startOffset: statements[index].headingStart,
+                endOffset: statements[index].headingEnd,
+                on: page
+            ) {
+                statements[index].region = region
+            }
+            if let proofPageIndex = statements[index].proofPageIndex,
+               let heading = statements[index].proofHeadingText,
+               let start = statements[index].proofHeadingStart,
+               let end = statements[index].proofHeadingEnd,
+               let proofPage = document.page(at: proofPageIndex),
+               let region = ReferenceEvidenceRegionResolver.exactRegion(
+                   matchedText: heading,
+                   startOffset: start,
+                   endOffset: end,
+                   on: proofPage
+               ) {
+                statements[index].proofRegion = region
+            }
+        }
+        return statements
     }
 
     /// A cited result in the answer. The exact statement is washed when the

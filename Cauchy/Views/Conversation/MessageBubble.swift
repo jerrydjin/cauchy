@@ -10,6 +10,14 @@ struct MessageBubble: View {
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     /// The designer snapshot opens the sources line. A live answer starts closed.
     var sourcesStartExpanded = false
+    /// Grounded next questions. Empty while an answer is still streaming, and
+    /// empty when the document does not support a real next step.
+    var followUps: [SuggestedFollowUp] = []
+    /// The snapshot shows the pills at rest. A live answer fades them in
+    /// after the text is committed, without changing the bubble's height.
+    var followUpsStartVisible = false
+    var onAskFollowUp: (String) -> Void = { _ in }
+    var onOpenFollowUp: (SuggestedFollowUp) -> Void = { _ in }
 
     private var isUser: Bool {
         message.role == .user
@@ -95,9 +103,121 @@ struct MessageBubble: View {
                             onOpen: onOpenSource
                         )
                     }
+                    if !followUps.isEmpty {
+                        FollowUpPills(
+                            followUps: followUps,
+                            startsVisible: followUpsStartVisible,
+                            onAsk: onAskFollowUp,
+                            onOpen: onOpenFollowUp
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+/// One quiet pill per follow-up, on its own line. The border is the same
+/// hairline as the sources pill and the fill is the bubble's own, so the
+/// row does not introduce a second shade. The pills are in the layout at
+/// full height while they fade, which keeps the answer from jumping.
+struct FollowUpPills: View {
+    var followUps: [SuggestedFollowUp]
+    var startsVisible: Bool
+    var onAsk: (String) -> Void
+    var onOpen: (SuggestedFollowUp) -> Void
+
+    @State private var shown: Bool
+
+    init(
+        followUps: [SuggestedFollowUp],
+        startsVisible: Bool,
+        onAsk: @escaping (String) -> Void,
+        onOpen: @escaping (SuggestedFollowUp) -> Void
+    ) {
+        self.followUps = followUps
+        self.startsVisible = startsVisible
+        self.onAsk = onAsk
+        self.onOpen = onOpen
+        _shown = State(initialValue: startsVisible)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(followUps) { followUp in
+                FollowUpPill(followUp: followUp, onAsk: onAsk, onOpen: onOpen)
+            }
+        }
+        .opacity(shown ? 1 : 0)
+        .accessibilityHidden(!shown)
+        .onAppear {
+            guard !startsVisible, !shown else { return }
+            withAnimation(.easeIn(duration: 0.35)) {
+                shown = true
+            }
+        }
+    }
+}
+
+struct FollowUpPill: View {
+    var followUp: SuggestedFollowUp
+    var onAsk: (String) -> Void
+    var onOpen: (SuggestedFollowUp) -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Button {
+                onAsk(followUp.question)
+            } label: {
+                questionLabel
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 10)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .citationLinkHover($isHovered)
+            .accessibilityLabel(followUp.voiceOverLabel)
+            .accessibilityHint("Asks this question")
+
+            if let pageIndex = followUp.pageIndex, let pageLabel = followUp.pageLabel {
+                PageTagButton(
+                    chip: AnswerSourceMarkers.Chip(
+                        sourceID: "",
+                        pageIndex: pageIndex,
+                        pageLabel: pageLabel
+                    ),
+                    anchor: AnswerSourceAnchor(
+                        label: followUp.question,
+                        pageIndex: pageIndex,
+                        region: followUp.region
+                    ),
+                    onOpen: { _ in onOpen(followUp) },
+                    font: .body,
+                    leadingPadding: 2
+                )
+                .padding(.trailing, 8)
+            }
+        }
+        .padding(.trailing, followUp.pageIndex == nil ? 10 : 0)
+        .frame(minHeight: 28)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            Capsule()
+                .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
+        }
+    }
+
+    private var questionLabel: Text {
+        guard isHovered else { return Text(followUp.question) }
+        var attributed = AttributedString(followUp.question)
+        attributed.underlineStyle = Text.LineStyle(pattern: .solid, color: .primary)
+        return Text(attributed)
     }
 }
 

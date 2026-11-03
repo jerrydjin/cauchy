@@ -144,6 +144,7 @@ chat_sources=(
   Cauchy/Services/LaTeXNormalizer.swift
   Cauchy/Services/MessageContentParser.swift
   Cauchy/Services/AnswerCitation.swift
+  Cauchy/Services/ReaderFollowUps.swift
   Cauchy/Views/RichText/InlineFlowLayout.swift
   Cauchy/Views/RichText/MathSegmentView.swift
   Cauchy/Views/RichText/ReferenceLinkedText.swift

@@ -30,6 +30,9 @@ struct ConversationPanel<Header: View>: View {
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var referenceKeys: Set<ReferenceKey> = []
     var onOpenReference: (DetectedReference) -> Void = { _ in }
+    var followUpsFor: (ThreadMessage) -> [SuggestedFollowUp] = { _ in [] }
+    var onAskFollowUp: (String) -> Void = { _ in }
+    var onOpenFollowUp: (SuggestedFollowUp) -> Void = { _ in }
     @ViewBuilder var header: Header
 
     @State private var followsLatest = true
@@ -64,7 +67,10 @@ struct ConversationPanel<Header: View>: View {
                             maxBubbleWidth: bubbleWidth,
                             onOpenSource: onOpenSource,
                             referenceKeys: referenceKeys,
-                            onOpenReference: onOpenReference
+                            onOpenReference: onOpenReference,
+                            followUps: message.role == .assistant ? followUpsFor(message) : [],
+                            onAskFollowUp: onAskFollowUp,
+                            onOpenFollowUp: onOpenFollowUp
                         )
                         .id(message.id)
                     }

@@ -96,7 +96,7 @@ enum RenderChatCitation {
         let withChip = ChatSnapshotChrome(
             caption: "Composer · passage pinned",
             width: 360,
-            content: VStack(alignment: .leading, spacing: 6) {
+            content: VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
                 PassageChipView(passage: pinned, role: .composer, onOpen: {}, onDismiss: {})
                 SnapshotComposerBar()
             }

@@ -12,7 +12,7 @@ struct ConversationComposer: View {
     var onModelChange: () -> Void = {}
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
             if let pinnedPassage {
                 PassageChipView(
                     passage: pinnedPassage,

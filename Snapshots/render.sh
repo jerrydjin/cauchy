@@ -58,6 +58,7 @@ ref_sources=(
   Snapshots/LinkStubs.swift
   Cauchy/Models/ReferenceKind.swift
   Cauchy/Utilities/NormalizedRect.swift
+  Cauchy/Models/ViewportState.swift
   Cauchy/Services/ReferenceParsing.swift
   Cauchy/Services/BibliographyIndex.swift
   Cauchy/Services/ReferenceDetector.swift
@@ -68,6 +69,7 @@ ref_sources=(
   Cauchy/Models/TextAnchor.swift
   Cauchy/Models/ReferencePin.swift
   Cauchy/Models/SelectionThread.swift
+  Cauchy/Services/LaTeXFormatter.swift
   Cauchy/Services/ReferenceFormattingHeuristics.swift
   Cauchy/Services/AssistantResponseValidator.swift
   Cauchy/Services/AssistantResponseNormalizer.swift
@@ -130,10 +132,12 @@ chat_sources=(
   Cauchy/Models/SelectionThread.swift
   Cauchy/Models/DocumentBlock.swift
   Cauchy/Utilities/NormalizedRect.swift
+  Cauchy/Models/ViewportState.swift
   Cauchy/Services/ReferenceParsing.swift
   Cauchy/Services/BibliographyIndex.swift
   Cauchy/Services/ReferenceDetector.swift
   Cauchy/Services/DocumentFind.swift
+  Cauchy/Services/LaTeXFormatter.swift
   Cauchy/Services/ReferenceFormattingHeuristics.swift
   Cauchy/Services/AssistantResponseValidator.swift
   Cauchy/Services/AssistantResponseNormalizer.swift

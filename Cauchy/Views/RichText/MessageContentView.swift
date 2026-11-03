@@ -30,6 +30,7 @@ struct MessageContentView: View {
         }
     }
 
+    @ViewBuilder
     private var classicBody: some View {
         let parsed = MessageRenderCache.parsed(for: content)
         if !parsed.needsRichRendering {

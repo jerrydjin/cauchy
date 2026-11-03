@@ -6,6 +6,10 @@ struct MessageBubble: View {
     var quotedText: String?
     var maxBubbleWidth: CGFloat = 300
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
+    var referenceKeys: Set<ReferenceKey> = []
+    var onOpenReference: (DetectedReference) -> Void = { _ in }
+    /// The designer snapshot opens the sources line. A live answer starts closed.
+    var sourcesStartExpanded = false
 
     private var isUser: Bool {
         message.role == .user
@@ -61,7 +65,9 @@ struct MessageBubble: View {
                     MessageContentView(
                         content: message.content,
                         font: .body,
-                        textColor: .primary
+                        textColor: .primary,
+                        referenceKeys: referenceKeys,
+                        onOpenReference: onOpenReference
                     )
                 }
             }
@@ -70,52 +76,129 @@ struct MessageBubble: View {
                 MessageContentView(
                     content: message.content,
                     font: .body,
-                    textColor: .primary
+                    textColor: .primary,
+                    referenceKeys: referenceKeys,
+                    onOpenReference: onOpenReference,
+                    interpretsSourceMarkers: !isUser,
+                    sourceAnchors: message.answerEvidence?.sourceAnchors ?? [],
+                    onOpenSource: onOpenSource
                 )
-                if let evidence = message.answerEvidence {
-                    Divider().opacity(0.25)
-                    Label(
-                        "\(evidence.basis.label) · \(evidence.sourcePagesLabel)",
-                        systemImage: evidence.basis.systemImage
+                if !isUser {
+                    let pages = CitedSourceSummary.pages(
+                        in: message.content,
+                        anchors: message.answerEvidence?.sourceAnchors ?? []
                     )
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .help(evidence.auditDescription)
-                    .accessibilityLabel("Answer basis: \(evidence.basis.label). Sources supplied: \(evidence.sourcePagesLabel).")
-                    .accessibilityHint(evidence.auditDescription)
-
-                    if let status = evidence.citationStatus {
-                        Text(status.label)
-                            .font(.caption2)
-                            .foregroundStyle(status == .idsResolve ? Color.secondary : Color.orange)
-                            .help("This checks source IDs and PDF locations, not whether the answer follows from them.")
-                    }
-
-                    if let anchors = evidence.sourceAnchors, !anchors.isEmpty {
-                        let citedIDs = Set(evidence.citedSourceIDs ?? [])
-                        let shown = citedIDs.isEmpty
-                            ? anchors
-                            : anchors.filter { $0.sourceID.map(citedIDs.contains) == true }
-                        DisclosureGroup(citedIDs.isEmpty ? "PDF locations supplied" : "Cited PDF locations") {
-                            ForEach(Array(shown.enumerated()), id: \.offset) { _, anchor in
-                                Button {
-                                    onOpenSource(anchor)
-                                } label: {
-                                    Label(
-                                        "\(anchor.sourceID.map { "[\($0)] " } ?? "")\(anchor.label) · p. \(anchor.pageIndex + 1)",
-                                        systemImage: "arrow.up.forward.square"
-                                    )
-                                }
-                                .buttonStyle(.link)
-                                .font(.caption)
-                                .help("Open the original PDF source. This does not prove the answer's claims.")
-                            }
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    if !pages.isEmpty {
+                        CitedSourcesDisclosure(
+                            pages: pages,
+                            startExpanded: sourcesStartExpanded,
+                            onOpen: onOpenSource
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/// Closed on every new answer. Collapsed it is a hairline pill with no
+/// fill of its own, so the bubble colour shows through. The label is
+/// "Sources · N pages" with a chevron, in the link tint. Expanded, the
+/// page tags sit on one line with one em of the caption face between them.
+struct CitedSourcesDisclosure: View {
+    var pages: [CitedSourcePage]
+    var startExpanded: Bool
+    var onOpen: (AnswerSourceAnchor) -> Void
+
+    @State private var isExpanded: Bool
+    @State private var isPillHovered = false
+
+    init(
+        pages: [CitedSourcePage],
+        startExpanded: Bool = false,
+        onOpen: @escaping (AnswerSourceAnchor) -> Void
+    ) {
+        self.pages = pages
+        self.startExpanded = startExpanded
+        self.onOpen = onOpen
+        _isExpanded = State(initialValue: startExpanded)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: 5) {
+                    pillLabel
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .font(.caption)
+                .foregroundStyle(CitationChrome.tint)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .frame(minHeight: 28)
+                .background {
+                    Capsule()
+                        .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
+                }
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .citationLinkHover($isPillHovered)
+            .accessibilityLabel(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
+            .accessibilityValue(isExpanded ? "expanded" : "collapsed")
+
+            if isExpanded {
+                InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
+                    ForEach(Array(lineTokens.enumerated()), id: \.offset) { _, token in
+                        if let page = token.page {
+                            PageTagButton(
+                                chip: AnswerSourceMarkers.Chip(
+                                    sourceID: page.anchor.sourceID ?? "",
+                                    pageIndex: page.pageIndex,
+                                    pageLabel: page.pageLabel
+                                ),
+                                anchor: page.anchor,
+                                onOpen: onOpen,
+                                font: .caption,
+                                leadingPadding: 0
+                            )
+                        } else {
+                            Text(token.title)
+                                .font(.caption)
+                                .accessibilityHidden(true)
+                                .fixedSize()
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    /// The pill's words. Underlined only while the pointer is over the pill,
+    /// so the resting label is the same text as before.
+    private var pillLabel: Text {
+        let title = CitedSourceSummary.disclosureLabel(pageCount: pages.count)
+        guard isPillHovered else { return Text(title) }
+        var attributed = AttributedString(title)
+        attributed.underlineStyle = Text.LineStyle(pattern: .solid, color: CitationChrome.tint)
+        return Text(attributed)
+    }
+
+    private var lineTokens: [(title: String, page: CitedSourcePage?)] {
+        var tokens: [(title: String, page: CitedSourcePage?)] = []
+        for (index, page) in pages.enumerated() {
+            if index > 0 {
+                // One em of the caption face, in place of a comma. Hidden
+                // from VoiceOver so each page tag is announced on its own.
+                tokens.append(("\u{2003}", nil))
+            }
+            tokens.append((page.pageLabel, page))
+        }
+        return tokens
     }
 }

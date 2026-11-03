@@ -423,6 +423,8 @@ final class DocumentReferenceIndex {
         entries[reference.key]
     }
 
+    var referenceKeys: Set<ReferenceKey> { Set(entries.keys) }
+
     func searchEntries() -> [DocumentFind.Entry] {
         entries.values.map { entry in
             DocumentFind.Entry(

@@ -99,7 +99,7 @@ enum RenderReferencePreview {
             latex: "\\gamma",
             mode: .inline,
             fontSize: 15,
-            textColor: .primary
+            textColor: .black
         ) else {
             throw SnapshotError("SwiftMath asImage produced nothing for \\gamma")
         }
@@ -227,7 +227,7 @@ enum RenderReferencePreview {
                 latex: rendered,
                 mode: rendered.contains("\\frac") || rendered.contains("\\begin") ? .display : .inline,
                 fontSize: rendered.contains("\\frac") || rendered.contains("\\begin") ? 17 : 15,
-                textColor: .primary
+                textColor: .black
             ) else {
                 throw SnapshotError("\(label) SwiftMath drew nothing for:\n\(rendered)")
             }

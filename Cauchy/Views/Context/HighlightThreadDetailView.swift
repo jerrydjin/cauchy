@@ -38,6 +38,8 @@ struct HighlightThreadDetailView: View {
                 onModelChange: { workspace.refreshReadingAssistant() },
                 onRecovery: { performRecovery(ask.recovery) },
                 onOpenSource: { workspace.goToAnswerSource($0) },
+                referenceKeys: workspace.referenceIndex.referenceKeys,
+                onOpenReference: { workspace.openCitedReference($0) },
                 header: { header }
             )
         }

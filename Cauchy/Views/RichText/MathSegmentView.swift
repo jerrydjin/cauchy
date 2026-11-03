@@ -20,6 +20,20 @@ struct MathSegmentView: View {
     /// snapshot sets this and we draw the same SwiftMath display list into
     /// an image instead. The reader still uses the live label.
     @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+    @Environment(\.self) private var environment
+
+    /// The bubble's text colour, resolved for the current appearance. A
+    /// semantic `.primary` is near-white on a dark bubble and near-black on
+    /// a light one; SwiftMath needs that concrete colour.
+    private var glyphColor: NSColor {
+        let resolved = textColor.resolve(in: environment)
+        return NSColor(
+            srgbRed: CGFloat(resolved.red),
+            green: CGFloat(resolved.green),
+            blue: CGFloat(resolved.blue),
+            alpha: CGFloat(resolved.opacity)
+        )
+    }
 
     var body: some View {
         Group {
@@ -28,7 +42,7 @@ struct MathSegmentView: View {
                     latex: rendered,
                     mode: mode,
                     fontSize: fontSize,
-                    textColor: textColor
+                    textColor: glyphColor
                 ) {
                     Image(nsImage: image)
                         .alignmentGuide(.firstTextBaseline) { dimensions in
@@ -46,13 +60,13 @@ struct MathSegmentView: View {
                 if mode == .display {
                     // Long equations scroll sideways inside the bubble rather
                     // than drawing past its edge.
-                    ScrollingMathLabel(latex: rendered, fontSize: fontSize, textColor: textColor)
+                    ScrollingMathLabel(latex: rendered, fontSize: fontSize, textColor: glyphColor)
                 } else {
                     MathLabelRepresentable(
                         latex: rendered,
                         mode: mode,
                         fontSize: fontSize,
-                        textColor: textColor
+                        textColor: glyphColor
                     )
                     // Sit the formula on the surrounding text's baseline instead
                     // of its own top edge, which floats it above the line.
@@ -612,7 +626,7 @@ enum MathMetrics {
         if let hit = cache[key] { return hit }
 
         let label = measuringLabel
-        configureMathLabel(label, latex: latex, mode: mode, fontSize: fontSize, textColor: .primary)
+        configureMathLabel(label, latex: latex, mode: mode, fontSize: fontSize, textColor: .labelColor)
         let size = label.fittingSize
         label.frame = CGRect(origin: .zero, size: size)
         label.layout()
@@ -664,26 +678,18 @@ enum MathMetrics {
     }
 
     /// SwiftMath display list drawn into a bitmap. `ImageRenderer` captures
-    /// this; it does not capture `MTMathUILabel`.
+    /// this; it does not capture `MTMathUILabel`. `textColor` is already the
+    /// bubble's resolved text colour, so a dark bubble keeps a light glyph.
     static func snapshotImage(
         latex: String,
         mode: MathSegmentView.Mode,
         fontSize: CGFloat,
-        textColor: Color
+        textColor: NSColor
     ) -> NSImage? {
-        let appearance = NSAppearance(named: .aqua)!
-        var resolved = NSColor.black
-        appearance.performAsCurrentDrawingAppearance {
-            let rgb = NSColor(textColor).usingColorSpace(.deviceRGB) ?? .black
-            let brightness = (rgb.redComponent + rgb.greenComponent + rgb.blueComponent) / 3
-            // A dynamic primary color can resolve white when the process has no
-            // light appearance. The snapshot card is light, so the glyphs stay dark.
-            resolved = brightness > 0.6 ? .black : rgb
-        }
         let math = MTMathImage(
             latex: latex,
             fontSize: fontSize,
-            textColor: resolved,
+            textColor: textColor,
             labelMode: mode == .inline ? .text : .display,
             textAlignment: .left
         )
@@ -714,14 +720,14 @@ private func configureMathLabel(
     latex: String,
     mode: MathSegmentView.Mode,
     fontSize: CGFloat,
-    textColor: Color
+    textColor: NSColor
 ) {
     label.displayErrorInline = false
     label.labelMode = mode == .inline ? .text : .display
     label.textAlignment = .left
     label.contentInsets = MathMetrics.contentInsets
     label.fontSize = fontSize
-    label.textColor = NSColor(textColor)
+    label.textColor = textColor
     label.latex = latex
 }
 
@@ -731,7 +737,7 @@ private struct MathLabelRepresentable: NSViewRepresentable {
     let latex: String
     let mode: MathSegmentView.Mode
     let fontSize: CGFloat
-    let textColor: Color
+    let textColor: NSColor
 
     func makeNSView(context: Context) -> MTMathUILabel {
         let label = MTMathUILabel()
@@ -765,7 +771,7 @@ private struct MathLabelRepresentable: NSViewRepresentable {
 private struct ScrollingMathLabel: NSViewRepresentable {
     let latex: String
     let fontSize: CGFloat
-    let textColor: Color
+    let textColor: NSColor
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()

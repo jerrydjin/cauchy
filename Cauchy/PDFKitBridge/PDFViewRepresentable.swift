@@ -22,6 +22,7 @@ struct PDFViewportView: NSViewRepresentable {
     var viewCommand: PDFViewCommand?
     var viewCommandRevision: UUID?
     var invertPageColors = false
+    var citationHighlight: CitationPassageHighlight? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -36,6 +37,7 @@ struct PDFViewportView: NSViewRepresentable {
         canvas.referenceIndex = referenceIndex
         canvas.referenceIndexReady = referenceIndexReady
         canvas.invertPageColors = invertPageColors
+        canvas.citationHighlight = citationHighlight
         context.coordinator.canvasView = canvas
         // A command that fired before this view existed is stale; don't replay it.
         context.coordinator.lastViewCommandRevision = viewCommandRevision
@@ -54,6 +56,9 @@ struct PDFViewportView: NSViewRepresentable {
         canvas.referenceIndex = referenceIndex
         canvas.referenceIndexReady = referenceIndexReady
         canvas.invertPageColors = invertPageColors
+        if canvas.citationHighlight != citationHighlight {
+            canvas.citationHighlight = citationHighlight
+        }
 
         if context.coordinator.lastViewCommandRevision != viewCommandRevision {
             context.coordinator.lastViewCommandRevision = viewCommandRevision

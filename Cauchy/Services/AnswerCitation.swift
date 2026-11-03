@@ -3,9 +3,10 @@ import Foundation
 
 /// Shared opacities for citation chrome. Links, page tags, the sources
 /// disclosure, and the passage wash all use these so a tap and its highlight
-/// read as the same quiet accent.
+/// read as the same quiet accent. The link tint is one step under a full
+/// accent so it sits nearer the body text than the blue it replaced.
 enum CitationChrome {
-    static let tintOpacity: CGFloat = 0.72
+    static let tintOpacity: CGFloat = 0.50
     static let washOpacity: CGFloat = 0.28
 }
 

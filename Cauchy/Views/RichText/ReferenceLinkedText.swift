@@ -142,14 +142,15 @@ struct PageTagButton: View {
     }
 }
 
-/// Quiet tint plus a faint dotted underline. Punctuation stays outside this.
+/// Muted tint plus a dotted underline. Punctuation stays outside this, and a
+/// name that is not a jump target never reaches this style.
 enum CitationLinkText {
     static func underlined(_ string: String) -> Text {
         var attributed = AttributedString(string)
         attributed.foregroundColor = CitationChrome.tint
         attributed.underlineStyle = Text.LineStyle(
             pattern: .dot,
-            color: CitationChrome.tint.opacity(0.7)
+            color: CitationChrome.tint
         )
         return Text(attributed)
     }

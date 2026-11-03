@@ -128,8 +128,12 @@ class DetectorTests(unittest.TestCase):
             right = first_reference(full, "hover")
             self.assertIsNotNone(left, abbreviated)
             self.assertEqual((left.kind, left.number), (right.kind, right.number), abbreviated)
-            if abbreviated.startswith("Thm"):
-                self.assertIsNone(first_reference(abbreviated, "main"))
+            main_hit = first_reference(abbreviated, "main")
+            if abbreviated == "Thm 3.2":
+                self.assertIsNone(main_hit)
+            elif abbreviated.startswith(("Thm", "Lem", "Prop", "Cor", "Def")):
+                self.assertIsNotNone(main_hit, abbreviated)
+                self.assertEqual((main_hit.kind, main_hit.number), (right.kind, right.number), abbreviated)
 
     def test_hover_plural_lists(self) -> None:
         text = "Theorems 2.1 and 2.3"
@@ -153,7 +157,20 @@ class DetectorTests(unittest.TestCase):
         matches = all_references(listed, "main")
         self.assertEqual([item.number for item in matches], ["3.1", "3.2", "3.4"])
         self.assertEqual([item.text for item in matches], ["Lemmas 3.1", "3.2", "3.4"])
-        self.assertEqual(all_references("Thm. 3.2 is abbreviated.", "main"), [])
+        abbreviated = first_reference("Thm. 3.2 is abbreviated.", "main")
+        self.assertEqual((abbreviated.kind, abbreviated.number), ("theorem", "3.2"))
+        self.assertIsNone(first_reference("Thm 3.2 has no period.", "main"))
+        listed_abbreviations = all_references("Lem. 2, 3, and 4 finish the argument.", "main")
+        self.assertEqual(
+            [(item.kind, item.number) for item in listed_abbreviations],
+            [("lemma", "2"), ("lemma", "2"), ("lemma", "3"), ("lemma", "4")],
+        )
+        self.assertEqual(all_references("[12, Thm. 3.2]", "main"), [])
+        bare = all_references("The bound lem (11) is the identity (11).", "main")
+        self.assertEqual([(item.kind, item.number) for item in bare], [("equation", "11"), ("equation", "11")])
+        parenthesized = first_reference("Lem. (4) is parenthesized.", "main")
+        self.assertEqual((parenthesized.kind, parenthesized.number), ("lemma", "4"))
+        self.assertEqual(first_reference("from Eq. (2.3) it follows", "main").kind, "equation")
 
         index = StatementIndex()
         index.add(IndexedStatement("lemma", "2.1", 0, "Let G be finite."))

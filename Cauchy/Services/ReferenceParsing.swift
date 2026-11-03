@@ -29,8 +29,13 @@ enum ReferenceParsing {
         return result
     }
 
+    /// Full words, plus the period-marked abbreviations Thm. Lem. Prop. Cor. Def.
+    /// The period is required. "Thm 3.2" and "lem (11)" are not statement
+    /// references, so a parenthesized equation is not read as a lemma.
+    /// `ReferenceKind.fromKeyword` does not map these abbreviations. The
+    /// detector does, so a search for "def" does not become a kind filter.
     static let namedBlockKeywords = foldingLigatures(
-        "theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
+        "theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof|thm\\.|lem\\.|prop\\.|cor\\.|def\\."
     )
 
     // \s* (not \s+): PDF text extraction can join a line-wrapped
@@ -38,14 +43,15 @@ enum ReferenceParsing {
     // Appendices also use labels such as "Remark A.0.5". Keep the letter form
     // scoped to dotted labels so an ordinary word after "Remark" is not a number.
     static let namedBlockPattern = foldingLigatures(
-        #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\s*(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"#
+        #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof|thm\.|lem\.|prop\.|cor\.|def\.)\s*(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)"#
     )
 
     static let referenceNumberPattern = #"\d+(?:\.\d+)*|[A-Z](?:\.\d+)+"#
 
-    /// "Lemmas 4.6" and "Lemmas 3.1, 3.2 and 3.4". Abbreviations stay out.
+    /// "Lemmas 4.6", "Lemmas 3.1, 3.2 and 3.4", and "Lem. 2, 3, and 4".
+    /// The abbreviation needs its period. A single number is a one-item list.
     static let pluralBlockPattern = foldingLigatures(
-        #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
+        #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs|thm\.|lem\.|prop\.|cor\.|def\.)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
     )
 
     /// Group 2 is a subequation part letter, as in "(2.7a)". It belongs to a

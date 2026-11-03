@@ -123,8 +123,59 @@ final class ReferenceDetectorTests: XCTestCase {
         let matches = ReferenceDetector.allReferences(in: text)
         XCTAssertEqual(matches.map(\.reference.number), ["3.1", "3.2", "3.4"])
         XCTAssertEqual(matches.map { String(text[$0.range]) }, ["Lemmas 3.1", "3.2", "3.4"])
+    }
 
-        XCTAssertNil(ReferenceDetector.firstReference(in: "Thm. 3.2 is abbreviated."))
+    func testPeriodMarkedAbbreviationsResolveOnTheMainReader() {
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Thm. 3.2 is abbreviated."),
+            DetectedReference(kind: .theorem, number: "3.2")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Lem. 3.4 follows."),
+            DetectedReference(kind: .lemma, number: "3.4")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Prop. 4.1 is shorter."),
+            DetectedReference(kind: .proposition, number: "4.1")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Cor. 2.2 is shorter."),
+            DetectedReference(kind: .corollary, number: "2.2")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Def. 5 names the object."),
+            DetectedReference(kind: .definition, number: "5")
+        )
+        XCTAssertNil(ReferenceDetector.firstReference(in: "Thm 3.2 has no period."))
+
+        let listed = "Lem. 2, 3, and 4 finish the argument."
+        let list = ReferenceDetector.allReferences(in: listed)
+        XCTAssertEqual(
+            list.map(\.reference),
+            [
+                DetectedReference(kind: .lemma, number: "2"),
+                DetectedReference(kind: .lemma, number: "2"),
+                DetectedReference(kind: .lemma, number: "3"),
+                DetectedReference(kind: .lemma, number: "4"),
+            ]
+        )
+
+        XCTAssertNil(ReferenceDetector.firstReference(in: "[12, Thm. 3.2]"))
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: "The bound lem (11) is the identity (11).").map(\.reference),
+            [
+                DetectedReference(kind: .equation, number: "11"),
+                DetectedReference(kind: .equation, number: "11"),
+            ]
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Lem. (4) is parenthesized."),
+            DetectedReference(kind: .lemma, number: "4")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "from Eq. (2.3) it follows")?.kind,
+            .equation
+        )
     }
 
     func testParenthesizedStatementNumberIsNotAnEquation() {

@@ -34,12 +34,31 @@ enum AnswerSourceMarkers {
     }
 }
 
+/// Short page text for a tag. One page is "p. 39"; a span is "pp. 37–39".
+enum CitationPageLabel {
+    static func short(firstPageIndex: Int, lastPageIndex: Int) -> String {
+        let lower = min(firstPageIndex, lastPageIndex) + 1
+        let upper = max(firstPageIndex, lastPageIndex) + 1
+        if lower == upper { return "p. \(lower)" }
+        return "pp. \(lower)–\(upper)"
+    }
+
+    static func voiceOver(firstPageIndex: Int, lastPageIndex: Int) -> String {
+        let lower = min(firstPageIndex, lastPageIndex) + 1
+        let upper = max(firstPageIndex, lastPageIndex) + 1
+        if lower == upper { return "Open page \(lower)" }
+        return "Open pages \(lower) to \(upper)"
+    }
+}
+
 struct CitedSourcePage: Equatable, Sendable, Identifiable {
     var pageIndex: Int
     var anchor: AnswerSourceAnchor
 
     var id: Int { pageIndex }
-    var pageLabel: String { "p. \(pageIndex + 1)" }
+    var pageLabel: String {
+        CitationPageLabel.short(firstPageIndex: pageIndex, lastPageIndex: pageIndex)
+    }
 }
 
 enum CitedSourceSummary {
@@ -166,7 +185,10 @@ enum AnswerCitationLayout {
             let chip = AnswerSourceMarkers.Chip(
                 sourceID: mark.id,
                 pageIndex: anchor.pageIndex,
-                pageLabel: "p. \(anchor.pageIndex + 1)"
+                pageLabel: CitationPageLabel.short(
+                    firstPageIndex: anchor.pageIndex,
+                    lastPageIndex: anchor.pageIndex
+                )
             )
             let insertAt = sentenceEnd(for: mark.range, in: text, math: math, markerRanges: ranges)
             if insertions[insertAt] == nil {

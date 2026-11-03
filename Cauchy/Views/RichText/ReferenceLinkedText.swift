@@ -59,7 +59,7 @@ struct ReferenceLinkedText: View {
 
 /// The citation and the punctuation that follows it are one unbreakable
 /// token, so the comma cannot wrap onto its own line. Only the citation
-/// takes the link tint.
+/// takes the link tint and the dotted underline.
 struct InlineReferenceLink: View {
     var label: String
     var suffix: String = ""
@@ -68,11 +68,23 @@ struct InlineReferenceLink: View {
     var reference: DetectedReference
     var action: () -> Void
 
+    private var underlined: String {
+        label.trimmingCharacters(in: .whitespaces)
+    }
+
+    private var trailingSpace: String {
+        guard label.hasPrefix(underlined) else { return "" }
+        return String(label.dropFirst(underlined.count))
+    }
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 0) {
-                if !label.isEmpty {
-                    Text(label)
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                if !underlined.isEmpty {
+                    CitationLinkText.underlined(underlined)
+                }
+                if !trailingSpace.isEmpty {
+                    Text(trailingSpace)
                         .foregroundStyle(CitationChrome.tint)
                 }
                 if !suffix.isEmpty {
@@ -82,6 +94,8 @@ struct InlineReferenceLink: View {
             }
             .font(font)
             .fixedSize()
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(reference.displayName)
@@ -89,27 +103,54 @@ struct InlineReferenceLink: View {
     }
 }
 
-/// The page tag at the end of a claim. Same quiet tint as the inline links.
+/// A page tag at the end of a claim, or one entry in the sources line.
+/// Text link, not a chip: quiet tint, a faint dotted underline, and a
+/// trailing arrow. The arrow is omitted for in-sentence references.
 struct PageTagButton: View {
     let chip: AnswerSourceMarkers.Chip
     var anchor: AnswerSourceAnchor?
     var onOpen: (AnswerSourceAnchor) -> Void
+    var font: Font = .body
+    var leadingPadding: CGFloat = 6
 
     var body: some View {
         Button {
             if let anchor { onOpen(anchor) }
         } label: {
-            Text(chip.pageLabel)
-                .font(.caption)
-                .foregroundStyle(CitationChrome.tint)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background(CitationChrome.tint.opacity(0.16), in: Capsule())
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                CitationLinkText.underlined(chip.pageLabel)
+                Text("↗")
+                    .font(.system(size: 10, weight: .medium))
+                    .baselineOffset(3)
+                    .foregroundStyle(CitationChrome.tint)
+                    .accessibilityHidden(true)
+            }
+            .font(font)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 2)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.leading, 6)
+        .padding(.leading, leadingPadding)
         .fixedSize()
-        .accessibilityLabel("Page \(chip.pageIndex + 1)")
+        .accessibilityLabel(CitationPageLabel.voiceOver(
+            firstPageIndex: chip.pageIndex,
+            lastPageIndex: chip.pageIndex
+        ))
+        .accessibilityAddTraits(.isLink)
         .help("Open the passage on page \(chip.pageIndex + 1)")
+    }
+}
+
+/// Quiet tint plus a faint dotted underline. Punctuation stays outside this.
+enum CitationLinkText {
+    static func underlined(_ string: String) -> Text {
+        var attributed = AttributedString(string)
+        attributed.foregroundColor = CitationChrome.tint
+        attributed.underlineStyle = Text.LineStyle(
+            pattern: .dot,
+            color: CitationChrome.tint.opacity(0.7)
+        )
+        return Text(attributed)
     }
 }

@@ -101,8 +101,8 @@ struct MessageBubble: View {
     }
 }
 
-/// Closed on every new answer. Collapsed it is only "Sources · N pages";
-/// expanded it is one quiet line of the pages the answer actually cites.
+/// Closed on every new answer. Collapsed it is a quiet bordered pill,
+/// "Sources · N pages" with a chevron. Expanded, one line of page tags.
 struct CitedSourcesDisclosure: View {
     var pages: [CitedSourcePage]
     var startExpanded: Bool
@@ -126,14 +126,25 @@ struct CitedSourcesDisclosure: View {
             Button {
                 isExpanded.toggle()
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Text(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 8, weight: .semibold))
+                        .font(.system(size: 9, weight: .semibold))
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
                 .font(.caption)
                 .foregroundStyle(CitationChrome.tint)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .frame(minHeight: 28)
+                .background {
+                    Capsule()
+                        .fill(CitationChrome.tint.opacity(0.06))
+                        .overlay {
+                            Capsule().strokeBorder(Color.primary.opacity(0.18), lineWidth: 1)
+                        }
+                }
+                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
@@ -142,21 +153,22 @@ struct CitedSourcesDisclosure: View {
             if isExpanded {
                 InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
                     ForEach(Array(lineTokens.enumerated()), id: \.offset) { _, token in
-                        if let anchor = token.anchor {
-                            Button {
-                                onOpen(anchor)
-                            } label: {
-                                Text(token.title)
-                                    .font(.caption)
-                                    .foregroundStyle(CitationChrome.tint)
-                                    .fixedSize()
-                            }
-                            .buttonStyle(.plain)
-                            .help("Open the passage on \(token.title)")
+                        if let page = token.page {
+                            PageTagButton(
+                                chip: AnswerSourceMarkers.Chip(
+                                    sourceID: page.anchor.sourceID ?? "",
+                                    pageIndex: page.pageIndex,
+                                    pageLabel: page.pageLabel
+                                ),
+                                anchor: page.anchor,
+                                onOpen: onOpen,
+                                font: .caption,
+                                leadingPadding: 0
+                            )
                         } else {
                             Text(token.title)
                                 .font(.caption)
-                                .foregroundStyle(CitationChrome.tint)
+                                .foregroundStyle(.primary)
                                 .fixedSize()
                         }
                     }
@@ -166,13 +178,13 @@ struct CitedSourcesDisclosure: View {
         }
     }
 
-    private var lineTokens: [(title: String, anchor: AnswerSourceAnchor?)] {
-        var tokens: [(title: String, anchor: AnswerSourceAnchor?)] = []
+    private var lineTokens: [(title: String, page: CitedSourcePage?)] {
+        var tokens: [(title: String, page: CitedSourcePage?)] = []
         for (index, page) in pages.enumerated() {
             if index > 0 {
                 tokens.append((", ", nil))
             }
-            tokens.append((page.pageLabel, page.anchor))
+            tokens.append((page.pageLabel, page))
         }
         return tokens
     }

@@ -64,6 +64,13 @@ final class AnswerCitationTests: XCTestCase {
         XCTAssertEqual(CitedSourceSummary.disclosureLabel(pageCount: 1), "Sources · 1 page")
     }
 
+    func testPageTagUsesTheShortFormAndASpanUsesPages() {
+        XCTAssertEqual(CitationPageLabel.short(firstPageIndex: 38, lastPageIndex: 38), "p. 39")
+        XCTAssertEqual(CitationPageLabel.short(firstPageIndex: 36, lastPageIndex: 38), "pp. 37–39")
+        XCTAssertEqual(CitationPageLabel.voiceOver(firstPageIndex: 38, lastPageIndex: 38), "Open page 39")
+        XCTAssertEqual(CitationPageLabel.voiceOver(firstPageIndex: 36, lastPageIndex: 38), "Open pages 37 to 39")
+    }
+
     func testSourcesHideWhenNothingIsCited() {
         let anchors = [anchor("P3", page: 65, label: "Compactness")]
         let pages = CitedSourceSummary.pages(

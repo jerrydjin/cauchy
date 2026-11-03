@@ -1007,16 +1007,6 @@ final class WorkspaceViewModel: Equatable {
         )
     }
 
-    /// The page tag on a follow-up. The question itself is sent by the pill.
-    func openFollowUp(_ followUp: SuggestedFollowUp) {
-        guard let pageIndex = followUp.pageIndex else { return }
-        goToAnswerSource(AnswerSourceAnchor(
-            label: followUp.question,
-            pageIndex: pageIndex,
-            region: followUp.region
-        ))
-    }
-
     private func followUpStatements() -> [ReaderFollowUpStatement] {
         let key = "\(referenceIndex.generation)|\(pdfDocument?.documentURL?.path ?? "")|\(pdfDocument?.pageCount ?? -1)"
         if key == followUpCacheKey { return followUpCache }

@@ -17,13 +17,28 @@ struct MessageBubble: View {
     /// after the text is committed, without changing the bubble's height.
     var followUpsStartVisible = false
     var onAskFollowUp: (String) -> Void = { _ in }
-    var onOpenFollowUp: (SuggestedFollowUp) -> Void = { _ in }
 
     private var isUser: Bool {
         message.role == .user
     }
 
     var body: some View {
+        if !isUser, !followUps.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                bubbleRow
+                FollowUpPills(
+                    followUps: followUps,
+                    startsVisible: followUpsStartVisible,
+                    onAsk: onAskFollowUp
+                )
+                .frame(maxWidth: maxBubbleWidth, alignment: .leading)
+            }
+        } else {
+            bubbleRow
+        }
+    }
+
+    private var bubbleRow: some View {
         HStack(alignment: .top, spacing: 0) {
             if isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
 
@@ -103,49 +118,39 @@ struct MessageBubble: View {
                             onOpen: onOpenSource
                         )
                     }
-                    if !followUps.isEmpty {
-                        FollowUpPills(
-                            followUps: followUps,
-                            startsVisible: followUpsStartVisible,
-                            onAsk: onAskFollowUp,
-                            onOpen: onOpenFollowUp
-                        )
-                    }
                 }
             }
         }
     }
 }
 
-/// One quiet pill per follow-up, on its own line. The border is the same
-/// hairline as the sources pill and the fill is the bubble's own, so the
-/// row does not introduce a second shade. The pills are in the layout at
-/// full height while they fade, which keeps the answer from jumping.
+/// Suggested questions sit under the bubble, on its left edge, one pill per
+/// line. They are the next thing to ask, not part of the answer. The whole
+/// pill is one button. A page mark inside it only shows where the question
+/// points. The pills take their height while they fade, so the answer does
+/// not jump when they appear.
 struct FollowUpPills: View {
     var followUps: [SuggestedFollowUp]
     var startsVisible: Bool
     var onAsk: (String) -> Void
-    var onOpen: (SuggestedFollowUp) -> Void
 
     @State private var shown: Bool
 
     init(
         followUps: [SuggestedFollowUp],
         startsVisible: Bool,
-        onAsk: @escaping (String) -> Void,
-        onOpen: @escaping (SuggestedFollowUp) -> Void
+        onAsk: @escaping (String) -> Void
     ) {
         self.followUps = followUps
         self.startsVisible = startsVisible
         self.onAsk = onAsk
-        self.onOpen = onOpen
         _shown = State(initialValue: startsVisible)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(followUps) { followUp in
-                FollowUpPill(followUp: followUp, onAsk: onAsk, onOpen: onOpen)
+                FollowUpPill(followUp: followUp, onAsk: onAsk)
             }
         }
         .opacity(shown ? 1 : 0)
@@ -162,62 +167,57 @@ struct FollowUpPills: View {
 struct FollowUpPill: View {
     var followUp: SuggestedFollowUp
     var onAsk: (String) -> Void
-    var onOpen: (SuggestedFollowUp) -> Void
 
     @State private var isHovered = false
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            Button {
-                onAsk(followUp.question)
-            } label: {
+        Button {
+            onAsk(followUp.question)
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 questionLabel
-                    .font(.body)
-                    .foregroundStyle(.primary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 10)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
+                if let pageLabel = followUp.pageLabel {
+                    pageMark(pageLabel)
+                }
             }
-            .buttonStyle(.plain)
-            .citationLinkHover($isHovered)
-            .accessibilityLabel(followUp.voiceOverLabel)
-            .accessibilityHint("Asks this question")
-
-            if let pageIndex = followUp.pageIndex, let pageLabel = followUp.pageLabel {
-                PageTagButton(
-                    chip: AnswerSourceMarkers.Chip(
-                        sourceID: "",
-                        pageIndex: pageIndex,
-                        pageLabel: pageLabel
-                    ),
-                    anchor: AnswerSourceAnchor(
-                        label: followUp.question,
-                        pageIndex: pageIndex,
-                        region: followUp.region
-                    ),
-                    onOpen: { _ in onOpen(followUp) },
-                    font: .body,
-                    leadingPadding: 2
-                )
-                .padding(.trailing, 8)
-            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .frame(minHeight: 28)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Capsule())
         }
-        .padding(.trailing, followUp.pageIndex == nil ? 10 : 0)
-        .frame(minHeight: 28)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
+        .citationLinkHover($isHovered)
+        .accessibilityLabel(followUp.voiceOverLabel)
         .background {
             Capsule()
                 .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
         }
     }
 
+    /// The question underlines with the pill. The page mark never does.
     private var questionLabel: Text {
         guard isHovered else { return Text(followUp.question) }
         var attributed = AttributedString(followUp.question)
-        attributed.underlineStyle = Text.LineStyle(pattern: .solid, color: .primary)
+        attributed.underlineStyle = Text.LineStyle(pattern: .solid, color: .secondary)
         return Text(attributed)
+    }
+
+    /// Display only: the same number and arrow as a claim tag, with no action.
+    private func pageMark(_ label: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(label)
+            Text(Image(systemName: "arrow.up.right"))
+                .accessibilityHidden(true)
+        }
+        .font(.callout)
+        .foregroundStyle(CitationChrome.tint)
+        .accessibilityHidden(true)
+        .fixedSize()
     }
 }
 

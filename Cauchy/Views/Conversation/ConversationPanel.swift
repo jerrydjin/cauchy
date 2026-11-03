@@ -32,7 +32,6 @@ struct ConversationPanel<Header: View>: View {
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     var followUpsFor: (ThreadMessage) -> [SuggestedFollowUp] = { _ in [] }
     var onAskFollowUp: (String) -> Void = { _ in }
-    var onOpenFollowUp: (SuggestedFollowUp) -> Void = { _ in }
     @ViewBuilder var header: Header
 
     @State private var followsLatest = true
@@ -69,8 +68,7 @@ struct ConversationPanel<Header: View>: View {
                             referenceKeys: referenceKeys,
                             onOpenReference: onOpenReference,
                             followUps: message.role == .assistant ? followUpsFor(message) : [],
-                            onAskFollowUp: onAskFollowUp,
-                            onOpenFollowUp: onOpenFollowUp
+                            onAskFollowUp: onAskFollowUp
                         )
                         .id(message.id)
                     }

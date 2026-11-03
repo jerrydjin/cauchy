@@ -42,7 +42,6 @@ struct HighlightThreadDetailView: View {
                 onOpenReference: { workspace.openCitedReference($0) },
                 followUpsFor: { workspace.suggestedFollowUps(for: $0) },
                 onAskFollowUp: { workspace.sendThreadMessage($0) },
-                onOpenFollowUp: { workspace.openFollowUp($0) },
                 header: { header }
             )
         }

@@ -20,6 +20,10 @@ final class WorkspaceViewModel: Equatable {
     var workspace: DocumentWorkspace?
     var pdfDocument: PDFDocument?
     var bookmarkData: Data?
+    /// Soft wash over the passage a page tag opened. Cleared when the reader
+    /// scrolls that passage away. Not a saved highlight.
+    private(set) var citationHighlight: CitationPassageHighlight?
+    private var citationHighlightArmed = false
 
     var contextPanelVisible = true
     var sidebarVisible = true
@@ -956,23 +960,57 @@ final class WorkspaceViewModel: Equatable {
         viewportCoordinator.applyProgrammaticViewport(state)
     }
 
-    /// Open a source location retained with an answer. The region is an
-    /// inspectable input, not an automatically verified citation for its prose.
+    /// Open a source location retained with an answer. A measured passage gets
+    /// a wash that stays until the reader scrolls it away. A page whose passage
+    /// could not be located is opened with nothing painted.
     func goToAnswerSource(_ source: AnswerSourceAnchor) {
-        guard let document = pdfDocument,
-              source.pageIndex >= 0,
-              source.pageIndex < document.pageCount else { return }
-        let region = source.region
-        guard region.x.isFinite, region.y.isFinite,
-              region.width.isFinite, region.height.isFinite,
-              region.x >= 0, region.y >= 0,
-              region.width > 0, region.height > 0,
-              region.x + region.width <= 1,
-              region.y + region.height <= 1 else { return }
-        var state = viewportCoordinator.viewport
-        state.pageIndex = source.pageIndex
-        state.visibleRectNormalized = ReferenceEvidenceRegionResolver.contextRegion(for: region)
-        viewportCoordinator.applyProgrammaticViewport(state)
+        guard let document = pdfDocument else { return }
+        switch AnswerSourceNavigation.resolve(source, pageCount: document.pageCount) {
+        case .highlighted(let pageIndex, let region):
+            citationHighlight = CitationPassageHighlight(pageIndex: pageIndex, region: region)
+            citationHighlightArmed = false
+            var state = viewportCoordinator.viewport
+            state.pageIndex = pageIndex
+            state.visibleRectNormalized = ReferenceEvidenceRegionResolver.contextRegion(for: region)
+            viewportCoordinator.applyProgrammaticViewport(state)
+        case .pageOnly(let pageIndex):
+            citationHighlight = nil
+            citationHighlightArmed = false
+            var state = viewportCoordinator.viewport
+            state.pageIndex = pageIndex
+            state.visibleRectNormalized = nil
+            viewportCoordinator.applyProgrammaticViewport(state)
+        case nil:
+            return
+        }
+    }
+
+    /// A cited result in the answer. The exact statement is washed when the
+    /// index can still find it on the page; otherwise the page opens plain.
+    func openCitedReference(_ reference: DetectedReference) {
+        guard let entry = referenceIndex.lookup(reference) else { return }
+        let block = entry.documentBlock
+        contextEngine.showReferencePreview(block: block)
+        let region: NormalizedRect?
+        if let evidence = entry.evidence, let page = pdfDocument?.page(at: entry.pageIndex) {
+            region = ReferenceEvidenceRegionResolver.exactRegion(for: evidence, on: page)
+        } else {
+            region = nil
+        }
+        goToAnswerSource(AnswerSourceAnchor(
+            label: block.title,
+            pageIndex: entry.pageIndex,
+            region: region ?? NormalizedRect(x: 0, y: 0, width: 0, height: 0)
+        ))
+    }
+
+    /// User-driven viewport movement. The wash stays while the passage is
+    /// still on screen, including the jump that revealed it.
+    func readerScrolled(to state: ViewportState) {
+        var session = CitationHighlightSession(highlight: citationHighlight, armed: citationHighlightArmed)
+        session.userMoved(to: state)
+        citationHighlight = session.highlight
+        citationHighlightArmed = session.armed
     }
 
     func navigateToDestination(_ destination: PDFDestination) {

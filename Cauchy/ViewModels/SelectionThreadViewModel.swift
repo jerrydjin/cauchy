@@ -252,21 +252,27 @@ final class SelectionThreadViewModel {
         retrieval: AskRetrieval
     ) -> [AnswerSourceAnchor] {
         guard let document = pdfDocument else { return [] }
+        let unlocated = NormalizedRect(x: 0, y: 0, width: 0, height: 0)
         var anchors: [AnswerSourceAnchor] = []
-        if let page = document.page(at: thread.pageIndex),
-           let pageText = page.string,
-           let source = LexicalDocumentIndex.sourceLocation(
-               for: thread.selectedText,
-               in: pageText,
-               pageIndex: thread.pageIndex,
-               after: 0
-           ),
-           let region = ReferenceEvidenceRegionResolver.exactRegion(
-               matchedText: source.matchedText,
-               startOffset: source.startOffset,
-               endOffset: source.endOffset,
-               on: page
-           ) {
+        if let page = document.page(at: thread.pageIndex) {
+            let region: NormalizedRect
+            if let pageText = page.string,
+               let source = LexicalDocumentIndex.sourceLocation(
+                   for: thread.selectedText,
+                   in: pageText,
+                   pageIndex: thread.pageIndex,
+                   after: 0
+               ),
+               let exact = ReferenceEvidenceRegionResolver.exactRegion(
+                   matchedText: source.matchedText,
+                   startOffset: source.startOffset,
+                   endOffset: source.endOffset,
+                   on: page
+               ) {
+                region = exact
+            } else {
+                region = unlocated
+            }
             anchors.append(AnswerSourceAnchor(
                 label: "Selected passage",
                 pageIndex: thread.pageIndex,
@@ -277,9 +283,8 @@ final class SelectionThreadViewModel {
         for (index, entry) in retrieval.statementReferences.enumerated() {
             guard let source = entry.evidence,
                   source.effectiveSource == .pdfText,
-                  let page = document.page(at: entry.pageIndex),
-                  let region = ReferenceEvidenceRegionResolver.exactRegion(for: source, on: page)
-            else { continue }
+                  let page = document.page(at: entry.pageIndex) else { continue }
+            let region = ReferenceEvidenceRegionResolver.exactRegion(for: source, on: page) ?? unlocated
             anchors.append(AnswerSourceAnchor(
                 label: entry.reference.displayName,
                 pageIndex: entry.pageIndex,
@@ -289,13 +294,13 @@ final class SelectionThreadViewModel {
         }
         for (index, record) in retrieval.passageRecords.enumerated() {
             guard let source = record.location,
-                  let page = document.page(at: source.pageIndex),
-                  let region = ReferenceEvidenceRegionResolver.exactRegion(
-                      matchedText: source.matchedText,
-                      startOffset: source.startOffset,
-                      endOffset: source.endOffset,
-                      on: page
-                  ) else { continue }
+                  let page = document.page(at: source.pageIndex) else { continue }
+            let region = ReferenceEvidenceRegionResolver.exactRegion(
+                matchedText: source.matchedText,
+                startOffset: source.startOffset,
+                endOffset: source.endOffset,
+                on: page
+            ) ?? unlocated
             anchors.append(AnswerSourceAnchor(
                 label: "Retrieved passage",
                 pageIndex: source.pageIndex,

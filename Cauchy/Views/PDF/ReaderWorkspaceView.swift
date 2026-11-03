@@ -21,6 +21,7 @@ struct ReaderWorkspaceView: View {
                                 workspace.handleSelection(capture)
                             },
                             onViewportChanged: { state in
+                                workspace.readerScrolled(to: state)
                                 workspace.viewportCoordinator.handleViewportChange(state: state)
                                 workspace.persistWorkspace()
                             },
@@ -41,7 +42,8 @@ struct ReaderWorkspaceView: View {
                             findRevision: workspace.find.revision,
                             viewCommand: workspace.pdfViewCommand,
                             viewCommandRevision: workspace.pdfViewCommandRevision,
-                            invertPageColors: workspace.invertPageColors
+                            invertPageColors: workspace.invertPageColors,
+                            citationHighlight: workspace.citationHighlight
                         )
                         .frame(maxWidth: 900)
                         .frame(maxHeight: .infinity)

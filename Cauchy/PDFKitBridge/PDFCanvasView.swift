@@ -18,6 +18,7 @@ protocol PDFCanvasViewDelegate: AnyObject {
 final class PDFCanvasView: NSView {
     let pdfView: PDFView
     let overlay: SelectionOverlayLayer
+    let citationWash = CitationWashOverlay(frame: .zero)
     let viewportController: PDFViewportController
 
     weak var canvasDelegate: PDFCanvasViewDelegate?
@@ -102,6 +103,13 @@ final class PDFCanvasView: NSView {
 
     var referenceIndex: DocumentReferenceIndex?
     var referenceIndexReady = false
+    private var didObservePDFScroll = false
+
+    /// The passage a page tag opened. Drawn as a soft wash in the link tint
+    /// and left in place until the model clears it.
+    var citationHighlight: CitationPassageHighlight? {
+        didSet { positionCitationWash() }
+    }
 
     private func setup() {
         wantsLayer = true
@@ -115,11 +123,17 @@ final class PDFCanvasView: NSView {
         pdfView.backgroundColor = .textBackgroundColor
 
         addSubview(pdfView)
+        citationWash.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(citationWash)
         NSLayoutConstraint.activate([
             pdfView.leadingAnchor.constraint(equalTo: leadingAnchor),
             pdfView.trailingAnchor.constraint(equalTo: trailingAnchor),
             pdfView.topAnchor.constraint(equalTo: topAnchor),
-            pdfView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            pdfView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            citationWash.leadingAnchor.constraint(equalTo: leadingAnchor),
+            citationWash.trailingAnchor.constraint(equalTo: trailingAnchor),
+            citationWash.topAnchor.constraint(equalTo: topAnchor),
+            citationWash.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
 
         overlay.onSelectionCompleted = { [weak self] rect in
@@ -305,6 +319,44 @@ final class PDFCanvasView: NSView {
         super.layout()
         overlay.frame = bounds
         viewportController.applyFitToWidthIfNeeded()
+        observePDFScrollIfNeeded()
+        positionCitationWash()
+    }
+
+    private func observePDFScrollIfNeeded() {
+        guard !didObservePDFScroll, let scroll = pdfScrollView() else { return }
+        didObservePDFScroll = true
+        scroll.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(positionCitationWash),
+            name: NSView.boundsDidChangeNotification,
+            object: scroll.contentView
+        )
+    }
+
+    private func pdfScrollView() -> NSScrollView? {
+        if let scroll = findScrollView(in: pdfView) { return scroll }
+        return pdfView.documentView?.enclosingScrollView
+    }
+
+    private func findScrollView(in view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        for subview in view.subviews {
+            if let found = findScrollView(in: subview) { return found }
+        }
+        return nil
+    }
+
+    @objc private func positionCitationWash() {
+        guard let citationHighlight,
+              let page = pdfView.document?.page(at: citationHighlight.pageIndex) else {
+            citationWash.passageRect = .zero
+            return
+        }
+        let pageRect = citationHighlight.region.cgRect(in: CoordinateMapper.pageBounds(for: page))
+        let inPDFView = pdfView.convert(pageRect, from: page)
+        citationWash.passageRect = citationWash.convert(inPDFView, from: pdfView)
     }
 
     private func applyPageLayoutMode() {
@@ -376,5 +428,35 @@ final class PDFCanvasView: NSView {
 extension PDFCanvasView: PDFViewportControllerDelegate {
     func viewportController(_ controller: PDFViewportController, didUpdate state: ViewportState) {
         canvasDelegate?.canvasView(self, didUpdateViewport: state)
+    }
+}
+
+/// Paints the citation wash above the page and lets every click through.
+/// No animation: the wash appears with the jump and disappears when cleared.
+final class CitationWashOverlay: NSView {
+    var passageRect: CGRect = .zero {
+        didSet {
+            guard oldValue != passageRect else { return }
+            needsDisplay = true
+        }
+    }
+
+    override var isOpaque: Bool { false }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard passageRect.width > 0.5, passageRect.height > 0.5 else { return }
+        NSColor.controlAccentColor.withAlphaComponent(CitationChrome.washOpacity).setFill()
+        NSBezierPath(roundedRect: passageRect, xRadius: 2, yRadius: 2).fill()
     }
 }

@@ -1,0 +1,336 @@
+import AppKit
+import Foundation
+import PDFKit
+import SwiftMath
+import SwiftUI
+
+/// Same flag as `FindBarView`. ImageRenderer drops AppKit-backed math, so the
+/// bubble draws SwiftMath into an image when this is set. Defined here because
+/// this tool does not compile the find bar.
+private struct RendersForSnapshotKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var rendersForSnapshot: Bool {
+        get { self[RendersForSnapshotKey.self] }
+        set { self[RendersForSnapshotKey.self] = newValue }
+    }
+}
+
+/// Renders the reader chat citation chrome from a synthetic answer.
+/// The before shot reconstructs the broken layout (the link on its own line,
+/// the comma stranded, every retrieved page listed). The after shots are the
+/// real `MessageBubble`, closed and open. The page shot washes the exact
+/// sentence a tag opens.
+@main
+enum RenderChatCitation {
+    @MainActor
+    static func main() {
+        do {
+            try render()
+        } catch {
+            fputs("snapshot failed: \(error)\n", stderr)
+            Foundation.exit(1)
+        }
+    }
+
+    @MainActor
+    private static func render() throws {
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+
+        let output = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "Snapshots/out")
+        let fixture = CitationFixture()
+        try fixture.validate()
+
+        let collapsed = ChatSnapshotChrome(
+            caption: "After · collapsed",
+            width: 340,
+            content: MessageBubble(
+                message: fixture.message,
+                maxBubbleWidth: 270,
+                referenceKeys: fixture.keys
+            )
+        )
+        let expanded = ChatSnapshotChrome(
+            caption: "After · expanded",
+            width: 340,
+            content: MessageBubble(
+                message: fixture.message,
+                maxBubbleWidth: 270,
+                referenceKeys: fixture.keys,
+                sourcesStartExpanded: true
+            )
+        )
+        let before = ChatSnapshotChrome(
+            caption: "Before",
+            width: 340,
+            content: BrokenCitationBubble(anchors: fixture.anchors)
+        )
+
+        try writePNG(before, to: output.appendingPathComponent("chat-citation-before.png"), minimumBytes: 4_000)
+        try writePNG(collapsed, to: output.appendingPathComponent("chat-citation-after-collapsed.png"), minimumBytes: 4_000)
+        try writePNG(expanded, to: output.appendingPathComponent("chat-citation-after-expanded.png"), minimumBytes: 4_000)
+
+        let passage = try PassageHighlight.render()
+        let highlight = ChatSnapshotChrome(
+            caption: "After tapping p. 39",
+            width: passage.image.size.width + 40,
+            content: Image(nsImage: passage.image)
+                .frame(width: passage.image.size.width, height: passage.image.size.height)
+        )
+        try writePNG(highlight, to: output.appendingPathComponent("chat-citation-highlight.png"), minimumBytes: 4_000)
+        fputs(
+            "highlight \(Int(passage.bounds.width))x\(Int(passage.bounds.height)) at \(Int(passage.bounds.minX)),\(Int(passage.bounds.minY)) string=\(passage.string)\n",
+            stdout
+        )
+    }
+}
+
+private struct CitationFixture {
+    let answer = """
+    A set is closed exactly when its complement is open. [R2]
+    By Proposition 5.3.1, $f$ is continuous exactly when the preimage of a closed set is closed. [R1]
+    """
+
+    let keys: Set<ReferenceKey> = [
+        ReferenceKey(kind: .proposition, number: "5.3.1"),
+    ]
+
+    let anchors: [AnswerSourceAnchor] = [
+        AnswerSourceAnchor(
+            label: "Proposition 5.3.1",
+            pageIndex: 38,
+            region: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08),
+            sourceID: "R1"
+        ),
+        AnswerSourceAnchor(
+            label: "Proposition 5.3.1 again",
+            pageIndex: 38,
+            region: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08),
+            sourceID: "R1"
+        ),
+        AnswerSourceAnchor(
+            label: "Open and closed sets",
+            pageIndex: 36,
+            region: NormalizedRect(x: 0.08, y: 0.62, width: 0.8, height: 0.06),
+            sourceID: "R2"
+        ),
+        AnswerSourceAnchor(
+            label: "Compactness implies sequential compactness",
+            pageIndex: 65,
+            region: NormalizedRect(x: 0.1, y: 0.2, width: 0.7, height: 0.05),
+            sourceID: "P3"
+        ),
+        AnswerSourceAnchor(
+            label: "Continuous partial derivatives",
+            pageIndex: 5,
+            region: NormalizedRect(x: 0.1, y: 0.3, width: 0.7, height: 0.05),
+            sourceID: "P4"
+        ),
+    ]
+
+    var message: ThreadMessage {
+        ThreadMessage(
+            role: .assistant,
+            content: answer,
+            answerEvidence: AnswerEvidence(
+                basis: .pdf,
+                sourcePages: [6, 37, 39, 66],
+                referencedStatementCount: 2,
+                retrievedPassageCount: 4,
+                providerID: "snapshot",
+                sourceAnchors: anchors,
+                citationStatus: .idsResolve,
+                citedSourceIDs: ["R1", "R2"]
+            )
+        )
+    }
+
+    func validate() throws {
+        let pages = CitedSourceSummary.pages(in: answer, anchors: anchors)
+        guard pages.map(\.pageLabel) == ["p. 37", "p. 39"] else {
+            throw SnapshotError("cited pages drifted: \(pages.map(\.pageLabel))")
+        }
+        guard CitedSourceSummary.disclosureLabel(pageCount: pages.count) == "Sources · 2 pages" else {
+            throw SnapshotError("disclosure label drifted")
+        }
+        guard pages.allSatisfy({ !$0.anchor.label.localizedCaseInsensitiveContains("compact") }) else {
+            throw SnapshotError("uncited compactness page leaked into sources")
+        }
+        guard case .highlighted = AnswerSourceNavigation.resolve(pages[1].anchor, pageCount: 80) else {
+            throw SnapshotError("p. 39 does not open a located passage")
+        }
+        let lines = AnswerCitationLayout.claimLines(in: answer, anchors: anchors)
+        guard lines.count == 2,
+              lines[0].chips.map(\.pageLabel) == ["p. 37"],
+              lines[1].chips.map(\.pageLabel) == ["p. 39"],
+              !lines[1].text.contains("[") else {
+            throw SnapshotError("page tags are not at the ends of their claims")
+        }
+    }
+}
+
+/// The layout the branch shipped: one unbreakable underlined link, the comma
+/// on the next line, and a sources list of every retrieved page.
+private struct BrokenCitationBubble: View {
+    var anchors: [AnswerSourceAnchor]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("A set is closed exactly when its complement is open.")
+                .font(.body)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            brightPill("p. 37")
+            Text("By")
+                .font(.body)
+                .foregroundStyle(.primary)
+            Text("Proposition 5.3.1")
+                .font(.body)
+                .foregroundStyle(Color.accentColor)
+                .underline()
+            Text(", f is continuous exactly when the preimage of a closed set is closed.")
+                .font(.body)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            brightPill("p. 39")
+
+            Text("Sources")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(anchors.enumerated()), id: \.offset) { _, anchor in
+                    Text("\(anchor.label) (p. \(anchor.pageIndex + 1))")
+                        .font(.caption)
+                        .foregroundStyle(Color.accentColor)
+                        .underline()
+                }
+            }
+        }
+        .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
+        .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
+        .frame(maxWidth: 270, alignment: .leading)
+        .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius))
+    }
+
+    private func brightPill(_ title: String) -> some View {
+        Text(title)
+            .font(.caption)
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Color.accentColor.opacity(0.18), in: Capsule())
+    }
+}
+
+private struct ChatSnapshotChrome<Content: View>: View {
+    var caption: String
+    var width: CGFloat
+    var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(caption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(20)
+        .frame(width: width, alignment: .leading)
+        .background(Color(red: 0.09, green: 0.09, blue: 0.1))
+        .environment(\.rendersForSnapshot, true)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private enum PassageHighlight {
+    struct Rendered {
+        var image: NSImage
+        var bounds: CGRect
+        var string: String
+    }
+
+    @MainActor
+    static func render() throws -> Rendered {
+        let pageSize = CGSize(width: 520, height: 260)
+        let body = """
+        Closed sets. A set is closed exactly when its complement is open.
+
+        Proposition 5.3.1. Let f be a map of spaces. Then f is continuous exactly when the preimage of a closed set is closed.
+        """
+        let textView = NSTextView(frame: NSRect(origin: .zero, size: pageSize))
+        textView.isEditable = false
+        textView.isRichText = false
+        textView.drawsBackground = true
+        textView.backgroundColor = .white
+        textView.textColor = .black
+        textView.font = .systemFont(ofSize: 15)
+        textView.textContainerInset = NSSize(width: 28, height: 32)
+        textView.string = body
+        textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+
+        let data = textView.dataWithPDF(inside: textView.bounds)
+        guard let document = PDFDocument(data: data), let page = document.page(at: 0) else {
+            throw SnapshotError("synthetic page produced no PDF")
+        }
+        let needle = "f is continuous exactly when the preimage of a closed set is closed"
+        guard let selection = document.findString(needle, withOptions: [.caseInsensitive]).first else {
+            let extracted = page.string ?? ""
+            throw SnapshotError("exact passage was not in the page text: \(extracted.prefix(240))")
+        }
+        let media = page.bounds(for: .mediaBox)
+        let bounds = selection.bounds(for: page)
+        let quoted = selection.string ?? ""
+        guard quoted.localizedCaseInsensitiveContains("preimage of a closed set") else {
+            throw SnapshotError("selection is not the cited sentence: \(quoted)")
+        }
+        guard bounds.width > 40, bounds.height > 8, bounds.height < media.height * 0.45,
+              media.intersects(bounds) else {
+            throw SnapshotError("passage bounds \(bounds) are not a sentence on \(media)")
+        }
+
+        let image = NSImage(size: media.size, flipped: false) { _ in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            NSColor.white.setFill()
+            media.fill()
+            context.saveGState()
+            page.draw(with: .mediaBox, to: context)
+            context.restoreGState()
+            let wash = bounds.insetBy(dx: -2, dy: -1)
+            NSColor.controlAccentColor.withAlphaComponent(CitationChrome.washOpacity).setFill()
+            NSBezierPath(roundedRect: wash, xRadius: 2, yRadius: 2).fill()
+            return true
+        }
+        guard let tiff = image.tiffRepresentation, tiff.count > 1000 else {
+            throw SnapshotError("page image is empty")
+        }
+        return Rendered(image: image, bounds: bounds, string: quoted)
+    }
+}
+
+private struct SnapshotError: Error, CustomStringConvertible {
+    var description: String
+    init(_ description: String) { self.description = description }
+}
+
+@MainActor
+private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws {
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let renderer = ImageRenderer(content: view)
+    renderer.scale = 2
+    renderer.isOpaque = true
+    guard let image = renderer.nsImage,
+          let tiff = image.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          let png = rep.representation(using: .png, properties: [:]) else {
+        throw SnapshotError("ImageRenderer produced no PNG")
+    }
+    guard png.count >= minimumBytes, rep.pixelsWide > 80, rep.pixelsHigh > 80 else {
+        throw SnapshotError("PNG is \(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh)")
+    }
+    try png.write(to: url)
+    fputs("wrote \(url.path) (\(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh))\n", stdout)
+}

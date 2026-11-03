@@ -6,6 +6,10 @@ struct MessageBubble: View {
     var quotedText: String?
     var maxBubbleWidth: CGFloat = 300
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
+    var referenceKeys: Set<ReferenceKey> = []
+    var onOpenReference: (DetectedReference) -> Void = { _ in }
+    /// The designer snapshot opens the sources line. A live answer starts closed.
+    var sourcesStartExpanded = false
 
     private var isUser: Bool {
         message.role == .user
@@ -61,7 +65,9 @@ struct MessageBubble: View {
                     MessageContentView(
                         content: message.content,
                         font: .body,
-                        textColor: .primary
+                        textColor: .primary,
+                        referenceKeys: referenceKeys,
+                        onOpenReference: onOpenReference
                     )
                 }
             }
@@ -70,52 +76,104 @@ struct MessageBubble: View {
                 MessageContentView(
                     content: message.content,
                     font: .body,
-                    textColor: .primary
+                    textColor: .primary,
+                    referenceKeys: referenceKeys,
+                    onOpenReference: onOpenReference,
+                    interpretsSourceMarkers: !isUser,
+                    sourceAnchors: message.answerEvidence?.sourceAnchors ?? [],
+                    onOpenSource: onOpenSource
                 )
-                if let evidence = message.answerEvidence {
-                    Divider().opacity(0.25)
-                    Label(
-                        "\(evidence.basis.label) · \(evidence.sourcePagesLabel)",
-                        systemImage: evidence.basis.systemImage
+                if !isUser {
+                    let pages = CitedSourceSummary.pages(
+                        in: message.content,
+                        anchors: message.answerEvidence?.sourceAnchors ?? []
                     )
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .help(evidence.auditDescription)
-                    .accessibilityLabel("Answer basis: \(evidence.basis.label). Sources supplied: \(evidence.sourcePagesLabel).")
-                    .accessibilityHint(evidence.auditDescription)
-
-                    if let status = evidence.citationStatus {
-                        Text(status.label)
-                            .font(.caption2)
-                            .foregroundStyle(status == .idsResolve ? Color.secondary : Color.orange)
-                            .help("This checks source IDs and PDF locations, not whether the answer follows from them.")
-                    }
-
-                    if let anchors = evidence.sourceAnchors, !anchors.isEmpty {
-                        let citedIDs = Set(evidence.citedSourceIDs ?? [])
-                        let shown = citedIDs.isEmpty
-                            ? anchors
-                            : anchors.filter { $0.sourceID.map(citedIDs.contains) == true }
-                        DisclosureGroup(citedIDs.isEmpty ? "PDF locations supplied" : "Cited PDF locations") {
-                            ForEach(Array(shown.enumerated()), id: \.offset) { _, anchor in
-                                Button {
-                                    onOpenSource(anchor)
-                                } label: {
-                                    Label(
-                                        "\(anchor.sourceID.map { "[\($0)] " } ?? "")\(anchor.label) · p. \(anchor.pageIndex + 1)",
-                                        systemImage: "arrow.up.forward.square"
-                                    )
-                                }
-                                .buttonStyle(.link)
-                                .font(.caption)
-                                .help("Open the original PDF source. This does not prove the answer's claims.")
-                            }
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    if !pages.isEmpty {
+                        CitedSourcesDisclosure(
+                            pages: pages,
+                            startExpanded: sourcesStartExpanded,
+                            onOpen: onOpenSource
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/// Closed on every new answer. Collapsed it is only "Sources · N pages";
+/// expanded it is one quiet line of the pages the answer actually cites.
+struct CitedSourcesDisclosure: View {
+    var pages: [CitedSourcePage]
+    var startExpanded: Bool
+    var onOpen: (AnswerSourceAnchor) -> Void
+
+    @State private var isExpanded: Bool
+
+    init(
+        pages: [CitedSourcePage],
+        startExpanded: Bool = false,
+        onOpen: @escaping (AnswerSourceAnchor) -> Void
+    ) {
+        self.pages = pages
+        self.startExpanded = startExpanded
+        self.onOpen = onOpen
+        _isExpanded = State(initialValue: startExpanded)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Text(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .font(.caption)
+                .foregroundStyle(CitationChrome.tint)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
+            .accessibilityValue(isExpanded ? "expanded" : "collapsed")
+
+            if isExpanded {
+                InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
+                    ForEach(Array(lineTokens.enumerated()), id: \.offset) { _, token in
+                        if let anchor = token.anchor {
+                            Button {
+                                onOpen(anchor)
+                            } label: {
+                                Text(token.title)
+                                    .font(.caption)
+                                    .foregroundStyle(CitationChrome.tint)
+                                    .fixedSize()
+                            }
+                            .buttonStyle(.plain)
+                            .help("Open the passage on \(token.title)")
+                        } else {
+                            Text(token.title)
+                                .font(.caption)
+                                .foregroundStyle(CitationChrome.tint)
+                                .fixedSize()
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var lineTokens: [(title: String, anchor: AnswerSourceAnchor?)] {
+        var tokens: [(title: String, anchor: AnswerSourceAnchor?)] = []
+        for (index, page) in pages.enumerated() {
+            if index > 0 {
+                tokens.append((", ", nil))
+            }
+            tokens.append((page.pageLabel, page.anchor))
+        }
+        return tokens
     }
 }

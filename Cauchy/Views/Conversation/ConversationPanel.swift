@@ -28,6 +28,8 @@ struct ConversationPanel<Header: View>: View {
     var onModelChange: () -> Void = {}
     var onRecovery: () -> Void = {}
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
+    var referenceKeys: Set<ReferenceKey> = []
+    var onOpenReference: (DetectedReference) -> Void = { _ in }
     @ViewBuilder var header: Header
 
     @State private var followsLatest = true
@@ -60,7 +62,9 @@ struct ConversationPanel<Header: View>: View {
                             message: message,
                             quotedText: nil,
                             maxBubbleWidth: bubbleWidth,
-                            onOpenSource: onOpenSource
+                            onOpenSource: onOpenSource,
+                            referenceKeys: referenceKeys,
+                            onOpenReference: onOpenReference
                         )
                         .id(message.id)
                     }
@@ -68,7 +72,9 @@ struct ConversationPanel<Header: View>: View {
                     if isResponding, let streamingText, !streamingText.isEmpty {
                         MessageBubble(
                             message: ThreadMessage(role: .assistant, content: streamingText),
-                            maxBubbleWidth: bubbleWidth
+                            maxBubbleWidth: bubbleWidth,
+                            referenceKeys: referenceKeys,
+                            onOpenReference: onOpenReference
                         )
                         .id("streaming")
                     }

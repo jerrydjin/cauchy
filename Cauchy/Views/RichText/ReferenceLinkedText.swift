@@ -127,9 +127,8 @@ struct PageTagButton: View {
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 CitationLinkText.tinted(chip.pageLabel, underlined: isHovered)
-                Text("↗")
-                    .font(.system(size: 10, weight: .medium))
-                    .baselineOffset(3)
+                Text(Image(systemName: "arrow.up.right"))
+                    .font(font)
                     .foregroundStyle(CitationChrome.tint)
                     .accessibilityHidden(true)
             }

@@ -254,25 +254,20 @@ final class SelectionThreadViewModel {
         guard let document = pdfDocument else { return [] }
         let unlocated = NormalizedRect(x: 0, y: 0, width: 0, height: 0)
         var anchors: [AnswerSourceAnchor] = []
-        if let page = document.page(at: thread.pageIndex) {
-            let region: NormalizedRect
-            if let pageText = page.string,
-               let source = LexicalDocumentIndex.sourceLocation(
-                   for: thread.selectedText,
-                   in: pageText,
-                   pageIndex: thread.pageIndex,
-                   after: 0
-               ),
-               let exact = ReferenceEvidenceRegionResolver.exactRegion(
-                   matchedText: source.matchedText,
-                   startOffset: source.startOffset,
-                   endOffset: source.endOffset,
-                   on: page
-               ) {
-                region = exact
-            } else {
-                region = unlocated
-            }
+        if let page = document.page(at: thread.pageIndex),
+           let pageText = page.string,
+           let source = LexicalDocumentIndex.sourceLocation(
+               for: thread.selectedText,
+               in: pageText,
+               pageIndex: thread.pageIndex,
+               after: 0
+           ) {
+            let region = ReferenceEvidenceRegionResolver.exactRegion(
+                matchedText: source.matchedText,
+                startOffset: source.startOffset,
+                endOffset: source.endOffset,
+                on: page
+            ) ?? unlocated
             anchors.append(AnswerSourceAnchor(
                 label: "Selected passage",
                 pageIndex: thread.pageIndex,

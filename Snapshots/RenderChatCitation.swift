@@ -1,4 +1,5 @@
 import AppKit
+import CoreText
 import Foundation
 import PDFKit
 import SwiftMath
@@ -255,31 +256,43 @@ private enum PassageHighlight {
 
     @MainActor
     static func render() throws -> Rendered {
-        let pageSize = CGSize(width: 520, height: 260)
-        let body = """
-        Closed sets. A set is closed exactly when its complement is open.
+        let pageSize = CGSize(width: 640, height: 220)
+        let body = "Proposition 5.3.1. Let f be a map of spaces.\nThen f is continuous exactly when the preimage of a closed set is closed."
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = 6
+        let text = NSAttributedString(string: body, attributes: [
+            .font: NSFont.systemFont(ofSize: 16),
+            .foregroundColor: NSColor.black,
+            .paragraphStyle: paragraph,
+        ])
+        let data = NSMutableData()
+        var mediaBox = CGRect(origin: .zero, size: pageSize)
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+            throw SnapshotError("could not open a PDF context")
+        }
+        context.beginPDFPage(nil)
+        context.setFillColor(NSColor.white.cgColor)
+        context.fill(mediaBox)
+        context.saveGState()
+        context.translateBy(x: 0, y: pageSize.height)
+        context.scaleBy(x: 1, y: -1)
+        let inset = CGRect(x: 36, y: 48, width: pageSize.width - 72, height: pageSize.height - 96)
+        let framesetter = CTFramesetterCreateWithAttributedString(text)
+        let path = CGPath(rect: inset, transform: nil)
+        let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
+        CTFrameDraw(frame, context)
+        context.restoreGState()
+        context.endPDFPage()
+        context.closePDF()
 
-        Proposition 5.3.1. Let f be a map of spaces. Then f is continuous exactly when the preimage of a closed set is closed.
-        """
-        let textView = NSTextView(frame: NSRect(origin: .zero, size: pageSize))
-        textView.isEditable = false
-        textView.isRichText = false
-        textView.drawsBackground = true
-        textView.backgroundColor = .white
-        textView.textColor = .black
-        textView.font = .systemFont(ofSize: 15)
-        textView.textContainerInset = NSSize(width: 28, height: 32)
-        textView.string = body
-        textView.layoutManager?.ensureLayout(for: textView.textContainer!)
-
-        let data = textView.dataWithPDF(inside: textView.bounds)
-        guard let document = PDFDocument(data: data), let page = document.page(at: 0) else {
+        guard let document = PDFDocument(data: data as Data), let page = document.page(at: 0) else {
             throw SnapshotError("synthetic page produced no PDF")
         }
         let needle = "f is continuous exactly when the preimage of a closed set is closed"
         guard let selection = document.findString(needle, withOptions: [.caseInsensitive]).first else {
             let extracted = page.string ?? ""
-            throw SnapshotError("exact passage was not in the page text: \(extracted.prefix(240))")
+            throw SnapshotError("exact passage was not in the page text: \(extracted)")
         }
         let media = page.bounds(for: .mediaBox)
         let bounds = selection.bounds(for: page)

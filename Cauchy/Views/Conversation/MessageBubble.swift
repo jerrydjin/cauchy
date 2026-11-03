@@ -111,6 +111,7 @@ struct CitedSourcesDisclosure: View {
     var onOpen: (AnswerSourceAnchor) -> Void
 
     @State private var isExpanded: Bool
+    @State private var isPillHovered = false
 
     init(
         pages: [CitedSourcePage],
@@ -129,7 +130,7 @@ struct CitedSourcesDisclosure: View {
                 isExpanded.toggle()
             } label: {
                 HStack(spacing: 5) {
-                    Text(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
+                    pillLabel
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .semibold))
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
@@ -146,6 +147,7 @@ struct CitedSourcesDisclosure: View {
                 .contentShape(Capsule())
             }
             .buttonStyle(.plain)
+            .citationLinkHover($isPillHovered)
             .accessibilityLabel(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
             .accessibilityValue(isExpanded ? "expanded" : "collapsed")
 
@@ -175,6 +177,16 @@ struct CitedSourcesDisclosure: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    /// The pill's words. Underlined only while the pointer is over the pill,
+    /// so the resting label is the same text as before.
+    private var pillLabel: Text {
+        let title = CitedSourceSummary.disclosureLabel(pageCount: pages.count)
+        guard isPillHovered else { return Text(title) }
+        var attributed = AttributedString(title)
+        attributed.underlineStyle = Text.LineStyle(pattern: .solid, color: CitationChrome.tint)
+        return Text(attributed)
     }
 
     private var lineTokens: [(title: String, page: CitedSourcePage?)] {

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 extension CitationChrome {
@@ -77,11 +78,13 @@ struct InlineReferenceLink: View {
         return String(label.dropFirst(citation.count))
     }
 
+    @State private var isHovered = false
+
     var body: some View {
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
                 if !citation.isEmpty {
-                    CitationLinkText.tinted(citation)
+                    CitationLinkText.tinted(citation, underlined: isHovered)
                 }
                 if !trailingSpace.isEmpty {
                     Text(trailingSpace)
@@ -98,6 +101,7 @@ struct InlineReferenceLink: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .citationLinkHover($isHovered)
         .accessibilityLabel(reference.displayName)
         .help(reference.displayName)
     }
@@ -105,7 +109,8 @@ struct InlineReferenceLink: View {
 
 /// A page tag at the end of a claim, or one entry in the sources line.
 /// The number comes first, then the arrow: "39 ↗", or "37–39 ↗" for a span.
-/// The tint alone marks the link. The arrow is omitted for in-sentence
+/// The tint alone marks the link at rest. Hover underlines the number
+/// and shows the pointing hand. The arrow is omitted for in-sentence
 /// references.
 struct PageTagButton: View {
     let chip: AnswerSourceMarkers.Chip
@@ -114,12 +119,14 @@ struct PageTagButton: View {
     var font: Font = .body
     var leadingPadding: CGFloat = 6
 
+    @State private var isHovered = false
+
     var body: some View {
         Button {
             if let anchor { onOpen(anchor) }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                CitationLinkText.tinted(chip.pageLabel)
+                CitationLinkText.tinted(chip.pageLabel, underlined: isHovered)
                 Text("↗")
                     .font(.system(size: 10, weight: .medium))
                     .baselineOffset(3)
@@ -132,6 +139,7 @@ struct PageTagButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .citationLinkHover($isHovered)
         .padding(.leading, leadingPadding)
         .fixedSize()
         .accessibilityLabel(CitationPageLabel.voiceOver(
@@ -143,12 +151,59 @@ struct PageTagButton: View {
     }
 }
 
-/// Muted tint, with no underline. Punctuation stays outside this, and a
-/// name that is not a jump target never reaches this style.
+/// Muted tint. At rest there is no underline. Hover may underline the
+/// link text only; punctuation stays outside this, and a name that is not
+/// a jump target never reaches this style.
 enum CitationLinkText {
-    static func tinted(_ string: String) -> Text {
+    static func tinted(_ string: String, underlined: Bool = false) -> Text {
         var attributed = AttributedString(string)
         attributed.foregroundColor = CitationChrome.tint
+        if underlined {
+            attributed.underlineStyle = Text.LineStyle(
+                pattern: .solid,
+                color: CitationChrome.tint
+            )
+        }
         return Text(attributed)
+    }
+}
+
+/// Hover for a reader-chat link: a solid underline, drawn by the caller,
+/// and the pointing-hand cursor. The resting view is unchanged.
+struct CitationLinkHover: ViewModifier {
+    @Binding var isHovered: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering in
+                if isHovered != hovering {
+                    isHovered = hovering
+                }
+                if hovering {
+                    NSCursor.pointingHand.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+            }
+            .modifier(CitationPointerStyle())
+    }
+}
+
+extension View {
+    func citationLinkHover(_ isHovered: Binding<Bool>) -> some View {
+        modifier(CitationLinkHover(isHovered: isHovered))
+    }
+}
+
+/// `pointerStyle` is the system pointing hand. The snapshot tool still
+/// builds for macOS 14, where that modifier does not exist; the cursor
+/// there comes from `NSCursor.pointingHand` in the hover handler.
+private struct CitationPointerStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.pointerStyle(.link)
+        } else {
+            content
+        }
     }
 }

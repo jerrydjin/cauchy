@@ -268,7 +268,7 @@ private enum PassageHighlight {
         let data = NSMutableData()
         var mediaBox = CGRect(origin: .zero, size: pageSize)
         guard let consumer = CGDataConsumer(data: data as CFMutableData),
-              let context = CGContext(consumer: consumer, mediaBox: &mediaBox, auxiliaryInfo: nil) else {
+              let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
             throw SnapshotError("could not open a PDF context")
         }
         context.beginPDFPage(nil)

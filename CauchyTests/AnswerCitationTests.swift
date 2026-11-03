@@ -14,7 +14,7 @@ final class AnswerCitationTests: XCTestCase {
             "By Proposition 5.3.1, $f$ is continuous exactly when the preimage is open."
         )
         XCTAssertFalse(lines[0].text.contains("["))
-        XCTAssertEqual(lines[0].chips.map(\.pageLabel), ["p. 39"])
+        XCTAssertEqual(lines[0].chips.map(\.pageLabel), ["39"])
         XCTAssertEqual(lines[0].chips.map(\.sourceID), ["R1"])
     }
 
@@ -32,9 +32,9 @@ final class AnswerCitationTests: XCTestCase {
 
         XCTAssertEqual(lines.count, 2)
         XCTAssertEqual(lines[0].text, "A set is closed exactly when its complement is open.")
-        XCTAssertEqual(lines[0].chips.map(\.pageLabel), ["p. 37"])
+        XCTAssertEqual(lines[0].chips.map(\.pageLabel), ["37"])
         XCTAssertEqual(lines[1].text, "By Proposition 5.3.1, f is continuous.")
-        XCTAssertEqual(lines[1].chips.map(\.pageLabel), ["p. 39"])
+        XCTAssertEqual(lines[1].chips.map(\.pageLabel), ["39"])
     }
 
     func testSourcesListIsCitedPagesOnlyAndDeduped() {
@@ -56,7 +56,7 @@ final class AnswerCitationTests: XCTestCase {
         let pages = CitedSourceSummary.pages(in: content, anchors: anchors)
 
         XCTAssertEqual(pages.map(\.pageIndex), [36, 38])
-        XCTAssertEqual(pages.map(\.pageLabel), ["p. 37", "p. 39"])
+        XCTAssertEqual(pages.map(\.pageLabel), ["37", "39"])
         XCTAssertEqual(pages.map { $0.anchor.sourceID }, ["R2", "R1"])
         XCTAssertFalse(pages.contains { $0.anchor.label.contains("Compactness") })
         XCTAssertFalse(pages.contains { $0.anchor.label.contains("derivatives") })
@@ -64,9 +64,9 @@ final class AnswerCitationTests: XCTestCase {
         XCTAssertEqual(CitedSourceSummary.disclosureLabel(pageCount: 1), "Sources · 1 page")
     }
 
-    func testPageTagUsesTheShortFormAndASpanUsesPages() {
-        XCTAssertEqual(CitationPageLabel.short(firstPageIndex: 38, lastPageIndex: 38), "p. 39")
-        XCTAssertEqual(CitationPageLabel.short(firstPageIndex: 36, lastPageIndex: 38), "pp. 37–39")
+    func testPageMarkIsTheNumberAndASpanIsARange() {
+        XCTAssertEqual(CitationPageLabel.short(firstPageIndex: 38, lastPageIndex: 38), "39")
+        XCTAssertEqual(CitationPageLabel.short(firstPageIndex: 36, lastPageIndex: 38), "37–39")
         XCTAssertEqual(CitationPageLabel.voiceOver(firstPageIndex: 38, lastPageIndex: 38), "Open page 39")
         XCTAssertEqual(CitationPageLabel.voiceOver(firstPageIndex: 36, lastPageIndex: 38), "Open pages 37 to 39")
     }

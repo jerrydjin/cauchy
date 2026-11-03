@@ -104,8 +104,9 @@ struct InlineReferenceLink: View {
 }
 
 /// A page tag at the end of a claim, or one entry in the sources line.
-/// Text link, not a chip: quiet tint, a faint dotted underline, and a
-/// trailing arrow. The arrow is omitted for in-sentence references.
+/// Arrow first, then the page number: "↗ 39", or "↗ 37–39" for a span.
+/// The dotted underline sits on the number. The arrow is omitted for
+/// in-sentence references.
 struct PageTagButton: View {
     let chip: AnswerSourceMarkers.Chip
     var anchor: AnswerSourceAnchor?
@@ -118,12 +119,12 @@ struct PageTagButton: View {
             if let anchor { onOpen(anchor) }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                CitationLinkText.underlined(chip.pageLabel)
                 Text("↗")
                     .font(.system(size: 10, weight: .medium))
                     .baselineOffset(3)
                     .foregroundStyle(CitationChrome.tint)
                     .accessibilityHidden(true)
+                CitationLinkText.underlined(chip.pageLabel)
             }
             .font(font)
             .padding(.vertical, 3)

@@ -35,13 +35,14 @@ enum AnswerSourceMarkers {
     }
 }
 
-/// Short page text for a tag. One page is "p. 39"; a span is "pp. 37–39".
+/// The number on a page tag. One page is "39"; a span is "37–39".
+/// The tag draws "↗" in front of this, outside the dotted underline.
 enum CitationPageLabel {
     static func short(firstPageIndex: Int, lastPageIndex: Int) -> String {
         let lower = min(firstPageIndex, lastPageIndex) + 1
         let upper = max(firstPageIndex, lastPageIndex) + 1
-        if lower == upper { return "p. \(lower)" }
-        return "pp. \(lower)–\(upper)"
+        if lower == upper { return "\(lower)" }
+        return "\(lower)–\(upper)"
     }
 
     static func voiceOver(firstPageIndex: Int, lastPageIndex: Int) -> String {

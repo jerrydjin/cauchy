@@ -76,7 +76,7 @@ enum RenderChatCitation {
 
         let passage = try PassageHighlight.render()
         let highlight = ChatSnapshotChrome(
-            caption: "After tapping p. 39",
+            caption: "After tapping 39",
             width: passage.image.size.width + 40,
             content: Image(nsImage: passage.image)
                 .frame(width: passage.image.size.width, height: passage.image.size.height)
@@ -151,7 +151,7 @@ private struct CitationFixture {
 
     func validate() throws {
         let pages = CitedSourceSummary.pages(in: answer, anchors: anchors)
-        guard pages.map(\.pageLabel) == ["p. 37", "p. 39"] else {
+        guard pages.map(\.pageLabel) == ["37", "39"] else {
             throw SnapshotError("cited pages drifted: \(pages.map(\.pageLabel))")
         }
         guard CitedSourceSummary.disclosureLabel(pageCount: pages.count) == "Sources · 2 pages" else {
@@ -161,12 +161,12 @@ private struct CitationFixture {
             throw SnapshotError("uncited compactness page leaked into sources")
         }
         guard case .highlighted = AnswerSourceNavigation.resolve(pages[1].anchor, pageCount: 80) else {
-            throw SnapshotError("p. 39 does not open a located passage")
+            throw SnapshotError("page 39 does not open a located passage")
         }
         let lines = AnswerCitationLayout.claimLines(in: answer, anchors: anchors)
         guard lines.count == 2,
-              lines[0].chips.map(\.pageLabel) == ["p. 37"],
-              lines[1].chips.map(\.pageLabel) == ["p. 39"],
+              lines[0].chips.map(\.pageLabel) == ["37"],
+              lines[1].chips.map(\.pageLabel) == ["39"],
               !lines[1].text.contains("[") else {
             throw SnapshotError("page tags are not at the ends of their claims")
         }

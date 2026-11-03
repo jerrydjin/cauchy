@@ -101,8 +101,10 @@ struct MessageBubble: View {
     }
 }
 
-/// Closed on every new answer. Collapsed it is a quiet bordered pill,
-/// "Sources · N pages" with a chevron. Expanded, one line of page tags.
+/// Closed on every new answer. Collapsed it is a hairline pill with no
+/// fill of its own, so the bubble colour shows through. The label is
+/// "Sources · N pages" with a chevron, in the link tint. Expanded, one
+/// line of page tags.
 struct CitedSourcesDisclosure: View {
     var pages: [CitedSourcePage]
     var startExpanded: Bool
@@ -139,10 +141,7 @@ struct CitedSourcesDisclosure: View {
                 .frame(minHeight: 28)
                 .background {
                     Capsule()
-                        .fill(CitationChrome.tint.opacity(0.06))
-                        .overlay {
-                            Capsule().strokeBorder(Color.primary.opacity(0.18), lineWidth: 1)
-                        }
+                        .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
                 }
                 .contentShape(Capsule())
             }

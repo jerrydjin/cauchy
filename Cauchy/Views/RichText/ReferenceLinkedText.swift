@@ -59,7 +59,7 @@ struct ReferenceLinkedText: View {
 
 /// The citation and the punctuation that follows it are one unbreakable
 /// token, so the comma cannot wrap onto its own line. Only the citation
-/// takes the link tint and the dotted underline.
+/// takes the link tint.
 struct InlineReferenceLink: View {
     var label: String
     var suffix: String = ""
@@ -68,20 +68,20 @@ struct InlineReferenceLink: View {
     var reference: DetectedReference
     var action: () -> Void
 
-    private var underlined: String {
+    private var citation: String {
         label.trimmingCharacters(in: .whitespaces)
     }
 
     private var trailingSpace: String {
-        guard label.hasPrefix(underlined) else { return "" }
-        return String(label.dropFirst(underlined.count))
+        guard label.hasPrefix(citation) else { return "" }
+        return String(label.dropFirst(citation.count))
     }
 
     var body: some View {
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
-                if !underlined.isEmpty {
-                    CitationLinkText.underlined(underlined)
+                if !citation.isEmpty {
+                    CitationLinkText.tinted(citation)
                 }
                 if !trailingSpace.isEmpty {
                     Text(trailingSpace)
@@ -104,9 +104,9 @@ struct InlineReferenceLink: View {
 }
 
 /// A page tag at the end of a claim, or one entry in the sources line.
-/// Arrow first, then the page number: "↗ 39", or "↗ 37–39" for a span.
-/// The dotted underline sits on the number. The arrow is omitted for
-/// in-sentence references.
+/// The number comes first, then the arrow: "39 ↗", or "37–39 ↗" for a span.
+/// The tint alone marks the link. The arrow is omitted for in-sentence
+/// references.
 struct PageTagButton: View {
     let chip: AnswerSourceMarkers.Chip
     var anchor: AnswerSourceAnchor?
@@ -119,12 +119,12 @@ struct PageTagButton: View {
             if let anchor { onOpen(anchor) }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
+                CitationLinkText.tinted(chip.pageLabel)
                 Text("↗")
                     .font(.system(size: 10, weight: .medium))
                     .baselineOffset(3)
                     .foregroundStyle(CitationChrome.tint)
                     .accessibilityHidden(true)
-                CitationLinkText.underlined(chip.pageLabel)
             }
             .font(font)
             .padding(.vertical, 3)
@@ -143,16 +143,12 @@ struct PageTagButton: View {
     }
 }
 
-/// Muted tint plus a dotted underline. Punctuation stays outside this, and a
+/// Muted tint, with no underline. Punctuation stays outside this, and a
 /// name that is not a jump target never reaches this style.
 enum CitationLinkText {
-    static func underlined(_ string: String) -> Text {
+    static func tinted(_ string: String) -> Text {
         var attributed = AttributedString(string)
         attributed.foregroundColor = CitationChrome.tint
-        attributed.underlineStyle = Text.LineStyle(
-            pattern: .dot,
-            color: CitationChrome.tint
-        )
         return Text(attributed)
     }
 }

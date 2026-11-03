@@ -36,7 +36,7 @@ enum AnswerSourceMarkers {
 }
 
 /// The number on a page tag. One page is "39"; a span is "37–39".
-/// The tag draws "↗" in front of this, outside the dotted underline.
+/// The tag draws "↗" after this number. The tint alone marks the link.
 enum CitationPageLabel {
     static func short(firstPageIndex: Int, lastPageIndex: Int) -> String {
         let lower = min(firstPageIndex, lastPageIndex) + 1

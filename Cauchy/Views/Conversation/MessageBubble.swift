@@ -24,7 +24,7 @@ struct MessageBubble: View {
 
     var body: some View {
         if !isUser, !followUps.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ConversationChrome.answerFollowUpGap) {
                 bubbleRow
                 FollowUpPills(
                     followUps: followUps,
@@ -44,8 +44,8 @@ struct MessageBubble: View {
             if isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
 
             bubbleContent
-                .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
-                .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
+                .padding(.horizontal, isUser ? ConversationChrome.bubbleContentPaddingH : ConversationChrome.answerPaddingH)
+                .padding(.vertical, isUser ? ConversationChrome.bubbleContentPaddingV : ConversationChrome.answerPaddingV)
                 // Flat fill, not glass: a bubble is content, and content sits
                 // below the glass layer rather than joining it. See ContentSurface.
                 .background(
@@ -96,7 +96,7 @@ struct MessageBubble: View {
                 }
             }
         } else {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
                 MessageContentView(
                     content: message.content,
                     font: .body,
@@ -153,7 +153,7 @@ struct FollowUpPills: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: ConversationChrome.answerFollowUpSpacing) {
             ForEach(followUps) { followUp in
                 FollowUpPill(followUp: followUp, maxWidth: maxWidth, onAsk: onAsk)
             }
@@ -180,7 +180,7 @@ struct FollowUpPill: View {
         // The layout, not the button, decides the width. A button proposed the
         // bubble's width would stretch a short question into a full-width bar.
         FollowUpPillLayout(maxWidth: maxWidth) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: ConversationChrome.answerFollowUpPageGap) {
                 questionLabel
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -190,8 +190,8 @@ struct FollowUpPill: View {
                     pageMark(pageLabel)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, ConversationChrome.answerFollowUpPaddingH)
+            .padding(.vertical, ConversationChrome.answerFollowUpPaddingV)
             .frame(minHeight: 28)
             .background {
                 Capsule()

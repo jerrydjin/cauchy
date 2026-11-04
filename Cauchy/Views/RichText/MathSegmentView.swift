@@ -748,31 +748,15 @@ enum MathMetrics {
     }
 }
 
-/// Live math draws into a layer. Touching `layer` in SwiftMath leaves
-/// `contentsScale` at 1, so on a retina window the strokes are rasterised
-/// once and scaled up. Matching the window's backing scale keeps them crisp.
-private final class BackingScaledMathLabel: MTMathUILabel {
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        applyBackingScale()
-    }
-
-    override func viewDidChangeBackingProperties() {
-        super.viewDidChangeBackingProperties()
-        applyBackingScale()
-    }
-
-    override func layout() {
-        applyBackingScale()
-        super.layout()
-    }
-
-    private func applyBackingScale() {
-        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        guard scale > 0, layer?.contentsScale != scale else { return }
-        layer?.contentsScale = scale
-        needsDisplay = true
-    }
+/// SwiftMath's label touches `layer` and leaves `contentsScale` at 1, so on a
+/// retina window the strokes are rasterised once and scaled up. The class is
+/// not open, so the scale is applied here. Matching the window keeps the
+/// glyphs as crisp as the body text.
+private func applyBackingScale(to label: MTMathUILabel) {
+    let scale = label.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+    guard scale > 0, label.layer?.contentsScale != scale else { return }
+    label.layer?.contentsScale = scale
+    label.needsDisplay = true
 }
 
 @MainActor
@@ -801,12 +785,14 @@ private struct MathLabelRepresentable: NSViewRepresentable {
     let textColor: NSColor
 
     func makeNSView(context: Context) -> MTMathUILabel {
-        let label = BackingScaledMathLabel()
+        let label = MTMathUILabel()
+        applyBackingScale(to: label)
         configureMathLabel(label, latex: latex, mode: mode, fontSize: fontSize, textColor: textColor)
         return label
     }
 
     func updateNSView(_ label: MTMathUILabel, context: Context) {
+        applyBackingScale(to: label)
         configureMathLabel(
             label,
             latex: latex,
@@ -836,7 +822,7 @@ private struct ScrollingMathLabel: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
-        scrollView.documentView = BackingScaledMathLabel()
+        scrollView.documentView = MTMathUILabel()
         scrollView.drawsBackground = false
         // No scroller at all: an equation is only a couple of lines tall, so
         // even an overlay scroller lands on top of the formula it belongs to.
@@ -849,6 +835,7 @@ private struct ScrollingMathLabel: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let label = scrollView.documentView as? MTMathUILabel else { return }
+        applyBackingScale(to: label)
         let fitted = MathMetrics.fittedFontSize(
             latex: latex,
             mode: .display,

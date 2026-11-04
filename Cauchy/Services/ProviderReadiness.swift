@@ -274,7 +274,7 @@ enum CLIReadinessProbe {
         case .codex:
             arguments = CLIInvocation.codexArguments(prompt: prompt, modelID: modelID)
         case .antigravity:
-            arguments = CLIInvocation.antigravityArguments(prompt: prompt)
+            arguments = CLIInvocation.antigravityArguments(prompt: prompt, modelID: modelID)
         default:
             arguments = CLIInvocation.claudeArguments(
                 prompt: prompt,

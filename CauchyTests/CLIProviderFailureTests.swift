@@ -136,6 +136,13 @@ final class AssistantFailureClassificationTests: XCTestCase {
         XCTAssertTrue(args.contains("read-only"))
         let claude = CLIInvocation.claudeArguments(prompt: "Hi", instructions: "Be brief", modelID: "opus")
         XCTAssertEqual(Array(claude.suffix(2)), ["--model", "opus"])
+        let agy = CLIInvocation.antigravityArguments(prompt: "Hi", modelID: "gemini-3.8-flash-high")
+        XCTAssertEqual(agy, ["-p", "Hi", "--sandbox", "--model", "gemini-3.8-flash-high"])
+        XCTAssertFalse(agy.contains("--effort"))
+        XCTAssertEqual(
+            CLIInvocation.antigravityArguments(prompt: "Hi", modelID: nil),
+            ["-p", "Hi", "--sandbox"]
+        )
     }
 }
 

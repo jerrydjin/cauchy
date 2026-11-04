@@ -37,7 +37,10 @@ enum RenderReferencePreview {
     @MainActor
     private static func render() throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        // Jerry runs the app in dark mode. The card snapshots follow that
+        // appearance so `.primary` and the maths glyphs stay light on the
+        // bubble. The bibliography hover below switches back to light.
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
 
         let root = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[1] : FileManager.default.currentDirectoryPath)
         let output = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "Snapshots/out")
@@ -203,12 +206,14 @@ enum RenderReferencePreview {
         )
         .environment(\.rendersForSnapshot, true)
         .environment(\.colorScheme, .light)
+        NSApplication.shared.appearance = NSAppearance(named: .aqua)
         try writePNG(
             hover,
             to: output.appendingPathComponent("reference-hover-statement-math.png"),
             minimumBytes: 4_000,
             minimumHeight: 200
         )
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
         fputs("math statement dump:\n\(ReferenceMathRendering.plainTextDump(of: text))\n", stdout)
         try renderPlainMathCard(output: output)
     }

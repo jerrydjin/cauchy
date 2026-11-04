@@ -418,24 +418,38 @@ private struct EmptyPinnedChat: View {
     var passage: PinnedPassage
 
     var body: some View {
-        VStack(spacing: 0) {
-            snapshotHeader
-            Text("Ask a question about this passage")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-            Spacer(minLength: 0)
-            VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
-                PassageChipView(passage: passage, role: .composer, onOpen: {}, onDismiss: {})
-                SnapshotComposerBar()
+        ZStack(alignment: .top) {
+            ConversationChrome.headerBackdrop
+            VStack(spacing: 0) {
+                snapshotHeader
+                Text("Ask a question about this passage")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            TallChipSlot {
+                PassageChipView(passage: passage, role: .composer, onOpen: {}, onDismiss: {})
+            }
         }
         .frame(width: Self.panelWidth, height: Self.panelHeight)
-        .background(ConversationChrome.headerBackdrop)
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// Offers the chip the panel's spare height, then pins whatever height it
+/// actually takes to the bottom, 8pt above the composer.
+private struct TallChipSlot<Chip: View>: View {
+    @ViewBuilder var chip: Chip
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+            chip
+            SnapshotComposerBar()
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 }
 
@@ -447,10 +461,10 @@ private struct TallHoverChip: View {
     var passage: PinnedPassage
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .top) {
+            ConversationChrome.headerBackdrop
             snapshotHeader
-            Spacer(minLength: 0)
-            VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+            TallChipSlot {
                 PassageChipView(
                     passage: passage,
                     role: .composer,
@@ -458,13 +472,9 @@ private struct TallHoverChip: View {
                     onOpen: {},
                     onDismiss: {}
                 )
-                SnapshotComposerBar()
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
         }
         .frame(width: Self.panelWidth, height: Self.panelHeight)
-        .background(ConversationChrome.headerBackdrop)
         .environment(\.colorScheme, .dark)
     }
 }
@@ -537,9 +547,10 @@ private func assertChipHugsItsText(in url: URL, panelHeight: CGFloat, allowsCard
         }
     }
     let lowest = runs.map(\.lowerBound).max() ?? 0
-    guard CGFloat(lowest) / CGFloat(bitmap.height) > 0.55 else {
-        throw SnapshotError("quote bar starts at row \(lowest) of \(bitmap.height) in \(url.lastPathComponent); it is not pinned above the composer")
-    }
+        guard CGFloat(lowest) / CGFloat(bitmap.height) > 0.55 else {
+            let heights = runs.map { Int(CGFloat($0.upperBound - $0.lowerBound) / scale) }
+            throw SnapshotError("quote bar starts at row \(lowest) of \(bitmap.height) in \(url.lastPathComponent) (heights \(heights)pt); it is not pinned above the composer")
+        }
     fputs("chip hugs content in \(url.lastPathComponent): bars \(runs.map { "\($0.lowerBound)-\($0.upperBound)" })\n", stdout)
 }
 

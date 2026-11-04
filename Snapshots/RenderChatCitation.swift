@@ -544,6 +544,7 @@ private func assertChipHugsItsText(in url: URL, panelHeight: CGFloat, allowsCard
 }
 
 /// A bright line placed on the subtitle must not survive the header.
+@MainActor
 private func assertHeaderHidesTheLineUnderneath() throws {
     let probe = HeaderLeakProbe()
     let renderer = ImageRenderer(content: probe.environment(\.displayScale, 2).environment(\.colorScheme, .dark))

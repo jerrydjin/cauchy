@@ -5,13 +5,9 @@ struct MessageBubble: View {
     let message: ThreadMessage
     var quotedText: String?
     var maxBubbleWidth: CGFloat = 300
-    /// The designer snapshot opens the passage chip. A live message starts closed.
-    var passageStartsExpanded = false
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var referenceKeys: Set<ReferenceKey> = []
     var onOpenReference: (DetectedReference) -> Void = { _ in }
-    /// The designer snapshot opens the sources line. A live answer starts closed.
-    var sourcesStartExpanded = false
     /// Grounded next questions. Empty while an answer is still streaming, and
     /// empty when the document does not support a real next step.
     var followUps: [SuggestedFollowUp] = []
@@ -50,7 +46,6 @@ struct MessageBubble: View {
                     PassageChipView(
                         passage: passage.pinned,
                         role: .transcript,
-                        startsExpanded: passageStartsExpanded,
                         onOpen: {}
                     )
                 }
@@ -122,31 +117,16 @@ struct MessageBubble: View {
                 }
             }
         } else {
-            VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
-                MessageContentView(
-                    content: message.content,
-                    font: .body,
-                    textColor: .primary,
-                    referenceKeys: referenceKeys,
-                    onOpenReference: onOpenReference,
-                    interpretsSourceMarkers: !isUser,
-                    sourceAnchors: message.answerEvidence?.sourceAnchors ?? [],
-                    onOpenSource: onOpenSource
-                )
-                if !isUser {
-                    let pages = CitedSourceSummary.pages(
-                        in: message.content,
-                        anchors: message.answerEvidence?.sourceAnchors ?? []
-                    )
-                    if !pages.isEmpty {
-                        CitedSourcesDisclosure(
-                            pages: pages,
-                            startExpanded: sourcesStartExpanded,
-                            onOpen: onOpenSource
-                        )
-                    }
-                }
-            }
+            MessageContentView(
+                content: message.content,
+                font: .body,
+                textColor: .primary,
+                referenceKeys: referenceKeys,
+                onOpenReference: onOpenReference,
+                interpretsSourceMarkers: !isUser,
+                sourceAnchors: message.answerEvidence?.sourceAnchors ?? [],
+                onOpenSource: onOpenSource
+            )
         }
     }
 }
@@ -154,9 +134,8 @@ struct MessageBubble: View {
 /// Suggested questions sit under the bubble, on its left edge, one pill per
 /// line. A pill is as wide as its question, and no wider than the bubble.
 /// They are the next thing to ask, not part of the answer. The whole pill
-/// is one button. A page mark inside it only shows where the question
-/// points. The pills take their height while they fade, so the answer does
-/// not jump when they appear.
+/// is one button, and the only words on it are the question. The pills take
+/// their height while they fade, so the answer does not jump when they appear.
 struct FollowUpPills: View {
     var followUps: [SuggestedFollowUp]
     var maxWidth: CGFloat
@@ -206,23 +185,18 @@ struct FollowUpPill: View {
         // The layout, not the button, decides the width. A button proposed the
         // bubble's width would stretch a short question into a full-width bar.
         FollowUpPillLayout(maxWidth: maxWidth) {
-            HStack(alignment: .firstTextBaseline, spacing: ConversationChrome.answerFollowUpPageGap) {
-                questionLabel
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
-                    .accessibilityHidden(true)
-                if let pageLabel = followUp.pageLabel {
-                    pageMark(pageLabel)
+            questionLabel
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.leading)
+                .accessibilityHidden(true)
+                .padding(.horizontal, ConversationChrome.answerFollowUpPaddingH)
+                .padding(.vertical, ConversationChrome.answerFollowUpPaddingV)
+                .frame(minHeight: 28)
+                .background {
+                    Capsule()
+                        .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
                 }
-            }
-            .padding(.horizontal, ConversationChrome.answerFollowUpPaddingH)
-            .padding(.vertical, ConversationChrome.answerFollowUpPaddingV)
-            .frame(minHeight: 28)
-            .background {
-                Capsule()
-                    .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
-            }
         }
         .overlay {
             Button {
@@ -238,30 +212,17 @@ struct FollowUpPill: View {
         }
     }
 
-    /// The question underlines with the pill. The page mark never does.
+    /// The question underlines with the pill.
     private var questionLabel: Text {
         guard isHovered else { return Text(followUp.question) }
         var attributed = AttributedString(followUp.question)
         attributed.underlineStyle = Text.LineStyle(pattern: .solid, color: .secondary)
         return Text(attributed)
     }
-
-    /// Display only: the same number and arrow as a claim tag, with no action.
-    private func pageMark(_ label: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 3) {
-            Text(label)
-            Text(Image(systemName: "arrow.up.right"))
-                .accessibilityHidden(true)
-        }
-        .font(.callout)
-        .foregroundStyle(CitationChrome.tint)
-        .accessibilityHidden(true)
-        .fixedSize()
-    }
 }
 
-/// Width of the question and its page mark, stopping at the bubble. A short
-/// question stays on one line. A longer one wraps inside that width.
+/// Width of the question, stopping at the bubble. A short question stays on
+/// one line. A longer one wraps inside that width.
 private struct FollowUpPillLayout: Layout {
     var maxWidth: CGFloat
 
@@ -282,107 +243,5 @@ private struct FollowUpPillLayout: Layout {
             at: CGPoint(x: bounds.minX, y: bounds.minY),
             proposal: ProposedViewSize(width: bounds.width, height: bounds.height)
         )
-    }
-}
-
-/// Closed on every new answer. Collapsed it is a hairline pill with no
-/// fill of its own, so the bubble colour shows through. The label is
-/// "Sources · N pages" with a chevron, in the link tint. Expanded, the
-/// page tags sit on one line with one em of the caption face between them.
-struct CitedSourcesDisclosure: View {
-    var pages: [CitedSourcePage]
-    var startExpanded: Bool
-    var onOpen: (AnswerSourceAnchor) -> Void
-
-    @State private var isExpanded: Bool
-    @State private var isPillHovered = false
-
-    init(
-        pages: [CitedSourcePage],
-        startExpanded: Bool = false,
-        onOpen: @escaping (AnswerSourceAnchor) -> Void
-    ) {
-        self.pages = pages
-        self.startExpanded = startExpanded
-        self.onOpen = onOpen
-        _isExpanded = State(initialValue: startExpanded)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                isExpanded.toggle()
-            } label: {
-                HStack(spacing: 5) {
-                    pillLabel
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                }
-                .font(.caption)
-                .foregroundStyle(CitationChrome.tint)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .frame(minHeight: 28)
-                .background {
-                    Capsule()
-                        .strokeBorder(Color.primary.opacity(0.22), lineWidth: 1)
-                }
-                .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .citationLinkHover($isPillHovered)
-            .accessibilityLabel(CitedSourceSummary.disclosureLabel(pageCount: pages.count))
-            .accessibilityValue(isExpanded ? "expanded" : "collapsed")
-
-            if isExpanded {
-                InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
-                    ForEach(Array(lineTokens.enumerated()), id: \.offset) { _, token in
-                        if let page = token.page {
-                            PageTagButton(
-                                chip: AnswerSourceMarkers.Chip(
-                                    sourceID: page.anchor.sourceID ?? "",
-                                    pageIndex: page.pageIndex,
-                                    pageLabel: page.pageLabel
-                                ),
-                                anchor: page.anchor,
-                                onOpen: onOpen,
-                                font: .caption,
-                                leadingPadding: 0
-                            )
-                        } else {
-                            Text(token.title)
-                                .font(.caption)
-                                .accessibilityHidden(true)
-                                .fixedSize()
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
-    /// The pill's words. Underlined only while the pointer is over the pill,
-    /// so the resting label is the same text as before.
-    private var pillLabel: Text {
-        let title = CitedSourceSummary.disclosureLabel(pageCount: pages.count)
-        guard isPillHovered else { return Text(title) }
-        var attributed = AttributedString(title)
-        attributed.underlineStyle = Text.LineStyle(pattern: .solid, color: CitationChrome.tint)
-        return Text(attributed)
-    }
-
-    private var lineTokens: [(title: String, page: CitedSourcePage?)] {
-        var tokens: [(title: String, page: CitedSourcePage?)] = []
-        for (index, page) in pages.enumerated() {
-            if index > 0 {
-                // One em of the caption face, in place of a comma. Hidden
-                // from VoiceOver so each page tag is announced on its own.
-                tokens.append(("\u{2003}", nil))
-            }
-            tokens.append((page.pageLabel, page))
-        }
-        return tokens
     }
 }

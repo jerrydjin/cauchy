@@ -60,8 +60,6 @@ final class AnswerCitationTests: XCTestCase {
         XCTAssertEqual(pages.map { $0.anchor.sourceID }, ["R2", "R1"])
         XCTAssertFalse(pages.contains { $0.anchor.label.contains("Compactness") })
         XCTAssertFalse(pages.contains { $0.anchor.label.contains("derivatives") })
-        XCTAssertEqual(CitedSourceSummary.disclosureLabel(pageCount: pages.count), "Sources · 2 pages")
-        XCTAssertEqual(CitedSourceSummary.disclosureLabel(pageCount: 1), "Sources · 1 page")
     }
 
     func testPageMarkIsTheNumberAndASpanIsARange() {

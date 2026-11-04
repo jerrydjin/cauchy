@@ -6,12 +6,12 @@ import Foundation
 /// The question is something the open document actually supports: the proof
 /// the answer relied on, the next result, a definition that result uses, or
 /// an exercise that applies it. `pageIndex` is set only when the question
-/// points at a place in the PDF. The page mark is display; tapping the pill
-/// asks the question.
+/// points at a place in the PDF. The pill shows the question alone; tapping
+/// it asks the question.
 struct SuggestedFollowUp: Equatable, Sendable, Identifiable {
     var question: String
     /// PDF page index. Nil when the question does not point at one page.
-    /// Shown beside the question; it is not its own control.
+    /// The pill does not show it.
     var pageIndex: Int?
     var region: NormalizedRect
 
@@ -25,11 +25,8 @@ struct SuggestedFollowUp: Equatable, Sendable, Identifiable {
         return CitationPageLabel.short(firstPageIndex: pageIndex, lastPageIndex: pageIndex)
     }
 
-    /// One button: the question, and "page 41" when the pill shows a page.
-    var voiceOverLabel: String {
-        guard let pageLabel else { return question }
-        return "\(question) page \(pageLabel)"
-    }
+    /// One button, and the words on it are the question.
+    var voiceOverLabel: String { question }
 
     init(question: String, pageIndex: Int?, region: NormalizedRect = NormalizedRect(x: 0, y: 0, width: 0, height: 0)) {
         self.question = question

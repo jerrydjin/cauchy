@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SelectionQuoteView: View {
     let text: String
+    var lineLimit: Int? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -14,6 +15,8 @@ struct SelectionQuoteView: View {
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .multilineTextAlignment(.leading)
+                .lineLimit(lineLimit)
+                .truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -22,99 +25,117 @@ struct SelectionQuoteView: View {
 enum PassageChipRole {
     /// Above the composer. Tap jumps to the page. × dismisses.
     case composer
-    /// On a sent message. Tap expands the excerpt. No dismiss control.
+    /// On a sent message. The quote is the chip. No dismiss control.
     case transcript
 }
 
-/// One quiet line: `p. 39 · By taking complements… ×`.
-/// The quote mark and the `p. N · excerpt` line are the passage tag.
+/// The quote, and the blue bar beside it. No page number and no header.
+/// Hovering either chip opens the full passage in the answer-card style.
 struct PassageChipView: View {
     var passage: PinnedPassage
     var role: PassageChipRole
-    var startsExpanded = false
+    /// The designer snapshot paints the hover card in the layout. Live hover
+    /// uses a popover, which ImageRenderer does not draw.
+    var showsHoverCard = false
     var onOpen: () -> Void
     var onDismiss: () -> Void = {}
 
-    @State private var expanded: Bool
+    @State private var isHovering = false
 
     init(
         passage: PinnedPassage,
         role: PassageChipRole,
-        startsExpanded: Bool = false,
+        showsHoverCard: Bool = false,
         onOpen: @escaping () -> Void,
         onDismiss: @escaping () -> Void = {}
     ) {
         self.passage = passage
         self.role = role
-        self.startsExpanded = startsExpanded
+        self.showsHoverCard = showsHoverCard
         self.onOpen = onOpen
         self.onDismiss = onDismiss
-        _expanded = State(initialValue: startsExpanded)
+    }
+
+    private var quote: String {
+        PinnedPassage.singleLine(passage.excerpt)
+    }
+
+    private var popoverPresented: Binding<Bool> {
+        Binding(
+            get: { isHovering && !showsHoverCard },
+            set: { presented in
+                if !presented { isHovering = false }
+            }
+        )
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Button(action: activate) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "text.quote")
-                            .font(.system(size: 11, weight: .semibold))
-                            .accessibilityHidden(true)
-                        Text(headerLine)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .contentShape(Rectangle())
+        VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+            if showsHoverCard {
+                PassageQuoteCard(text: quote)
+            }
+            chipRow
+        }
+        .onHover { hovering in
+            if isHovering != hovering { isHovering = hovering }
+        }
+        .popover(isPresented: popoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+            PassageQuoteCard(text: quote)
+                .presentationBackground(ContentSurface.bubble)
+        }
+    }
+
+    private var chipRow: some View {
+        HStack(alignment: .top, spacing: 8) {
+            quoteControl
+            if role == .composer {
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel(accessibilityTitle)
-                .accessibilityHint(role == .composer ? "Shows this passage in the PDF" : "Shows the full passage")
-
-                if role == .composer {
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(4)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Dismiss passage")
-                }
-            }
-
-            if role == .transcript, expanded {
-                SelectionQuoteView(text: passage.excerpt)
+                .accessibilityLabel("Dismiss passage")
             }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    /// Collapsed, the sent chip is `p. 39 · excerpt`. Expanded, the excerpt
-    /// is the quote underneath, so the header is only the page.
-    private var headerLine: String {
-        if role == .transcript, expanded {
-            return "p. \(passage.pageIndex + 1)"
+    @ViewBuilder
+    private var quoteControl: some View {
+        if role == .composer {
+            Button(action: onOpen) {
+                SelectionQuoteView(text: quote, lineLimit: 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(quote)
+            .accessibilityHint("Shows this passage in the PDF")
+        } else {
+            SelectionQuoteView(text: quote, lineLimit: 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel(quote)
         }
-        return passage.line
     }
+}
 
-    private var accessibilityTitle: String {
-        "Page \(passage.pageIndex + 1), \(PinnedPassage.singleLine(passage.excerpt))"
-    }
+/// Full passage on hover. Same fill, corner radius, and padding as an answer.
+struct PassageQuoteCard: View {
+    static let maxWidth: CGFloat = 320
 
-    private func activate() {
-        switch role {
-        case .composer:
-            onOpen()
-        case .transcript:
-            expanded.toggle()
-        }
+    var text: String
+
+    var body: some View {
+        SelectionQuoteView(text: text)
+            .padding(.horizontal, ConversationChrome.answerPaddingH)
+            .padding(.vertical, ConversationChrome.answerPaddingV)
+            .frame(maxWidth: Self.maxWidth, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(
+                ContentSurface.bubble,
+                in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
+            )
     }
 }

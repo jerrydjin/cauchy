@@ -213,17 +213,31 @@ private struct ReferencePreviewCard: View {
         let model = ReferencePreviewPresentation.model(for: block)
         VStack(spacing: 0) {
             ScrollView {
-                switch model.body {
-                case .statement(let text):
-                    ReferencePreviewStatementColumn(heading: model.heading, statement: text)
-                case .figure(let caption):
-                    ReferencePreviewBlockChrome.padded(
-                        VStack(alignment: .leading, spacing: 14) {
-                            ReferencePreviewHeading(text: model.heading)
-                            figurePreview(block: block, caption: caption)
-                        }
-                    )
+                Group {
+                    switch model.body {
+                    case .statement(let text):
+                        ReferencePreviewStatementColumn(
+                            heading: model.heading,
+                            statement: text,
+                            pageIndexes: block.pageIndex >= 0 ? [block.pageIndex] : [],
+                            onOpenPage: { workspace.goToPage($0 + 1) }
+                        )
+                    case .figure(let caption):
+                        ReferencePreviewBlockChrome.padded(
+                            VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
+                                ReferencePreviewHeading(text: model.heading)
+                                figurePreview(block: block, caption: caption)
+                                if block.pageIndex >= 0 {
+                                    ReferenceSourcePills(pageIndexes: [block.pageIndex]) {
+                                        workspace.goToPage($0 + 1)
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
+                .padding(.horizontal, ConversationChrome.bubbleHorizontalInset)
+                .padding(.vertical, ConversationChrome.bubbleHorizontalInset)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -416,8 +430,9 @@ private struct ReferencePreviewCard: View {
     /// be drawn as-is because this disclosure never called SwiftMath.
     @ViewBuilder
     private func referenceBody(_ text: String, font: Font) -> some View {
-        if ReferenceMathRendering.needsTypesetting(text) {
-            MessageContentView(content: text, font: font, allowsMonospace: false)
+        let typeset = ReferenceCardMath.typeset(text)
+        if ReferenceMathRendering.needsTypesetting(typeset) {
+            MessageContentView(content: typeset, font: font, allowsMonospace: false)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             Text(text)

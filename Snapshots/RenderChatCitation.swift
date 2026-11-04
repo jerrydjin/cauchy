@@ -55,13 +55,12 @@ enum RenderChatCitation {
             )
         )
         let expanded = ChatSnapshotChrome(
-            caption: "After · expanded",
+            caption: "After",
             width: 340,
             content: MessageBubble(
                 message: fixture.message,
                 maxBubbleWidth: 270,
-                referenceKeys: fixture.keys,
-                sourcesStartExpanded: true
+                referenceKeys: fixture.keys
             )
         )
         let before = ChatSnapshotChrome(
@@ -128,6 +127,26 @@ enum RenderChatCitation {
                 SnapshotComposerBar()
             }
         )
+        let hoveredPassage = PinnedPassage(
+            pageIndex: 36,
+            excerpt: "If X is a set with the discrete metric, every set is open. The rest of this synthetic passage is only on the hover card, past the two lines the chip keeps.",
+            fingerprint: "snapshot-hover",
+            bounds: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08)
+        )
+        let chipHover = ChatSnapshotChrome(
+            caption: "Composer · passage hover",
+            width: 400,
+            content: VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+                PassageChipView(
+                    passage: hoveredPassage,
+                    role: .composer,
+                    showsHoverCard: true,
+                    onOpen: {},
+                    onDismiss: {}
+                )
+                SnapshotComposerBar()
+            }
+        )
         let dismissed = ChatSnapshotChrome(
             caption: "Composer · passage dismissed",
             width: 360,
@@ -138,28 +157,46 @@ enum RenderChatCitation {
             content: "What does taking complements show?",
             passage: MessagePassage(pageIndex: pinned.pageIndex, excerpt: pinned.excerpt)
         )
-        let collapsedChip = ChatSnapshotChrome(
-            caption: "Sent · chip collapsed",
+        let sentChip = ChatSnapshotChrome(
+            caption: "Sent · passage chip",
             width: 360,
             content: MessageBubble(
                 message: asked,
                 maxBubbleWidth: 280
             )
         )
-        let expandedChip = ChatSnapshotChrome(
-            caption: "Sent · chip expanded",
-            width: 360,
-            content: MessageBubble(
-                message: asked,
-                maxBubbleWidth: 280,
-                passageStartsExpanded: true
-            )
+        let earlier = ThreadMessage(
+            role: .assistant,
+            content: "The earlier answer already settled the interval."
+        )
+        let latestOnly = ChatSnapshotChrome(
+            caption: "Only the latest answer has follow-ups",
+            width: 420,
+            content: VStack(alignment: .leading, spacing: 16) {
+                MessageBubble(message: earlier, maxBubbleWidth: 300)
+                MessageBubble(
+                    message: ThreadMessage(role: .user, content: "What does Theorem 5.4 build on?"),
+                    maxBubbleWidth: 300
+                )
+                MessageBubble(
+                    message: followUps.grounded,
+                    maxBubbleWidth: 300,
+                    referenceKeys: followUps.keys,
+                    followUps: followUps.two,
+                    followUpsStartVisible: true
+                )
+            }
         )
         try writePNG(expanded, to: output.appendingPathComponent("jerry-148-citation-expanded.png"), minimumBytes: 4_000)
         try writePNG(withChip, to: output.appendingPathComponent("jerry-148-composer-chip.png"), minimumBytes: 2_000)
+        try writePNG(withChip, to: output.appendingPathComponent("jerry-149-composer-chip.png"), minimumBytes: 2_000)
+        try writePNG(chipHover, to: output.appendingPathComponent("jerry-149-composer-chip-hover.png"), minimumBytes: 2_000)
         try writePNG(dismissed, to: output.appendingPathComponent("jerry-148-composer-dismissed.png"), minimumBytes: 2_000)
-        try writePNG(collapsedChip, to: output.appendingPathComponent("jerry-148-sent-chip-collapsed.png"), minimumBytes: 2_000)
-        try writePNG(expandedChip, to: output.appendingPathComponent("jerry-148-sent-chip-expanded.png"), minimumBytes: 2_000)
+        try writePNG(sentChip, to: output.appendingPathComponent("jerry-148-sent-chip-collapsed.png"), minimumBytes: 2_000)
+        try writePNG(sentChip, to: output.appendingPathComponent("jerry-149-sent-chip.png"), minimumBytes: 2_000)
+        try writePNG(latestOnly, to: output.appendingPathComponent("jerry-149-follow-ups-latest.png"), minimumBytes: 4_000)
+        // The sent chip no longer expands. Keep the old filename pointed at the quote.
+        try writePNG(sentChip, to: output.appendingPathComponent("jerry-148-sent-chip-expanded.png"), minimumBytes: 2_000)
     }
 }
 
@@ -259,9 +296,6 @@ private struct CitationFixture {
         let pages = CitedSourceSummary.pages(in: answer, anchors: anchors)
         guard pages.map(\.pageLabel) == ["37", "39"] else {
             throw SnapshotError("cited pages drifted: \(pages.map(\.pageLabel))")
-        }
-        guard CitedSourceSummary.disclosureLabel(pageCount: pages.count) == "Sources · 2 pages" else {
-            throw SnapshotError("disclosure label drifted")
         }
         guard pages.allSatisfy({ !$0.anchor.label.localizedCaseInsensitiveContains("compact") }) else {
             throw SnapshotError("uncited compactness page leaked into sources")

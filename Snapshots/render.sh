@@ -80,6 +80,8 @@ ref_sources=(
   Cauchy/Views/RichText/MathSegmentView.swift
   Cauchy/Views/RichText/ReferenceLinkedText.swift
   Cauchy/Views/RichText/MessageContentView.swift
+  Cauchy/Views/Design/ContentSurface.swift
+  Cauchy/Views/Conversation/ConversationChrome.swift
   Cauchy/Views/Context/ReadingBlockCard.swift
   Cauchy/Views/Context/ReferencePreviewStatement.swift
 )

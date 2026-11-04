@@ -61,7 +61,11 @@ struct ConversationPanel<Header: View>: View {
                             onOpenSource: onOpenSource,
                             referenceKeys: referenceKeys,
                             onOpenReference: onOpenReference,
-                            followUps: message.role == .assistant ? followUpsFor(message) : [],
+                            followUps: ConversationFollowUps.shouldShow(
+                                on: message,
+                                in: messages,
+                                isResponding: isResponding
+                            ) ? followUpsFor(message) : [],
                             onAskFollowUp: onAskFollowUp
                         )
                         .id(message.id)
@@ -198,5 +202,19 @@ struct ConversationPanel<Header: View>: View {
                 proxy.scrollTo(lastID, anchor: .bottom)
             }
         }
+    }
+}
+
+/// Follow-up pills belong to the latest finished answer. Sending another
+/// question clears them immediately, before the next answer arrives.
+enum ConversationFollowUps {
+    static func shouldShow(
+        on message: ThreadMessage,
+        in messages: [ThreadMessage],
+        isResponding: Bool
+    ) -> Bool {
+        guard !isResponding, message.role == .assistant else { return false }
+        guard let last = messages.last, last.role == .assistant, last.id == message.id else { return false }
+        return true
     }
 }

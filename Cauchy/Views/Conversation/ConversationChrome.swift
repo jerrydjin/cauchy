@@ -13,7 +13,7 @@ enum ConversationChrome {
     /// Answer-area spacing. Every value is on a 4-point scale.
     static let answerPaddingH: CGFloat = 20
     static let answerPaddingV: CGFloat = 16
-    /// From the answer's last line to the Sources pill.
+    /// From an answer's last line to the block under it. Kept on the 4-point scale.
     static let answerSourcesGap: CGFloat = 12
     /// From the answer bubble to the first follow-up pill.
     static let answerFollowUpGap: CGFloat = 16
@@ -21,6 +21,6 @@ enum ConversationChrome {
     static let answerFollowUpSpacing: CGFloat = 8
     static let answerFollowUpPaddingH: CGFloat = 14
     static let answerFollowUpPaddingV: CGFloat = 8
-    /// Between a follow-up's question and its page mark.
+    /// Kept on the 4-point scale. Follow-up pills no longer show a page mark.
     static let answerFollowUpPageGap: CGFloat = 12
 }

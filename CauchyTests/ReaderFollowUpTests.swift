@@ -116,6 +116,30 @@ final class ReaderFollowUpTests: XCTestCase {
         XCTAssertEqual(followUps.first?.pageLabel, "13")
     }
 
+    func testFollowUpVoiceOverIsTheQuestionOnly() {
+        let followUps = ReaderFollowUps.suggest(
+            answer: "A continuous image of a closed interval is connected. [R1]",
+            anchors: [anchor("R1", label: "Proposition 5.3")],
+            statements: notes
+        )
+
+        XCTAssertEqual(followUps[0].pageLabel, "41")
+        XCTAssertEqual(followUps[0].voiceOverLabel, followUps[0].question)
+        XCTAssertFalse(followUps[0].voiceOverLabel.localizedCaseInsensitiveContains("page"))
+    }
+
+    func testFollowUpsStayOnTheLatestAnswerOnly() {
+        let earlier = ThreadMessage(role: .assistant, content: "The earlier answer.")
+        let latest = ThreadMessage(role: .assistant, content: "The latest answer.")
+        let question = ThreadMessage(role: .user, content: "And what about the next one?")
+
+        XCTAssertFalse(ConversationFollowUps.shouldShow(on: earlier, in: [earlier, latest], isResponding: false))
+        XCTAssertTrue(ConversationFollowUps.shouldShow(on: latest, in: [earlier, latest], isResponding: false))
+        XCTAssertFalse(ConversationFollowUps.shouldShow(on: latest, in: [earlier, latest, question], isResponding: false))
+        XCTAssertFalse(ConversationFollowUps.shouldShow(on: latest, in: [earlier, latest], isResponding: true))
+        XCTAssertFalse(ConversationFollowUps.shouldShow(on: question, in: [earlier, latest, question], isResponding: false))
+    }
+
     func testAtMostTwoEvenWhenMoreGroundedStepsExist() {
         let exercise = statement(
             .exercise, "5.5",

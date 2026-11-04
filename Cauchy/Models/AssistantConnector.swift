@@ -284,10 +284,13 @@ extension AssistantConnector {
                 ),
                 // Codex takes no aliases, so these are pinned ids and do need
                 // a catalog bump when OpenAI ships a new family.
+                // Newest version first. Within 6.1, Sol is the near-Astra model
+                // and Terra is the fast one. Within 6, Astra is the most capable
+                // and Luna is the efficient one. Sol stays the first balanced row.
                 models: [
-                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
                     AssistantModel(id: "gpt-6.1-terra", name: "GPT-6.1 Terra", tier: .balanced, blurb: "Fast writing and visual work"),
+                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
@@ -348,10 +351,12 @@ extension AssistantConnector {
                 access: .apiKey(.openai),
                 // Pinned production ids. chat-latest follows ChatGPT snapshots,
                 // rather than this workload's recommended model family.
+                // Same order as Codex: 6.1 before 6, and the more capable
+                // model before the faster one inside each version.
                 models: [
-                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
                     AssistantModel(id: "gpt-6.1-terra", name: "GPT-6.1 Terra", tier: .balanced, blurb: "Fast writing and visual work"),
+                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,

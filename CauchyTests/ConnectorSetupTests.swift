@@ -127,6 +127,25 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertEqual(onDevice.defaultChoice, .connectorDefault)
         XCTAssertEqual(onDevice.choice(fromToken: nil), .connectorDefault)
     }
+
+    /// Newest version first, then the more capable model inside that version.
+    /// The balanced default is unchanged by the order.
+    func testPickerListsUseVersionThenCapabilityOrder() {
+        let order: [AssistantConnectorID: [String]] = [
+            .claudeCode: ["fable", "opus", "sonnet", "haiku"],
+            .anthropicAPI: ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
+            .codex: ["gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-astra", "gpt-6-luna"],
+            .openaiAPI: ["gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-astra", "gpt-6-luna"],
+            .antigravity: [
+                "gemini-4-argon-high", "gemini-4-argon-medium",
+                "gemini-3.8-flash-high", "gemini-3.8-flash-medium",
+            ],
+            .gemini: ["gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash-lite"],
+        ]
+        for (id, ids) in order {
+            XCTAssertEqual(id.connector.models.map(\.id), ids, id.rawValue)
+        }
+    }
 }
 
 final class CodexFailureTests: XCTestCase {

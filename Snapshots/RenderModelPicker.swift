@@ -32,30 +32,36 @@ enum RenderModelPicker {
                     throw SnapshotError("\(connector.name) has no default model")
                 }
             }
-            let view = SnapshotChrome(
-                caption: "\(connector.name) model picker",
-                content: OpenModelMenu(connector: connector)
-            )
-            let url = output.appendingPathComponent(filename(for: connector.id))
-            try writePNG(view, to: url, minimumBytes: 2_000)
+            for dark in [true, false] {
+                let view = SnapshotChrome(
+                    caption: "\(connector.name) model picker",
+                    dark: dark,
+                    content: OpenModelMenu(connector: connector, dark: dark)
+                )
+                let url = output.appendingPathComponent(filename(for: connector.id, dark: dark))
+                try writePNG(view, to: url, minimumBytes: 2_000)
+            }
         }
     }
 
-    private static func filename(for id: AssistantConnectorID) -> String {
+    private static func filename(for id: AssistantConnectorID, dark: Bool) -> String {
+        let base: String
         switch id {
-        case .onDevice: "picker-apple-intelligence.png"
-        case .claudeCode: "picker-claude-code.png"
-        case .codex: "picker-codex.png"
-        case .antigravity: "picker-antigravity.png"
-        case .anthropicAPI: "picker-anthropic-api.png"
-        case .openaiAPI: "picker-openai-api.png"
-        case .gemini: "picker-gemini-api.png"
+        case .onDevice: base = "picker-apple-intelligence"
+        case .claudeCode: base = "picker-claude-code"
+        case .codex: base = "picker-codex"
+        case .antigravity: base = "picker-antigravity"
+        case .anthropicAPI: base = "picker-anthropic-api"
+        case .openaiAPI: base = "picker-openai-api"
+        case .gemini: base = "picker-gemini-api"
         }
+        return dark ? "\(base).png" : "\(base)-light.png"
     }
 }
 
 private struct OpenModelMenu: View {
     let connector: AssistantConnector
+    var dark: Bool
 
     private var chosenModelID: String? { connector.defaultChoice.modelID }
 
@@ -63,7 +69,7 @@ private struct OpenModelMenu: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(connector.name)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(dark ? Color(white: 0.68) : Color.secondary)
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
@@ -77,10 +83,10 @@ private struct OpenModelMenu: View {
         }
         .frame(width: 280)
         .padding(.bottom, 6)
-        .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(dark ? Color(white: 0.17) : Color.white, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.black.opacity(0.12), lineWidth: 1)
+                .stroke(dark ? Color.white.opacity(0.12) : Color.black.opacity(0.12), lineWidth: 1)
         )
     }
 
@@ -92,28 +98,29 @@ private struct OpenModelMenu: View {
                 .frame(width: 14)
             Text(title)
                 .font(.system(size: 13))
-                .foregroundStyle(.primary)
+                .foregroundStyle(dark ? Color(white: 0.96) : Color.primary)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(checked ? Color.accentColor.opacity(0.16) : Color.clear)
+        .background(checked ? (dark ? Color(red: 0.16, green: 0.36, blue: 0.62) : Color.accentColor.opacity(0.16)) : Color.clear)
     }
 }
 
 private struct SnapshotChrome<Content: View>: View {
     var caption: String
+    var dark: Bool
     var content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(caption)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(dark ? Color(white: 0.68) : Color.secondary)
             content
         }
         .padding(28)
-        .background(Color(white: 0.94))
+        .background(dark ? Color(white: 0.09) : Color(white: 0.94))
     }
 }
 

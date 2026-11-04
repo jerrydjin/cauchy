@@ -20,7 +20,7 @@ export const assistants = [
     name: "Codex",
     url: "https://github.com/openai/codex",
     description:
-      "Connect your ChatGPT account in Settings using the guided CLI installation and sign-in. The model picker offers GPT-6 Astra, GPT-6.1 Sol, GPT-6.1 Terra, and GPT-6 Luna.",
+      "Connect your ChatGPT account in Settings using the guided CLI installation and sign-in. The model picker offers GPT-6.1 Sol, GPT-6.1 Terra, GPT-6 Astra, and GPT-6 Luna.",
   },
   {
     id: "antigravity",
@@ -41,7 +41,7 @@ export const assistants = [
     name: "OpenAI API",
     url: "https://platform.openai.com/api-keys",
     description:
-      "Add your own OpenAI key under Settings → Your API keys. Choose GPT-6 Astra, GPT-6.1 Sol, GPT-6.1 Terra, or GPT-6 Luna. The key lives in your macOS Keychain and API usage is billed separately from your ChatGPT plan.",
+      "Add your own OpenAI key under Settings → Your API keys. Choose GPT-6.1 Sol, GPT-6.1 Terra, GPT-6 Astra, or GPT-6 Luna. The key lives in your macOS Keychain and API usage is billed separately from your ChatGPT plan.",
   },
   {
     id: "gemini",

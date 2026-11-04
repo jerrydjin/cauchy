@@ -5,20 +5,23 @@ struct SelectionQuoteView: View {
     var lineLimit: Int? = nil
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(CitationChrome.tint)
-                .frame(width: 2)
-
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .multilineTextAlignment(.leading)
-                .lineLimit(lineLimit)
-                .truncationMode(.tail)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        // The bar is painted in the text's own bounds. A shape given only a
+        // width takes whatever height it is offered, and the empty conversation
+        // offers the chip the whole panel.
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+            .multilineTextAlignment(.leading)
+            .lineLimit(lineLimit)
+            .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.leading, 10)
+            .background(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(CitationChrome.tint)
+                    .frame(width: 2)
+            }
     }
 }
 
@@ -76,6 +79,11 @@ struct PassageChipView: View {
             }
             chipRow
         }
+        // Hug the quote. The composer sits in a safe-area bar that proposes
+        // the panel's spare height; without this the card and the bar take it.
+        // The frame keeps the card as wide as the composer.
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .onHover { hovering in
             if isHovering != hovering { isHovering = hovering }
         }

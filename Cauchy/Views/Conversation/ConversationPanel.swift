@@ -127,7 +127,11 @@ struct ConversationPanel<Header: View>: View {
                     .padding(12)
                 }
             }
-            .safeAreaBar(edge: .top) { header }
+            .safeAreaBar(edge: .top) {
+                header
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(ConversationChrome.headerBackdrop)
+            }
             .safeAreaBar(edge: .bottom) { composerBar }
             // `.soft` at both edges: a progressive blur that fades the messages
             // out under the chrome. `.hard` draws a defined block instead,

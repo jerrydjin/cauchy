@@ -217,6 +217,29 @@ enum RenderChatCitation {
         try writePNG(filtered, to: output.appendingPathComponent("jerry-151-follow-ups-filtered.png"), minimumBytes: 4_000)
         // The sent chip no longer expands. Keep the old filename pointed at the quote.
         try writePNG(sentChip, to: output.appendingPathComponent("jerry-148-sent-chip-expanded.png"), minimumBytes: 2_000)
+
+        let chainRule = PinnedPassage(
+            pageIndex: 10,
+            excerpt: "Theorem 1.5.3 (Chain Rule). Let f : Rn → Rm, g : Rm → Rp and a ∈ Rn. Assume that f is differentiable at a and g is continuous.",
+            fingerprint: "snapshot-empty",
+            bounds: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08)
+        )
+        let emptyChat = EmptyPinnedChat(passage: chainRule)
+        let emptyURL = output.appendingPathComponent("jerry-151-empty-chat.png")
+        try writePNG(emptyChat, to: emptyURL, minimumBytes: 4_000)
+        try assertChipHugsItsText(in: emptyURL, panelHeight: EmptyPinnedChat.panelHeight)
+
+        let tallHover = TallHoverChip(passage: hoveredPassage)
+        let tallHoverURL = output.appendingPathComponent("jerry-151-chip-hover-tall.png")
+        try writePNG(tallHover, to: tallHoverURL, minimumBytes: 4_000)
+        try assertChipHugsItsText(in: tallHoverURL, panelHeight: TallHoverChip.panelHeight, allowsCardBar: true)
+
+        let headerEmpty = HeaderBand(scrolled: false)
+        try writePNG(headerEmpty, to: output.appendingPathComponent("jerry-151-header-empty.png"), minimumBytes: 2_000)
+        let headerScrolled = HeaderBand(scrolled: true)
+        let headerScrolledURL = output.appendingPathComponent("jerry-151-header-scrolled.png")
+        try writePNG(headerScrolled, to: headerScrolledURL, minimumBytes: 4_000)
+        try assertHeaderHidesTheLineUnderneath()
     }
 }
 
@@ -383,6 +406,254 @@ private struct BrokenCitationBubble: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(Color.accentColor.opacity(0.18), in: Capsule())
+    }
+}
+
+/// A tall empty conversation. The chip is offered the spare height, the same
+/// proposal the safe-area bar makes, and has to stay two lines at the bottom.
+private struct EmptyPinnedChat: View {
+    static let panelWidth: CGFloat = 390
+    static let panelHeight: CGFloat = 720
+
+    var passage: PinnedPassage
+
+    var body: some View {
+        VStack(spacing: 0) {
+            snapshotHeader
+            Text("Ask a question about this passage")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+                PassageChipView(passage: passage, role: .composer, onOpen: {}, onDismiss: {})
+                SnapshotComposerBar()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+        }
+        .frame(width: Self.panelWidth, height: Self.panelHeight)
+        .background(ConversationChrome.headerBackdrop)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// Hover, offered the same tall height. The card and the chip both hug.
+private struct TallHoverChip: View {
+    static let panelWidth: CGFloat = 390
+    static let panelHeight: CGFloat = 720
+
+    var passage: PinnedPassage
+
+    var body: some View {
+        VStack(spacing: 0) {
+            snapshotHeader
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+                PassageChipView(
+                    passage: passage,
+                    role: .composer,
+                    showsHoverCard: true,
+                    onOpen: {},
+                    onDismiss: {}
+                )
+                SnapshotComposerBar()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+        }
+        .frame(width: Self.panelWidth, height: Self.panelHeight)
+        .background(ConversationChrome.headerBackdrop)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private struct HeaderBand: View {
+    var scrolled: Bool
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            ConversationChrome.headerBackdrop
+            if scrolled {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("What does the definition of norms require?")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .padding(.top, 30)
+                    Text("A norm on a finite-dimensional space is a continuous function, and every linear map is bounded.")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else {
+                Text("Ask a question about this passage")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 78)
+            }
+            snapshotHeader
+        }
+        .frame(width: 390, height: scrolled ? 280 : 150)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private var snapshotHeader: some View {
+    ConversationThreadHeader(
+        title: "Derivative Order and Matrix Transfor…",
+        pageNumber: 11,
+        onBack: {}
+    ) {
+        Image(systemName: "ellipsis")
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 22)
+    }
+}
+
+/// The quote bar stays a couple of lines tall and sits down by the composer.
+/// A bar that takes the panel's spare height fails here.
+private func assertChipHugsItsText(in url: URL, panelHeight: CGFloat, allowsCardBar: Bool = false) throws {
+    let bitmap = try Bitmap(url)
+    let runs = bitmap.quoteBarRuns()
+    guard !runs.isEmpty else {
+        throw SnapshotError("quote bar did not draw in \(url.lastPathComponent)")
+    }
+    let scale = CGFloat(bitmap.height) / panelHeight
+    for run in runs {
+        let points = CGFloat(run.upperBound - run.lowerBound) / scale
+        let limit: CGFloat = allowsCardBar ? 120 : 56
+        guard points < limit else {
+            throw SnapshotError("quote bar is \(Int(points))pt tall in \(url.lastPathComponent); it took the panel's spare height")
+        }
+    }
+    let lowest = runs.map(\.lowerBound).max() ?? 0
+    guard CGFloat(lowest) / CGFloat(bitmap.height) > 0.55 else {
+        throw SnapshotError("quote bar starts at row \(lowest) of \(bitmap.height) in \(url.lastPathComponent); it is not pinned above the composer")
+    }
+    fputs("chip hugs content in \(url.lastPathComponent): bars \(runs.map { "\($0.lowerBound)-\($0.upperBound)" })\n", stdout)
+}
+
+/// A bright line placed on the subtitle must not survive the header.
+private func assertHeaderHidesTheLineUnderneath() throws {
+    let probe = HeaderLeakProbe()
+    let renderer = ImageRenderer(content: probe.environment(\.displayScale, 2).environment(\.colorScheme, .dark))
+    renderer.scale = 2
+    renderer.isOpaque = true
+    guard let image = renderer.nsImage, let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else {
+        throw SnapshotError("header probe produced no image")
+    }
+    let bitmap = try Bitmap(rep)
+    var leaked = 0
+    var titleInk = 0
+    for y in 0..<bitmap.height {
+        for x in 0..<bitmap.width {
+            let p = bitmap.pixel(x, y)
+            if p.r > 220 && p.g < 40 && p.b < 40 { leaked += 1 }
+            if p.r > 180 && p.g > 180 && p.b > 180 { titleInk += 1 }
+        }
+    }
+    guard leaked == 0 else {
+        throw SnapshotError("header lets \(leaked) pixels of the line underneath show through the subtitle")
+    }
+    guard titleInk > 40 else {
+        throw SnapshotError("header subtitle did not draw")
+    }
+    fputs("header hides the line underneath (\(titleInk) title pixels)\n", stdout)
+}
+
+/// Red sits on the subtitle. The rest of the probe is the panel colour, so a
+/// red pixel anywhere means the header band is still clear.
+private struct HeaderLeakProbe: View {
+    var body: some View {
+        ZStack(alignment: .top) {
+            ConversationChrome.headerBackdrop
+            Color.red
+                .frame(height: 18)
+                .padding(.top, 32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            snapshotHeader
+        }
+        .frame(width: 390, height: 120)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private struct Bitmap {
+    var width: Int
+    var height: Int
+    var pixels: [UInt8]
+
+    init(_ url: URL) throws {
+        guard let rep = NSBitmapImageRep(data: try Data(contentsOf: url)) else {
+            throw SnapshotError("could not read \(url.lastPathComponent)")
+        }
+        try self.init(rep)
+    }
+
+    init(_ rep: NSBitmapImageRep) throws {
+        guard let cg = rep.cgImage else { throw SnapshotError("bitmap has no image") }
+        width = cg.width
+        height = cg.height
+        var buffer = [UInt8](repeating: 0, count: width * height * 4)
+        guard let context = CGContext(
+            data: &buffer,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw SnapshotError("could not read pixels")
+        }
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+        pixels = buffer
+    }
+
+    /// y is measured from the top. The context's origin is the bottom.
+    func pixel(_ x: Int, _ yFromTop: Int) -> (r: UInt8, g: UInt8, b: UInt8) {
+        let y = height - 1 - yFromTop
+        let i = (y * width + x) * 4
+        return (pixels[i], pixels[i + 1], pixels[i + 2])
+    }
+
+    func quoteBarRuns() -> [Range<Int>] {
+        var rows: [Int] = []
+        for y in 0..<height {
+            var blues = 0
+            for x in 0..<width {
+                let p = pixel(x, y)
+                if abs(Int(p.r) - 138) < 40, abs(Int(p.g) - 180) < 40, Int(p.b) > 200, Int(p.b) > Int(p.r) + 40 {
+                    blues += 1
+                }
+            }
+            if blues >= 2 { rows.append(y) }
+        }
+        var runs: [Range<Int>] = []
+        var start: Int?
+        var previous: Int?
+        for y in rows {
+            if let previous, y == previous + 1 {
+                // still in the run
+            } else {
+                if let start, let previous {
+                    runs.append(start..<previous + 1)
+                }
+                start = y
+            }
+            previous = y
+        }
+        if let start, let previous {
+            runs.append(start..<previous + 1)
+        }
+        return runs
     }
 }
 

@@ -167,6 +167,8 @@ chat_sources=(
   Cauchy/Views/RichText/MessageContentView.swift
   Cauchy/Views/Design/ContentSurface.swift
   Cauchy/Views/Conversation/ConversationChrome.swift
+  Cauchy/Views/Design/GlassIconButton.swift
+  Cauchy/Views/Conversation/ConversationThreadHeader.swift
   Cauchy/Views/Conversation/SelectionQuoteView.swift
   Cauchy/Views/Conversation/MessageBubble.swift
 )
@@ -179,7 +181,7 @@ cat > "$stage/Package.swift" <<EOF
 import PackageDescription
 let package = Package(
     name: "RenderChatCitation",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v26)],
     dependencies: [
         .package(path: "${swiftmath_path}")
     ],
@@ -201,6 +203,6 @@ let package = Package(
 )
 EOF
 
-MACOSX_DEPLOYMENT_TARGET=14.0 xcrun --sdk macosx swift build -c release --package-path "$stage"
-chat_bin="$(MACOSX_DEPLOYMENT_TARGET=14.0 xcrun --sdk macosx swift build -c release --package-path "$stage" --show-bin-path)/RenderChatCitation"
+MACOSX_DEPLOYMENT_TARGET=26.0 xcrun --sdk macosx swift build -c release --package-path "$stage"
+chat_bin="$(MACOSX_DEPLOYMENT_TARGET=26.0 xcrun --sdk macosx swift build -c release --package-path "$stage" --show-bin-path)/RenderChatCitation"
 "$chat_bin" "$(pwd)" "$out"

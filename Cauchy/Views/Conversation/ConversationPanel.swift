@@ -26,6 +26,9 @@ struct ConversationPanel<Header: View>: View {
     var onSend: () -> Void
     var onStop: () -> Void = {}
     var onModelChange: () -> Void = {}
+    var pinnedPassage: PinnedPassage? = nil
+    var onOpenPassage: () -> Void = {}
+    var onDismissPassage: () -> Void = {}
     var onRecovery: () -> Void = {}
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var referenceKeys: Set<ReferenceKey> = []
@@ -39,15 +42,6 @@ struct ConversationPanel<Header: View>: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    if let selectedText, !selectedText.isEmpty {
-                        MessageBubble(
-                            message: ThreadMessage(role: .user, content: ""),
-                            quotedText: selectedText,
-                            maxBubbleWidth: bubbleWidth
-                        )
-                        .id("quote-only")
-                    }
-
                     if messages.isEmpty, !isResponding {
                         Text("Ask a question about this passage")
                             .font(.caption)
@@ -164,6 +158,9 @@ struct ConversationPanel<Header: View>: View {
                 question: $question,
                 isResponding: isResponding,
                 isEnabled: canAsk && selectedText != nil,
+                pinnedPassage: pinnedPassage,
+                onOpenPassage: onOpenPassage,
+                onDismissPassage: onDismissPassage,
                 onSend: onSend,
                 onStop: onStop,
                 onModelChange: onModelChange

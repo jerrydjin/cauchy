@@ -257,4 +257,49 @@ final class ReadingLayoutTests: XCTestCase {
         controller.applyFitToWidthIfNeeded()
         XCTAssertEqual(view.scaleFactor, 1.5, accuracy: 0.01)
     }
+
+    func testPageTagLandingDoesNotCreateOrReplaceThePinnedPassage() throws {
+        let workspace = WorkspaceViewModel()
+        let image = NSImage(size: NSSize(width: 400, height: 600), flipped: false) { rect in
+            NSColor.white.setFill()
+            rect.fill()
+            return true
+        }
+        let document = PDFDocument()
+        document.insert(try XCTUnwrap(PDFPage(image: image)), at: 0)
+        workspace.pdfDocument = document
+
+        let region = NormalizedRect(x: 0.1, y: 0.4, width: 0.7, height: 0.08)
+        workspace.goToAnswerSource(AnswerSourceAnchor(
+            label: "Proposition 5.3.1",
+            pageIndex: 0,
+            region: region
+        ))
+        XCTAssertNil(workspace.pinnedPassage)
+        XCTAssertEqual(workspace.citationHighlight?.pageIndex, 0)
+
+        let selected = PinnedPassage(
+            pageIndex: 0,
+            excerpt: "By taking complements, one can show the following.",
+            fingerprint: "selected",
+            bounds: region
+        )
+        XCTAssertTrue(workspace.notePinnedPassage(selected))
+        workspace.goToAnswerSource(AnswerSourceAnchor(
+            label: "Open and closed sets",
+            pageIndex: 0,
+            region: NormalizedRect(x: 0.1, y: 0.2, width: 0.7, height: 0.05)
+        ))
+        XCTAssertEqual(workspace.pinnedPassage, selected)
+        XCTAssertEqual(workspace.citationHighlight?.region.y, 0.2)
+
+        workspace.openPinnedPassage()
+        XCTAssertEqual(workspace.citationHighlight?.region, region)
+        XCTAssertEqual(workspace.pinnedPassage, selected)
+
+        workspace.dismissPinnedPassage()
+        XCTAssertNil(workspace.pinnedPassage)
+        XCTAssertFalse(workspace.notePinnedPassage(selected))
+        XCTAssertNil(workspace.pinnedPassage)
+    }
 }

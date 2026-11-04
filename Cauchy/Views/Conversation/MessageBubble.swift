@@ -5,6 +5,8 @@ struct MessageBubble: View {
     let message: ThreadMessage
     var quotedText: String?
     var maxBubbleWidth: CGFloat = 300
+    /// The designer snapshot opens the passage chip. A live message starts closed.
+    var passageStartsExpanded = false
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var referenceKeys: Set<ReferenceKey> = []
     var onOpenReference: (DetectedReference) -> Void = { _ in }
@@ -19,35 +21,59 @@ struct MessageBubble: View {
         HStack(alignment: .top, spacing: 0) {
             if isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
 
-            bubbleContent
-                .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
-                .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
-                // Flat fill, not glass: a bubble is content, and content sits
-                // below the glass layer rather than joining it. See ContentSurface.
-                .background(
-                    isUser ? Color.accentColor : ContentSurface.bubble,
-                    in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
-                )
-                // Alignment inside the frame is what actually sides the bubble:
-                // the frame fills whatever the row offers, so relying on the
-                // leftover width to push a user message right stops working as
-                // soon as the bubble is allowed to be as wide as the panel.
-                .frame(maxWidth: maxBubbleWidth, alignment: isUser ? .trailing : .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                // Answers render as a stack of separate text and math views, so
-                // dragging a selection can never pick up a whole reply — copy
-                // the source text instead.
-                .contextMenu {
-                    if !message.content.isEmpty {
-                        Button("Copy Message") { copyToPasteboard(message.content) }
-                    }
-                    if let quotedText, !quotedText.isEmpty {
-                        Button("Copy Quoted Passage") { copyToPasteboard(quotedText) }
-                    }
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
+                if isUser, let passage = message.passage {
+                    PassageChipView(
+                        passage: passage.pinned,
+                        role: .transcript,
+                        startsExpanded: passageStartsExpanded,
+                        onOpen: {}
+                    )
                 }
+                if showsQuestionBubble {
+                    styledBubble
+                }
+            }
+            // Alignment inside the frame is what actually sides the bubble:
+            // the frame fills whatever the row offers, so relying on the
+            // leftover width to push a user message right stops working as
+            // soon as the bubble is allowed to be as wide as the panel.
+            .frame(maxWidth: maxBubbleWidth, alignment: isUser ? .trailing : .leading)
+            .fixedSize(horizontal: false, vertical: true)
 
             if !isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
         }
+    }
+
+    /// Flat fill, not glass: a bubble is content, and content sits below the
+    /// glass layer rather than joining it. See ContentSurface. The passage
+    /// chip stays outside this fill so it keeps the composer's quiet colour.
+    private var styledBubble: some View {
+        bubbleContent
+            .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
+            .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
+            .background(
+                isUser ? Color.accentColor : ContentSurface.bubble,
+                in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
+            )
+            // Answers render as a stack of separate text and math views, so
+            // dragging a selection can never pick up a whole reply — copy
+            // the source text instead.
+            .contextMenu {
+                if !message.content.isEmpty {
+                    Button("Copy Message") { copyToPasteboard(message.content) }
+                }
+                if let excerpt = message.passage?.excerpt, !excerpt.isEmpty {
+                    Button("Copy Quoted Passage") { copyToPasteboard(excerpt) }
+                } else if let quotedText, !quotedText.isEmpty {
+                    Button("Copy Quoted Passage") { copyToPasteboard(quotedText) }
+                }
+            }
+    }
+
+    private var showsQuestionBubble: Bool {
+        if !message.content.isEmpty || !isUser { return true }
+        return message.passage == nil && !(quotedText?.isEmpty ?? true)
     }
 
     private func copyToPasteboard(_ text: String) {
@@ -57,7 +83,7 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var bubbleContent: some View {
-        if isUser, let quotedText, !quotedText.isEmpty {
+        if isUser, message.passage == nil, let quotedText, !quotedText.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SelectionQuoteView(text: quotedText)
                 if !message.content.isEmpty {

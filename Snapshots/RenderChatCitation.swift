@@ -86,6 +86,85 @@ enum RenderChatCitation {
             "highlight \(Int(passage.bounds.width))x\(Int(passage.bounds.height)) at \(Int(passage.bounds.minX)),\(Int(passage.bounds.minY)) string=\(passage.string)\n",
             stdout
         )
+
+        let pinned = PinnedPassage(
+            pageIndex: 38,
+            excerpt: "By taking complements, one can show the following inclusion for the closure.",
+            fingerprint: "snapshot",
+            bounds: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08)
+        )
+        let withChip = ChatSnapshotChrome(
+            caption: "Composer · passage pinned",
+            width: 360,
+            content: VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+                PassageChipView(passage: pinned, role: .composer, onOpen: {}, onDismiss: {})
+                SnapshotComposerBar()
+            }
+        )
+        let dismissed = ChatSnapshotChrome(
+            caption: "Composer · passage dismissed",
+            width: 360,
+            content: SnapshotComposerBar()
+        )
+        let asked = ThreadMessage(
+            role: .user,
+            content: "What does taking complements show?",
+            passage: MessagePassage(pageIndex: pinned.pageIndex, excerpt: pinned.excerpt)
+        )
+        let collapsedChip = ChatSnapshotChrome(
+            caption: "Sent · chip collapsed",
+            width: 360,
+            content: MessageBubble(
+                message: asked,
+                maxBubbleWidth: 280
+            )
+        )
+        let expandedChip = ChatSnapshotChrome(
+            caption: "Sent · chip expanded",
+            width: 360,
+            content: MessageBubble(
+                message: asked,
+                maxBubbleWidth: 280,
+                passageStartsExpanded: true
+            )
+        )
+        try writePNG(expanded, to: output.appendingPathComponent("jerry-148-citation-expanded.png"), minimumBytes: 4_000)
+        try writePNG(withChip, to: output.appendingPathComponent("jerry-148-composer-chip.png"), minimumBytes: 2_000)
+        try writePNG(dismissed, to: output.appendingPathComponent("jerry-148-composer-dismissed.png"), minimumBytes: 2_000)
+        try writePNG(collapsedChip, to: output.appendingPathComponent("jerry-148-sent-chip-collapsed.png"), minimumBytes: 2_000)
+        try writePNG(expandedChip, to: output.appendingPathComponent("jerry-148-sent-chip-expanded.png"), minimumBytes: 2_000)
+    }
+}
+
+/// ImageRenderer drops the live glass composer. This bar uses the same
+/// padding, corner radius, and placeholder so the chip can be judged
+/// against the control it sits on.
+private struct SnapshotComposerBar: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Ask a question…")
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left.forwardslash.chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("Auto")
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 7, weight: .semibold))
+                }
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: ConversationChrome.composerCornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: ConversationChrome.composerCornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+        }
     }
 }
 

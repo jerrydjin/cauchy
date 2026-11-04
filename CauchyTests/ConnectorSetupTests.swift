@@ -70,6 +70,8 @@ final class ModelCatalogTests: XCTestCase {
             (.gemini, "gemini-3.6-flash", "gemini-3.8-flash"),
             (.gemini, "gemini-3.7-flash", "gemini-3.8-flash"),
             (.gemini, "gemini-3.7-flash-lite", "gemini-3.5-flash-lite"),
+            (.gemini, "gemini-3.1-pro-preview", "gemini-4-argon"),
+            (.codex, "gpt-5.5", "gpt-6.1-terra"),
         ]
 
         for (connectorID, storedID, expectedID) in cases {
@@ -83,6 +85,7 @@ final class ModelCatalogTests: XCTestCase {
             (.codex, "gpt-6.1-sol"), (.openaiAPI, "gpt-6.1-sol"),
             (.claudeCode, "sonnet"), (.anthropicAPI, "claude-sonnet-5-5"),
             (.gemini, "gemini-3.8-flash"),
+            (.antigravity, "gemini-3.8-flash-high"),
         ]
         for (id, modelID) in defaults {
             let connector = id.connector
@@ -99,8 +102,30 @@ final class ModelCatalogTests: XCTestCase {
                 XCTAssertEqual(connector.choice(fromToken: model.id), .model(model.id))
             }
         }
-        // Preserve the user's existing compatibility option, without making it the default.
-        XCTAssertEqual(AssistantConnectorID.codex.connector.choice(fromToken: "gpt-5.5"), .model("gpt-5.5"))
+        XCTAssertNil(AssistantConnectorID.codex.connector.model(id: "gpt-5.5"))
+        XCTAssertNotNil(AssistantConnectorID.codex.connector.model(id: "gpt-6.1-terra"))
+        XCTAssertNotNil(AssistantConnectorID.openaiAPI.connector.model(id: "gpt-6.1-terra"))
+    }
+
+    /// Every connector that can name a model has a non-empty list, and its
+    /// default is one of those models. Apple Intelligence is the one system
+    /// model and has no vendor id to send.
+    func testEachProviderModelListIsNonEmptyAndHasADefault() {
+        let providers = AssistantConnector.all.filter { $0.id != .onDevice }
+        XCTAssertEqual(providers.count, 6)
+        for connector in providers {
+            XCTAssertFalse(connector.models.isEmpty, connector.name)
+            guard case .model(let id) = connector.defaultChoice else {
+                return XCTFail("\(connector.name) has no default model")
+            }
+            XCTAssertEqual(connector.model(id: id)?.id, id, connector.name)
+            XCTAssertEqual(connector.choice(fromToken: nil), .model(id))
+            XCTAssertEqual(connector.choice(fromToken: ModelChoice.defaultToken), .model(id))
+            XCTAssertEqual(connector.choice(fromToken: "retired-unknown-model"), .model(id))
+        }
+        let onDevice = AssistantConnectorID.onDevice.connector
+        XCTAssertEqual(onDevice.defaultChoice, .connectorDefault)
+        XCTAssertEqual(onDevice.choice(fromToken: nil), .connectorDefault)
     }
 }
 

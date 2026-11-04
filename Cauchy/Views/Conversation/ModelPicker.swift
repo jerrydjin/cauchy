@@ -23,6 +23,8 @@ struct ModelPicker: View {
     private var claudeToken = AssistantConnectorID.claudeCode.connector.defaultChoice.storageToken
     @AppStorage(AssistantPreferences.modelKey(for: .codex))
     private var codexToken = AssistantConnectorID.codex.connector.defaultChoice.storageToken
+    @AppStorage(AssistantPreferences.modelKey(for: .antigravity))
+    private var antigravityToken = AssistantConnectorID.antigravity.connector.defaultChoice.storageToken
     @AppStorage(AssistantPreferences.modelKey(for: .gemini))
     private var geminiToken = AssistantConnectorID.gemini.connector.defaultChoice.storageToken
     @AppStorage(AssistantPreferences.modelKey(for: .anthropicAPI))
@@ -133,10 +135,11 @@ struct ModelPicker: View {
         switch connector.id {
         case .claudeCode: connector.choice(fromToken: claudeToken)
         case .codex: connector.choice(fromToken: codexToken)
+        case .antigravity: connector.choice(fromToken: antigravityToken)
         case .gemini: connector.choice(fromToken: geminiToken)
         case .anthropicAPI: connector.choice(fromToken: anthropicToken)
         case .openaiAPI: connector.choice(fromToken: openaiToken)
-        case .onDevice, .antigravity: .connectorDefault
+        case .onDevice: .connectorDefault
         }
     }
 
@@ -158,10 +161,11 @@ struct ModelPicker: View {
             switch id {
             case .claudeCode: claudeToken = choice.storageToken
             case .codex: codexToken = choice.storageToken
+            case .antigravity: antigravityToken = choice.storageToken
             case .gemini: geminiToken = choice.storageToken
             case .anthropicAPI: anthropicToken = choice.storageToken
             case .openaiAPI: openaiToken = choice.storageToken
-            case .onDevice, .antigravity: break
+            case .onDevice: break
             }
         }
         selectionToken = target.storageToken

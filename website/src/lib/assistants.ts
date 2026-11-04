@@ -20,14 +20,14 @@ export const assistants = [
     name: "Codex",
     url: "https://github.com/openai/codex",
     description:
-      "Connect your ChatGPT account in Settings using the guided CLI installation and sign-in. The model picker offers GPT-6 Astra, Sol and Luna.",
+      "Connect your ChatGPT account in Settings using the guided CLI installation and sign-in. The model picker offers GPT-6 Astra, GPT-6.1 Sol, GPT-6.1 Terra, and GPT-6 Luna.",
   },
   {
     id: "antigravity",
     name: "Antigravity",
     url: "https://antigravity.google/",
     description:
-      "Connect your Google account in Settings. Cauchy uses the agy CLI and the model you choose with /model inside agy; it does not show a separate model picker.",
+      "Connect your Google account in Settings. The model picker offers Gemini 4 Argon and Gemini 3.8 Flash, with the reasoning effort in each row.",
   },
   {
     id: "anthropicAPI",
@@ -41,13 +41,13 @@ export const assistants = [
     name: "OpenAI API",
     url: "https://platform.openai.com/api-keys",
     description:
-      "Add your own OpenAI key under Settings → Your API keys. Choose GPT-6 Astra, Sol or Luna. The key lives in your macOS Keychain and API usage is billed separately from your ChatGPT plan.",
+      "Add your own OpenAI key under Settings → Your API keys. Choose GPT-6 Astra, GPT-6.1 Sol, GPT-6.1 Terra, or GPT-6 Luna. The key lives in your macOS Keychain and API usage is billed separately from your ChatGPT plan.",
   },
   {
     id: "gemini",
     name: "Gemini API",
     url: "https://aistudio.google.com/apikey",
     description:
-      "Create a key in Google AI Studio and add it under Settings → Your API keys. Pro, Flash and Flash-Lite models are available. The key lives in your macOS Keychain and usage is billed to your Google account.",
+      "Create a key in Google AI Studio and add it under Settings → Your API keys. Argon, Flash, and Flash-Lite models are available. The key lives in your macOS Keychain and usage is billed to your Google account.",
   },
 ] as const;

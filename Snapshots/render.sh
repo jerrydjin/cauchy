@@ -1,6 +1,7 @@
 #!/bin/bash
 # Renders the citation hover, the plain Cmd-F bar, the Cmd-K jump palette,
-# the RHS reference card, and the reader chat citation chrome.
+# the RHS reference card, the reader chat citation chrome, and each
+# provider's open model picker.
 # cmd-k-jump.png pins the search field and lets the list grow downward.
 # A miss collapses under that field. A long list is clipped at the 420pt cap.
 # The app-hosted tests cannot launch here: the runner is macOS 26 and the app
@@ -23,6 +24,19 @@ xcrun swiftc -parse-as-library -O \
   Snapshots/RenderCitationHover.swift \
   -o "$out/render-citation-hover"
 "$out/render-citation-hover" "$(pwd)" "$out"
+
+# Open model picker for every connector. The menu is drawn from the same
+# catalog the composer reads, so a new model shows up here without a second list.
+xcrun swiftc -parse-as-library -O \
+  -sdk "$sdk" \
+  -target "$target" \
+  -framework SwiftUI \
+  -framework AppKit \
+  Cauchy/Models/AssistantConnector.swift \
+  Cauchy/Models/CloudAPIProvider.swift \
+  Snapshots/RenderModelPicker.swift \
+  -o "$out/render-model-picker"
+"$out/render-model-picker" "$(pwd)" "$out"
 
 xcrun swiftc -parse-as-library -O \
   -sdk "$sdk" \

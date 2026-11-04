@@ -58,9 +58,8 @@ enum ConnectorAccess: Equatable, Sendable {
 
 /// Which model an ask should use within a connector.
 enum ModelChoice: Hashable, Sendable {
-    /// The connector has nothing to choose between — Apple Intelligence runs
-    /// the one system model, and agy takes no model flag at all. Nothing is
-    /// passed on the command line.
+    /// The connector has nothing to choose between. Apple Intelligence runs
+    /// the one system model, so nothing is passed on the command line.
     case connectorDefault
     case model(String)
 
@@ -157,6 +156,8 @@ extension AssistantConnector {
         case (.codex, "gpt-5.6-terra"), (.openaiAPI, "gpt-5.6-terra"),
              (.codex, "gpt-6-sol"), (.openaiAPI, "gpt-6-sol"): "gpt-6.1-sol"
         case (.codex, "gpt-5.6-luna"), (.openaiAPI, "gpt-5.6-luna"): "gpt-6-luna"
+        // GPT-5.5 left the Codex ChatGPT catalog. The picker row is now Terra.
+        case (.codex, "gpt-5.5"): "gpt-6.1-terra"
         case (.anthropicAPI, "claude-opus-5"): "claude-opus-5-5"
         case (.anthropicAPI, "claude-sonnet-5"): "claude-sonnet-5-5"
         case (.anthropicAPI, "claude-haiku-4-5"),
@@ -164,6 +165,7 @@ extension AssistantConnector {
         case (.gemini, "gemini-3.5-flash"), (.gemini, "gemini-3.6-flash"),
              (.gemini, "gemini-3.7-flash"): "gemini-3.8-flash"
         case (.gemini, "gemini-3.7-flash-lite"): "gemini-3.5-flash-lite"
+        case (.gemini, "gemini-3.1-pro-preview"): "gemini-4-argon"
         default: nil
         }
         guard let replacement, model(id: replacement) != nil else { return defaultChoice }
@@ -208,13 +210,16 @@ extension AssistantConnector {
 
 // MARK: - The catalog
 
-// Text/vision models verified on October 11, 2026:
-// https://learn.chatgpt.com/docs/models (Codex IDs also present in the local CLI catalog)
+// Text/vision models verified on November 4, 2026:
+// https://learn.chatgpt.com/docs/models (Codex: gpt-6.1-sol, gpt-6.1-terra, gpt-6-luna; GPT-5.5 retired)
+// https://developers.openai.com/api/docs/models/gpt-6.1-terra
 // https://developers.openai.com/api/docs/models/gpt-6.1-sol
 // https://platform.claude.com/docs/en/models/overview
 // https://code.claude.com/docs/en/model-config
 // https://ai.google.dev/gemini-api/docs/models
-// https://ai.google.dev/gemini-api/docs/changelog (3.7 Flash now redirects to 3.8)
+// https://ai.google.dev/gemini-api/docs/models/gemini-4-argon
+// https://antigravity.google/docs/cli/headless (agy models slugs)
+// https://antigravity.google/docs/models
 
 extension AssistantConnector {
     static let all: [AssistantConnector] = AssistantConnectorID.allCases.map(AssistantConnector.for)
@@ -279,11 +284,14 @@ extension AssistantConnector {
                 ),
                 // Codex takes no aliases, so these are pinned ids and do need
                 // a catalog bump when OpenAI ships a new family.
+                // Newest version first. Within 6.1, Sol is the near-Astra model
+                // and Terra is the fast one. Within 6, Astra is the most capable
+                // and Luna is the efficient one. Sol stays the first balanced row.
                 models: [
-                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
+                    AssistantModel(id: "gpt-6.1-terra", name: "GPT-6.1 Terra", tier: .balanced, blurb: "Fast writing and visual work"),
+                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
-                    AssistantModel(id: "gpt-5.5", name: "GPT-5.5", tier: .balanced, blurb: "General reasoning with Codex account compatibility"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: false
@@ -301,9 +309,16 @@ extension AssistantConnector {
                     install: "Install it (`curl -fsSL https://antigravity.google/cli/install.sh | bash`)",
                     signIn: "Run `agy` in Terminal and sign in with Google"
                 ),
-                // agy has no --model flag at all; the model lives in the TUI.
-                models: [],
-                noModelsNote: "Set with /model in agy",
+                // Slugs from `agy models`. The suffix is the reasoning effort, so
+                // the row is both the model and the effort. Only slugs the
+                // headless docs print in full are listed.
+                models: [
+                    AssistantModel(id: "gemini-4-argon-high", name: "Gemini 4 Argon (High)", tier: .max, blurb: "Most capable reasoning"),
+                    AssistantModel(id: "gemini-4-argon-medium", name: "Gemini 4 Argon (Medium)", tier: .max, blurb: "Flagship reasoning, medium effort"),
+                    AssistantModel(id: "gemini-3.8-flash-high", name: "Gemini 3.8 Flash (High)", tier: .balanced, blurb: "Strong everyday reasoning"),
+                    AssistantModel(id: "gemini-3.8-flash-medium", name: "Gemini 3.8 Flash (Medium)", tier: .fast, blurb: "Quicker replies"),
+                ],
+                noModelsNote: nil,
                 isAdvanced: false
             )
 
@@ -336,9 +351,12 @@ extension AssistantConnector {
                 access: .apiKey(.openai),
                 // Pinned production ids. chat-latest follows ChatGPT snapshots,
                 // rather than this workload's recommended model family.
+                // Same order as Codex: 6.1 before 6, and the more capable
+                // model before the faster one inside each version.
                 models: [
-                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6.1-sol", name: "GPT-6.1 Sol", tier: .balanced, blurb: "Balanced speed and depth"),
+                    AssistantModel(id: "gpt-6.1-terra", name: "GPT-6.1 Terra", tier: .balanced, blurb: "Fast writing and visual work"),
+                    AssistantModel(id: "gpt-6-astra", name: "GPT-6 Astra", tier: .max, blurb: "Most capable"),
                     AssistantModel(id: "gpt-6-luna", name: "GPT-6 Luna", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
@@ -353,9 +371,10 @@ extension AssistantConnector {
                 symbol: "sparkle",
                 tagline: "Direct API access. Needs your own key and billing.",
                 access: .apiKey(.gemini),
-                // Explicit text/vision ids; keep Pro's preview status visible.
+                // Explicit text/vision ids. Argon is the flagship; Flash stays the
+                // default and Flash-Lite stays the cheap rung.
                 models: [
-                    AssistantModel(id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", tier: .max, blurb: "Most capable (preview)"),
+                    AssistantModel(id: "gemini-4-argon", name: "Gemini 4 Argon", tier: .max, blurb: "Flagship reasoning"),
                     AssistantModel(id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", tier: .balanced, blurb: "Newest stable Flash"),
                     AssistantModel(id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite", tier: .fast, blurb: "Quickest replies"),
                 ],

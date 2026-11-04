@@ -271,6 +271,35 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         )
     }
 
+    func testContentsHeadingDoesNotHideTheArticleThatStartsOnTheSamePage() {
+        let shared = """
+        Contents
+        1
+        Introduction
+        2
+        2
+        Estimates
+        4
+        Let M be a complete manifold of infinite volume with a smooth metric.
+        The integral of the kernel over the sphere grows as the radius grows.
+        Theorem 2. Let f be harmonic. Then the integral diverges.
+        """
+        let listing = """
+        Contents
+        6.1 Interiors and closures 39
+        6.2 Limit points 40
+        7.1 Basic definitions 43
+        7.2 Complete metric spaces 44
+        8.1 Connectedness 49
+        """
+        XCTAssertTrue(LLMReferenceIndexSupport.isLikelyTableOfContents(listing))
+        XCTAssertFalse(LLMReferenceIndexSupport.shouldIndexStatements(in: listing))
+        XCTAssertTrue(LLMReferenceIndexSupport.isLikelyTableOfContents(shared))
+        XCTAssertTrue(LLMReferenceIndexSupport.shouldIndexStatements(in: shared))
+        let indexed = LLMReferenceIndexSupport.declarationMatches(in: shared).map(\.reference.displayName)
+        XCTAssertTrue(indexed.contains("Theorem 2"))
+    }
+
     func testFinalizeReferenceBodyAcceptsValidLaTeX() {
         let body = "We have $$x + y = z$$"
         XCTAssertEqual(

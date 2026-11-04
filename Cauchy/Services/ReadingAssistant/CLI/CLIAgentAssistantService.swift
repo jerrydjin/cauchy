@@ -132,12 +132,16 @@ final class CLIAgentAssistantService: ReadingAssistantProtocol {
             // choice ("Match my CLI") and then that config wins instead.
             return CLIInvocation.codexArguments(prompt: instructions + "\n\n" + transcript, modelID: modelID)
         case .antigravity:
-            // agy has neither a system-prompt nor a model flag (the model is
-            // whatever the user set with /model in the agy TUI), so
-            // instructions ride the prompt. --sandbox keeps the run inside the
-            // OS sandbox; headless mode also soft-denies any tool that would
-            // need approval, and the working directory is the temp dir.
-            return CLIInvocation.antigravityArguments(prompt: instructions + "\n\n" + transcript)
+            // agy has no separate system-prompt flag, so instructions ride
+            // the prompt. The chosen slug already names the reasoning effort
+            // (`gemini-3.8-flash-high`); a second --effort would fight it.
+            // --sandbox keeps the run inside the OS sandbox; headless mode
+            // also soft-denies any tool that would need approval, and the
+            // working directory is the temp dir.
+            return CLIInvocation.antigravityArguments(
+                prompt: instructions + "\n\n" + transcript,
+                modelID: modelID
+            )
         default:
             // Tools are disabled: this is a chat provider, so the agent must
             // never run commands or edit files on the user's machine. The model
@@ -210,8 +214,8 @@ enum CLIInvocation {
         ] + modelArguments(modelID, flag: "--model")
     }
 
-    static func antigravityArguments(prompt: String) -> [String] {
-        ["-p", prompt, "--sandbox"]
+    static func antigravityArguments(prompt: String, modelID: String? = nil) -> [String] {
+        ["-p", prompt, "--sandbox"] + modelArguments(modelID, flag: "--model")
     }
 
     static func modelArguments(_ modelID: String?, flag: String) -> [String] {
@@ -329,7 +333,10 @@ struct CLIIndexLanguageModelExecutor: LanguageModelExecutor {
         case .codex:
             arguments = CLIInvocation.codexArguments(prompt: instructions + "\n\n" + question, modelID: configuration.modelID)
         case .antigravity:
-            arguments = CLIInvocation.antigravityArguments(prompt: instructions + "\n\n" + question)
+            arguments = CLIInvocation.antigravityArguments(
+                prompt: instructions + "\n\n" + question,
+                modelID: configuration.modelID
+            )
         default:
             arguments = CLIInvocation.claudeArguments(prompt: question, instructions: instructions, modelID: configuration.modelID)
         }

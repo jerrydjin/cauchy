@@ -79,9 +79,14 @@ struct HighlightThreadDetailView: View {
     private var header: some View {
         ConversationThreadHeader(
             title: headerTitle,
-            pageNumber: thread.map { $0.pageIndex + 1 },
-            onBack: onBack
+            pageNumber: thread.map { $0.pageIndex + 1 }
         ) {
+            GlassIconButton(
+                systemName: "chevron.left",
+                accessibilityLabel: "Back",
+                action: onBack
+            )
+        } trailing: {
             if let id = savedHighlightID, let highlight = savedHighlight {
                 Menu {
                     HighlightColorMenu(current: highlight.color) { colour in

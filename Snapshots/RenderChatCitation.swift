@@ -507,9 +507,12 @@ private struct HeaderBand: View {
 private var snapshotHeader: some View {
     ConversationThreadHeader(
         title: "Derivative Order and Matrix Transfor…",
-        pageNumber: 11,
-        onBack: {}
+        pageNumber: 11
     ) {
+        Image(systemName: "chevron.left")
+            .font(.body.weight(.semibold))
+            .frame(width: 28, height: 28)
+    } trailing: {
         Image(systemName: "ellipsis")
             .font(.body.weight(.semibold))
             .foregroundStyle(.secondary)

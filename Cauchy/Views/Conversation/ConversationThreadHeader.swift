@@ -2,19 +2,15 @@ import SwiftUI
 
 /// The chat's title and page. The backdrop is the panel colour, full width,
 /// so a line scrolling underneath cannot show through the subtitle.
-struct ConversationThreadHeader<Trailing: View>: View {
+struct ConversationThreadHeader<Leading: View, Trailing: View>: View {
     var title: String
     var pageNumber: Int?
-    var onBack: () -> Void
+    @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
         HStack(spacing: 10) {
-            GlassIconButton(
-                systemName: "chevron.left",
-                accessibilityLabel: "Back",
-                action: onBack
-            )
+            leading
 
             // The thread's name, the same one the list shows.
             VStack(alignment: .leading, spacing: 1) {

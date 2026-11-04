@@ -418,7 +418,7 @@ private struct EmptyPinnedChat: View {
     var passage: PinnedPassage
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             ConversationChrome.headerBackdrop
             VStack(spacing: 0) {
                 snapshotHeader
@@ -427,10 +427,13 @@ private struct EmptyPinnedChat: View {
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
+                Spacer(minLength: 0)
             }
+            .frame(width: Self.panelWidth, height: Self.panelHeight, alignment: .top)
             TallChipSlot {
                 PassageChipView(passage: passage, role: .composer, onOpen: {}, onDismiss: {})
             }
+            .frame(width: Self.panelWidth, height: Self.panelHeight, alignment: .bottom)
         }
         .frame(width: Self.panelWidth, height: Self.panelHeight)
         .environment(\.colorScheme, .dark)
@@ -449,7 +452,6 @@ private struct TallChipSlot<Chip: View>: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 }
 
@@ -461,9 +463,10 @@ private struct TallHoverChip: View {
     var passage: PinnedPassage
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             ConversationChrome.headerBackdrop
             snapshotHeader
+                .frame(width: Self.panelWidth, height: Self.panelHeight, alignment: .top)
             TallChipSlot {
                 PassageChipView(
                     passage: passage,
@@ -473,6 +476,7 @@ private struct TallHoverChip: View {
                     onDismiss: {}
                 )
             }
+            .frame(width: Self.panelWidth, height: Self.panelHeight, alignment: .bottom)
         }
         .frame(width: Self.panelWidth, height: Self.panelHeight)
         .environment(\.colorScheme, .dark)
@@ -546,11 +550,17 @@ private func assertChipHugsItsText(in url: URL, panelHeight: CGFloat, allowsCard
             throw SnapshotError("quote bar is \(Int(points))pt tall in \(url.lastPathComponent); it took the panel's spare height")
         }
     }
-    let lowest = runs.map(\.lowerBound).max() ?? 0
-        guard CGFloat(lowest) / CGFloat(bitmap.height) > 0.55 else {
-            let heights = runs.map { Int(CGFloat($0.upperBound - $0.lowerBound) / scale) }
-            throw SnapshotError("quote bar starts at row \(lowest) of \(bitmap.height) in \(url.lastPathComponent) (heights \(heights)pt); it is not pinned above the composer")
-        }
+    let barY = runs.map { ($0.lowerBound + $0.upperBound) / 2 }.max() ?? 0
+    let titleY = bitmap.averageRow { $0.r > 210 && $0.g > 210 && $0.b > 210 }
+    guard let titleY else {
+        throw SnapshotError("could not find the header title in \(url.lastPathComponent)")
+    }
+    // The title and the chip sit at opposite ends of the panel. Measuring the
+    // gap avoids assuming which buffer row is the top.
+    guard abs(barY - titleY) > bitmap.height / 2 else {
+        let heights = runs.map { Int(CGFloat($0.upperBound - $0.lowerBound) / scale) }
+        throw SnapshotError("quote bar is \(abs(barY - titleY))px from the title in \(url.lastPathComponent) (heights \(heights)pt); it is not pinned above the composer")
+    }
     fputs("chip hugs content in \(url.lastPathComponent): bars \(runs.map { "\($0.lowerBound)-\($0.upperBound)" })\n", stdout)
 }
 
@@ -630,6 +640,22 @@ private struct Bitmap {
         }
         context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
         pixels = buffer
+    }
+
+    func averageRow(where matches: ((r: UInt8, g: UInt8, b: UInt8)) -> Bool) -> Int? {
+        var sum = 0
+        var count = 0
+        for y in 0..<height {
+            for x in stride(from: 0, to: width, by: 2) {
+                let p = pixel(x, y)
+                if matches(p) {
+                    sum += y
+                    count += 1
+                }
+            }
+        }
+        guard count > 20 else { return nil }
+        return sum / count
     }
 
     /// y is measured from the top. The context's origin is the bottom.

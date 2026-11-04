@@ -59,6 +59,7 @@
 		D192923183BFB000528860B8 /* PDFTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */; };
 		2381E55DD0BC0EA3912EE581 /* PageThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */; };
 		EC0E4C7AD0FB918387124093 /* ProviderReadiness.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC793C177F302C7FE20FB4B9 /* ProviderReadiness.swift */; };
+		304429A286C6671E8B530EDB /* ReaderFollowUps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40B0B499DCE3BEA50248F89E /* ReaderFollowUps.swift */; };
 		1C7690AA7BBC9B9E06BE9E0A /* CLIAgentAssistantService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15B842A1CE4F9DAEBF9393F /* CLIAgentAssistantService.swift */; };
 		183AFEEDB97467B8312E5729 /* CLIAgentRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA82A1DA6B01A2E8604D5F09 /* CLIAgentRunner.swift */; };
 		FB650CFA0CE1E17498F36816 /* CLIAgentStreamParsers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624157F01F0662831B9A22FE /* CLIAgentStreamParsers.swift */; };
@@ -147,6 +148,7 @@
 		627CA38A342857C3F0081820 /* HighlightModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C10115F47FB2D7364EFCF7B /* HighlightModelTests.swift */; };
 		634DC4BA9F198E29F54041FD /* InlineFlowLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C7AEBB7798374A41E6008C /* InlineFlowLayoutTests.swift */; };
 		3DF1238D16FDD147F0AB268E /* LLMReferenceIndexBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E948EBF46AD798F1B107AA3 /* LLMReferenceIndexBuilderTests.swift */; };
+		4CD9F6770499AA9EFE8EB37A /* ReaderFollowUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E4F39A182C787311F75455 /* ReaderFollowUpTests.swift */; };
 		31972E233BE191B933B3FED3 /* ReferenceDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C2CFFE5135629791C3DDDB4 /* ReferenceDetectorTests.swift */; };
 		7FE934B2906616E639657E55 /* ReferenceParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4FE74FC552677CA622E60B /* ReferenceParsingTests.swift */; };
 		F24EA25B1232D7D5F32458EF /* WorkspaceUndoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19D83D9D5A0223359AF3DF8 /* WorkspaceUndoTests.swift */; };
@@ -208,6 +210,7 @@
 		9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTextExtractor.swift; sourceTree = "<group>"; };
 		E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageThumbnailCache.swift; sourceTree = "<group>"; };
 		FC793C177F302C7FE20FB4B9 /* ProviderReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderReadiness.swift; sourceTree = "<group>"; };
+		40B0B499DCE3BEA50248F89E /* ReaderFollowUps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderFollowUps.swift; sourceTree = "<group>"; };
 		F15B842A1CE4F9DAEBF9393F /* CLIAgentAssistantService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIAgentAssistantService.swift; sourceTree = "<group>"; };
 		AA82A1DA6B01A2E8604D5F09 /* CLIAgentRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIAgentRunner.swift; sourceTree = "<group>"; };
 		624157F01F0662831B9A22FE /* CLIAgentStreamParsers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIAgentStreamParsers.swift; sourceTree = "<group>"; };
@@ -297,6 +300,7 @@
 		3C10115F47FB2D7364EFCF7B /* HighlightModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightModelTests.swift; sourceTree = "<group>"; };
 		24C7AEBB7798374A41E6008C /* InlineFlowLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFlowLayoutTests.swift; sourceTree = "<group>"; };
 		6E948EBF46AD798F1B107AA3 /* LLMReferenceIndexBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMReferenceIndexBuilderTests.swift; sourceTree = "<group>"; };
+		B8E4F39A182C787311F75455 /* ReaderFollowUpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderFollowUpTests.swift; sourceTree = "<group>"; };
 		9C2CFFE5135629791C3DDDB4 /* ReferenceDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceDetectorTests.swift; sourceTree = "<group>"; };
 		1C4FE74FC552677CA622E60B /* ReferenceParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceParsingTests.swift; sourceTree = "<group>"; };
 		D19D83D9D5A0223359AF3DF8 /* WorkspaceUndoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceUndoTests.swift; sourceTree = "<group>"; };
@@ -379,6 +383,7 @@
 			9F21177EBC0C2EB6945FB024 /* PDFTextExtractor.swift */,
 			E090528DB89D6385A2DC5EE0 /* PageThumbnailCache.swift */,
 			FC793C177F302C7FE20FB4B9 /* ProviderReadiness.swift */,
+			40B0B499DCE3BEA50248F89E /* ReaderFollowUps.swift */,
 			7917C1152ACBA747975D43B0 /* ReadingContextBuilder.swift */,
 			C3287CE2DC56B0DDA8FF9809 /* ReferenceDetector.swift */,
 			4D5502A401AECACEBCF2F97B /* ReferenceFormattingHeuristics.swift */,
@@ -507,6 +512,7 @@
 			3C10115F47FB2D7364EFCF7B /* HighlightModelTests.swift */,
 			24C7AEBB7798374A41E6008C /* InlineFlowLayoutTests.swift */,
 			6E948EBF46AD798F1B107AA3 /* LLMReferenceIndexBuilderTests.swift */,
+			B8E4F39A182C787311F75455 /* ReaderFollowUpTests.swift */,
 			9C2CFFE5135629791C3DDDB4 /* ReferenceDetectorTests.swift */,
 			1C4FE74FC552677CA622E60B /* ReferenceParsingTests.swift */,
 			D19D83D9D5A0223359AF3DF8 /* WorkspaceUndoTests.swift */,
@@ -590,6 +596,7 @@
 			D192923183BFB000528860B8,
 			2381E55DD0BC0EA3912EE581,
 			EC0E4C7AD0FB918387124093,
+			304429A286C6671E8B530EDB,
 			1C7690AA7BBC9B9E06BE9E0A,
 			183AFEEDB97467B8312E5729,
 			FB650CFA0CE1E17498F36816,
@@ -677,6 +684,7 @@
 			627CA38A342857C3F0081820,
 			634DC4BA9F198E29F54041FD,
 			3DF1238D16FDD147F0AB268E,
+			4CD9F6770499AA9EFE8EB37A,
 			31972E233BE191B933B3FED3,
 			7FE934B2906616E639657E55,
 			F24EA25B1232D7D5F32458EF,

@@ -37,7 +37,10 @@ enum RenderReferencePreview {
     @MainActor
     private static func render() throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        // Jerry runs the app in dark mode. The card snapshots follow that
+        // appearance so `.primary` and the maths glyphs stay light on the
+        // bubble. The bibliography hover below switches back to light.
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
 
         let root = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[1] : FileManager.default.currentDirectoryPath)
         let output = URL(fileURLWithPath: CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "Snapshots/out")
@@ -110,13 +113,18 @@ enum RenderReferencePreview {
 
         let card = SnapshotChrome(
             caption: "Reference panel · Proposition 2.5.1",
-            content: ReferencePanelSnapshot(heading: model.heading, statement: text)
+            dark: true,
+            content: ReferencePanelSnapshot(
+                heading: model.heading,
+                statement: text,
+                pageIndex: fixture.pageIndex
+            )
         )
         .environment(\.rendersForSnapshot, true)
-        .environment(\.colorScheme, .light)
 
         let url = output.appendingPathComponent("reference-preview-proposition-2-5-1.png")
         try writePNG(card, to: url, minimumBytes: 12_000)
+        try writePNG(card, to: output.appendingPathComponent("jerry-149-reference-card.png"), minimumBytes: 12_000)
         fputs("heading: \(model.heading)\n", stdout)
         fputs("statement:\n\(text)\n", stdout)
         try renderMathStatement(output: output)
@@ -178,10 +186,14 @@ enum RenderReferencePreview {
 
         let card = SnapshotChrome(
             caption: "Reference panel · Lemma 4.2",
-            content: ReferencePanelSnapshot(heading: model.heading, statement: text)
+            dark: true,
+            content: ReferencePanelSnapshot(
+                heading: model.heading,
+                statement: text,
+                pageIndex: fixture.pageIndex
+            )
         )
         .environment(\.rendersForSnapshot, true)
-        .environment(\.colorScheme, .light)
         try writePNG(
             card,
             to: output.appendingPathComponent("reference-preview-statement-math.png"),
@@ -194,13 +206,45 @@ enum RenderReferencePreview {
         )
         .environment(\.rendersForSnapshot, true)
         .environment(\.colorScheme, .light)
+        NSApplication.shared.appearance = NSAppearance(named: .aqua)
         try writePNG(
             hover,
             to: output.appendingPathComponent("reference-hover-statement-math.png"),
             minimumBytes: 4_000,
             minimumHeight: 200
         )
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
         fputs("math statement dump:\n\(ReferenceMathRendering.plainTextDump(of: text))\n", stdout)
+        try renderPlainMathCard(output: output)
+    }
+
+    /// A synthetic statement whose source is still plain text: an arrow with
+    /// no space, and an inverse written on the baseline. The card has to
+    /// typeset both.
+    @MainActor
+    private static func renderPlainMathCard(output: URL) throws {
+        let statement = "Let f : X →Y be a map. Its preimage f\u{2212}1(U) is open."
+        let typeset = ReferenceCardMath.typeset(statement)
+        guard typeset == "Let $f : X \\to Y$ be a map. Its preimage $f^{-1}(U)$ is open." else {
+            throw SnapshotError("plain reference maths did not typeset: \(typeset)")
+        }
+        try assertTypeset(typeset, label: "plain superscript and arrow")
+        let card = SnapshotChrome(
+            caption: "Reference card · superscript and arrow",
+            dark: true,
+            content: ReferencePanelSnapshot(
+                heading: "Proposition 5.3.1",
+                statement: statement,
+                pageIndex: 40
+            )
+        )
+        .environment(\.rendersForSnapshot, true)
+        try writePNG(
+            card,
+            to: output.appendingPathComponent("jerry-149-reference-card-math.png"),
+            minimumBytes: 4_000,
+            minimumHeight: 280
+        )
     }
 
     /// Visible `Text` runs must not contain raw TeX, and every math run must
@@ -370,24 +414,22 @@ private struct PropositionFixture: Decodable {
 private struct ReferencePanelSnapshot: View {
     var heading: String
     var statement: String
+    var pageIndex: Int? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            ReferencePreviewStatementColumn(heading: heading, statement: statement)
-            ReferencePreviewSourceDisclosure(isExpanded: .constant(false)) {
-                EmptyView()
-            }
-        }
+        ReferencePreviewStatementColumn(
+            heading: heading,
+            statement: statement,
+            pageIndexes: pageIndex.map { [$0] } ?? [],
+            onOpenPage: { _ in }
+        )
         .frame(width: 380, alignment: .top)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .overlay {
-            Rectangle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-        }
     }
 }
 
 private struct SnapshotChrome<Content: View>: View {
     var caption: String
+    var dark = false
     var content: Content
 
     var body: some View {
@@ -400,7 +442,8 @@ private struct SnapshotChrome<Content: View>: View {
         }
         .padding(28)
         .frame(width: 436, alignment: .leading)
-        .background(Color(white: 0.94))
+        .background(dark ? Color(red: 0.09, green: 0.09, blue: 0.1) : Color(white: 0.94))
+        .environment(\.colorScheme, dark ? .dark : .light)
     }
 }
 

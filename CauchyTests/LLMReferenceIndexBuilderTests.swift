@@ -1660,6 +1660,29 @@ final class ReferencePreviewPresentationTests: XCTestCase {
         XCTAssertFalse(dump.contains("$"))
         XCTAssertTrue(ReferenceMathRendering.mathSources(of: text).contains { $0.contains("\\pi") })
     }
+
+    func testReferenceCardTypesetsASuperscriptAndAnArrow() {
+        let arrow = "let f : X →Y be a map"
+        XCTAssertEqual(ReferenceCardMath.typeset(arrow), "let $f : X \\to Y$ be a map")
+
+        let inverse = "its preimage f\u{2212}1(U) is open"
+        XCTAssertEqual(ReferenceCardMath.typeset(inverse), "its preimage $f^{-1}(U)$ is open")
+
+        let superscript = "the value x\u{00B2} stays finite"
+        XCTAssertEqual(ReferenceCardMath.typeset(superscript), "the value $x^{2}$ stays finite")
+
+        let attached = "f\u{207B}\u{00B9}(U)"
+        XCTAssertEqual(ReferenceCardMath.typeset(attached), "$f^{-1}(U)$")
+
+        XCTAssertEqual(ReferenceCardMath.typeset("a well-known path"), "a well-known path")
+        XCTAssertEqual(ReferenceCardMath.typeset("xf\u{2212}1(U)"), "xf\u{2212}1(U)")
+    }
+
+    func testReferenceCardLeavesDelimitedMathAlone() {
+        let raw = "Let $\\gamma\\colon [0,1] \\to \\mathbb{C}$ be a path."
+        XCTAssertEqual(ReferenceCardMath.typeset(raw), raw)
+        XCTAssertEqual(ReferenceCardMath.typeset(ReferenceCardMath.typeset(raw)), raw)
+    }
 }
 
 private struct AnchoredPassageIndexStub: DocumentIndexProtocol {

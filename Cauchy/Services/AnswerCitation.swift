@@ -1,9 +1,9 @@
 import CoreGraphics
 import Foundation
 
-/// Shared chrome for reader-chat links. Page tags, inline proposition and
-/// jump names, and the Sources pill and line all use `tint`. The passage
-/// wash stays a quiet accent; it is not a link.
+/// Shared chrome for reader-chat links. Page tags and inline proposition
+/// and jump names use `tint`. The passage wash stays a quiet accent; it is
+/// not a link.
 enum CitationChrome {
     /// #8AB4F8 in sRGB. Full opacity, so the grey bubble does not show
     /// through the glyphs. Rendered link pixels are rgb(138, 180, 248).
@@ -84,10 +84,6 @@ enum CitedSourceSummary {
             found.append(CitedSourcePage(pageIndex: anchor.pageIndex, anchor: anchor))
         }
         return found.sorted { $0.pageIndex < $1.pageIndex }
-    }
-
-    static func disclosureLabel(pageCount: Int) -> String {
-        pageCount == 1 ? "Sources · 1 page" : "Sources · \(pageCount) pages"
     }
 }
 

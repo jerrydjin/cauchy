@@ -55,13 +55,12 @@ enum RenderChatCitation {
             )
         )
         let expanded = ChatSnapshotChrome(
-            caption: "After · expanded",
+            caption: "After",
             width: 340,
             content: MessageBubble(
                 message: fixture.message,
                 maxBubbleWidth: 270,
-                referenceKeys: fixture.keys,
-                sourcesStartExpanded: true
+                referenceKeys: fixture.keys
             )
         )
         let before = ChatSnapshotChrome(
@@ -82,6 +81,33 @@ enum RenderChatCitation {
                 .frame(width: passage.image.size.width, height: passage.image.size.height)
         )
         try writePNG(highlight, to: output.appendingPathComponent("chat-citation-highlight.png"), minimumBytes: 4_000)
+
+        let followUps = FollowUpFixture()
+        try followUps.validate()
+        let withFollowUps = ChatSnapshotChrome(
+            caption: "Two follow-ups",
+            width: 380,
+            content: MessageBubble(
+                message: followUps.grounded,
+                maxBubbleWidth: 300,
+                referenceKeys: followUps.keys,
+                followUps: followUps.two,
+                followUpsStartVisible: true
+            )
+        )
+        let withoutFollowUps = ChatSnapshotChrome(
+            caption: "No follow-up",
+            width: 380,
+            content: MessageBubble(
+                message: followUps.ungrounded,
+                maxBubbleWidth: 300,
+                followUps: followUps.none,
+                followUpsStartVisible: true
+            )
+        )
+        try writePNG(withFollowUps, to: output.appendingPathComponent("chat-follow-ups-two.png"), minimumBytes: 4_000)
+        try writePNG(withoutFollowUps, to: output.appendingPathComponent("chat-follow-ups-none.png"), minimumBytes: 4_000)
+
         fputs(
             "highlight \(Int(passage.bounds.width))x\(Int(passage.bounds.height)) at \(Int(passage.bounds.minX)),\(Int(passage.bounds.minY)) string=\(passage.string)\n",
             stdout
@@ -101,6 +127,26 @@ enum RenderChatCitation {
                 SnapshotComposerBar()
             }
         )
+        let hoveredPassage = PinnedPassage(
+            pageIndex: 36,
+            excerpt: "If X is a set with the discrete metric, every set is open. The rest of this synthetic passage is only on the hover card, past the two lines the chip keeps.",
+            fingerprint: "snapshot-hover",
+            bounds: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08)
+        )
+        let chipHover = ChatSnapshotChrome(
+            caption: "Composer · passage hover",
+            width: 400,
+            content: VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+                PassageChipView(
+                    passage: hoveredPassage,
+                    role: .composer,
+                    showsHoverCard: true,
+                    onOpen: {},
+                    onDismiss: {}
+                )
+                SnapshotComposerBar()
+            }
+        )
         let dismissed = ChatSnapshotChrome(
             caption: "Composer · passage dismissed",
             width: 360,
@@ -111,28 +157,46 @@ enum RenderChatCitation {
             content: "What does taking complements show?",
             passage: MessagePassage(pageIndex: pinned.pageIndex, excerpt: pinned.excerpt)
         )
-        let collapsedChip = ChatSnapshotChrome(
-            caption: "Sent · chip collapsed",
+        let sentChip = ChatSnapshotChrome(
+            caption: "Sent · passage chip",
             width: 360,
             content: MessageBubble(
                 message: asked,
                 maxBubbleWidth: 280
             )
         )
-        let expandedChip = ChatSnapshotChrome(
-            caption: "Sent · chip expanded",
-            width: 360,
-            content: MessageBubble(
-                message: asked,
-                maxBubbleWidth: 280,
-                passageStartsExpanded: true
-            )
+        let earlier = ThreadMessage(
+            role: .assistant,
+            content: "The earlier answer already settled the interval."
+        )
+        let latestOnly = ChatSnapshotChrome(
+            caption: "Only the latest answer has follow-ups",
+            width: 420,
+            content: VStack(alignment: .leading, spacing: 16) {
+                MessageBubble(message: earlier, maxBubbleWidth: 300)
+                MessageBubble(
+                    message: ThreadMessage(role: .user, content: "What does Theorem 5.4 build on?"),
+                    maxBubbleWidth: 300
+                )
+                MessageBubble(
+                    message: followUps.grounded,
+                    maxBubbleWidth: 300,
+                    referenceKeys: followUps.keys,
+                    followUps: followUps.two,
+                    followUpsStartVisible: true
+                )
+            }
         )
         try writePNG(expanded, to: output.appendingPathComponent("jerry-148-citation-expanded.png"), minimumBytes: 4_000)
         try writePNG(withChip, to: output.appendingPathComponent("jerry-148-composer-chip.png"), minimumBytes: 2_000)
+        try writePNG(withChip, to: output.appendingPathComponent("jerry-149-composer-chip.png"), minimumBytes: 2_000)
+        try writePNG(chipHover, to: output.appendingPathComponent("jerry-149-composer-chip-hover.png"), minimumBytes: 2_000)
         try writePNG(dismissed, to: output.appendingPathComponent("jerry-148-composer-dismissed.png"), minimumBytes: 2_000)
-        try writePNG(collapsedChip, to: output.appendingPathComponent("jerry-148-sent-chip-collapsed.png"), minimumBytes: 2_000)
-        try writePNG(expandedChip, to: output.appendingPathComponent("jerry-148-sent-chip-expanded.png"), minimumBytes: 2_000)
+        try writePNG(sentChip, to: output.appendingPathComponent("jerry-148-sent-chip-collapsed.png"), minimumBytes: 2_000)
+        try writePNG(sentChip, to: output.appendingPathComponent("jerry-149-sent-chip.png"), minimumBytes: 2_000)
+        try writePNG(latestOnly, to: output.appendingPathComponent("jerry-149-follow-ups-latest.png"), minimumBytes: 4_000)
+        // The sent chip no longer expands. Keep the old filename pointed at the quote.
+        try writePNG(sentChip, to: output.appendingPathComponent("jerry-148-sent-chip-expanded.png"), minimumBytes: 2_000)
     }
 }
 
@@ -232,9 +296,6 @@ private struct CitationFixture {
         let pages = CitedSourceSummary.pages(in: answer, anchors: anchors)
         guard pages.map(\.pageLabel) == ["37", "39"] else {
             throw SnapshotError("cited pages drifted: \(pages.map(\.pageLabel))")
-        }
-        guard CitedSourceSummary.disclosureLabel(pageCount: pages.count) == "Sources · 2 pages" else {
-            throw SnapshotError("disclosure label drifted")
         }
         guard pages.allSatisfy({ !$0.anchor.label.localizedCaseInsensitiveContains("compact") }) else {
             throw SnapshotError("uncited compactness page leaked into sources")
@@ -398,6 +459,121 @@ private enum PassageHighlight {
             throw SnapshotError("page image is empty")
         }
         return Rendered(image: image, bounds: bounds, string: quoted)
+    }
+}
+
+/// Synthetic notes. The two follow-ups are whatever the planner emits for
+/// this answer, so the picture cannot drift from the questions a reader sees.
+private struct FollowUpFixture {
+    let answer = "A continuous image of a closed interval is connected. [R1]"
+
+    let keys: Set<ReferenceKey> = []
+
+    let statements: [ReaderFollowUpStatement] = [
+        ReaderFollowUpStatement(
+            reference: DetectedReference(kind: .definition, number: "1.4"),
+            name: "Compactness",
+            pageIndex: 12,
+            statementText: "A set is compact when every open cover has a finite subcover."
+        ),
+        ReaderFollowUpStatement(
+            reference: DetectedReference(kind: .proposition, number: "5.3"),
+            pageIndex: 40,
+            statementText: "A continuous image of a closed interval is connected.",
+            proofText: "The argument uses compactness of the domain to take a finite subcover.",
+            proofPageIndex: 40
+        ),
+        ReaderFollowUpStatement(
+            reference: DetectedReference(kind: .theorem, number: "5.4"),
+            pageIndex: 46,
+            statementText: "The components of a locally connected space are open."
+        ),
+    ]
+
+    var two: [SuggestedFollowUp] {
+        ReaderFollowUps.suggest(
+            answer: answer,
+            anchors: [
+                AnswerSourceAnchor(
+                    label: "Proposition 5.3",
+                    pageIndex: 40,
+                    region: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08),
+                    sourceID: "R1"
+                ),
+            ],
+            statements: statements
+        )
+    }
+
+    var none: [SuggestedFollowUp] {
+        ReaderFollowUps.suggest(
+            answer: "The selected sentence does not name a result.",
+            anchors: [
+                AnswerSourceAnchor(
+                    label: "Retrieved passage",
+                    pageIndex: 4,
+                    region: NormalizedRect(x: 0, y: 0, width: 0, height: 0),
+                    sourceID: "P1"
+                ),
+            ],
+            statements: statements
+        )
+    }
+
+    var grounded: ThreadMessage {
+        ThreadMessage(
+            role: .assistant,
+            content: answer,
+            answerEvidence: AnswerEvidence(
+                basis: .pdf,
+                sourcePages: [41],
+                referencedStatementCount: 1,
+                retrievedPassageCount: 0,
+                providerID: "snapshot",
+                sourceAnchors: [
+                    AnswerSourceAnchor(
+                        label: "Proposition 5.3",
+                        pageIndex: 40,
+                        region: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08),
+                        sourceID: "R1"
+                    ),
+                ],
+                citationStatus: .idsResolve,
+                citedSourceIDs: ["R1"]
+            )
+        )
+    }
+
+    var ungrounded: ThreadMessage {
+        ThreadMessage(
+            role: .assistant,
+            content: "The selected sentence does not name a result.",
+            answerEvidence: AnswerEvidence(
+                basis: .insufficient,
+                sourcePages: [],
+                referencedStatementCount: 0,
+                retrievedPassageCount: 0,
+                providerID: "snapshot",
+                citationStatus: .noResolvableCitation
+            )
+        )
+    }
+
+    func validate() throws {
+        let followUps = two
+        guard followUps.count == 2,
+              followUps[0].question == "Why does the proof of Proposition 5.3 need compactness?",
+              followUps[0].pageLabel == "41",
+              followUps[1].question == "What does Theorem 5.4 build on?",
+              followUps[1].pageLabel == "47" else {
+            throw SnapshotError("follow-ups drifted: \(followUps.map { "\($0.question) \($0.pageLabel ?? "-")" })")
+        }
+        guard none.isEmpty else {
+            throw SnapshotError("an ungrounded answer grew a follow-up")
+        }
+        guard followUps.allSatisfy({ !ReaderFollowUps.isGeneric($0.question) }) else {
+            throw SnapshotError("a follow-up is generic")
+        }
     }
 }
 

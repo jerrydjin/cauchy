@@ -94,6 +94,8 @@ ref_sources=(
   Cauchy/Views/RichText/MathSegmentView.swift
   Cauchy/Views/RichText/ReferenceLinkedText.swift
   Cauchy/Views/RichText/MessageContentView.swift
+  Cauchy/Views/Design/ContentSurface.swift
+  Cauchy/Views/Conversation/ConversationChrome.swift
   Cauchy/Views/Context/ReadingBlockCard.swift
   Cauchy/Views/Context/ReferencePreviewStatement.swift
 )
@@ -158,6 +160,7 @@ chat_sources=(
   Cauchy/Services/LaTeXNormalizer.swift
   Cauchy/Services/MessageContentParser.swift
   Cauchy/Services/AnswerCitation.swift
+  Cauchy/Services/ReaderFollowUps.swift
   Cauchy/Views/RichText/InlineFlowLayout.swift
   Cauchy/Views/RichText/MathSegmentView.swift
   Cauchy/Views/RichText/ReferenceLinkedText.swift

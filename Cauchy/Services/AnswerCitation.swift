@@ -1,12 +1,15 @@
 import CoreGraphics
 import Foundation
 
-/// Shared opacities for citation chrome. Links, page tags, the sources
-/// disclosure, and the passage wash all use these so a tap and its highlight
-/// read as the same quiet accent. The link tint is one step under a full
-/// accent so it sits nearer the body text than the blue it replaced.
+/// Shared chrome for reader-chat links. Page tags, inline proposition and
+/// jump names, and the Sources pill and line all use `tint`. The passage
+/// wash stays a quiet accent; it is not a link.
 enum CitationChrome {
-    static let tintOpacity: CGFloat = 0.50
+    /// #8AB4F8 in sRGB. Full opacity, so the grey bubble does not show
+    /// through the glyphs. Rendered link pixels are rgb(138, 180, 248).
+    static let linkRed: Double = 138.0 / 255.0
+    static let linkGreen: Double = 180.0 / 255.0
+    static let linkBlue: Double = 248.0 / 255.0
     static let washOpacity: CGFloat = 0.28
 }
 

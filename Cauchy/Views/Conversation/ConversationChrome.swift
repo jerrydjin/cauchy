@@ -7,6 +7,8 @@ enum ConversationChrome {
     /// User bubble and the failure note. The answer bubble uses the values below.
     static let bubbleContentPaddingH: CGFloat = 14
     static let bubbleContentPaddingV: CGFloat = 10
+    /// Space between the passage chip and the composer bar. 8pt, on the 4-point scale.
+    static let passageChipComposerSpacing: CGFloat = 8
 
     /// Answer-area spacing. Every value is on a 4-point scale.
     static let answerPaddingH: CGFloat = 20

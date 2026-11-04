@@ -4,13 +4,30 @@ struct ConversationComposer: View {
     @Binding var question: String
     var isResponding: Bool
     var isEnabled: Bool
+    var pinnedPassage: PinnedPassage? = nil
+    var onOpenPassage: () -> Void = {}
+    var onDismissPassage: () -> Void = {}
     var onSend: () -> Void
     var onStop: () -> Void = {}
     var onModelChange: () -> Void = {}
 
     var body: some View {
-        // One bar: the question on top, the model selector tucked underneath it.
-        // Return sends, so there is no send button.
+        VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+            if let pinnedPassage {
+                PassageChipView(
+                    passage: pinnedPassage,
+                    role: .composer,
+                    onOpen: onOpenPassage,
+                    onDismiss: onDismissPassage
+                )
+            }
+            composerBar
+        }
+    }
+
+    /// One bar: the question on top, the model selector tucked underneath it.
+    /// Return sends, so there is no send button.
+    private var composerBar: some View {
         VStack(alignment: .leading, spacing: 6) {
             TextField("Ask a question…", text: $question, axis: .vertical)
                 .textFieldStyle(.plain)

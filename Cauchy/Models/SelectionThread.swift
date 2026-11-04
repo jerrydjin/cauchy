@@ -144,6 +144,17 @@ struct AnswerEvidence: Codable, Equatable, Sendable {
     }
 }
 
+/// The passage a sent question was asked about. Absent on older messages
+/// and on questions sent after the reader dismissed the chip.
+struct MessagePassage: Codable, Equatable, Sendable {
+    var pageIndex: Int
+    var excerpt: String
+
+    var pinned: PinnedPassage {
+        PinnedPassage(pageIndex: pageIndex, excerpt: excerpt, fingerprint: "", bounds: nil)
+    }
+}
+
 struct ThreadMessage: Identifiable, Codable, Equatable, Sendable {
     var id: UUID
     var role: ThreadRole
@@ -151,19 +162,76 @@ struct ThreadMessage: Identifiable, Codable, Equatable, Sendable {
     var createdAt: Date
     /// nil for user messages and replies saved before evidence-bound answers.
     var answerEvidence: AnswerEvidence?
+    /// The compact passage chip on a user message. nil when the question
+    /// was sent with the chip dismissed, and on every assistant reply.
+    var passage: MessagePassage?
 
     init(
         id: UUID = UUID(),
         role: ThreadRole,
         content: String,
         createdAt: Date = Date(),
-        answerEvidence: AnswerEvidence? = nil
+        answerEvidence: AnswerEvidence? = nil,
+        passage: MessagePassage? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.createdAt = createdAt
         self.answerEvidence = answerEvidence
+        self.passage = passage
+    }
+}
+
+/// The passage pinned above the composer. Only a selection the reader made
+/// in order to ask about it. A page tag does not build one of these.
+struct PinnedPassage: Equatable, Sendable {
+    var pageIndex: Int
+    var excerpt: String
+    var fingerprint: String
+    var bounds: NormalizedRect?
+
+    /// One line: `p. 39 · By taking complements, one can show the following.`
+    /// The view truncates the tail; this string keeps the whole excerpt.
+    var line: String {
+        "p. \(pageIndex + 1) · \(Self.singleLine(excerpt))"
+    }
+
+    static func singleLine(_ text: String) -> String {
+        text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+}
+
+/// Composer chip. Dismiss hides it and keeps the same selection from
+/// pinning itself again. A different selection replaces it. An explicit
+/// choice, such as opening a saved highlight, pins even that same text.
+/// The chip is the source of truth for the next question: while it is
+/// showing, the passage is sent, and once it is dismissed, it is not.
+struct PinnedPassageChip: Equatable, Sendable {
+    private(set) var passage: PinnedPassage?
+    private var dismissedFingerprint: String?
+
+    var messagePassage: MessagePassage? {
+        passage.map { MessagePassage(pageIndex: $0.pageIndex, excerpt: $0.excerpt) }
+    }
+
+    /// Returns false when this selection was just dismissed and the caller
+    /// should leave the thread alone.
+    @discardableResult
+    mutating func noteSelection(_ next: PinnedPassage, explicit: Bool = false) -> Bool {
+        if !explicit, next.fingerprint == dismissedFingerprint {
+            return false
+        }
+        dismissedFingerprint = nil
+        passage = next
+        return true
+    }
+
+    mutating func dismiss() {
+        dismissedFingerprint = passage?.fingerprint
+        passage = nil
     }
 }
 

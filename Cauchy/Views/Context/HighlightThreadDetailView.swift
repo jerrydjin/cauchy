@@ -36,6 +36,9 @@ struct HighlightThreadDetailView: View {
                     }
                 },
                 onModelChange: { workspace.refreshReadingAssistant() },
+                pinnedPassage: workspace.pinnedPassage,
+                onOpenPassage: { workspace.openPinnedPassage() },
+                onDismissPassage: { workspace.dismissPinnedPassage() },
                 onRecovery: { performRecovery(ask.recovery) },
                 onOpenSource: { workspace.goToAnswerSource($0) },
                 referenceKeys: workspace.referenceIndex.referenceKeys,

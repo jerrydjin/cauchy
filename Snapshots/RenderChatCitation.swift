@@ -175,7 +175,7 @@ enum RenderChatCitation {
             content: VStack(alignment: .leading, spacing: 16) {
                 MessageBubble(message: earlier, maxBubbleWidth: 300)
                 MessageBubble(
-                    message: ThreadMessage(role: .user, content: "What does Theorem 5.4 build on?"),
+                    message: ThreadMessage(role: .user, content: "Does a continuous image stay connected?"),
                     maxBubbleWidth: 300
                 )
                 MessageBubble(
@@ -187,14 +187,34 @@ enum RenderChatCitation {
                 )
             }
         )
+        let filtered = ChatSnapshotChrome(
+            caption: "The question just asked is not offered again",
+            width: 420,
+            content: VStack(alignment: .leading, spacing: 16) {
+                MessageBubble(
+                    message: ThreadMessage(role: .user, content: "What does Theorem 5.4 build on?"),
+                    maxBubbleWidth: 300
+                )
+                MessageBubble(
+                    message: followUps.grounded,
+                    maxBubbleWidth: 300,
+                    referenceKeys: followUps.keys,
+                    followUps: followUps.withoutTheQuestionJustAsked,
+                    followUpsStartVisible: true
+                )
+            }
+        )
         try writePNG(expanded, to: output.appendingPathComponent("jerry-148-citation-expanded.png"), minimumBytes: 4_000)
         try writePNG(withChip, to: output.appendingPathComponent("jerry-148-composer-chip.png"), minimumBytes: 2_000)
         try writePNG(withChip, to: output.appendingPathComponent("jerry-149-composer-chip.png"), minimumBytes: 2_000)
+        try writePNG(withChip, to: output.appendingPathComponent("jerry-151-composer-chip-after.png"), minimumBytes: 2_000)
         try writePNG(chipHover, to: output.appendingPathComponent("jerry-149-composer-chip-hover.png"), minimumBytes: 2_000)
+        try writePNG(chipHover, to: output.appendingPathComponent("jerry-151-composer-chip-hover-after.png"), minimumBytes: 2_000)
         try writePNG(dismissed, to: output.appendingPathComponent("jerry-148-composer-dismissed.png"), minimumBytes: 2_000)
         try writePNG(sentChip, to: output.appendingPathComponent("jerry-148-sent-chip-collapsed.png"), minimumBytes: 2_000)
         try writePNG(sentChip, to: output.appendingPathComponent("jerry-149-sent-chip.png"), minimumBytes: 2_000)
         try writePNG(latestOnly, to: output.appendingPathComponent("jerry-149-follow-ups-latest.png"), minimumBytes: 4_000)
+        try writePNG(filtered, to: output.appendingPathComponent("jerry-151-follow-ups-filtered.png"), minimumBytes: 4_000)
         // The sent chip no longer expands. Keep the old filename pointed at the quote.
         try writePNG(sentChip, to: output.appendingPathComponent("jerry-148-sent-chip-expanded.png"), minimumBytes: 2_000)
     }
@@ -491,6 +511,16 @@ private struct FollowUpFixture {
     ]
 
     var two: [SuggestedFollowUp] {
+        suggest(alreadyAsked: [])
+    }
+
+    /// The answer to "What does Theorem 5.4 build on?" does not offer that
+    /// question again. The proof question is a different ask and stays.
+    var withoutTheQuestionJustAsked: [SuggestedFollowUp] {
+        suggest(alreadyAsked: ["What does Theorem 5.4 build on?"])
+    }
+
+    private func suggest(alreadyAsked: [String]) -> [SuggestedFollowUp] {
         ReaderFollowUps.suggest(
             answer: answer,
             anchors: [
@@ -501,7 +531,8 @@ private struct FollowUpFixture {
                     sourceID: "R1"
                 ),
             ],
-            statements: statements
+            statements: statements,
+            alreadyAsked: alreadyAsked
         )
     }
 
@@ -574,6 +605,14 @@ private struct FollowUpFixture {
         guard followUps.allSatisfy({ !ReaderFollowUps.isGeneric($0.question) }) else {
             throw SnapshotError("a follow-up is generic")
         }
+        let filtered = withoutTheQuestionJustAsked
+        guard filtered.map(\.question) == ["Why does the proof of Proposition 5.3 need compactness?"] else {
+            throw SnapshotError("the question just asked was offered again: \(filtered.map(\.question))")
+        }
+        let paraphrased = suggest(alreadyAsked: ["What is Theorem 5.4 built on?"])
+        guard paraphrased.map(\.question) == filtered.map(\.question) else {
+            throw SnapshotError("a paraphrase of the question just asked was offered: \(paraphrased.map(\.question))")
+        }
     }
 }
 
@@ -585,7 +624,7 @@ private struct SnapshotError: Error, CustomStringConvertible {
 @MainActor
 private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    let renderer = ImageRenderer(content: view)
+    let renderer = ImageRenderer(content: view.environment(\.displayScale, 2))
     renderer.scale = 2
     renderer.isOpaque = true
     guard let image = renderer.nsImage,

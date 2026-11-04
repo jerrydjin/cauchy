@@ -80,7 +80,7 @@ struct MessageContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .inlineMath(let latex):
                 mathView(latex: latex, mode: .inline, fontSize: 15)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: equationOnItsOwnLine(latex) ? .center : .leading)
             case .displayMath(let latex):
                 mathView(latex: latex, mode: .display, fontSize: 17)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -134,9 +134,17 @@ struct MessageContentView: View {
             codeLabel(value, fixedWidth: true)
         case .inlineMath(let latex):
             mathView(latex: latex, mode: .inline, fontSize: 15)
+                .centersWhenAloneOnALine(equationOnItsOwnLine(latex))
         case .displayMath(let latex):
             mathView(latex: latex, mode: .display, fontSize: 17)
+                .centersWhenAloneOnALine(true)
         }
+    }
+
+    /// An equation (`γ(t) = …`) that wraps onto a line by itself is centred.
+    /// A symbol with no equals sign stays inline with the words around it.
+    private func equationOnItsOwnLine(_ latex: String) -> Bool {
+        latex.contains("=")
     }
 
     private func mathView(latex: String, mode: MathSegmentView.Mode, fontSize: CGFloat) -> MathSegmentView {
@@ -312,8 +320,10 @@ struct MessageContentView: View {
                 codeLabel(value, fixedWidth: true)
             case .inlineMath(let latex):
                 mathView(latex: latex, mode: .inline, fontSize: 15)
+                    .centersWhenAloneOnALine(equationOnItsOwnLine(latex))
             case .displayMath(let latex):
                 mathView(latex: latex, mode: .display, fontSize: 17)
+                    .centersWhenAloneOnALine(true)
             case .text:
                 EmptyView()
             }

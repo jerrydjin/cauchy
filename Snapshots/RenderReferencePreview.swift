@@ -125,6 +125,9 @@ enum RenderReferencePreview {
         let url = output.appendingPathComponent("reference-preview-proposition-2-5-1.png")
         try writePNG(card, to: url, minimumBytes: 12_000)
         try writePNG(card, to: output.appendingPathComponent("jerry-149-reference-card.png"), minimumBytes: 12_000)
+        let maths = output.appendingPathComponent("jerry-151-reference-math-after.png")
+        try writePNG(card, to: maths, minimumBytes: 12_000)
+        try assertCentredCrispEquation(in: maths)
         fputs("heading: \(model.heading)\n", stdout)
         fputs("statement:\n\(text)\n", stdout)
         try renderMathStatement(output: output)
@@ -245,6 +248,12 @@ enum RenderReferencePreview {
             minimumBytes: 4_000,
             minimumHeight: 280
         )
+        try writePNG(
+            card,
+            to: output.appendingPathComponent("jerry-151-reference-card-proposition-after.png"),
+            minimumBytes: 4_000,
+            minimumHeight: 280
+        )
     }
 
     /// Visible `Text` runs must not contain raw TeX, and every math run must
@@ -340,6 +349,117 @@ enum RenderReferencePreview {
         case .text:
             return []
         }
+    }
+
+    /// The γ(t) = |γ(t)|e^{…} line sits on its own and must be centred in the
+    /// text column, with stroke cores as bright as the body text. A 1× bitmap
+    /// left the equation on the left margin and softer than the words.
+    fileprivate static func assertCentredCrispEquation(in url: URL) throws {
+        guard let rep = NSBitmapImageRep(data: try Data(contentsOf: url)),
+              let bytes = rep.bitmapData else {
+            throw SnapshotError("could not read \(url.lastPathComponent)")
+        }
+        let width = rep.pixelsWide
+        let height = rep.pixelsHigh
+        let bpp = max(rep.bitsPerPixel / 8, 1)
+        guard bpp >= 3 else { throw SnapshotError("equation check needs RGB") }
+        let rowBytes = rep.bytesPerRow
+
+        struct Span {
+            var minX: Int
+            var maxX: Int
+            var peak: Int
+        }
+        var spans = [Span?](repeating: nil, count: height)
+        for y in 0..<height {
+            var minX = width
+            var maxX = -1
+            var peak = 0
+            var samples = 0
+            var x = 0
+            while x < width {
+                let offset = y * rowBytes + x * bpp
+                let r = Int(bytes[offset])
+                let g = Int(bytes[offset + 1])
+                let b = Int(bytes[offset + 2])
+                let lum = (r + g + b) / 3
+                if lum >= 180, b <= r + 30 {
+                    minX = min(minX, x)
+                    maxX = max(maxX, x)
+                    peak = max(peak, lum)
+                    samples += 1
+                }
+                x += 1
+            }
+            if samples > 8, maxX > minX {
+                spans[y] = Span(minX: minX, maxX: maxX, peak: peak)
+            }
+        }
+
+        let wide = spans.compactMap { $0 }.filter { $0.maxX - $0.minX > width / 2 }
+        guard let proseLeft = wide.map(\.minX).min(),
+              let proseRight = wide.map(\.maxX).max(),
+              let prosePeak = wide.map(\.peak).max() else {
+            throw SnapshotError("reference card has no prose line to centre against")
+        }
+        let proseMid = Double(proseLeft + proseRight) / 2
+
+        var best: (start: Int, end: Int, minX: Int, maxX: Int)?
+        var runStart: Int?
+        var runMin = width
+        var runMax = -1
+        func closeRun(at end: Int) {
+            guard let start = runStart else { return }
+            let rows = end - start
+            if rows >= 12 {
+                if best == nil || rows > best!.end - best!.start {
+                    best = (start, end, runMin, runMax)
+                }
+            }
+            runStart = nil
+            runMin = width
+            runMax = -1
+        }
+        for y in 0..<height {
+            if let span = spans[y], span.maxX - span.minX < width / 2, span.maxX - span.minX > 80 {
+                if runStart == nil { runStart = y }
+                runMin = min(runMin, span.minX)
+                runMax = max(runMax, span.maxX)
+            } else {
+                closeRun(at: y)
+            }
+        }
+        closeRun(at: height)
+        guard let equation = best else {
+            throw SnapshotError("no display equation line found in \(url.lastPathComponent)")
+        }
+        let equationMid = Double(equation.minX + equation.maxX) / 2
+        guard abs(equationMid - proseMid) < 70 else {
+            throw SnapshotError(
+                "display equation is not centred: mid \(Int(equationMid)) vs prose \(Int(proseMid)) (x \(equation.minX)-\(equation.maxX))"
+            )
+        }
+
+        var solid = 0
+        let floor = prosePeak - 10
+        for y in equation.start..<equation.end {
+            var x = equation.minX
+            while x <= equation.maxX {
+                let offset = y * rowBytes + x * bpp
+                let lum = (Int(bytes[offset]) + Int(bytes[offset + 1]) + Int(bytes[offset + 2])) / 3
+                if lum >= floor { solid += 1 }
+                x += 1
+            }
+        }
+        guard solid >= 40 else {
+            throw SnapshotError(
+                "equation strokes are greyer than the body text: \(solid) pixels within 10 of prose peak \(prosePeak)"
+            )
+        }
+        fputs(
+            "equation centred at \(Int(equationMid)) (prose \(Int(proseMid))), \(solid) solid pixels, prose peak \(prosePeak)\n",
+            stdout
+        )
     }
 
     fileprivate static func inkCount(in image: NSImage) throws -> Int {
@@ -455,7 +575,7 @@ private struct SnapshotError: Error, CustomStringConvertible {
 @MainActor
 private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int, minimumHeight: Int = 400) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    let renderer = ImageRenderer(content: view)
+    let renderer = ImageRenderer(content: view.environment(\.displayScale, 2))
     renderer.scale = 2
     renderer.isOpaque = true
     renderer.proposedSize = ProposedViewSize(width: 436, height: nil)

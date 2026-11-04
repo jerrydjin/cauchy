@@ -6,15 +6,30 @@ import SwiftUI
 struct InlineFlowToken: Equatable {
     let size: CGSize
     let baseline: CGFloat
+    /// An equation. A row made only of these is centred, because it is a
+    /// display equation that landed on its own line. Words stay at the margin.
+    var centersWhenAlone: Bool
 
-    init(size: CGSize, baseline: CGFloat) {
+    init(size: CGSize, baseline: CGFloat, centersWhenAlone: Bool = false) {
         self.size = size
         self.baseline = baseline
+        self.centersWhenAlone = centersWhenAlone
     }
 
     /// Tokens with no baseline of their own sit on their bottom edge.
-    init(size: CGSize) {
-        self.init(size: size, baseline: size.height)
+    init(size: CGSize, centersWhenAlone: Bool = false) {
+        self.init(size: size, baseline: size.height, centersWhenAlone: centersWhenAlone)
+    }
+}
+
+/// Set on a math token so a row that is only that equation is centred.
+struct CentersWhenAloneKey: LayoutValueKey {
+    static let defaultValue = false
+}
+
+extension View {
+    func centersWhenAloneOnALine(_ enabled: Bool = true) -> some View {
+        layoutValue(key: CentersWhenAloneKey.self, value: enabled)
     }
 }
 
@@ -68,14 +83,25 @@ enum InlineFlowLayoutEngine {
         for row in rows {
             let ascent = row.map(\.token.baseline).max() ?? 0
             let descent = row.map { $0.token.size.height - $0.token.baseline }.max() ?? 0
+            let contentWidth = row.last.map { $0.x + $0.token.size.width } ?? 0
+            // A display equation that wrapped onto a line of its own is
+            // centred in the measure. A word that wrapped stays at the margin,
+            // and an equation that still shares its line with prose stays put.
+            let shift = row.allSatisfy(\.token.centersWhenAlone)
+                ? max(0, (maxWidth - contentWidth) / 2)
+                : 0
+            if shift > 0 {
+                resultWidth = maxWidth
+            }
 
             for entry in row {
+                let placedX = entry.x + shift
                 placements[entry.index] = InlineFlowLayoutPlacement(
-                    x: entry.x,
+                    x: placedX,
                     y: y + ascent - entry.token.baseline,
                     size: entry.token.size
                 )
-                resultWidth = max(resultWidth, min(entry.x + entry.token.size.width, maxWidth))
+                resultWidth = max(resultWidth, min(placedX + entry.token.size.width, maxWidth))
             }
 
             y += ascent + descent + verticalSpacing
@@ -146,7 +172,8 @@ struct InlineFlowLayout: Layout {
             let dimensions = subview.dimensions(in: ProposedViewSize(width: maxWidth, height: nil))
             return InlineFlowToken(
                 size: CGSize(width: dimensions.width, height: dimensions.height),
-                baseline: dimensions[.firstTextBaseline]
+                baseline: dimensions[.firstTextBaseline],
+                centersWhenAlone: subview[CentersWhenAloneKey.self]
             )
         }
 

@@ -85,7 +85,24 @@ struct PassageChipView: View {
         }
     }
 
+    @ViewBuilder
     private var chipRow: some View {
+        // The composer chip is one object above the bar: the quote and the
+        // dismiss control share a quiet fill. No header, no rule, no page.
+        if role == .composer {
+            chipContents
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    Color.primary.opacity(0.08),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+        } else {
+            chipContents
+        }
+    }
+
+    private var chipContents: some View {
         HStack(alignment: .top, spacing: 8) {
             quoteControl
             if role == .composer {

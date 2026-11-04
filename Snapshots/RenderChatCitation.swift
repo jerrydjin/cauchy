@@ -839,7 +839,7 @@ private func nudgeScrollView(_ scroll: NSScrollView, probe: HeaderScrollProbe) t
 private func captureSettledPanel<V: View>(_ view: V) throws -> NSBitmapImageRep {
     let hosted = try HostedPanel(root: view)
     defer { hosted.window.close() }
-    pump(0.2)
+    pump(0.35)
     return try bitmap(of: hosted.hosting, scale: 2)
 }
 
@@ -895,33 +895,74 @@ private func pump(_ seconds: TimeInterval) {
 @MainActor
 private func bitmap(of view: NSView, scale: CGFloat) throws -> NSBitmapImageRep {
     view.layoutSubtreeIfNeeded()
-    applyContentsScale(2, to: view)
+    applyContentsScale(scale, to: view)
     view.needsDisplay = true
     view.window?.displayIfNeeded()
     CATransaction.flush()
+    guard view.bounds.width > 50, view.bounds.height > 50 else {
+        throw SnapshotError("header snapshot view is \(view.bounds.size)")
+    }
+
+    if let cached = cacheBitmap(of: view), bitmapHasInk(cached) {
+        let cachedScale = CGFloat(cached.pixelsWide) / view.bounds.width
+        if cachedScale >= scale - 0.1 {
+            fputs("header snapshot via cacheDisplay at \(cached.pixelsWide)x\(cached.pixelsHigh)\n", stdout)
+            return cached
+        }
+        if let pdf = pdfBitmap(of: view, scale: scale), bitmapHasInk(pdf) {
+            fputs("header snapshot via PDF at \(pdf.pixelsWide)x\(pdf.pixelsHigh)\n", stdout)
+            return pdf
+        }
+        fputs("header snapshot scaled up from cacheDisplay \(cached.pixelsWide)x\(cached.pixelsHigh)\n", stdout)
+        return try scaleBitmap(cached, of: view, to: scale)
+    }
+    if let pdf = pdfBitmap(of: view, scale: scale), bitmapHasInk(pdf) {
+        fputs("header snapshot via PDF at \(pdf.pixelsWide)x\(pdf.pixelsHigh)\n", stdout)
+        return pdf
+    }
+    let rendered = try layerBitmap(of: view, scale: scale)
+    if bitmapHasInk(rendered) {
+        fputs("header snapshot via layer at \(rendered.pixelsWide)x\(rendered.pixelsHigh)\n", stdout)
+        return rendered
+    }
+    throw SnapshotError("header snapshot bitmap is blank (\(view.bounds.size))")
+}
+
+@MainActor
+private func cacheBitmap(of view: NSView) -> NSBitmapImageRep? {
+    guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
+    view.cacheDisplay(in: view.bounds, to: rep)
+    return rep
+}
+
+@MainActor
+private func pdfBitmap(of view: NSView, scale: CGFloat) -> NSBitmapImageRep? {
+    let data = view.dataWithPDF(inside: view.bounds)
+    guard data.count > 200,
+          let provider = CGDataProvider(data: data as CFData),
+          let document = CGPDFDocument(provider),
+          let page = document.page(at: 1) else { return nil }
+    let width = Int((view.bounds.width * scale).rounded())
+    let height = Int((view.bounds.height * scale).rounded())
+    guard let rep = makeBitmap(pixelsWide: width, pixelsHigh: height, pointSize: view.bounds.size),
+          let context = NSGraphicsContext(bitmapImageRep: rep)?.cgContext else { return nil }
+    context.setFillColor(CGColor(gray: 0.2, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    context.saveGState()
+    context.scaleBy(x: scale, y: scale)
+    context.drawPDFPage(page)
+    context.restoreGState()
+    return rep
+}
+
+@MainActor
+private func layerBitmap(of view: NSView, scale: CGFloat) throws -> NSBitmapImageRep {
     guard let layer = view.layer else { throw SnapshotError("header snapshot view has no layer") }
     let width = Int((view.bounds.width * scale).rounded())
     let height = Int((view.bounds.height * scale).rounded())
-    guard width > 100, height > 100 else {
-        throw SnapshotError("header snapshot view is \(view.bounds.size)")
-    }
-    guard let rep = NSBitmapImageRep(
-        bitmapDataPlanes: nil,
-        pixelsWide: width,
-        pixelsHigh: height,
-        bitsPerSample: 8,
-        samplesPerPixel: 4,
-        hasAlpha: true,
-        isPlanar: false,
-        colorSpaceName: .deviceRGB,
-        bytesPerRow: 0,
-        bitsPerPixel: 0
-    ) else {
+    guard let rep = makeBitmap(pixelsWide: width, pixelsHigh: height, pointSize: view.bounds.size),
+          let context = NSGraphicsContext(bitmapImageRep: rep)?.cgContext else {
         throw SnapshotError("could not allocate the header snapshot")
-    }
-    rep.size = view.bounds.size
-    guard let context = NSGraphicsContext(bitmapImageRep: rep)?.cgContext else {
-        throw SnapshotError("could not draw the header snapshot")
     }
     context.saveGState()
     context.translateBy(x: 0, y: CGFloat(height))
@@ -929,6 +970,59 @@ private func bitmap(of view: NSView, scale: CGFloat) throws -> NSBitmapImageRep 
     layer.render(in: context)
     context.restoreGState()
     return rep
+}
+
+@MainActor
+private func scaleBitmap(_ source: NSBitmapImageRep, of view: NSView, to scale: CGFloat) throws -> NSBitmapImageRep {
+    let width = Int((view.bounds.width * scale).rounded())
+    let height = Int((view.bounds.height * scale).rounded())
+    guard let image = source.cgImage,
+          let rep = makeBitmap(pixelsWide: width, pixelsHigh: height, pointSize: view.bounds.size),
+          let context = NSGraphicsContext(bitmapImageRep: rep)?.cgContext else {
+        throw SnapshotError("could not scale the header snapshot")
+    }
+    context.interpolationQuality = .high
+    context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+    return rep
+}
+
+private func makeBitmap(pixelsWide: Int, pixelsHigh: Int, pointSize: NSSize) -> NSBitmapImageRep? {
+    guard let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: pixelsWide,
+        pixelsHigh: pixelsHigh,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else { return nil }
+    rep.size = pointSize
+    return rep
+}
+
+private func bitmapHasInk(_ rep: NSBitmapImageRep) -> Bool {
+    guard let origin = rep.colorAt(x: 0, y: 0) else { return false }
+    let stepX = max(1, rep.pixelsWide / 48)
+    let stepY = max(1, rep.pixelsHigh / 48)
+    var ink = 0
+    var y = 0
+    while y < rep.pixelsHigh {
+        var x = 0
+        while x < rep.pixelsWide {
+            if let color = rep.colorAt(x: x, y: y),
+               abs(color.redComponent - origin.redComponent) > 0.08
+                || abs(color.greenComponent - origin.greenComponent) > 0.08
+                || abs(color.blueComponent - origin.blueComponent) > 0.08 {
+                ink += 1
+            }
+            x += stepX
+        }
+        y += stepY
+    }
+    return ink > 8
 }
 
 private func applyContentsScale(_ scale: CGFloat, to view: NSView) {

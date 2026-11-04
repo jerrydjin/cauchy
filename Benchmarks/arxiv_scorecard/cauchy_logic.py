@@ -16,6 +16,9 @@ to ASCII before it is looked up.
   LLMReferenceIndexBuilder.declarationMatches, source-fallback indexing.
   Main drops a local hit that sits inside a bracket or author–year citation
   ([12], [IK99, Lemma 1.15], (Smith 2019), Smith et al. [2019]).
+  A page whose first line is "Contents" is still a contents page for
+  section questions. When that page also prints two full sentences, the
+  statement index keeps the theorem or equation under the list.
   Main also reads the period-marked abbreviations Thm. Lem. Prop. Cor. and
   Def., including a list such as "Lem. 2, 3, and 4" and "Lem. (4)". The
   period is required: "Thm 3.2" and "lem (11)" stay unresolved, so a
@@ -380,8 +383,12 @@ def best_reference(text: str, cursor_offset: int, profile: str = "main") -> Matc
     return min(found.local, key=lambda match: _distance(cursor, match))
 
 
+def _page_lines(page_text: str) -> list[str]:
+    return [line.strip() for line in page_text.split("\n") if line.strip()]
+
+
 def is_likely_table_of_contents(page_text: str) -> bool:
-    lines = [line.strip() for line in page_text.split("\n") if line.strip()]
+    lines = _page_lines(page_text)
     if len(lines) < 5:
         return False
     header_words = {"contents", "table of contents", "index"}
@@ -391,6 +398,23 @@ def is_likely_table_of_contents(page_text: str) -> bool:
     numbered = re.compile(r"^\d+(\.\d+)*\.?\s+\D.*\s\d{1,3}$")
     toc_like = sum(1 for line in lines if dot_leaders.search(line) or numbered.search(line))
     return toc_like >= 8 or toc_like / len(lines) >= 0.4
+
+
+def should_index_statements(page_text: str) -> bool:
+    """A contents list is not indexed. The article under a short list is.
+
+    Section finding still treats the page as contents, so a heading in the
+    list does not answer "what is section N about". The statement index does
+    not: the theorem printed under the list is the paper's theorem.
+    """
+    if not is_likely_table_of_contents(page_text):
+        return True
+    lines = _page_lines(page_text)
+    header_words = {"contents", "table of contents", "index"}
+    if not any(line.lower() in header_words for line in lines[:3]):
+        return False
+    prose = sum(1 for line in lines if len(line.split()) >= 12)
+    return prose >= 2
 
 
 _MATH_SIGNALS = ["=", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
@@ -670,7 +694,7 @@ def build_statement_index(pages: list[dict], profile: str = "main") -> Statement
     index = StatementIndex()
     for page in pages:
         text = page.get("text") or ""
-        if not text.strip() or is_likely_table_of_contents(text):
+        if not text.strip() or not should_index_statements(text):
             continue
         positions = page.get("equation_label_x") or {}
         declarations = declaration_matches(text, positions, profile)

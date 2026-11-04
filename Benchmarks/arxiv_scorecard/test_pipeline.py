@@ -25,7 +25,9 @@ from cauchy_logic import (  # noqa: E402
     build_statement_index,
     declaration_matches,
     first_reference,
+    is_likely_table_of_contents,
     locate,
+    should_index_statements,
     structural_query,
 )
 
@@ -508,6 +510,36 @@ class StructureTests(unittest.TestCase):
         )
         span = locate(structural_query("what is ch. 2 about"), detected)
         self.assertEqual((span.start_page, span.end_page), (9, 18))
+
+    def test_contents_heading_does_not_hide_the_article_on_the_same_page(self) -> None:
+        listing = "\n".join([
+            "Contents",
+            "6.1 Interiors and closures 39",
+            "6.2 Limit points 40",
+            "7.1 Basic definitions 43",
+            "7.2 Complete metric spaces 44",
+            "8.1 Connectedness 49",
+        ])
+        self.assertTrue(is_likely_table_of_contents(listing))
+        self.assertFalse(should_index_statements(listing))
+        shared = "\n".join([
+            "Contents",
+            "1",
+            "Introduction",
+            "2",
+            "2",
+            "Estimates",
+            "4",
+            "Let M be a complete manifold of infinite volume with a smooth metric.",
+            "The integral of the kernel over the sphere grows as the radius grows.",
+            "Theorem 2. Let f be harmonic. Then the integral diverges.",
+        ])
+        # Heading search still sees a contents page. The statement index does not
+        # drop the theorem printed under the list.
+        self.assertTrue(is_likely_table_of_contents(shared))
+        self.assertTrue(should_index_statements(shared))
+        indexed = build_statement_index([{"page_index": 0, "text": shared}], "main")
+        self.assertIsNotNone(indexed.lookup("theorem", "2"))
 
     def test_contents_page_and_a_numbered_sentence(self) -> None:
         contents = Structure(

@@ -197,6 +197,25 @@ enum LLMReferenceIndexSupport {
         return tocLike >= 8 || Double(tocLike) / Double(lines.count) >= 0.4
     }
 
+    /// A contents list is not indexed. The article under a short list is.
+    /// Heading search still treats the page as contents, so a line in the list
+    /// does not answer a section question. The statement under the list does.
+    static func shouldIndexStatements(in pageText: String) -> Bool {
+        let trimmed = pageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return false }
+        if !isLikelyTableOfContents(trimmed) { return true }
+        let lines = trimmed
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let headerWords: Set<String> = ["contents", "table of contents", "index"]
+        guard lines.prefix(3).contains(where: { headerWords.contains($0.lowercased()) }) else {
+            return false
+        }
+        let prose = lines.filter { $0.split(whereSeparator: \.isWhitespace).count >= 12 }.count
+        return prose >= 2
+    }
+
     /// Returns display-ready body, optionally using one repaired candidate.
     static func finalizeReferenceBody(normalized: String, repaired: String?) -> String? {
         if !ReferenceFormattingHeuristics.hasDanglingMathEnding(normalized),
@@ -1247,7 +1266,7 @@ enum LLMReferenceIndexBuilder {
     ) async throws -> [ReferenceKey: IndexedReference] {
         let trimmedPageText = payload.pageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPageText.isEmpty,
-              !LLMReferenceIndexSupport.isLikelyTableOfContents(trimmedPageText),
+              LLMReferenceIndexSupport.shouldIndexStatements(in: trimmedPageText),
               !ReferenceDetector.allReferences(in: trimmedPageText).isEmpty else {
             return [:]
         }
@@ -1410,7 +1429,7 @@ enum LLMReferenceIndexBuilder {
         if trimmed.isEmpty {
             disposition = .emptyText
             entries = [:]
-        } else if LLMReferenceIndexSupport.isLikelyTableOfContents(trimmed) {
+        } else if !LLMReferenceIndexSupport.shouldIndexStatements(in: trimmed) {
             disposition = .likelyTableOfContents
             entries = [:]
         } else if ReferenceDetector.allReferences(in: trimmed).isEmpty {
@@ -1465,7 +1484,7 @@ enum LLMReferenceIndexBuilder {
                 disposition: entries.isEmpty ? .emptyText : .ocrCandidates
             )
         }
-        if LLMReferenceIndexSupport.isLikelyTableOfContents(trimmed) {
+        if !LLMReferenceIndexSupport.shouldIndexStatements(in: trimmed) {
             return SinglePageResult(
                 parsedCount: 0,
                 modelAcceptedCount: 0,

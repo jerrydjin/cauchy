@@ -673,11 +673,6 @@ private struct HeaderScrolledUnder: View {
                 Text(Self.lead)
                 Text(Self.under)
                     .id("under-header")
-                    .overlay(alignment: .top) {
-                        // Sits in the header's rectangle. The capture uses it to
-                        // find the top of the scrolled bitmap; the header covers it.
-                        Color.red.frame(height: 2)
-                    }
                     .background {
                         GeometryReader { geo in
                             Color.clear.preference(
@@ -736,12 +731,18 @@ private func renderHeaderScrolledUnder(to url: URL) throws {
     defer { NSApp.setActivationPolicy(policy) }
     let probe = HeaderScrollProbe()
     let scrolled = try captureScrolledPanel(HeaderScrolledUnder(probe: probe), probe: probe)
-    let upright = try orientScrollMarkerToTop(scrolled)
+    let factor = scrolled.pixelsWide < Int(HeaderScrolledUnder.panelWidth * 1.5) ? 2 : 1
+    let content = try scaleUpright(scrolled, by: factor)
     let header = try renderSnapshotHeader()
-    let panel = try compositeHeader(header, over: upright)
-    try assertAnswerLiesUnderTheHeader(content: upright, header: header, covered: panel)
-    let scale = CGFloat(panel.pixelsWide) / HeaderScrolledUnder.panelWidth
-    let composed = try composeHeaderStrip(panel: panel, headerHeight: CGFloat(header.pixelsHigh) / scale)
+    guard let covered = content.copy() as? NSBitmapImageRep else {
+        throw SnapshotError("could not copy the scrolled snapshot")
+    }
+    try paintHeader(header, onto: covered)
+    try assertAnswerLiesUnderTheHeader(content: content, header: header, covered: covered)
+    let composed = try composeHeaderStrip(
+        panel: covered,
+        stripPixels: headerPixelsHigh(header, fittedTo: covered.pixelsWide)
+    )
     guard let png = composed.representation(using: .png, properties: [:]) else {
         throw SnapshotError("header scroll snapshot produced no PNG")
     }
@@ -768,8 +769,10 @@ private func captureScrolledPanel<V: View>(_ view: V, probe: HeaderScrollProbe) 
         let origin = hosted.hosting.firstDescendant(of: NSScrollView.self)?.contentView.bounds.origin.y ?? -1
         throw SnapshotError("scrolled answer anchor is at \(probe.anchorMinY) (scroll origin \(origin)); it is not under the header")
     }
-    let rep = try bitmap(of: hosted.hosting, scale: 2)
-    fputs("scrolled header anchor \(probe.anchorMinY) bitmap \(rep.pixelsWide)x\(rep.pixelsHigh)\n", stdout)
+    guard let rep = cacheBitmap(of: hosted.hosting), bitmapHasInk(rep) else {
+        throw SnapshotError("scrolled snapshot cache is blank (\(hosted.hosting.bounds.size))")
+    }
+    fputs("scrolled header anchor \(probe.anchorMinY) cache \(rep.pixelsWide)x\(rep.pixelsHigh)\n", stdout)
     return rep
 }
 
@@ -817,61 +820,48 @@ private func renderSnapshotHeader() throws -> NSBitmapImageRep {
 }
 
 @MainActor
-private func orientScrollMarkerToTop(_ rep: NSBitmapImageRep) throws -> NSBitmapImageRep {
-    let bitmap = try Bitmap(rep)
-    guard let marker = redMarkerRow(in: bitmap) else {
-        throw SnapshotError("the scrolled answer's top marker did not draw")
-    }
-    fputs("scroll marker at row \(marker) of \(bitmap.height)\n", stdout)
-    guard marker > bitmap.height / 2 else { return rep }
-    let flipped = try flipVertically(rep)
-    let check = try Bitmap(flipped)
-    guard let flippedMarker = redMarkerRow(in: check), flippedMarker < check.height / 2 else {
-        throw SnapshotError("could not turn the scrolled snapshot upright (marker at \(marker))")
-    }
-    return flipped
-}
-
-private func redMarkerRow(in bitmap: Bitmap) -> Int? {
-    bitmap.averageRow { $0.r > 200 && $0.g < 80 && $0.b < 80 }
-}
-
-@MainActor
-private func flipVertically(_ rep: NSBitmapImageRep) throws -> NSBitmapImageRep {
-    guard let image = rep.cgImage,
-          let flipped = makeBitmap(pixelsWide: rep.pixelsWide, pixelsHigh: rep.pixelsHigh, pointSize: rep.size),
-          let context = NSGraphicsContext(bitmapImageRep: flipped)?.cgContext else {
-        throw SnapshotError("could not flip the scrolled snapshot")
-    }
-    context.translateBy(x: 0, y: CGFloat(rep.pixelsHigh))
-    context.scaleBy(x: 1, y: -1)
-    context.draw(image, in: CGRect(x: 0, y: 0, width: rep.pixelsWide, height: rep.pixelsHigh))
-    return flipped
-}
-
-@MainActor
-private func compositeHeader(_ header: NSBitmapImageRep, over content: NSBitmapImageRep) throws -> NSBitmapImageRep {
-    guard let contentImage = content.cgImage, let headerImage = header.cgImage,
-          let rep = makeBitmap(pixelsWide: content.pixelsWide, pixelsHigh: content.pixelsHigh, pointSize: content.size),
-          let graphics = NSGraphicsContext(bitmapImageRep: rep) else {
-        throw SnapshotError("could not allocate the header composite")
-    }
-    let previous = NSGraphicsContext.current
-    NSGraphicsContext.current = graphics
-    defer { NSGraphicsContext.current = previous }
-    let context = graphics.cgContext
-    context.interpolationQuality = .none
-    context.draw(contentImage, in: CGRect(x: 0, y: 0, width: content.pixelsWide, height: content.pixelsHigh))
-    context.draw(
-        headerImage,
-        in: CGRect(
-            x: 0,
-            y: content.pixelsHigh - header.pixelsHigh,
-            width: content.pixelsWide,
-            height: header.pixelsHigh
-        )
+private func scaleUpright(_ source: NSBitmapImageRep, by factor: Int) throws -> NSBitmapImageRep {
+    let width = source.pixelsWide * factor
+    let height = source.pixelsHigh * factor
+    let pointSize = NSSize(
+        width: HeaderScrolledUnder.panelWidth,
+        height: HeaderScrolledUnder.panelHeight
     )
-    return rep
+    guard let dest = makeBitmap(pixelsWide: width, pixelsHigh: height, pointSize: pointSize) else {
+        throw SnapshotError("could not scale the scrolled snapshot")
+    }
+    for y in 0..<source.pixelsHigh {
+        for x in 0..<source.pixelsWide {
+            guard let color = source.colorAt(x: x, y: y) else { continue }
+            for dy in 0..<factor {
+                for dx in 0..<factor {
+                    dest.setColor(color, atX: x * factor + dx, y: y * factor + dy)
+                }
+            }
+        }
+    }
+    return dest
+}
+
+private func headerPixelsHigh(_ header: NSBitmapImageRep, fittedTo width: Int) -> Int {
+    guard header.pixelsWide > 0 else { return header.pixelsHigh }
+    return header.pixelsHigh * width / header.pixelsWide
+}
+
+@MainActor
+private func paintHeader(_ header: NSBitmapImageRep, onto dest: NSBitmapImageRep) throws {
+    let strip = headerPixelsHigh(header, fittedTo: dest.pixelsWide)
+    guard strip > 0, strip < dest.pixelsHigh else {
+        throw SnapshotError("header strip \(strip)px does not fit the panel")
+    }
+    for y in 0..<strip {
+        let hy = min(header.pixelsHigh - 1, y * header.pixelsHigh / strip)
+        for x in 0..<dest.pixelsWide {
+            let hx = min(header.pixelsWide - 1, x * header.pixelsWide / dest.pixelsWide)
+            guard let color = header.colorAt(x: hx, y: hy) else { continue }
+            dest.setColor(color, atX: x, y: y)
+        }
+    }
 }
 
 @MainActor
@@ -1062,45 +1052,41 @@ private func applyContentsScale(_ scale: CGFloat, to view: NSView) {
 
 @MainActor
 private func assertAnswerLiesUnderTheHeader(
-    content contentRep: NSBitmapImageRep,
-    header headerRep: NSBitmapImageRep,
-    covered coveredRep: NSBitmapImageRep
+    content: NSBitmapImageRep,
+    header: NSBitmapImageRep,
+    covered: NSBitmapImageRep
 ) throws {
-    let content = try Bitmap(contentRep)
-    let header = try Bitmap(headerRep)
-    let covered = try Bitmap(coveredRep)
-    let scale = CGFloat(covered.width) / HeaderScrolledUnder.panelWidth
+    let scale = CGFloat(covered.pixelsWide) / HeaderScrolledUnder.panelWidth
     guard scale >= 1.5 else {
-        throw SnapshotError("header snapshot is \(covered.width)x\(covered.height), not 2x")
+        throw SnapshotError("header snapshot is \(covered.pixelsWide)x\(covered.pixelsHigh), not 2x")
     }
-    let strip = header.height
+    let strip = headerPixelsHigh(header, fittedTo: covered.pixelsWide)
     guard strip > Int(36 * scale), strip < Int(90 * scale) else {
         throw SnapshotError("header band is \(strip)px")
     }
-    guard covered.width == content.width, covered.height == content.height else {
+    guard covered.pixelsWide == content.pixelsWide, covered.pixelsHigh == content.pixelsHigh else {
         throw SnapshotError("header composite changed the panel size")
     }
-    let width = min(content.width, header.width, covered.width)
-    let topInk = brightCount(header, rows: 0..<strip)
-    guard topInk > 40 else {
-        throw SnapshotError("header title did not draw (\(topInk) bright pixels)")
-    }
-
+    let width = min(content.pixelsWide, covered.pixelsWide)
+    var titleInk = 0
     var textUnder = 0
     var leaked = 0
     for y in 0..<strip {
-        for x in 0..<width {
-            let answer = content.pixel(x, y)
-            let title = header.pixel(x, y)
-            let painted = covered.pixel(x, y)
-            let marker = answer.r > 200 && answer.g < 80 && answer.b < 80
-            if !marker, channelGap(answer, title) > 28 {
+        let hy = min(header.pixelsHigh - 1, y * header.pixelsHigh / strip)
+        for x in stride(from: 0, to: width, by: 1) {
+            let hx = min(header.pixelsWide - 1, x * header.pixelsWide / width)
+            let answer = sample(content, x, y)
+            let title = sample(header, hx, hy)
+            let painted = sample(covered, x, y)
+            if title.r > 180, title.g > 180, title.b > 180 { titleInk += 1 }
+            if channelGap(answer, title) > 28 {
                 textUnder += 1
-                if channelGap(painted, title) > 18 {
-                    leaked += 1
-                }
+                if channelGap(painted, title) > 18 { leaked += 1 }
             }
         }
+    }
+    guard titleInk > 40 else {
+        throw SnapshotError("header title did not draw (\(titleInk) bright pixels)")
     }
     guard textUnder > 400 else {
         throw SnapshotError("answer text is not under the header (\(textUnder) pixels); the scroll left it below the band")
@@ -1108,12 +1094,26 @@ private func assertAnswerLiesUnderTheHeader(
     guard leaked == 0 else {
         throw SnapshotError("header lets \(leaked) pixels of the scrolled answer show through")
     }
-
-    let below = brightCount(covered, rows: strip..<(strip + Int(36 * scale)))
-    guard below > 150 else {
+    var below = 0
+    let belowEnd = min(covered.pixelsHigh, strip + Int(36 * scale))
+    for y in strip..<belowEnd {
+        for x in stride(from: 0, to: width, by: 2) {
+            let pixel = sample(covered, x, y)
+            if pixel.r > 180, pixel.g > 180, pixel.b > 180 { below += 1 }
+        }
+    }
+    guard below > 80 else {
         throw SnapshotError("the answer does not continue below the header (\(below) bright pixels)")
     }
     fputs("answer sits under the header: \(textUnder) covered pixels, \(below) continue below, strip \(strip)px\n", stdout)
+}
+
+private func sample(_ rep: NSBitmapImageRep, _ x: Int, _ y: Int) -> (r: UInt8, g: UInt8, b: UInt8) {
+    guard let color = rep.colorAt(x: x, y: y) else { return (0, 0, 0) }
+    func byte(_ channel: CGFloat) -> UInt8 {
+        UInt8(min(255, max(0, Int((channel * 255).rounded()))))
+    }
+    return (byte(color.redComponent), byte(color.greenComponent), byte(color.blueComponent))
 }
 
 private func brightCount(_ bitmap: Bitmap, rows: Range<Int>) -> Int {
@@ -1131,52 +1131,40 @@ private func channelGap(_ a: (r: UInt8, g: UInt8, b: UInt8), _ b: (r: UInt8, g: 
     max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b)))
 }
 
-/// The panel, then the header band cropped from that same 2x bitmap.
+/// The panel, then the same header band cropped underneath it. Pixel rows stay
+/// top-down, which is the order `colorAt` uses, so the crop cannot flip.
 @MainActor
-private func composeHeaderStrip(panel: NSBitmapImageRep, headerHeight: CGFloat) throws -> NSBitmapImageRep {
-    guard let panelImage = panel.cgImage else { throw SnapshotError("header snapshot has no image") }
-    let scale = CGFloat(panel.pixelsWide) / HeaderScrolledUnder.panelWidth
-    let strip = Int((headerHeight * scale).rounded())
-    guard let crop = panelImage.cropping(to: CGRect(x: 0, y: 0, width: panelImage.width, height: strip)) else {
-        throw SnapshotError("could not crop the header strip")
-    }
-    let gap = Int((28 * scale).rounded())
-    let totalHeight = panel.pixelsHigh + gap + strip
-    guard let rep = NSBitmapImageRep(
-        bitmapDataPlanes: nil,
+private func composeHeaderStrip(panel: NSBitmapImageRep, stripPixels: Int) throws -> NSBitmapImageRep {
+    let scale = max(1, panel.pixelsWide / Int(HeaderScrolledUnder.panelWidth))
+    let gap = 28 * scale
+    let total = panel.pixelsHigh + gap + stripPixels
+    guard let dest = makeBitmap(
         pixelsWide: panel.pixelsWide,
-        pixelsHigh: totalHeight,
-        bitsPerSample: 8,
-        samplesPerPixel: 4,
-        hasAlpha: true,
-        isPlanar: false,
-        colorSpaceName: .deviceRGB,
-        bytesPerRow: 0,
-        bitsPerPixel: 0
-    ), let graphics = NSGraphicsContext(bitmapImageRep: rep) else {
+        pixelsHigh: total,
+        pointSize: NSSize(width: HeaderScrolledUnder.panelWidth, height: CGFloat(total) / CGFloat(scale))
+    ) else {
         throw SnapshotError("could not compose the header strip")
     }
-    let previous = NSGraphicsContext.current
-    NSGraphicsContext.current = graphics
-    defer { NSGraphicsContext.current = previous }
-    let context = graphics.cgContext
-    let backdrop = NSColor.windowBackgroundColor.usingColorSpace(.deviceRGB) ?? NSColor(srgbRed: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-    context.setFillColor(backdrop.cgColor)
-    context.fill(CGRect(x: 0, y: 0, width: panel.pixelsWide, height: totalHeight))
-    context.interpolationQuality = .none
-    context.draw(panelImage, in: CGRect(x: 0, y: gap + strip, width: panel.pixelsWide, height: panel.pixelsHigh))
-    context.draw(crop, in: CGRect(x: 0, y: 0, width: panel.pixelsWide, height: strip))
-
-    let font = CTFontCreateWithName("Helvetica" as CFString, 11 * scale, nil)
-    let attributes: [CFString: Any] = [
-        kCTFontAttributeName: font,
-        kCTForegroundColorAttributeName: CGColor(gray: 0.62, alpha: 1),
-    ]
-    let caption = CFAttributedStringCreate(nil, "Header strip at 2x" as CFString, attributes as CFDictionary)!
-    let line = CTLineCreateWithAttributedString(caption)
-    context.textPosition = CGPoint(x: 16 * scale, y: CGFloat(strip) + 8 * scale)
-    CTLineDraw(line, context)
-    return rep
+    let backdrop = panel.colorAt(x: 2, y: 2) ?? NSColor(srgbRed: 0.2, green: 0.2, blue: 0.2, alpha: 1)
+    let cropY = panel.pixelsHigh + gap
+    for y in panel.pixelsHigh..<cropY {
+        for x in 0..<panel.pixelsWide {
+            dest.setColor(backdrop, atX: x, y: y)
+        }
+    }
+    for y in 0..<panel.pixelsHigh {
+        for x in 0..<panel.pixelsWide {
+            guard let color = panel.colorAt(x: x, y: y) else { continue }
+            dest.setColor(color, atX: x, y: y)
+        }
+    }
+    for y in 0..<stripPixels {
+        for x in 0..<panel.pixelsWide {
+            guard let color = panel.colorAt(x: x, y: y) else { continue }
+            dest.setColor(color, atX: x, y: cropY + y)
+        }
+    }
+    return dest
 }
 
 private extension NSView {

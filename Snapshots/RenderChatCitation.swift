@@ -2,6 +2,7 @@ import AppKit
 import CoreText
 import Foundation
 import PDFKit
+import QuartzCore
 import SwiftMath
 import SwiftUI
 
@@ -240,6 +241,7 @@ enum RenderChatCitation {
         let headerScrolledURL = output.appendingPathComponent("jerry-151-header-scrolled.png")
         try writePNG(headerScrolled, to: headerScrolledURL, minimumBytes: 4_000)
         try assertHeaderHidesTheLineUnderneath()
+        try renderHeaderScrolledUnder(to: output.appendingPathComponent("jerry-151-header-scrolled-under.png"))
     }
 }
 
@@ -607,6 +609,479 @@ private struct HeaderLeakProbe: View {
         }
         .frame(width: 390, height: 120)
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// The marked line of a long answer is scrolled into the header's rectangle.
+/// ImageRenderer does not draw a ScrollView, so the harness hosts one in a
+/// window and drives ScrollViewReader before taking the bitmap.
+@MainActor
+private final class HeaderScrollProbe: ObservableObject {
+    @Published var generation = 0
+    var anchorMinY: CGFloat = -10_000
+    var headerHeight: CGFloat = 0
+}
+
+private struct AnchorMinYKey: PreferenceKey {
+    static var defaultValue: CGFloat = -10_000
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if value < -9_000 { value = next }
+        else if next > -9_000 { value = next }
+    }
+}
+
+private struct HeaderBandHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct HeaderScrolledUnder: View {
+    static let panelWidth: CGFloat = 390
+    static let panelHeight: CGFloat = 640
+
+    var showsHeader: Bool
+    @ObservedObject var probe: HeaderScrollProbe
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        MessageBubble(
+                            message: ThreadMessage(
+                                role: .user,
+                                content: "What does the definition of norms require?"
+                            ),
+                            maxBubbleWidth: 320
+                        )
+                        answer
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .scrollIndicators(.hidden)
+                .onAppear {
+                    proxy.scrollTo("under-header", anchor: .top)
+                }
+                .onChange(of: probe.generation) { _, _ in
+                    proxy.scrollTo("under-header", anchor: .top)
+                }
+            }
+            if showsHeader {
+                snapshotHeader
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.preference(key: HeaderBandHeightKey.self, value: geo.size.height)
+                        }
+                    }
+            }
+        }
+        .coordinateSpace(name: "panel")
+        .frame(width: Self.panelWidth, height: Self.panelHeight)
+        .background(ConversationChrome.headerBackdrop)
+        .environment(\.colorScheme, .dark)
+        .onPreferenceChange(AnchorMinYKey.self) { probe.anchorMinY = $0 }
+        .onPreferenceChange(HeaderBandHeightKey.self) { probe.headerHeight = $0 }
+    }
+
+    private var answer: some View {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(Self.lead)
+                Text(Self.under)
+                    .id("under-header")
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: AnchorMinYKey.self,
+                                value: geo.frame(in: .named("panel")).minY
+                            )
+                        }
+                    }
+                ForEach(0..<8, id: \.self) { index in
+                    Text(Self.tail + "\n\nPassage \(index + 1) stays below the header, so the marked line can rest at the top of the panel.")
+                }
+            }
+            .font(.body)
+            .foregroundStyle(.primary)
+            .multilineTextAlignment(.leading)
+            .padding(.horizontal, ConversationChrome.answerPaddingH)
+            .padding(.vertical, ConversationChrome.answerPaddingV)
+            .frame(maxWidth: 340, alignment: .leading)
+            .background(
+                ContentSurface.bubble,
+                in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
+            )
+            Spacer(minLength: ConversationChrome.bubbleHorizontalInset)
+        }
+    }
+
+    /// Paragraphs above the marked line. Scrolling that line to the top
+    /// carries these under the header and then off the panel.
+    static let lead = """
+    A norm on a finite-dimensional space is a continuous function, and every linear map between those spaces is bounded. The operator norm is the smallest constant that works for every vector, and it is attained on the unit sphere.
+
+    Equivalence of norms follows from compactness of that sphere. Once two norms are equivalent, completeness and the open sets transfer from one to the other without a further argument. These opening paragraphs sit above the header once the thread is scrolled partway through the answer.
+    """
+
+    /// The line ScrollViewReader parks at the top of the panel, which is the header's rectangle.
+    static let under = """
+    This sentence is scrolled underneath the page subtitle, so its glyphs sit in the header's rectangle rather than starting below it. The same sentence wraps on, and the lines that cross the header's lower edge are the ones still visible.
+    """
+
+    static let tail = """
+    What remains on screen is the rest of that answer, still inside the same bubble. The header has to cover the lines above this one completely. The title and Page 11 are the only type in that band.
+
+    A further paragraph keeps the scroll view taller than the panel, so the marked line can rest at the top instead of bouncing back down. Finite-dimensional normed spaces are complete, and a linear map out of one is continuous exactly when it is bounded.
+
+    The last paragraph exists so the offset is a real one. The backdrop stays the panel colour, and the scrolled text stays behind it.
+    """
+}
+
+private struct HeaderOnlyBand: View {
+    var body: some View {
+        ZStack(alignment: .top) {
+            ConversationChrome.headerBackdrop
+            snapshotHeader
+        }
+        .frame(width: HeaderScrolledUnder.panelWidth, height: HeaderScrolledUnder.panelHeight)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+@MainActor
+private func renderHeaderScrolledUnder(to url: URL) throws {
+    if !NSApp.isRunning {
+        NSApp.finishLaunching()
+    }
+    let policy = NSApp.activationPolicy()
+    NSApp.setActivationPolicy(.accessory)
+    defer { NSApp.setActivationPolicy(policy) }
+    let coveredProbe = HeaderScrollProbe()
+    let coveredRep = try captureScrolledPanel(
+        HeaderScrolledUnder(showsHeader: true, probe: coveredProbe),
+        probe: coveredProbe
+    )
+    let bareProbe = HeaderScrollProbe()
+    let bareRep = try captureScrolledPanel(
+        HeaderScrolledUnder(showsHeader: false, probe: bareProbe),
+        probe: bareProbe
+    )
+    let headerRep = try captureSettledPanel(HeaderOnlyBand())
+    if coveredProbe.headerHeight < 36 {
+        let measured = ImageRenderer(
+            content: snapshotHeader
+                .environment(\.colorScheme, .dark)
+                .frame(width: HeaderScrolledUnder.panelWidth)
+        )
+        measured.scale = 2
+        measured.proposedSize = ProposedViewSize(width: HeaderScrolledUnder.panelWidth, height: nil)
+        coveredProbe.headerHeight = measured.nsImage?.size.height ?? 0
+    }
+    try assertAnswerLiesUnderTheHeader(bare: bareRep, covered: coveredRep, headerOnly: headerRep, headerHeight: coveredProbe.headerHeight)
+    let composed = try composeHeaderStrip(panel: coveredRep, headerHeight: coveredProbe.headerHeight)
+    guard let png = composed.representation(using: .png, properties: [:]) else {
+        throw SnapshotError("header scroll snapshot produced no PNG")
+    }
+    guard png.count >= 8_000 else {
+        throw SnapshotError("header scroll snapshot is \(png.count) bytes")
+    }
+    try png.write(to: url)
+    fputs("wrote \(url.path) (\(png.count) bytes, \(composed.pixelsWide)x\(composed.pixelsHigh))\n", stdout)
+}
+
+@MainActor
+private func captureScrolledPanel<V: View>(_ view: V, probe: HeaderScrollProbe) throws -> NSBitmapImageRep {
+    let hosted = try HostedPanel(root: view)
+    defer { hosted.window.close() }
+    pump(0.35)
+    if !anchorRestsUnderTheHeader(probe.anchorMinY) {
+        probe.generation += 1
+        pump(0.35)
+    }
+    if !anchorRestsUnderTheHeader(probe.anchorMinY), let scroll = hosted.hosting.firstDescendant(of: NSScrollView.self) {
+        try nudgeScrollView(scroll, probe: probe)
+    }
+    guard anchorRestsUnderTheHeader(probe.anchorMinY) else {
+        let origin = hosted.hosting.firstDescendant(of: NSScrollView.self)?.contentView.bounds.origin.y ?? -1
+        throw SnapshotError("scrolled answer anchor is at \(probe.anchorMinY) (scroll origin \(origin)); it is not under the header")
+    }
+    let rep = try bitmap(of: hosted.hosting, scale: 2)
+    fputs("scrolled header anchor \(probe.anchorMinY) header \(probe.headerHeight)pt bitmap \(rep.pixelsWide)x\(rep.pixelsHigh)\n", stdout)
+    return rep
+}
+
+private func anchorRestsUnderTheHeader(_ y: CGFloat) -> Bool {
+    y > -2 && y < 12
+}
+
+@MainActor
+private func nudgeScrollView(_ scroll: NSScrollView, probe: HeaderScrollProbe) throws {
+    let clip = scroll.contentView
+    let start = clip.bounds.origin
+    let delta = probe.anchorMinY
+    clip.scroll(to: NSPoint(x: start.x, y: start.y + delta))
+    scroll.reflectScrolledClipView(clip)
+    pump(0.25)
+    guard !anchorRestsUnderTheHeader(probe.anchorMinY) else { return }
+    clip.scroll(to: start)
+    scroll.reflectScrolledClipView(clip)
+    pump(0.1)
+    clip.scroll(to: NSPoint(x: start.x, y: start.y - delta))
+    scroll.reflectScrolledClipView(clip)
+    pump(0.25)
+}
+
+@MainActor
+private func captureSettledPanel<V: View>(_ view: V) throws -> NSBitmapImageRep {
+    let hosted = try HostedPanel(root: view)
+    defer { hosted.window.close() }
+    pump(0.2)
+    return try bitmap(of: hosted.hosting, scale: 2)
+}
+
+@MainActor
+private struct HostedPanel<Content: View> {
+    let window: NSWindow
+    let hosting: NSHostingView<Content>
+
+    init(root: Content) throws {
+        let size = NSSize(width: HeaderScrolledUnder.panelWidth, height: HeaderScrolledUnder.panelHeight)
+        let panel = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isReleasedWhenClosed = false
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.backgroundColor = .windowBackgroundColor
+        panel.isOpaque = true
+        let hosting = NSHostingView(rootView: root)
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        hosting.wantsLayer = true
+        hosting.layer?.contentsScale = 2
+        guard let content = panel.contentView else {
+            throw SnapshotError("header snapshot window has no content view")
+        }
+        content.addSubview(hosting)
+        NSLayoutConstraint.activate([
+            hosting.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: content.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+        ])
+        self.window = panel
+        self.hosting = hosting
+        panel.orderFrontRegardless()
+        hosting.layoutSubtreeIfNeeded()
+        panel.layoutIfNeeded()
+        panel.displayIfNeeded()
+    }
+}
+
+@MainActor
+private func pump(_ seconds: TimeInterval) {
+    let until = Date().addingTimeInterval(seconds)
+    while Date() < until {
+        RunLoop.current.run(mode: .common, before: Date().addingTimeInterval(0.02))
+    }
+    CATransaction.flush()
+}
+
+@MainActor
+private func bitmap(of view: NSView, scale: CGFloat) throws -> NSBitmapImageRep {
+    view.layoutSubtreeIfNeeded()
+    applyContentsScale(2, to: view)
+    view.needsDisplay = true
+    view.window?.displayIfNeeded()
+    CATransaction.flush()
+    guard let layer = view.layer else { throw SnapshotError("header snapshot view has no layer") }
+    let width = Int((view.bounds.width * scale).rounded())
+    let height = Int((view.bounds.height * scale).rounded())
+    guard width > 100, height > 100 else {
+        throw SnapshotError("header snapshot view is \(view.bounds.size)")
+    }
+    guard let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: width,
+        pixelsHigh: height,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        throw SnapshotError("could not allocate the header snapshot")
+    }
+    rep.size = view.bounds.size
+    guard let context = NSGraphicsContext(bitmapImageRep: rep)?.cgContext else {
+        throw SnapshotError("could not draw the header snapshot")
+    }
+    context.saveGState()
+    context.translateBy(x: 0, y: CGFloat(height))
+    context.scaleBy(x: scale, y: -scale)
+    layer.render(in: context)
+    context.restoreGState()
+    return rep
+}
+
+private func applyContentsScale(_ scale: CGFloat, to view: NSView) {
+    view.wantsLayer = true
+    view.layer?.contentsScale = scale
+    for subview in view.subviews {
+        applyContentsScale(scale, to: subview)
+    }
+}
+
+@MainActor
+private func assertAnswerLiesUnderTheHeader(
+    bare bareRep: NSBitmapImageRep,
+    covered coveredRep: NSBitmapImageRep,
+    headerOnly headerRep: NSBitmapImageRep,
+    headerHeight: CGFloat
+) throws {
+    let bare = try Bitmap(bareRep)
+    let covered = try Bitmap(coveredRep)
+    let headerOnly = try Bitmap(headerRep)
+    guard bare.width == covered.width, bare.height == covered.height,
+          headerOnly.width == covered.width, headerOnly.height == covered.height else {
+        throw SnapshotError("header captures differ in size")
+    }
+    let scale = CGFloat(covered.width) / HeaderScrolledUnder.panelWidth
+    guard scale >= 1.5 else {
+        throw SnapshotError("header snapshot is \(covered.width)x\(covered.height), not 2x")
+    }
+    guard headerHeight > 36, headerHeight < 90 else {
+        throw SnapshotError("header band measured \(headerHeight)pt")
+    }
+    let strip = Int(((headerHeight - 2) * scale).rounded(.down))
+    let topInk = brightCount(headerOnly, rows: 0..<strip)
+    let bottomInk = brightCount(headerOnly, rows: (headerOnly.height - strip)..<headerOnly.height)
+    if bottomInk > topInk * 2, topInk < 40 {
+        throw SnapshotError("header snapshot is upside down (title ink top \(topInk), bottom \(bottomInk))")
+    }
+    guard topInk > 40 else {
+        throw SnapshotError("header title did not draw (\(topInk) bright pixels)")
+    }
+
+    var textUnder = 0
+    var leaked = 0
+    for y in 0..<strip {
+        for x in stride(from: 0, to: covered.width, by: 1) {
+            let barePixel = bare.pixel(x, y)
+            let coveredPixel = covered.pixel(x, y)
+            let headerPixel = headerOnly.pixel(x, y)
+            if channelGap(barePixel, headerPixel) > 28 {
+                textUnder += 1
+                if channelGap(coveredPixel, headerPixel) > 18 {
+                    leaked += 1
+                }
+            }
+        }
+    }
+    guard textUnder > 400 else {
+        throw SnapshotError("answer text is not under the header (\(textUnder) pixels); the scroll left it below the band")
+    }
+    guard leaked == 0 else {
+        throw SnapshotError("header lets \(leaked) pixels of the scrolled answer show through")
+    }
+
+    let below = brightCount(covered, rows: strip..<(strip + Int(36 * scale)))
+    guard below > 150 else {
+        throw SnapshotError("the answer does not continue below the header (\(below) bright pixels)")
+    }
+
+    var mismatch = 0
+    var compared = 0
+    let belowEnd = min(covered.height, strip + Int(48 * scale))
+    for y in strip..<belowEnd {
+        for x in stride(from: 0, to: covered.width, by: 3) {
+            compared += 1
+            if channelGap(bare.pixel(x, y), covered.pixel(x, y)) > 24 { mismatch += 1 }
+        }
+    }
+    guard compared > 0, mismatch * 4 < compared else {
+        throw SnapshotError("the bare and covered captures scrolled to different offsets (\(mismatch) of \(compared))")
+    }
+    fputs("answer sits under the header: \(textUnder) covered pixels, \(below) continue below, strip \(strip)px\n", stdout)
+}
+
+private func brightCount(_ bitmap: Bitmap, rows: Range<Int>) -> Int {
+    var count = 0
+    for y in rows where y >= 0 && y < bitmap.height {
+        for x in stride(from: 0, to: bitmap.width, by: 2) {
+            let pixel = bitmap.pixel(x, y)
+            if pixel.r > 180, pixel.g > 180, pixel.b > 180 { count += 1 }
+        }
+    }
+    return count
+}
+
+private func channelGap(_ a: (r: UInt8, g: UInt8, b: UInt8), _ b: (r: UInt8, g: UInt8, b: UInt8)) -> Int {
+    max(abs(Int(a.r) - Int(b.r)), abs(Int(a.g) - Int(b.g)), abs(Int(a.b) - Int(b.b)))
+}
+
+/// The panel, then the header band cropped from that same 2x bitmap.
+@MainActor
+private func composeHeaderStrip(panel: NSBitmapImageRep, headerHeight: CGFloat) throws -> NSBitmapImageRep {
+    guard let panelImage = panel.cgImage else { throw SnapshotError("header snapshot has no image") }
+    let scale = CGFloat(panel.pixelsWide) / HeaderScrolledUnder.panelWidth
+    let strip = Int((headerHeight * scale).rounded())
+    guard let crop = panelImage.cropping(to: CGRect(x: 0, y: 0, width: panelImage.width, height: strip)) else {
+        throw SnapshotError("could not crop the header strip")
+    }
+    let gap = Int((28 * scale).rounded())
+    let totalHeight = panel.pixelsHigh + gap + strip
+    guard let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: panel.pixelsWide,
+        pixelsHigh: totalHeight,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ), let graphics = NSGraphicsContext(bitmapImageRep: rep) else {
+        throw SnapshotError("could not compose the header strip")
+    }
+    let previous = NSGraphicsContext.current
+    NSGraphicsContext.current = graphics
+    defer { NSGraphicsContext.current = previous }
+    let context = graphics.cgContext
+    let backdrop = NSColor.windowBackgroundColor.usingColorSpace(.deviceRGB) ?? NSColor(srgbRed: 0.2, green: 0.2, blue: 0.2, alpha: 1)
+    context.setFillColor(backdrop.cgColor)
+    context.fill(CGRect(x: 0, y: 0, width: panel.pixelsWide, height: totalHeight))
+    context.interpolationQuality = .none
+    context.draw(panelImage, in: CGRect(x: 0, y: gap + strip, width: panel.pixelsWide, height: panel.pixelsHigh))
+    context.draw(crop, in: CGRect(x: 0, y: 0, width: panel.pixelsWide, height: strip))
+
+    let font = CTFontCreateWithName("Helvetica" as CFString, 11 * scale, nil)
+    let attributes: [CFString: Any] = [
+        kCTFontAttributeName: font,
+        kCTForegroundColorAttributeName: CGColor(gray: 0.62, alpha: 1),
+    ]
+    let caption = CFAttributedStringCreate(nil, "Header strip at 2x" as CFString, attributes as CFDictionary)!
+    let line = CTLineCreateWithAttributedString(caption)
+    context.textPosition = CGPoint(x: 16 * scale, y: CGFloat(strip) + 8 * scale)
+    CTLineDraw(line, context)
+    return rep
+}
+
+private extension NSView {
+    func firstDescendant<T: NSView>(of type: T.Type) -> T? {
+        if let match = self as? T { return match }
+        for subview in subviews {
+            if let match = subview.firstDescendant(of: type) { return match }
+        }
+        return nil
     }
 }
 

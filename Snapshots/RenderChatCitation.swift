@@ -2139,13 +2139,20 @@ private struct ScrolledChipPanel: View {
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 18))
-                    // One full line, clipped so it cannot end short of the chevron.
-                    // The glass has to sample these glyphs, not the empty band.
-                    Text("bounded complete continuous equivalent finite linear maps stay behind the glass")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // Taller than the 28pt button, so the whole circle sits on this
+                    // band. Body text on the panel colour is thinner than the
+                    // glass blur and disappears; black on white is the content
+                    // the capture has to show through the circle.
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.white)
+                        Text("bounded complete continuous equivalent finite linear maps stay behind the glass")
+                            .font(.body.weight(.bold))
+                            .foregroundStyle(.black)
+                            .lineLimit(1)
+                    }
+                    .frame(height: 44)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
@@ -2560,7 +2567,7 @@ private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
         )
     }
     let bestFlip = (rings[false]?.chevron == true && (rings[false]?.edge ?? 0) > 40) ? false : true
-    let best = rings[bestFlip] ?? GlassRing(samples: [], chevron: false, edge: 0)
+    let best = rings[bestFlip] ?? GlassRing(samples: [], points: [], chevron: false, edge: 0)
     fputs("glass ring using flip \(bestFlip)\n", stdout)
     guard best.edge > 40 else {
         throw SnapshotError("screencapture has no circular chevron at \(jump)")
@@ -2571,15 +2578,30 @@ private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
     guard best.samples.count > 20 else {
         throw SnapshotError("glass circle was not in the screencapture (\(best.samples.count) samples)")
     }
-    // A flat disc is one colour (variance near 0). The answer text elsewhere
-    // in the panel can clear a low bar, so the ring has to vary like glyphs.
-    guard best.variance > 400, best.bright >= 6 else {
-        throw SnapshotError("the chevron is a flat disc (ring variance \(best.variance), bright \(best.bright)); glass is not showing the text behind it")
+    // A flat disc is one colour. A glass highlight is a vertical gradient and
+    // also clears a variance bar, so the ring has to be the white band: light
+    // on average, with the black glyphs making the left and right differ from
+    // a plain fill.
+    var horizontal: [Int] = []
+    var vertical: [Int] = []
+    for (sample, point) in zip(best.samples, best.points) {
+        if abs(point.dx) > abs(point.dy) {
+            horizontal.append(sample)
+        } else {
+            vertical.append(sample)
+        }
+    }
+    let sideMean = horizontal.isEmpty ? 0 : horizontal.reduce(0, +) / horizontal.count
+    let capMean = vertical.isEmpty ? 0 : vertical.reduce(0, +) / vertical.count
+    fputs("glass band side \(sideMean) cap \(capMean)\n", stdout)
+    guard best.mean > 420, abs(sideMean - capMean) > 25 else {
+        throw SnapshotError("the chevron is a flat disc (ring mean \(best.mean), side \(sideMean), cap \(capMean)); glass is not showing the text behind it")
     }
 }
 
 private struct GlassRing {
     var samples: [Int]
+    var points: [(dx: CGFloat, dy: CGFloat)]
     var chevron: Bool
     var edge: Int
 
@@ -2603,6 +2625,7 @@ private func glassRing(_ bitmap: Bitmap, centerX: CGFloat, centerY: CGFloat, rad
     let inner = radius * 0.78
     let outer = radius * 0.92
     var samples: [Int] = []
+    var points: [(dx: CGFloat, dy: CGFloat)] = []
     var chevron = false
     let minX = max(0, Int(centerX - radius - 3))
     let maxX = min(bitmap.width - 1, Int(centerX + radius + 3))
@@ -2617,6 +2640,7 @@ private func glassRing(_ bitmap: Bitmap, centerX: CGFloat, centerY: CGFloat, rad
             if distance < radius * 0.35, sum > 400 { chevron = true }
             if distance > inner, distance < outer {
                 samples.append(sum)
+                points.append((dx, dy))
             }
         }
     }
@@ -2637,7 +2661,7 @@ private func glassRing(_ bitmap: Bitmap, centerX: CGFloat, centerY: CGFloat, rad
         steps.append(abs(inside - outside))
     }
     let edge = steps.isEmpty ? 0 : steps.reduce(0, +) / steps.count
-    return GlassRing(samples: samples, chevron: chevron, edge: edge)
+    return GlassRing(samples: samples, points: points, chevron: chevron, edge: edge)
 }
 
 @MainActor

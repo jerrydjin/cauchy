@@ -542,6 +542,11 @@ def declaration_matches(
         if "." in match.number:
             accepted.append(match)
             continue
+        # A bare number alone on a line is still not an equation when the
+        # text layer split a subscript ("E[R" / "(1)" / "x") or wrapped a
+        # list item ("I." / "(2)" / "R√"). A formula on the next line stays.
+        if _bare_own_line_is_fragment(source_text, match, label_x):
+            continue
         display_start = _offset(source_text, match.start, -600)
         preceding = source_text[display_start : match.start]
         if any(op in preceding for op in _MATH_SIGNALS):
@@ -599,6 +604,56 @@ def _prefix_is_display_tag(prefix: str) -> bool:
     if not any(op in prefix for op in _DISPLAY_OPERATORS):
         return False
     return len(re.findall(r"[A-Za-z]{3,}", prefix)) <= 2
+
+
+def _nonempty_line_before(text: str, start: int) -> str:
+    for line in reversed(text[:start].split("\n")):
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def _nonempty_line_after(text: str, end: int) -> str:
+    for line in text[end:].split("\n")[1:5]:
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def _bare_own_line_is_fragment(text: str, match: Match, label_x: float | None) -> bool:
+    """Bare own-line number that is a split subscript or a wrapped list item.
+
+    The formula on the next line is what makes "(1)" an equation. A subscript
+    broken as "E[R" / "(1)" / "x (Zd)", "(0)" under a one-digit line, or a
+    left-margin "(2)" whose next line is a symbol fragment, is not a tag.
+    """
+    if _following_line_is_display(text[match.end :]):
+        return False
+    previous = _nonempty_line_before(text, match.start)
+    following = _nonempty_line_after(text, match.end)
+    if previous and previous[-1].isalpha() and following:
+        runs = re.findall(r"[A-Za-z]+", previous)
+        # The next token is an index letter, not a word ("x (Zd)", "n+1", "i ,").
+        if runs and len(runs[-1]) == 1 and re.match(r"[a-zℓ](?![A-Za-z])", following):
+            return True
+    # "(0)" under a one-digit line is the other half of a subscript, as in
+    # "λ" / "0" / "(0)". A tag such as "(14)" can sit under the same shape
+    # when an integral limit extracts as its own line, so only zero is rejected.
+    if match.number == "0" and re.fullmatch(r"\d", previous):
+        return True
+    if (
+        label_x is not None
+        and label_x < 0.4
+        and previous.endswith((".", "?", "!"))
+        and following
+        and following[0] not in "([{"
+        and not re.match(r"[A-Z][A-Za-z]", following)
+        and not any(op in following for op in _DISPLAY_OPERATORS)
+    ):
+        return True
+    return False
 
 
 def _following_line_is_display(rest: str) -> bool:

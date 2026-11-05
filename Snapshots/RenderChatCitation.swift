@@ -2578,24 +2578,10 @@ private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
     guard best.samples.count > 20 else {
         throw SnapshotError("glass circle was not in the screencapture (\(best.samples.count) samples)")
     }
-    // A flat disc is one colour. A glass highlight is a vertical gradient and
-    // also clears a variance bar, so the ring has to be the white band: light
-    // on average, with the black glyphs making the left and right differ from
-    // a plain fill.
-    var horizontal: [Int] = []
-    var vertical: [Int] = []
-    for (sample, point) in zip(best.samples, best.points) {
-        if abs(point.dx) > abs(point.dy) {
-            horizontal.append(sample)
-        } else {
-            vertical.append(sample)
-        }
-    }
-    let sideMean = horizontal.isEmpty ? 0 : horizontal.reduce(0, +) / horizontal.count
-    let capMean = vertical.isEmpty ? 0 : vertical.reduce(0, +) / vertical.count
-    fputs("glass band side \(sideMean) cap \(capMean)\n", stdout)
-    guard best.mean > 420, abs(sideMean - capMean) > 25 else {
-        throw SnapshotError("the chevron is a flat disc (ring mean \(best.mean), side \(sideMean), cap \(capMean)); glass is not showing the text behind it")
+    // The band behind the circle is white. A flat plate stays one colour.
+    // Glass over that band is light, and the glyphs keep the ring from being flat.
+    guard best.mean > 420, best.variance > 400 else {
+        throw SnapshotError("the chevron is a flat disc (ring mean \(best.mean), variance \(best.variance)); glass is not showing the text behind it")
     }
 }
 

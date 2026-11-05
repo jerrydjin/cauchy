@@ -109,18 +109,21 @@ enum ReaderFollowUps {
         statements: [ReaderFollowUpStatement],
         alreadyAsked: [String] = []
     ) -> [SuggestedFollowUp] {
-        let asked = Set(alreadyAsked.map(normalized))
         let cited = citedStatements(in: answer, anchors: anchors, statements: statements)
         guard let primary = primaryStatement(in: cited) else { return [] }
 
         var chosen: [SuggestedFollowUp] = []
         var usedTargets = Set<String>()
+        let askedKeys = alreadyAsked.map { questionKey($0) }
 
         func consider(_ followUp: SuggestedFollowUp?, target: String) {
             guard chosen.count < maximumCount, let followUp else { return }
             let question = followUp.question.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !question.isEmpty, !isGeneric(question) else { return }
-            guard !asked.contains(normalized(question)) else { return }
+            // The question under this answer was just asked. Offering it
+            // again, or a paraphrase of it, is not a next step. Zero pills
+            // is the right result when nothing else is grounded.
+            guard !repeatsAsked(question, keys: askedKeys) else { return }
             guard usedTargets.insert(target).inserted else { return }
             var accepted = followUp
             accepted.question = question
@@ -433,11 +436,94 @@ enum ReaderFollowUps {
         return expressions.min { $0.count < $1.count }
     }
 
-    private static func normalized(_ text: String) -> String {
-        text.trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
+    /// True when `question` repeats or paraphrases something already asked.
+    /// "What is Theorem 5.4 built on?" is the same ask as "What does Theorem
+    /// 5.4 build on?". A different ask about the same statement is kept.
+    private static func repeatsAsked(_ question: String, keys: [QuestionKey]) -> Bool {
+        let followUp = questionKey(question)
+        guard !followUp.normalized.isEmpty else { return false }
+        for asked in keys {
+            if followUp.normalized == asked.normalized { return true }
+            if containsTheOther(followUp.normalized, asked.normalized) { return true }
+            if sameAsk(followUp, asked) { return true }
+        }
+        return false
+    }
+
+    private struct QuestionKey {
+        var normalized: String
+        var tokens: Set<String>
+        var references: Set<String>
+        var intents: Set<String>
+    }
+
+    private static let referencePattern = try! NSRegularExpression(
+        pattern: #"\b(theorem|lemma|proposition|corollary|definition|example|exercise|thm|lem|prop|cor|def)\s+([0-9]+(?:\.[0-9]+)*)\b"#,
+        options: .caseInsensitive
+    )
+
+    private static let kindAliases = [
+        "thm": "theorem", "lem": "lemma", "prop": "proposition",
+        "cor": "corollary", "def": "definition",
+    ]
+
+    /// Words that name the kind of question. "built" and "depends" are the
+    /// same next step as "build on"; "proof" is a different one.
+    private static let intentWords: [String: String] = [
+        "build": "basis", "built": "basis", "builds": "basis", "building": "basis",
+        "depend": "basis", "depends": "basis", "dependent": "basis",
+        "rely": "basis", "relies": "basis", "relied": "basis",
+        "based": "basis", "basis": "basis",
+        "proof": "proof", "prove": "proof", "proves": "proof", "proved": "proof",
+        "definition": "definition", "define": "definition", "defined": "definition",
+        "require": "definition", "requires": "definition", "required": "definition",
+        "try": "exercise", "tries": "exercise",
+    ]
+
+    private static func questionKey(_ text: String) -> QuestionKey {
+        let normalized = text.lowercased().map { character -> Character in
+            if character.isLetter || character.isNumber || character == "." { return character }
+            return " "
+        }
+        let collapsed = String(normalized)
             .split(whereSeparator: \.isWhitespace)
+            .map { token -> String in
+                var word = String(token)
+                while word.hasSuffix(".") { word.removeLast() }
+                return word
+            }
+            .filter { !$0.isEmpty }
             .joined(separator: " ")
+        let range = NSRange(collapsed.startIndex..., in: collapsed)
+        var references = Set<String>()
+        for match in referencePattern.matches(in: collapsed, range: range) {
+            guard let kindRange = Range(match.range(at: 1), in: collapsed),
+                  let numberRange = Range(match.range(at: 2), in: collapsed) else { continue }
+            let rawKind = String(collapsed[kindRange])
+            let kind = kindAliases[rawKind] ?? rawKind
+            references.insert("\(kind) \(collapsed[numberRange])")
+        }
+        let tokens = Set(collapsed.split(separator: " ").map(String.init))
+        let intents = Set(tokens.compactMap { intentWords[$0] })
+        return QuestionKey(normalized: collapsed, tokens: tokens, references: references, intents: intents)
+    }
+
+    /// "so, what does theorem 5.4 build on" contains the follow-up. A short
+    /// fragment such as "theorem 5.4" does not, or every question about that
+    /// statement would disappear.
+    private static func containsTheOther(_ lhs: String, _ rhs: String) -> Bool {
+        guard !lhs.isEmpty, !rhs.isEmpty else { return false }
+        let (shorter, longer) = lhs.count <= rhs.count ? (lhs, rhs) : (rhs, lhs)
+        guard longer.contains(shorter) else { return false }
+        return shorter.count * 4 >= longer.count * 3
+    }
+
+    private static func sameAsk(_ lhs: QuestionKey, _ rhs: QuestionKey) -> Bool {
+        guard !lhs.references.isDisjoint(with: rhs.references) else { return false }
+        if !lhs.intents.isDisjoint(with: rhs.intents) { return true }
+        let shared = lhs.tokens.intersection(rhs.tokens)
+        let shorter = min(lhs.tokens.count, rhs.tokens.count)
+        return shorter >= 3 && shared.count == shorter
     }
 }
 

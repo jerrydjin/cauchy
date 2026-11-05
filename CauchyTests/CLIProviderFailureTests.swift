@@ -73,35 +73,53 @@ final class AssistantFailureClassificationTests: XCTestCase {
         XCTAssertTrue(message.contains("quota"))
     }
 
-    func testAskBoxStaysClosedUntilReadyAndNamesTheNextStep() {
-        let signedOut = AssistantFailure.notSignedIn(.codex).askPresentation()
-        XCTAssertFalse(signedOut.canAsk)
-        XCTAssertEqual(signedOut.buttonTitle, "Sign in to ChatGPT to start asking")
-        XCTAssertEqual(signedOut.recovery, .setup(.codex))
-
-        let missing = AssistantFailure.notInstalled(.claudeCode).askPresentation()
-        XCTAssertEqual(missing.buttonTitle, "Install Claude Code to start asking")
-
-        let model = AssistantFailure.modelUnavailable(.codex, modelName: "GPT-6 Sol").askPresentation()
-        XCTAssertFalse(model.canAsk)
-        XCTAssertNil(model.buttonTitle)
-        XCTAssertNil(model.recovery)
-
-        let key = AssistantFailure.invalidAPIKey(.openai).askPresentation()
-        XCTAssertEqual(key.buttonTitle, "Update your OpenAI API key to start asking")
-        XCTAssertEqual(key.recovery, .settings)
-
-        let ready = AskPresentation.make(connector: AssistantConnectorID.codex.connector, state: .ready)
+    func testCheckingProducesNoChatHintAndProbeFailureStaysInThePicker() {
+        let connector = AssistantConnectorID.antigravity.connector
+        let ready = AskPresentation.make(connector: connector, state: .ready)
         XCTAssertTrue(ready.canAsk)
+        XCTAssertNil(ready.message)
         XCTAssertNil(ready.buttonTitle)
-        XCTAssertNotEqual(
-            AskPresentation.make(connector: AssistantConnectorID.codex.connector, state: .unknown).probeToken,
-            ready.probeToken
+
+        for state in [ReadinessState.unknown, .checking] {
+            let ask = AskPresentation.make(connector: connector, state: state)
+            XCTAssertEqual(ask, ready)
+            XCTAssertTrue(ask.canAsk)
+            XCTAssertNil(ask.message)
+        }
+
+        let signedOut = AssistantFailure.notSignedIn(.antigravity)
+        let blockedChat = AskPresentation.make(connector: connector, state: .blocked(signedOut))
+        XCTAssertEqual(blockedChat, ready, "a failed probe does not banner the chat or close the composer")
+        XCTAssertEqual(signedOut.statusLine, "Antigravity is not signed in.")
+
+        let picker = ConnectorStatus.resolved(
+            access: connector.access,
+            name: connector.name,
+            readiness: .blocked(signedOut)
         )
-        XCTAssertEqual(
-            AskPresentation.make(connector: AssistantConnectorID.codex.connector, state: .unknown).probeToken,
-            AskPresentation.make(connector: AssistantConnectorID.codex.connector, state: .checking).probeToken
+        XCTAssertFalse(picker.allowsSelection)
+        XCTAssertEqual(picker.shortNote, "not signed in")
+        XCTAssertEqual(picker.menuTitle(name: connector.name), "Antigravity — Not signed in")
+
+        let missing = ConnectorStatus.resolved(
+            access: AssistantConnectorID.codex.connector.access,
+            name: "Codex",
+            readiness: .blocked(.notInstalled(.codex))
         )
+        XCTAssertFalse(missing.allowsSelection)
+        XCTAssertEqual(missing.menuTitle(name: "Codex"), "Codex — Not installed")
+        XCTAssertEqual(AssistantFailure.notInstalled(.codex).statusLine, "Codex is not installed.")
+
+        let pending = ConnectorStatus.resolved(
+            access: connector.access,
+            name: connector.name,
+            readiness: .checking
+        )
+        XCTAssertNil(pending.hint)
+        XCTAssertNil(pending.shortNote)
+        XCTAssertTrue(pending.allowsSelection)
+        XCTAssertFalse(pending.isReady)
+        XCTAssertEqual(pending.menuTitle(name: connector.name), connector.name)
     }
 
     func testCodexErrorObjectAndAppServerEventsAreReadable() {
@@ -160,8 +178,15 @@ final class ProviderReadinessStoreTests: XCTestCase {
         await store.probeIfNeeded(connectorID: .codex, modelID: "gpt-6.1-sol")
         XCTAssertEqual(probe.callCount, 0)
         let ask = AskPresentation.make(connector: AssistantConnectorID.codex.connector, state: missing)
-        XCTAssertFalse(ask.canAsk)
-        XCTAssertEqual(ask.buttonTitle, "Install Codex to start asking")
+        XCTAssertTrue(ask.canAsk)
+        XCTAssertNil(ask.message)
+        let row = ConnectorStatus.resolved(
+            access: AssistantConnectorID.codex.connector.access,
+            name: "Codex",
+            readiness: missing
+        )
+        XCTAssertFalse(row.allowsSelection)
+        XCTAssertEqual(row.menuTitle(name: "Codex"), "Codex — Not installed")
 
         let keys = Flag(false)
         let api = try makeStore(probe: ScriptedProbe(), installed: Flag(true), hasKey: keys)
@@ -178,7 +203,9 @@ final class ProviderReadinessStoreTests: XCTestCase {
         let store = try makeStore(probe: probe, installed: Flag(true), hasKey: Flag(true))
         let model = "gpt-6.1-sol"
         XCTAssertEqual(store.state(for: .codex, modelID: model), .unknown)
-        XCTAssertFalse(AskPresentation.make(connector: AssistantConnectorID.codex.connector, state: .unknown).canAsk)
+        let unknown = AskPresentation.make(connector: AssistantConnectorID.codex.connector, state: .unknown)
+        XCTAssertTrue(unknown.canAsk)
+        XCTAssertNil(unknown.message)
 
         probe.result = .notSignedIn(.codex)
         let denied = await store.probe(connectorID: .codex, modelID: model, force: true)

@@ -74,48 +74,19 @@ struct HighlightThreadDetailView: View {
         }
     }
 
-    /// Floats over the conversation. Nothing here is a surface: the glass
-    /// belongs to the controls — the back button and, when it is there, the
-    /// save button — while the title simply lies over the progressive blur the
-    /// scroll edge effect draws where the messages pass underneath. A glass
-    /// slab behind the whole row reads as one enormous button, which is both
-    /// wrong and a lie about what is clickable.
+    /// The glass belongs to the controls. The title band is the panel colour,
+    /// not another glass slab: a clear band left the line under "Page" readable.
     private var header: some View {
-        headerRow
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-    }
-
-    private var headerRow: some View {
-        HStack(spacing: 10) {
+        ConversationThreadHeader(
+            title: headerTitle,
+            pageNumber: thread.map { $0.pageIndex + 1 }
+        ) {
             GlassIconButton(
                 systemName: "chevron.left",
                 accessibilityLabel: "Back",
                 action: onBack
             )
-
-            // The thread's name, the same one the list shows — a header reading
-            // "Highlight" told the reader nothing they didn't already know from
-            // the tab above it.
-            VStack(alignment: .leading, spacing: 1) {
-                Text(headerTitle)
-                    .font(.headline)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                if let pageIndex = thread?.pageIndex {
-                    Text("Page \(pageIndex + 1)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            // A label, not a control. Without this the row's empty space is
-            // still a hit target and the header behaves like one wide button.
-            .allowsHitTesting(false)
-
-            Spacer(minLength: 6)
-
+        } trailing: {
             if let id = savedHighlightID, let highlight = savedHighlight {
                 Menu {
                     HighlightColorMenu(current: highlight.color) { colour in

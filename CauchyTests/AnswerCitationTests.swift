@@ -134,7 +134,7 @@ final class AnswerCitationTests: XCTestCase {
         XCTAssertFalse(session.armed)
     }
 
-    func testInlineLinkStaysInTheSentenceAndKeepsTheComma() {
+    func testLabelledReferenceIsOneLinkAndKeepsTheComma() {
         let text = "By Proposition 5.3.1, f is continuous exactly when the preimage is open."
         let match = DetectedReferenceMatch(
             reference: DetectedReference(kind: .proposition, number: "5.3.1"),
@@ -148,10 +148,10 @@ final class AnswerCitationTests: XCTestCase {
             }
         }
 
+        let citation = "Proposition\u{00A0}5.3.1"
         XCTAssertEqual(labels, [
             "t:By ",
-            "l:Proposition |",
-            "l:5.3.1|, ",
+            "l:\(citation)|, ",
             "t:f ",
             "t:is ",
             "t:continuous ",
@@ -162,12 +162,13 @@ final class AnswerCitationTests: XCTestCase {
             "t:is ",
             "t:open.",
         ])
-        XCTAssertFalse(pieces.contains { piece in
-            if case .text(let value) = piece {
-                return value.trimmingCharacters(in: .whitespaces) == ","
-            }
-            return false
-        })
+        let links = pieces.compactMap { piece -> (String, String)? in
+            if case .link(let label, let suffix, _) = piece { return (label, suffix) }
+            return nil
+        }
+        XCTAssertEqual(links.count, 1)
+        XCTAssertFalse(links[0].0.contains(" "))
+        XCTAssertEqual(links[0].1, ", ")
 
         let widths: [CGFloat] = pieces.map { piece in
             let label: String
@@ -183,27 +184,54 @@ final class AnswerCitationTests: XCTestCase {
             horizontalSpacing: 0,
             verticalSpacing: 2
         )
-
-        XCTAssertEqual(result.placements[0].y, result.placements[1].y, "By and Proposition share a line")
-        XCTAssertGreaterThan(result.placements[2].y, result.placements[1].y)
-        if case .link(let label, let suffix, _) = pieces[2] {
-            XCTAssertEqual(label, "5.3.1")
-            XCTAssertEqual(suffix, ", ", "the comma rides on the number but is not part of the link")
-        } else {
-            XCTFail("The wrapped token should still be the link, comma included")
-        }
-
+        XCTAssertEqual(result.placements.count, pieces.count)
+        // The citation is one token, so the label and the number share a line
+        // even when the sentence wraps around them.
+        XCTAssertEqual(pieces.filter {
+            if case .link = $0 { return true }
+            return false
+        }.count, 1)
         let rows = Dictionary(grouping: pieces.indices, by: { result.placements[$0].y })
         for indices in rows.values {
             let row = indices.map { pieces[$0] }
-            let text = row.map { piece -> String in
+            let line = row.map { piece -> String in
                 switch piece {
                 case .text(let value): return value
                 case .link(let label, let suffix, _): return label + suffix
                 }
             }.joined()
-            XCTAssertNotEqual(text.trimmingCharacters(in: .whitespaces), ",")
-            XCTAssertFalse(text.trimmingCharacters(in: .whitespaces) == "Proposition 5.3.1")
+            XCTAssertNotEqual(line.trimmingCharacters(in: .whitespaces), ",")
+            if line.contains("Proposition") {
+                XCTAssertTrue(line.contains("5.3.1"))
+            }
+        }
+    }
+
+    func testEveryLabelledReferenceIsOneUnbreakableLink() {
+        let samples = [
+            "Theorem 1.5.3",
+            "Lemma 2",
+            "Definition 4.1",
+            "Corollary 3.2.1",
+            "Equation 1.2",
+            "Section 5",
+            "Proposition 5.3.1",
+        ]
+        for sample in samples {
+            let text = "See \(sample), next."
+            let match = DetectedReferenceMatch(
+                reference: DetectedReference(kind: .theorem, number: "1"),
+                range: text.range(of: sample)!
+            )
+            let pieces = InlineReferenceFlow.pieces(in: text, matches: [match])
+            let links = pieces.compactMap { piece -> (String, String)? in
+                if case .link(let label, let suffix, _) = piece { return (label, suffix) }
+                return nil
+            }
+            XCTAssertEqual(links.count, 1, sample)
+            XCTAssertEqual(links[0].0, sample.replacingOccurrences(of: " ", with: "\u{00A0}"), sample)
+            XCTAssertFalse(links[0].0.contains(" "), sample)
+            XCTAssertEqual(links[0].1, ", ", sample)
         }
     }
 

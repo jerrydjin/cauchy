@@ -75,4 +75,35 @@ final class InlineFlowLayoutTests: XCTestCase {
             XCTAssertLessThanOrEqual(placement.x + placement.size.width, 200)
         }
     }
+
+    func testEquationOnItsOwnLineIsCentred() {
+        let result = InlineFlowLayoutEngine.layout(
+            tokens: [
+                InlineFlowToken(size: CGSize(width: 160, height: 20)),
+                InlineFlowToken(size: CGSize(width: 120, height: 24), centersWhenAlone: true),
+            ],
+            maxWidth: 200,
+            horizontalSpacing: 3,
+            verticalSpacing: 4
+        )
+
+        XCTAssertEqual(result.placements[1].y, 24)
+        XCTAssertEqual(result.placements[1].x, 40)
+        XCTAssertEqual(result.size.width, 200)
+    }
+
+    func testInlineEquationStaysBesideTheWords() {
+        let result = InlineFlowLayoutEngine.layout(
+            tokens: [
+                InlineFlowToken(size: CGSize(width: 40, height: 20)),
+                InlineFlowToken(size: CGSize(width: 80, height: 20), centersWhenAlone: true),
+            ],
+            maxWidth: 200,
+            horizontalSpacing: 3,
+            verticalSpacing: 4
+        )
+
+        XCTAssertEqual(result.placements[1].x, 43)
+        XCTAssertEqual(result.placements[1].y, 0)
+    }
 }

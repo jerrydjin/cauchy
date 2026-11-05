@@ -344,9 +344,10 @@ enum AnswerCitationLayout {
     }
 }
 
-/// Word-level pieces so a cited result stays in the sentence. The whole
-/// "Proposition 5.3.1" is not one unbreakable token, and the comma that
-/// follows it rides on the last word instead of wrapping onto its own line.
+/// A labelled reference is one link: one run, one hover, one click. Spaces
+/// inside the match become non-breaking spaces, so "Proposition" and "5.3.1"
+/// cannot wrap apart. The comma that follows rides in `suffix`, in the body
+/// colour, and stays on the same token.
 enum InlineReferenceFlow {
     enum Piece: Equatable, Sendable {
         case text(String)
@@ -379,17 +380,11 @@ enum InlineReferenceFlow {
             let bodyEnd = min(match.range.upperBound, end)
             let linkBody = start < bodyEnd ? String(text[start..<bodyEnd]) : ""
             let suffix = bodyEnd < end ? String(text[bodyEnd..<end]) : ""
-            let words = wordPieces(linkBody)
-            if words.isEmpty {
+            let label = unbreakableCitation(linkBody)
+            if label.isEmpty {
                 if !suffix.isEmpty { pieces.append(.text(suffix)) }
             } else {
-                for (index, word) in words.enumerated() {
-                    pieces.append(.link(
-                        label: word,
-                        suffix: index == words.count - 1 ? suffix : "",
-                        reference: match.reference
-                    ))
-                }
+                pieces.append(.link(label: label, suffix: suffix, reference: match.reference))
             }
             cursor = end
         }
@@ -404,6 +399,12 @@ enum InlineReferenceFlow {
                 return !label.isEmpty || !suffix.isEmpty
             }
         }
+    }
+
+    /// One citation. Internal whitespace collapses to a single non-breaking
+    /// space, so the label and the number are one unbreakable run.
+    static func unbreakableCitation(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: "\u{00A0}")
     }
 
     private static func isGluePunctuation(_ character: Character) -> Bool {

@@ -5,20 +5,14 @@ struct SelectionQuoteView: View {
     var lineLimit: Int? = nil
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(CitationChrome.tint)
-                .frame(width: 2)
-
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .multilineTextAlignment(.leading)
-                .lineLimit(lineLimit)
-                .truncationMode(.tail)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+            .multilineTextAlignment(.leading)
+            .lineLimit(lineLimit)
+            .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -29,8 +23,8 @@ enum PassageChipRole {
     case transcript
 }
 
-/// The quote, and the blue bar beside it. No page number and no header.
-/// Hovering either chip opens the full passage in the answer-card style.
+/// The quote. No page number, no icon, no rule. Hovering either chip opens
+/// the full passage.
 struct PassageChipView: View {
     var passage: PinnedPassage
     var role: PassageChipRole
@@ -72,20 +66,41 @@ struct PassageChipView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
             if showsHoverCard {
-                PassageQuoteCard(text: quote)
+                PassageQuoteCard(text: passage.excerpt)
             }
             chipRow
         }
+        // Hug the quote. The composer sits in a safe-area bar that proposes
+        // the panel's spare height; without this the card and the bar take it.
+        // The frame keeps the card as wide as the composer.
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .onHover { hovering in
             if isHovering != hovering { isHovering = hovering }
         }
         .popover(isPresented: popoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-            PassageQuoteCard(text: quote)
-                .presentationBackground(ContentSurface.bubble)
+            PassageQuoteCard(text: passage.excerpt)
+                .presentationBackground(ConversationChrome.headerBackdrop)
         }
     }
 
+    @ViewBuilder
     private var chipRow: some View {
+        // The composer chip is one object above the bar: the quote and the
+        // dismiss control share a quiet fill. No header, no rule, no page.
+        if role == .composer {
+            chipContents
+                .padding(ConversationChrome.passageChipPadding)
+                .background(
+                    ConversationChrome.passageChipFill,
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+        } else {
+            chipContents
+        }
+    }
+
+    private var chipContents: some View {
         HStack(alignment: .top, spacing: 8) {
             quoteControl
             if role == .composer {
@@ -121,21 +136,24 @@ struct PassageChipView: View {
     }
 }
 
-/// Full passage on hover. Same fill, corner radius, and padding as an answer.
+/// Full passage on hover. Same fill as the chip, primary text, no bar.
 struct PassageQuoteCard: View {
     static let maxWidth: CGFloat = 320
 
     var text: String
 
     var body: some View {
-        SelectionQuoteView(text: text)
-            .padding(.horizontal, ConversationChrome.answerPaddingH)
-            .padding(.vertical, ConversationChrome.answerPaddingV)
-            .frame(maxWidth: Self.maxWidth, alignment: .leading)
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.primary)
+            .textSelection(.enabled)
+            .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
+            .padding(ConversationChrome.passageChipPadding)
+            .frame(maxWidth: Self.maxWidth, alignment: .leading)
             .background(
-                ContentSurface.bubble,
-                in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
+                ConversationChrome.passageChipFill,
+                in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius, style: .continuous)
             )
     }
 }

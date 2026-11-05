@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum ConversationChrome {
@@ -9,6 +10,13 @@ enum ConversationChrome {
     static let bubbleContentPaddingV: CGFloat = 10
     /// Space between the passage chip and the composer bar. 8pt, on the 4-point scale.
     static let passageChipComposerSpacing: CGFloat = 8
+    /// The chip and the hover card share this inset. The quote starts here.
+    static let passageChipPadding: CGFloat = 12
+    /// Quiet fill behind the chip and the hover card.
+    static let passageChipFill = Color.primary.opacity(0.08)
+    /// Same colour as the panel. The header has to be opaque: the subtitle is
+    /// secondary, and a clear bar leaves the line scrolling underneath readable.
+    static let headerBackdrop = Color(nsColor: .windowBackgroundColor)
 
     /// Answer-area spacing. Every value is on a 4-point scale.
     static let answerPaddingH: CGFloat = 20

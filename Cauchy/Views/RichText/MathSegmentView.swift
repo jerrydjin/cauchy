@@ -20,19 +20,39 @@ struct MathSegmentView: View {
     /// snapshot sets this and we draw the same SwiftMath display list into
     /// an image instead. The reader still uses the live label.
     @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+    @Environment(\.displayScale) private var displayScale
     @Environment(\.self) private var environment
 
     /// The bubble's text colour, resolved for the current appearance. A
-    /// semantic `.primary` is near-white on a dark bubble and near-black on
-    /// a light one; SwiftMath needs that concrete colour.
+    /// semantic `.primary` is the label colour: near-white on a dark bubble
+    /// and near-black on a light one, at the same opacity as the words around
+    /// the formula. SwiftMath needs that concrete colour.
     private var glyphColor: NSColor {
         let resolved = textColor.resolve(in: environment)
+        let primary = Color.primary.resolve(in: environment)
+        let isBodyText = abs(resolved.red - primary.red) < 0.02
+            && abs(resolved.green - primary.green) < 0.02
+            && abs(resolved.blue - primary.blue) < 0.02
+            && abs(resolved.opacity - primary.opacity) < 0.02
+        if isBodyText, let label = labelColor(for: environment.colorScheme) {
+            return label
+        }
         return NSColor(
             srgbRed: CGFloat(resolved.red),
             green: CGFloat(resolved.green),
             blue: CGFloat(resolved.blue),
             alpha: CGFloat(resolved.opacity)
         )
+    }
+
+    /// `NSColor.labelColor` in the appearance the surrounding `Text` uses.
+    private func labelColor(for scheme: ColorScheme) -> NSColor? {
+        let appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+        var resolved: NSColor?
+        appearance?.performAsCurrentDrawingAppearance {
+            resolved = NSColor.labelColor.usingColorSpace(.sRGB)
+        }
+        return resolved
     }
 
     var body: some View {
@@ -42,7 +62,8 @@ struct MathSegmentView: View {
                     latex: rendered,
                     mode: mode,
                     fontSize: fontSize,
-                    textColor: glyphColor
+                    textColor: glyphColor,
+                    scale: displayScale
                 ) {
                     Image(nsImage: image)
                         .alignmentGuide(.firstTextBaseline) { dimensions in
@@ -680,20 +701,32 @@ enum MathMetrics {
     /// SwiftMath display list drawn into a bitmap. `ImageRenderer` captures
     /// this; it does not capture `MTMathUILabel`. `textColor` is already the
     /// bubble's resolved text colour, so a dark bubble keeps a light glyph.
+    ///
+    /// The formula is typeset at `scale` times the point size and then shown
+    /// at the point size, so a 2× snapshot (and a retina window) gets one
+    /// pixel per backing-store pixel. A 1× bitmap scaled up is what made the
+    /// strokes look soft and greyer than the body text.
     static func snapshotImage(
         latex: String,
         mode: MathSegmentView.Mode,
         fontSize: CGFloat,
-        textColor: NSColor
+        textColor: NSColor,
+        scale: CGFloat = 2
     ) -> NSImage? {
+        let scale = max(scale, 1)
         let math = MTMathImage(
             latex: latex,
-            fontSize: fontSize,
+            fontSize: fontSize * scale,
             textColor: textColor,
             labelMode: mode == .inline ? .text : .display,
             textAlignment: .left
         )
-        math.contentInsets = contentInsets
+        math.contentInsets = NSEdgeInsets(
+            top: contentInsets.top * scale,
+            left: contentInsets.left * scale,
+            bottom: contentInsets.bottom * scale,
+            right: contentInsets.right * scale
+        )
         let (error, drawn) = math.asImage()
         guard let drawn, drawn.size.width > 0.5, drawn.size.height > 0.5 else {
             fputs("SwiftMath asImage failed for \(latex): \(error?.localizedDescription ?? "no image")\n", stderr)
@@ -707,11 +740,23 @@ enum MathMetrics {
             fputs("SwiftMath image for \(latex) produced no TIFF (\(drawn.size))\n", stderr)
             return nil
         }
-        rep.size = drawn.size
-        let image = NSImage(size: drawn.size)
+        let pointSize = NSSize(width: drawn.size.width / scale, height: drawn.size.height / scale)
+        rep.size = pointSize
+        let image = NSImage(size: pointSize)
         image.addRepresentation(rep)
         return image
     }
+}
+
+/// SwiftMath's label touches `layer` and leaves `contentsScale` at 1, so on a
+/// retina window the strokes are rasterised once and scaled up. The class is
+/// not open, so the scale is applied here. Matching the window keeps the
+/// glyphs as crisp as the body text.
+private func applyBackingScale(to label: MTMathUILabel) {
+    let scale = label.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+    guard scale > 0, label.layer?.contentsScale != scale else { return }
+    label.layer?.contentsScale = scale
+    label.needsDisplay = true
 }
 
 @MainActor
@@ -741,11 +786,13 @@ private struct MathLabelRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> MTMathUILabel {
         let label = MTMathUILabel()
+        applyBackingScale(to: label)
         configureMathLabel(label, latex: latex, mode: mode, fontSize: fontSize, textColor: textColor)
         return label
     }
 
     func updateNSView(_ label: MTMathUILabel, context: Context) {
+        applyBackingScale(to: label)
         configureMathLabel(
             label,
             latex: latex,
@@ -788,6 +835,7 @@ private struct ScrollingMathLabel: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let label = scrollView.documentView as? MTMathUILabel else { return }
+        applyBackingScale(to: label)
         let fitted = MathMetrics.fittedFontSize(
             latex: latex,
             mode: .display,

@@ -111,15 +111,6 @@ enum AssistantFailure: LocalizedError, Equatable, Sendable {
         }
     }
 
-    func askPresentation() -> AskPresentation {
-        AskPresentation(
-            canAsk: false,
-            message: statusLine,
-            buttonTitle: recoveryTitle,
-            recovery: recovery
-        )
-    }
-
     static func signInTitle(for id: AssistantConnectorID) -> String {
         switch id {
         case .codex: "Sign in to ChatGPT to start asking"
@@ -249,6 +240,16 @@ enum AssistantFailure: LocalizedError, Equatable, Sendable {
     }
 }
 
+/// Whether a connector and model have passed a real request. `ready` is
+/// cached only after a probe succeeds. The chat does not wait on it, and a
+/// blocked probe is a picker row rather than a line in the thread.
+enum ReadinessState: Equatable, Sendable {
+    case unknown
+    case checking
+    case ready
+    case blocked(AssistantFailure)
+}
+
 enum AskRecovery: Equatable, Sendable {
     /// Open the existing install / sign-in sheet (embedded terminal).
     case setup(AssistantConnectorID)
@@ -262,36 +263,21 @@ struct AskPresentation: Equatable, Sendable {
     var buttonTitle: String?
     var recovery: AskRecovery?
 
-    /// Changes when the ask box's step changes, so a view can re-check without
-    /// cancelling the check that is already running. Unknown and checking share
-    /// a token on purpose: moving into "checking" must not cancel that probe.
+    /// Stable across the background probe. Unknown, checking, ready, and a
+    /// failed probe all leave the composer open with no status line, so moving
+    /// between them does not cancel the probe that is already running.
     var probeToken: String {
         "\(canAsk)|\(message ?? "")|\(buttonTitle ?? "")"
     }
 
+    /// The chat never shows the probe. A failed check is the picker's greyed
+    /// row. A failed request is the thread's own notice, not this presentation.
     static func make(connector: AssistantConnector, state: ReadinessState) -> AskPresentation {
         switch state {
-        case .ready:
-            return AskPresentation(canAsk: true, message: nil, buttonTitle: nil, recovery: nil)
-        case .unknown, .checking:
-            return AskPresentation(
-                canAsk: false,
-                message: "Checking whether \(connector.name) can answer…",
-                buttonTitle: nil,
-                recovery: nil
-            )
-        case .blocked(let failure):
-            return failure.askPresentation()
+        case .ready, .unknown, .checking, .blocked:
+            break
         }
-    }
-
-    @MainActor
-    static func current() -> AskPresentation {
-        let resolved = AssistantPreferences.resolved
-        let state = ProviderReadinessStore.shared.state(
-            for: resolved.connector.id,
-            modelID: resolved.modelID
-        )
-        return make(connector: resolved.connector, state: state)
+        _ = connector.name
+        return AskPresentation(canAsk: true, message: nil, buttonTitle: nil, recovery: nil)
     }
 }

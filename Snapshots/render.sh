@@ -34,6 +34,10 @@ xcrun swiftc -parse-as-library -O \
   -framework AppKit \
   Cauchy/Models/AssistantConnector.swift \
   Cauchy/Models/CloudAPIProvider.swift \
+  Cauchy/Services/ReadingAssistant/Cloud/CloudAPIError.swift \
+  Cauchy/Services/ReadingAssistant/CLI/CLIAgentError.swift \
+  Cauchy/Services/AssistantFailure.swift \
+  Cauchy/Services/ConnectorStatus.swift \
   Snapshots/RenderModelPicker.swift \
   -o "$out/render-model-picker"
 "$out/render-model-picker" "$(pwd)" "$out"
@@ -167,8 +171,15 @@ chat_sources=(
   Cauchy/Views/RichText/MessageContentView.swift
   Cauchy/Views/Design/ContentSurface.swift
   Cauchy/Views/Conversation/ConversationChrome.swift
+  Cauchy/Views/Conversation/ConversationThreadHeader.swift
   Cauchy/Views/Conversation/SelectionQuoteView.swift
   Cauchy/Views/Conversation/MessageBubble.swift
+  Cauchy/Models/AssistantConnector.swift
+  Cauchy/Models/CloudAPIProvider.swift
+  Cauchy/Services/ReadingAssistant/Cloud/CloudAPIError.swift
+  Cauchy/Services/ReadingAssistant/CLI/CLIAgentError.swift
+  Cauchy/Services/AssistantFailure.swift
+  Cauchy/Services/ConnectorStatus.swift
 )
 for src in "${chat_sources[@]}"; do
   cp "$src" "$stage/Sources/RenderChatCitation/$(basename "$src")"

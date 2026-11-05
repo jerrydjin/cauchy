@@ -2121,11 +2121,17 @@ private struct ScrolledChipPanel: View {
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 18))
+                    // One full line, clipped so it cannot end short of the chevron.
+                    // The glass has to sample these glyphs, not the empty band.
+                    Text("bounded complete continuous equivalent finite linear maps stay behind the glass")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 20)
-                // The tail of the answer sits under the chevron. A button floating
-                // in the empty band below the bubble has nothing for the glass to show.
+                .padding(.top, 20)
+                .padding(.bottom, 10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
                 JumpToLatestButton()
@@ -2301,10 +2307,10 @@ private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
     // The chevron is the bright mark in the middle. The ring around it is the
     // glass. A flat disc is one colour there; glass carries the answer.
     var foundChevron = false
-    // Outside the chevron. Its antialiased edge is bright and would pass a
-    // flat disc; the glass itself is the outer ring.
-    let inner = radius * 0.72
-    let outer = radius * 0.90
+    // The outer ring only. The chevron and its grey fringe sit further in,
+    // and either one will pass a flat disc.
+    let inner = radius * 0.78
+    let outer = radius * 0.92
     var samples: [Int] = []
     let minX = max(0, Int(centerX - radius))
     let maxX = min(bitmap.width - 1, Int(centerX + radius))

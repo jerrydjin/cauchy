@@ -2178,7 +2178,7 @@ private func windowBitmap(of window: NSWindow) -> NSBitmapImageRep? {
         .null,
         .optionIncludingWindow,
         windowID,
-        [.boundsIgnoringFraming, .bestResolution]
+        [.boundsIgnoreFraming, .bestResolution]
     ) else { return nil }
     let rep = NSBitmapImageRep(cgImage: image)
     guard bitmapHasInk(rep) else { return nil }

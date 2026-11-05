@@ -7,6 +7,9 @@ struct MessageBubble: View {
     var maxBubbleWidth: CGFloat = 300
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var referenceKeys: Set<ReferenceKey> = []
+    /// False on the first paint of a cold launch, before the reference index
+    /// has loaded. References are still links; see `presentedReferences`.
+    var referenceIndexReady = true
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     /// Grounded next questions. Empty while an answer is still streaming, and
     /// empty when the document does not support a real next step.
@@ -14,6 +17,9 @@ struct MessageBubble: View {
     /// The snapshot shows the pills at rest. A live answer fades them in
     /// after the text is committed, without changing the bubble's height.
     var followUpsStartVisible = false
+    /// The snapshot opens the passage card on a sent message. A live chip
+    /// opens the same card on hover.
+    var showsPassageCard = false
     var onAskFollowUp: (String) -> Void = { _ in }
 
     private var isUser: Bool {
@@ -46,11 +52,14 @@ struct MessageBubble: View {
                     PassageChipView(
                         passage: passage.pinned,
                         role: .transcript,
+                        maxWidth: maxBubbleWidth,
+                        showsHoverCard: showsPassageCard,
                         onOpen: {}
                     )
                 }
                 if showsQuestionBubble {
                     styledBubble
+                        .background { sentBubbleFrame }
                 }
             }
             // Alignment inside the frame is what actually sides the bubble:
@@ -61,6 +70,26 @@ struct MessageBubble: View {
             .fixedSize(horizontal: false, vertical: true)
 
             if !isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
+        }
+        .background { sentRowFrame }
+        .coordinateSpace(name: "sent-passage")
+    }
+
+    private var sentBubbleFrame: some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: SentPassageFrameKey.self,
+                value: ["bubble": geo.frame(in: .named("sent-passage"))]
+            )
+        }
+    }
+
+    private var sentRowFrame: some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: SentPassageFrameKey.self,
+                value: ["row": geo.frame(in: .named("sent-passage"))]
+            )
         }
     }
 
@@ -112,6 +141,7 @@ struct MessageBubble: View {
                         font: .body,
                         textColor: .primary,
                         referenceKeys: referenceKeys,
+                        referenceIndexReady: referenceIndexReady,
                         onOpenReference: onOpenReference
                     )
                 }
@@ -122,6 +152,7 @@ struct MessageBubble: View {
                 font: .body,
                 textColor: .primary,
                 referenceKeys: referenceKeys,
+                referenceIndexReady: referenceIndexReady,
                 onOpenReference: onOpenReference,
                 interpretsSourceMarkers: !isUser,
                 sourceAnchors: message.answerEvidence?.sourceAnchors ?? [],

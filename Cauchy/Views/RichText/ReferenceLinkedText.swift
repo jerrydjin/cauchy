@@ -13,6 +13,9 @@ struct ReferenceLinkedText: View {
     var font: Font = .body
     var textColor: Color = .primary
     var knownKeys: Set<ReferenceKey> = []
+    /// False while the reference index is still loading. Detected references
+    /// are links on that first paint; they are not rewritten once the index arrives.
+    var referenceIndexReady = true
     var chips: [AnswerSourceMarkers.Chip] = []
     var sourceAnchors: [AnswerSourceAnchor] = []
     /// The designer snapshot draws the hover underline. Live hover uses the pointer.
@@ -21,7 +24,11 @@ struct ReferenceLinkedText: View {
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
 
     var body: some View {
-        let matches = AssistantResponseValidator.linkableReferences(in: text, known: knownKeys)
+        let matches = AssistantResponseValidator.presentedReferences(
+            in: text,
+            known: knownKeys,
+            indexReady: referenceIndexReady
+        )
         let pieces = InlineReferenceFlow.pieces(in: text, matches: matches)
         InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
             ForEach(Array(pieces.enumerated()), id: \.offset) { _, piece in
@@ -102,10 +109,9 @@ struct InlineReferenceLink: View {
             }
             .font(font)
             .fixedSize()
-            .padding(.vertical, 2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InlineCitationButtonStyle())
         .citationLinkHover($isHovered)
         .accessibilityLabel(reference.displayName)
         .help(reference.displayName)
@@ -130,22 +136,25 @@ struct PageTagButton: View {
         Button {
             if let anchor { onOpen(anchor) }
         } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                CitationLinkText.tinted(chip.pageLabel, underlined: isHovered)
-                Text(Image(systemName: "arrow.up.right"))
-                    .font(font)
-                    .foregroundStyle(CitationChrome.tint)
-                    .accessibilityHidden(true)
+            // The lock reports one line of `font`: same height, same baseline
+            // as the words beside the pill. The arrow is smaller than the body
+            // so it sits on that baseline instead of stretching the line.
+            CitationLineLock(font: font) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    CitationLinkText.tinted(chip.pageLabel, underlined: isHovered)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(CitationChrome.tint)
+                        .accessibilityHidden(true)
+                }
+                .font(font)
+                .lineLimit(1)
             }
-            .font(font)
-            .padding(.vertical, 3)
-            .padding(.horizontal, 2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InlineCitationButtonStyle())
         .citationLinkHover($isHovered)
         .padding(.leading, leadingPadding)
-        .fixedSize()
         .accessibilityLabel(CitationPageLabel.voiceOver(
             firstPageIndex: chip.pageIndex,
             lastPageIndex: chip.pageIndex
@@ -209,5 +218,85 @@ private struct CitationPointerStyle: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+/// A plain button still carries control padding, which is what made the
+/// citation line taller than the words around it. The label is the control.
+struct InlineCitationButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+    }
+}
+
+/// Lays a citation out in the box of one line of `font`. The reported height
+/// and baseline are the line's, so a row that holds the pill is the same
+/// height as a row that does not.
+struct CitationLineLock<Content: View>: View {
+    var font: Font
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        CitationLineLockLayout {
+            Text("X")
+                .font(font)
+                .foregroundStyle(.clear)
+                .lineLimit(1)
+                .fixedSize()
+                .accessibilityHidden(true)
+            content()
+        }
+        .clipped()
+    }
+}
+
+private struct CitationLineLockLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let measured = measure(subviews)
+        return CGSize(width: measured.pill.width, height: measured.line.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let measured = measure(subviews)
+        subviews[0].place(
+            at: CGPoint(x: bounds.minX, y: bounds.minY),
+            anchor: .topLeading,
+            proposal: ProposedViewSize(measured.line)
+        )
+        let y = bounds.minY + measured.lineBaseline - measured.pillBaseline
+        subviews[1].place(
+            at: CGPoint(x: bounds.minX, y: y),
+            anchor: .topLeading,
+            proposal: ProposedViewSize(width: measured.pill.width, height: measured.line.height)
+        )
+    }
+
+    func explicitAlignment(
+        of guide: VerticalAlignment,
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGFloat? {
+        guard guide == .firstTextBaseline else { return nil }
+        return bounds.minY + measure(subviews).lineBaseline
+    }
+
+    private struct Measured {
+        var line: CGSize
+        var pill: CGSize
+        var lineBaseline: CGFloat
+        var pillBaseline: CGFloat
+    }
+
+    private func measure(_ subviews: Subviews) -> Measured {
+        let line = subviews[0].dimensions(in: .unspecified)
+        let pill = subviews[1].dimensions(in: ProposedViewSize(width: nil, height: line.height))
+        return Measured(
+            line: CGSize(width: line.width, height: line.height),
+            pill: CGSize(width: pill.width, height: pill.height),
+            lineBaseline: line[.firstTextBaseline],
+            pillBaseline: pill[.firstTextBaseline]
+        )
     }
 }

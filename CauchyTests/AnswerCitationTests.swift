@@ -455,6 +455,39 @@ final class AnswerCitationTests: XCTestCase {
         XCTAssertTrue(AssistantResponseValidator.linkableReferences(in: text, known: []).isEmpty)
     }
 
+    /// The first answer is rendered twice: once while the reference index is
+    /// still loading, and once after it is ready. Both paints link Proposition
+    /// 5.3.1, and the link text does not change when the index arrives.
+    func testAnswerLinksBeforeAndAfterTheIndexIsReady() {
+        let text = "By Proposition 5.3.1, the complement is open."
+        let known: Set<ReferenceKey> = [ReferenceKey(kind: .proposition, number: "5.3.1")]
+
+        let before = AssistantResponseValidator.presentedReferences(in: text, known: [], indexReady: false)
+        let after = AssistantResponseValidator.presentedReferences(in: text, known: known, indexReady: true)
+
+        XCTAssertEqual(before.map(\.reference.displayName), ["Proposition 5.3.1"])
+        XCTAssertEqual(after.map(\.reference.displayName), ["Proposition 5.3.1"])
+        XCTAssertEqual(linkLabels(in: text, matches: before), linkLabels(in: text, matches: after))
+        XCTAssertFalse(linkLabels(in: text, matches: before).isEmpty)
+
+        let settled = AssistantResponseValidator.presentedReferences(
+            in: "Theorem 9.9 is not in these notes.",
+            known: known,
+            indexReady: true
+        )
+        XCTAssertTrue(settled.isEmpty)
+        XCTAssertTrue(
+            AssistantResponseValidator.presentedReferences(in: text, known: [], indexReady: true).isEmpty
+        )
+    }
+
+    private func linkLabels(in text: String, matches: [DetectedReferenceMatch]) -> [String] {
+        InlineReferenceFlow.pieces(in: text, matches: matches).compactMap { piece in
+            if case .link(let label, _, _) = piece { return label }
+            return nil
+        }
+    }
+
     private func anchor(
         _ id: String,
         page: Int,

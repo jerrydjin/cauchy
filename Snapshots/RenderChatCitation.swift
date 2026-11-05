@@ -262,6 +262,8 @@ enum RenderChatCitation {
         try writePNG(headerScrolled, to: headerScrolledURL, minimumBytes: 4_000)
         try assertHeaderHidesTheLineUnderneath()
         try renderHeaderScrolledUnder(to: output.appendingPathComponent("jerry-151-header-scrolled-under.png"))
+
+        try renderJerry152(to: output)
     }
 }
 
@@ -1089,8 +1091,8 @@ private struct HostedPanel<Content: View> {
     let window: NSWindow
     let hosting: NSHostingView<Content>
 
-    init(root: Content) throws {
-        let size = NSSize(width: HeaderScrolledUnder.panelWidth, height: HeaderScrolledUnder.panelHeight)
+    init(root: Content, size: NSSize? = nil) throws {
+        let size = size ?? NSSize(width: HeaderScrolledUnder.panelWidth, height: HeaderScrolledUnder.panelHeight)
         let panel = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless],
@@ -1796,13 +1798,594 @@ private struct FollowUpFixture {
     }
 }
 
+@MainActor
+private func renderJerry152(to output: URL) throws {
+    let plainURL = output.appendingPathComponent("jerry-152-line-plain.png")
+    let citedURL = output.appendingPathComponent("jerry-152-line-cited.png")
+    try writePNG(CitationLineProbe(cited: false), to: plainURL, minimumBytes: 400, minimumSide: 8)
+    try writePNG(CitationLineProbe(cited: true), to: citedURL, minimumBytes: 400, minimumSide: 8)
+    let plain = try Bitmap(plainURL)
+    let cited = try Bitmap(citedURL)
+    guard plain.height == cited.height else {
+        throw SnapshotError("a line with a citation is \(cited.height)px and a line without is \(plain.height)px")
+    }
+    fputs("citation line matches the plain line at \(plain.height)px\n", stdout)
+    try writePNG(
+        CitationLinePair(),
+        to: output.appendingPathComponent("jerry-152-citation-line-height.png"),
+        minimumBytes: 1_000
+    )
+
+    let hoverExcerpt = "If X is a set with the discrete metric, every set is open. The rest of this synthetic passage is only on the hover card, past the two lines the chip keeps."
+    let hoverPassage = PinnedPassage(
+        pageIndex: 36,
+        excerpt: hoverExcerpt,
+        fingerprint: "jerry-152-hover",
+        bounds: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08)
+    )
+    let stackedURL = output.appendingPathComponent("jerry-152-hover-stacked.png")
+    let floatingURL = output.appendingPathComponent("jerry-152-hover-floating.png")
+    let transcriptURL = output.appendingPathComponent("jerry-152-hover-transcript.png")
+    // Three places the card actually opens: the composer chip, a chip already
+    // in the transcript, and the chip on a sent message. Same card, different views.
+    try writePNG(ComposerHoverShot(passage: hoverPassage), to: stackedURL, minimumBytes: 2_000)
+    try writePNG(TranscriptHoverShot(passage: hoverPassage), to: floatingURL, minimumBytes: 2_000)
+    try writePNG(SentChipHoverShot(passage: hoverPassage), to: transcriptURL, minimumBytes: 2_000)
+    try assertCardIsOneShape(in: stackedURL)
+    try assertCardIsOneShape(in: floatingURL)
+    try assertCardIsOneShape(in: transcriptURL)
+    try assertDistinctRenders([stackedURL, floatingURL, transcriptURL])
+    try assertSentPassageFollowsOneLayout(
+        label: "message row",
+        maxBubbleWidth: 280,
+        root: MessageBubble(
+            message: ThreadMessage(
+                role: .user,
+                content: "Is every subset open?",
+                passage: MessagePassage(pageIndex: 36, excerpt: hoverExcerpt)
+            ),
+            maxBubbleWidth: 280,
+            showsPassageCard: true
+        )
+        .frame(width: 560, height: 460, alignment: .top)
+        .background(Color(white: 0.12))
+    )
+    try assertSentPassageFollowsOneLayout(
+        label: "transcript hover",
+        maxBubbleWidth: 300,
+        root: TranscriptHoverShot(passage: hoverPassage)
+    )
+    try assertSentPassageFollowsOneLayout(
+        label: "sent chip hover",
+        maxBubbleWidth: 300,
+        root: SentChipHoverShot(passage: hoverPassage)
+    )
+
+    let firstURL = output.appendingPathComponent("jerry-152-first-answer.png")
+    try writePNG(FirstLaunchAnswer(), to: firstURL, minimumBytes: 2_000)
+    try assertFirstAnswerIsLinked(in: firstURL)
+
+    try assertChipBlocksTheTranscript()
+    try renderScrolledChip(to: output.appendingPathComponent("jerry-152-scrolled-chip.png"))
+}
+
+/// One line of body text, with the page pill and without it.
+private struct CitationLineProbe: View {
+    var cited: Bool
+
+    var body: some View {
+        ReferenceLinkedText(
+            text: "The set is closed.",
+            chips: cited
+                ? [AnswerSourceMarkers.Chip(sourceID: "R1", pageIndex: 38, pageLabel: "39")]
+                : []
+        )
+        .frame(width: 360, alignment: .leading)
+        .padding(16)
+        .background(Color(white: 0.12))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private struct CitationLinePair: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            CitationLineProbe(cited: false)
+            CitationLineProbe(cited: true)
+        }
+        .padding(20)
+        .background(Color(white: 0.1))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// The card open on the composer chip: filled quote, dismiss control, and the
+/// ask field underneath. This is not the transcript chip.
+private struct ComposerHoverShot: View {
+    var passage: PinnedPassage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+            PassageChipView(
+                passage: passage,
+                role: .composer,
+                showsHoverCard: true,
+                onOpen: {},
+                onDismiss: {}
+            )
+            SnapshotComposerBar()
+        }
+        .padding(24)
+        .frame(width: 420, alignment: .leading)
+        .background(Color(white: 0.15))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// The card open on a chip that already sits in the thread, with the question
+/// and the reply still on screen. The quote uses the same sent-message row as
+/// the chip on a message that was just sent.
+private struct TranscriptHoverShot: View {
+    var passage: PinnedPassage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sentPassageBubble(
+                passage: passage,
+                question: "Does the discrete metric make every set open?",
+                showsCard: true
+            )
+            Text("Yes. In the discrete metric the open balls are singletons, so every set is a union of open balls.")
+                .font(.body)
+                .foregroundStyle(.primary)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 18))
+        }
+        .padding(24)
+        .frame(width: 460, alignment: .leading)
+        .background(Color(white: 0.12))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// The card open on the chip of a message that was just sent. The real
+/// message row: the quote, then the blue question, trailing in the panel.
+private struct SentChipHoverShot: View {
+    var passage: PinnedPassage
+
+    var body: some View {
+        sentPassageBubble(
+            passage: passage,
+            question: "Is every subset open?",
+            showsCard: true
+        )
+        .padding(24)
+        .frame(width: 420, alignment: .trailing)
+        .background(Color(white: 0.1))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// One sent-passage row. The transcript hover and the sent chip both use it,
+/// so a second layout cannot put the quote on the leading edge at full width.
+private func sentPassageBubble(passage: PinnedPassage, question: String, showsCard: Bool) -> some View {
+    MessageBubble(
+        message: ThreadMessage(
+            role: .user,
+            content: question,
+            passage: MessagePassage(pageIndex: passage.pageIndex, excerpt: passage.excerpt)
+        ),
+        maxBubbleWidth: 300,
+        showsPassageCard: showsCard
+    )
+}
+
+/// The quote above a sent message used to depend on which view built it.
+/// Each path that draws one has to share the bubble's trailing edge, stay
+/// inside the bubble's maximum width, keep two lines, and leave the rest
+/// on the card.
+@MainActor
+private func assertSentPassageFollowsOneLayout<Content: View>(
+    label: String,
+    maxBubbleWidth: CGFloat,
+    excerpt: String = "If X is a set with the discrete metric, every set is open. The rest of this synthetic passage is only on the hover card, past the two lines the chip keeps.",
+    root: Content
+) throws {
+    let probe = SentFrameProbe()
+    let hostedRoot = root
+        .environment(\.colorScheme, .dark)
+        .onPreferenceChange(SentPassageFrameKey.self) { probe.frames = $0 }
+    let hosted = try HostedPanel(root: hostedRoot, size: NSSize(width: 560, height: 520))
+    defer { hosted.window.close() }
+    pump(0.4)
+    let quote = probe.frames["quote"] ?? .zero
+    let bubble = probe.frames["bubble"] ?? .zero
+    let card = probe.frames["card"] ?? .zero
+    let row = probe.frames["row"] ?? .zero
+    guard quote.width > 40, bubble.width > 40, card.height > 20, row.width > 40 else {
+        throw SnapshotError("\(label) frames quote \(quote) bubble \(bubble) card \(card) row \(row)")
+    }
+    guard abs(bubble.maxX - row.maxX) < 2 else {
+        throw SnapshotError("\(label) bubble ends at \(bubble.maxX), row at \(row.maxX)")
+    }
+    guard abs(quote.maxX - bubble.maxX) < 2 else {
+        throw SnapshotError("\(label) quote ends at \(quote.maxX), bubble at \(bubble.maxX)")
+    }
+    guard quote.width <= maxBubbleWidth + 1, card.width <= maxBubbleWidth + 1 else {
+        throw SnapshotError("\(label) quote is \(quote.width)pt and the card is \(card.width)pt, wider than the \(maxBubbleWidth)pt bubble")
+    }
+    guard quote.minX + 2 >= row.maxX - maxBubbleWidth else {
+        throw SnapshotError("\(label) quote starts at \(quote.minX), left of the \(maxBubbleWidth)pt column ending at \(row.maxX)")
+    }
+    let twoLines = try quoteTextHeight(excerpt, width: quote.width, lineLimit: 2)
+    let allLines = try quoteTextHeight(excerpt, width: quote.width, lineLimit: nil)
+    guard abs(quote.height - twoLines) < 8 else {
+        throw SnapshotError("\(label) quote is \(quote.height)pt, a two-line quote is \(twoLines)pt")
+    }
+    guard allLines > quote.height + 8 else {
+        throw SnapshotError("\(label) quote shows the whole passage (\(quote.height)pt, full text \(allLines)pt)")
+    }
+    guard card.height > quote.height + 8 else {
+        throw SnapshotError("\(label) hover card is \(card.height)pt, no taller than the two-line quote \(quote.height)pt")
+    }
+    fputs("\(label) quote \(quote) matches bubble \(bubble) in row \(row), card \(card)\n", stdout)
+}
+
+@MainActor
+private final class SentFrameProbe {
+    var frames: [String: CGRect] = [:]
+}
+
+@MainActor
+private func quoteTextHeight(_ text: String, width: CGFloat, lineLimit: Int?) throws -> CGFloat {
+    let view = SelectionQuoteView(text: PinnedPassage.singleLine(text), lineLimit: lineLimit)
+        .frame(width: width, alignment: .leading)
+    let renderer = ImageRenderer(content: view.environment(\.colorScheme, .dark))
+    renderer.scale = 2
+    renderer.isOpaque = true
+    guard let image = renderer.nsImage,
+          let tiff = image.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          rep.pixelsHigh > 4 else {
+        throw SnapshotError("quote height probe produced no image")
+    }
+    return CGFloat(rep.pixelsHigh) / 2
+}
+
+@MainActor
+private func assertDistinctRenders(_ urls: [URL]) throws {
+    var seen: [Data: String] = [:]
+    for url in urls {
+        let data = try Data(contentsOf: url)
+        if let previous = seen[data] {
+            throw SnapshotError("\(url.lastPathComponent) is the same render as \(previous)")
+        }
+        seen[data] = url.lastPathComponent
+    }
+    fputs("hover cards are three different renders\n", stdout)
+}
+
+/// Cold launch: the index is not ready and the key set is empty. The
+/// proposition is still a link.
+private struct FirstLaunchAnswer: View {
+    var body: some View {
+        MessageBubble(
+            message: ThreadMessage(
+                role: .assistant,
+                content: "By Proposition 5.3.1, the complement of an open set is closed."
+            ),
+            maxBubbleWidth: 320,
+            referenceKeys: [],
+            referenceIndexReady: false
+        )
+        .padding(28)
+        .frame(width: 400, alignment: .leading)
+        .background(Color(white: 0.12))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// Red sits behind the composer. An opaque chip area keeps every red pixel covered.
+private struct ChipOcclusionProbe: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.red
+            VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+                PassageChipView(
+                    passage: PinnedPassage(
+                        pageIndex: 10,
+                        excerpt: "A synthetic passage pinned above the composer.",
+                        fingerprint: "jerry-152-occlude",
+                        bounds: nil
+                    ),
+                    role: .composer,
+                    onOpen: {},
+                    onDismiss: {}
+                )
+                SnapshotComposerBar()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity)
+            .background(ConversationChrome.headerBackdrop)
+        }
+        .frame(width: 390, height: 220)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+@MainActor
+private func assertChipBlocksTheTranscript() throws {
+    let renderer = ImageRenderer(content: ChipOcclusionProbe().environment(\.displayScale, 2))
+    renderer.scale = 2
+    renderer.isOpaque = true
+    guard let image = renderer.nsImage, let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else {
+        throw SnapshotError("chip occlusion probe produced no image")
+    }
+    let bitmap = try Bitmap(rep)
+    var leaked = 0
+    // The bottom of the probe is the chip and the composer. Red above that
+    // band is the stand-in for the transcript; red inside it is text showing through.
+    let band = max(0, bitmap.height - 120)
+    for y in band..<bitmap.height {
+        for x in 0..<bitmap.width {
+            let p = bitmap.pixel(x, y)
+            if p.r > 200, p.g < 60, p.b < 60 { leaked += 1 }
+        }
+    }
+    guard leaked == 0 else {
+        throw SnapshotError("the passage chip lets \(leaked) pixels of the transcript show through")
+    }
+    fputs("chip band hides the transcript\n", stdout)
+}
+
+@MainActor
+private func assertFirstAnswerIsLinked(in url: URL) throws {
+    let bitmap = try Bitmap(url)
+    var links = 0
+    for y in stride(from: 0, to: bitmap.height, by: 1) {
+        for x in stride(from: 0, to: bitmap.width, by: 1) {
+            let p = bitmap.pixel(x, y)
+            if abs(Int(p.r) - 138) < 28, abs(Int(p.g) - 180) < 28, abs(Int(p.b) - 248) < 28 {
+                links += 1
+            }
+        }
+    }
+    guard links > 12 else {
+        throw SnapshotError("the first answer has \(links) link-coloured pixels; Proposition 5.3.1 is not a link")
+    }
+    fputs("first answer links (\(links) tinted pixels)\n", stdout)
+}
+
+/// No isolated horizontal rule above the card. A user bubble is accent blue
+/// and is not that rule; the quote-bar scan matches those pixels.
+@MainActor
+private func assertCardIsOneShape(in url: URL) throws {
+    let bitmap = try Bitmap(url)
+    let backdrop = bitmap.pixel(2, 2)
+    var cardTop: Int?
+    for y in 0..<bitmap.height {
+        var different = 0
+        for x in stride(from: 8, to: bitmap.width - 8, by: 2) {
+            if channelGap(bitmap.pixel(x, y), backdrop) > 14 { different += 1 }
+        }
+        if different > 12 {
+            cardTop = y
+            break
+        }
+    }
+    guard let cardTop, cardTop > 4 else {
+        let sample = bitmap.pixel(min(12, bitmap.width - 1), min(12, bitmap.height - 1))
+        throw SnapshotError(
+            "hover card did not draw in \(url.lastPathComponent) (\(bitmap.width)x\(bitmap.height), cardTop \(cardTop.map(String.init) ?? "none"), sample \(sample))"
+        )
+    }
+    var ruleRows: [Int] = []
+    for y in max(0, cardTop - 10)..<cardTop {
+        var different = 0
+        for x in stride(from: 8, to: bitmap.width - 8, by: 2) {
+            if channelGap(bitmap.pixel(x, y), backdrop) > 14 { different += 1 }
+        }
+        if different > 12 { ruleRows.append(y) }
+    }
+    guard ruleRows.isEmpty else {
+        throw SnapshotError("thin bar above the hover card in \(url.lastPathComponent) at \(ruleRows)")
+    }
+    // The card is the top of the shot. A chip with no card sits in the bottom third.
+    guard cardTop < bitmap.height * 55 / 100 else {
+        throw SnapshotError("hover card is missing from \(url.lastPathComponent) (content starts at \(cardTop) of \(bitmap.height))")
+    }
+    fputs("hover card is one shape in \(url.lastPathComponent)\n", stdout)
+}
+
+private struct ScrolledChipPanel: View {
+    static let panelWidth: CGFloat = 390
+    static let panelHeight: CGFloat = 640
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("What does a finite-dimensional norm remember?")
+                        .font(.body)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    Text(Self.answer)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+                JumpToLatestButton()
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: JerryFrameKey.self,
+                                value: ["jump": geo.frame(in: .named("jerry-panel"))]
+                            )
+                        }
+                    }
+                    .padding(.bottom, ConversationChrome.jumpButtonGap)
+            }
+
+            VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+                PassageChipView(
+                    passage: PinnedPassage(
+                        pageIndex: 10,
+                        excerpt: "A norm on a finite-dimensional space is a continuous function, and every linear map is bounded.",
+                        fingerprint: "jerry-152-scroll",
+                        bounds: NormalizedRect(x: 0.08, y: 0.3, width: 0.8, height: 0.08)
+                    ),
+                    role: .composer,
+                    onOpen: {},
+                    onDismiss: {}
+                )
+                .background {
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: JerryFrameKey.self,
+                            value: ["chip": geo.frame(in: .named("jerry-panel"))]
+                        )
+                    }
+                }
+                SnapshotComposerBar()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(ConversationChrome.headerBackdrop)
+        }
+        .coordinateSpace(name: "jerry-panel")
+        .frame(width: Self.panelWidth, height: Self.panelHeight)
+        .background(ConversationChrome.headerBackdrop)
+        .environment(\.colorScheme, .dark)
+    }
+
+    static let answer = """
+    A norm on a finite-dimensional space is a continuous function, and every linear map between those spaces is bounded. The operator norm is the smallest constant that works for every vector.
+
+    Equivalence of norms follows from compactness of the unit sphere. Once two norms are equivalent, completeness transfers from one to the other. These paragraphs are the part of the answer still on screen after the reader has scrolled up.
+
+    The last line of this answer sits just above the passage chip. The chip is solid, and this sentence does not run underneath it. The round chevron is the only control over the text.
+
+    A further paragraph keeps the answer taller than the panel, so this shot is scrolled up from the latest line. Finite-dimensional normed spaces are complete, and a linear map out of one is continuous exactly when it is bounded. The chevron sits on these lines, and the lines stop at the chip.
+    """
+}
+
+private struct JerryFrameKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
+@MainActor
+private final class JerryFrameProbe {
+    var frames: [String: CGRect] = [:]
+}
+
+@MainActor
+private func renderScrolledChip(to url: URL) throws {
+    if !NSApp.isRunning {
+        NSApp.finishLaunching()
+    }
+    let policy = NSApp.activationPolicy()
+    NSApp.setActivationPolicy(.accessory)
+    defer { NSApp.setActivationPolicy(policy) }
+    let probe = JerryFrameProbe()
+    let root = ScrolledChipPanel()
+        .onPreferenceChange(JerryFrameKey.self) { probe.frames = $0 }
+    let size = NSSize(width: ScrolledChipPanel.panelWidth, height: ScrolledChipPanel.panelHeight)
+    let hosted = try HostedPanel(root: root, size: size)
+    defer { hosted.window.close() }
+    pump(0.45)
+    let jump = probe.frames["jump"] ?? .zero
+    let chip = probe.frames["chip"] ?? .zero
+    guard jump.width > 24, jump.width < 36, abs(jump.height - jump.width) < 2 else {
+        throw SnapshotError("jump button is \(jump), not a 28pt circle")
+    }
+    guard abs(jump.midX - ScrolledChipPanel.panelWidth / 2) < 8 else {
+        throw SnapshotError("jump button is not centred (\(jump.midX))")
+    }
+    let gap = chip.minY - jump.maxY
+    guard gap > 6, gap < 12 else {
+        throw SnapshotError("jump button sits \(gap)pt above the chip, not 8")
+    }
+    guard !jump.intersects(chip) else {
+        throw SnapshotError("jump button overlaps the chip")
+    }
+    // Offscreen capture cannot draw glassEffect, so this panel is the layout
+    // only. The circle is the flat disc the window buffer records.
+    let rep = windowBitmap(of: hosted.window) ?? cacheBitmap(of: hosted.hosting)
+    guard let rep, bitmapHasInk(rep) else {
+        throw SnapshotError("scrolled chip snapshot is blank")
+    }
+    let factor = rep.pixelsWide < Int(ScrolledChipPanel.panelWidth * 1.5) ? 2 : 1
+    let scaled = try scaleBitmapPixels(rep, by: factor)
+    guard let png = scaled.representation(using: .png, properties: [:]) else {
+        throw SnapshotError("scrolled chip snapshot produced no PNG")
+    }
+    guard png.count >= 8_000 else {
+        throw SnapshotError("scrolled chip snapshot is \(png.count) bytes")
+    }
+    try png.write(to: url)
+    fputs("wrote \(url.path) (\(png.count) bytes) jump \(jump) chip \(chip)\n", stdout)
+}
+
+@MainActor
+private func windowBitmap(of window: NSWindow) -> NSBitmapImageRep? {
+    let windowID = CGWindowID(window.windowNumber)
+    guard let image = CGWindowListCreateImage(
+        .null,
+        .optionIncludingWindow,
+        windowID,
+        [.boundsIgnoreFraming, .bestResolution]
+    ) else { return nil }
+    let rep = NSBitmapImageRep(cgImage: image)
+    guard bitmapHasInk(rep) else { return nil }
+    return rep
+}
+
+@MainActor
+private func scaleBitmapPixels(_ source: NSBitmapImageRep, by factor: Int) throws -> NSBitmapImageRep {
+    if factor == 1 { return source }
+    let width = source.pixelsWide * factor
+    let height = source.pixelsHigh * factor
+    guard let dest = makeBitmap(
+        pixelsWide: width,
+        pixelsHigh: height,
+        pointSize: NSSize(width: CGFloat(width) / 2, height: CGFloat(height) / 2)
+    ) else {
+        throw SnapshotError("could not scale the scrolled chip snapshot")
+    }
+    for y in 0..<source.pixelsHigh {
+        for x in 0..<source.pixelsWide {
+            guard let color = source.colorAt(x: x, y: y) else { continue }
+            for dy in 0..<factor {
+                for dx in 0..<factor {
+                    dest.setColor(color, atX: x * factor + dx, y: y * factor + dy)
+                }
+            }
+        }
+    }
+    return dest
+}
+
 private struct SnapshotError: Error, CustomStringConvertible {
     var description: String
     init(_ description: String) { self.description = description }
 }
 
 @MainActor
-private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws {
+private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int, minimumSide: Int = 80) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     let renderer = ImageRenderer(content: view.environment(\.displayScale, 2))
     renderer.scale = 2
@@ -1813,7 +2396,7 @@ private func writePNG<V: View>(_ view: V, to url: URL, minimumBytes: Int) throws
           let png = rep.representation(using: .png, properties: [:]) else {
         throw SnapshotError("ImageRenderer produced no PNG")
     }
-    guard png.count >= minimumBytes, rep.pixelsWide > 80, rep.pixelsHigh > 80 else {
+    guard png.count >= minimumBytes, rep.pixelsWide > minimumSide, rep.pixelsHigh > minimumSide else {
         throw SnapshotError("PNG is \(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh)")
     }
     try png.write(to: url)

@@ -24,13 +24,26 @@ enum PassageChipRole {
 }
 
 /// The quote. No page number, no icon, no rule. Hovering either chip opens
-/// the full passage.
+/// the full passage as the same card, in the stack above the chip. There is
+/// no popover: the system popover drew an arrow and a second plate, and that
+/// arrow landed as a thin bar above the card whenever the anchor flipped.
+struct SentPassageFrameKey: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
 struct PassageChipView: View {
     var passage: PinnedPassage
     var role: PassageChipRole
-    /// The designer snapshot paints the hover card in the layout. Live hover
-    /// uses a popover, which ImageRenderer does not draw.
+    /// The sent quote shares the user bubble's maximum width. Nil on the
+    /// composer chip, which is as wide as the composer.
+    var maxWidth: CGFloat? = nil
+    /// The designer snapshot paints the card in the stack above the chip.
     var showsHoverCard = false
+    /// Snapshot of the hover. The card is the same stack as `showsHoverCard`.
+    var showsFloatingHoverCard = false
     var onOpen: () -> Void
     var onDismiss: () -> Void = {}
 
@@ -39,13 +52,17 @@ struct PassageChipView: View {
     init(
         passage: PinnedPassage,
         role: PassageChipRole,
+        maxWidth: CGFloat? = nil,
         showsHoverCard: Bool = false,
+        showsFloatingHoverCard: Bool = false,
         onOpen: @escaping () -> Void,
         onDismiss: @escaping () -> Void = {}
     ) {
         self.passage = passage
         self.role = role
+        self.maxWidth = maxWidth
         self.showsHoverCard = showsHoverCard
+        self.showsFloatingHoverCard = showsFloatingHoverCard
         self.onOpen = onOpen
         self.onDismiss = onDismiss
     }
@@ -54,33 +71,56 @@ struct PassageChipView: View {
         PinnedPassage.singleLine(passage.excerpt)
     }
 
-    private var popoverPresented: Binding<Bool> {
-        Binding(
-            get: { isHovering && !showsHoverCard },
-            set: { presented in
-                if !presented { isHovering = false }
-            }
-        )
+    private var showsCard: Bool {
+        showsHoverCard || showsFloatingHoverCard || isHovering
+    }
+
+    /// Sent passages use the bubble's maximum width. A missing value still
+    /// has to wrap; the composer chip is the one that takes the spare width.
+    private var sentMaxWidth: CGFloat {
+        maxWidth ?? 300
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
-            if showsHoverCard {
-                PassageQuoteCard(text: passage.excerpt)
+        // The card is in the stack, above the chip, with the same gap the
+        // chip uses. An overlay aligned by a guide stayed on the chip: the
+        // card and the quote drew as one shape, and the old popover's arrow
+        // had been a bar above that. Hovering the card does not dismiss it,
+        // because the card is inside this view.
+        VStack(alignment: role == .transcript ? .trailing : .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+            if showsCard {
+                PassageQuoteCard(
+                    text: passage.excerpt,
+                    maxWidth: role == .transcript ? sentMaxWidth : PassageQuoteCard.maxWidth
+                )
+                .background { sentFrame("card") }
             }
             chipRow
+                .background { sentFrame("quote") }
         }
-        // Hug the quote. The composer sits in a safe-area bar that proposes
-        // the panel's spare height; without this the card and the bar take it.
-        // The frame keeps the card as wide as the composer.
+        // Hug the quote. A parent that proposes the panel's spare height
+        // must not stretch the card. The composer chip takes the spare width.
+        // A sent quote stays on the bubble's trailing edge and no wider than
+        // that bubble's maximum.
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(
+            maxWidth: role == .transcript ? sentMaxWidth : .infinity,
+            alignment: role == .transcript ? .trailing : .topLeading
+        )
         .onHover { hovering in
             if isHovering != hovering { isHovering = hovering }
         }
-        .popover(isPresented: popoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-            PassageQuoteCard(text: passage.excerpt)
-                .presentationBackground(ConversationChrome.headerBackdrop)
+    }
+
+    @ViewBuilder
+    private func sentFrame(_ name: String) -> some View {
+        if role == .transcript {
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: SentPassageFrameKey.self,
+                    value: [name: geo.frame(in: .named("sent-passage"))]
+                )
+            }
         }
     }
 
@@ -91,10 +131,7 @@ struct PassageChipView: View {
         if role == .composer {
             chipContents
                 .padding(ConversationChrome.passageChipPadding)
-                .background(
-                    ConversationChrome.passageChipFill,
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
+                .background { PassageChipBackground(cornerRadius: 14) }
         } else {
             chipContents
         }
@@ -114,7 +151,10 @@ struct PassageChipView: View {
                 .accessibilityLabel("Dismiss passage")
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(
+            maxWidth: role == .transcript ? sentMaxWidth : .infinity,
+            alignment: role == .transcript ? .trailing : .leading
+        )
     }
 
     @ViewBuilder
@@ -130,7 +170,7 @@ struct PassageChipView: View {
             .accessibilityHint("Shows this passage in the PDF")
         } else {
             SelectionQuoteView(text: quote, lineLimit: 2)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: sentMaxWidth, alignment: .leading)
                 .accessibilityLabel(quote)
         }
     }
@@ -141,6 +181,7 @@ struct PassageQuoteCard: View {
     static let maxWidth: CGFloat = 320
 
     var text: String
+    var maxWidth: CGFloat = PassageQuoteCard.maxWidth
 
     var body: some View {
         Text(text)
@@ -150,10 +191,9 @@ struct PassageQuoteCard: View {
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
             .padding(ConversationChrome.passageChipPadding)
-            .frame(maxWidth: Self.maxWidth, alignment: .leading)
-            .background(
-                ConversationChrome.passageChipFill,
-                in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius, style: .continuous)
-            )
+            .frame(maxWidth: maxWidth, alignment: .leading)
+            .background {
+                PassageChipBackground(cornerRadius: ConversationChrome.bubbleCornerRadius)
+            }
     }
 }

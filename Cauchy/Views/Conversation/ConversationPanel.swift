@@ -1,17 +1,13 @@
 import SwiftUI
 
-/// The conversation, with its chrome floating over it.
+/// The conversation. The header is a `safeAreaBar`: messages pass beneath
+/// that glass, and the scroll edge effect keeps the title legible.
 ///
-/// The header and the composer are `safeAreaBar`s rather than rows stacked
-/// above and below a shorter scroll view. That is the arrangement Apple's
-/// adoption guidance describes for a custom bar: the messages run the full
-/// height and pass *beneath* the glass, and the scroll view's edge effect
-/// blurs whatever is under a bar so its controls stay legible. Stacking
-/// instead gives a hard cut where the content simply stops, which is the one
-/// thing the glass layer is meant not to do.
-///
-/// The bars still reserve their own height in the safe area, so the first and
-/// last message can always be scrolled clear of them.
+/// The composer is not. The passage chip is solid and sits in the composer's
+/// opaque area, and the transcript ends above that area so nothing scrolls
+/// under the quote. The jump control is the glass layer: a round chevron,
+/// centred 8pt above the chip (or above the composer when there is no chip),
+/// and text may pass behind it.
 struct ConversationPanel<Header: View>: View {
     let selectedText: String?
     let messages: [ThreadMessage]
@@ -32,6 +28,7 @@ struct ConversationPanel<Header: View>: View {
     var onRecovery: () -> Void = {}
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var referenceKeys: Set<ReferenceKey> = []
+    var referenceIndexReady = true
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     var followUpsFor: (ThreadMessage) -> [SuggestedFollowUp] = { _ in [] }
     var onAskFollowUp: (String) -> Void = { _ in }
@@ -41,114 +38,126 @@ struct ConversationPanel<Header: View>: View {
     @State private var userIsScrolling = false
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    if messages.isEmpty, !isResponding {
-                        Text("Ask a question about this passage")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                            .id("empty-state")
-                    }
+        VStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                transcript(proxy: proxy)
+            }
+            composerBar
+                .background(ConversationChrome.headerBackdrop)
+        }
+        .background(ConversationChrome.headerBackdrop)
+    }
 
-                    ForEach(messages) { message in
-                        MessageBubble(
-                            message: message,
-                            quotedText: nil,
-                            maxBubbleWidth: bubbleWidth,
-                            onOpenSource: onOpenSource,
-                            referenceKeys: referenceKeys,
-                            onOpenReference: onOpenReference,
-                            followUps: ConversationFollowUps.shouldShow(
-                                on: message,
-                                in: messages,
-                                isResponding: isResponding
-                            ) ? followUpsFor(message) : [],
-                            onAskFollowUp: onAskFollowUp
-                        )
-                        .id(message.id)
-                    }
-
-                    if isResponding, let streamingText, !streamingText.isEmpty {
-                        MessageBubble(
-                            message: ThreadMessage(role: .assistant, content: streamingText),
-                            maxBubbleWidth: bubbleWidth,
-                            referenceKeys: referenceKeys,
-                            onOpenReference: onOpenReference
-                        )
-                        .id("streaming")
-                    }
-
-                    if let failureMessage, !failureMessage.isEmpty, !isResponding {
-                        Text(failureMessage)
-                            .font(.callout)
-                            .foregroundStyle(.primary)
-                            .textSelection(.enabled)
-                            .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
-                            .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
-                            .background(Color.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius))
-                            .frame(maxWidth: bubbleWidth, alignment: .leading)
-                            .id("failure")
-                    }
-
-                    if isResponding,
-                       streamingText == nil || streamingText?.isEmpty == true {
-                        ProgressView()
-                            .controlSize(.small)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading, 8)
-                            .id("thinking")
-                    }
+    private func transcript(proxy: ScrollViewProxy) -> some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                if messages.isEmpty, !isResponding {
+                    Text("Ask a question about this passage")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .id("empty-state")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-            }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 80
-            } action: { _, nearBottom in
-                if userIsScrolling { followsLatest = nearBottom }
-            }
-            .onScrollPhaseChange { oldPhase, newPhase, context in
-                userIsScrolling = newPhase == .interacting || newPhase == .decelerating
-                if newPhase == .idle && (oldPhase == .interacting || oldPhase == .decelerating) {
-                    let geometry = context.geometry
-                    followsLatest = geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 80
+
+                ForEach(messages) { message in
+                    MessageBubble(
+                        message: message,
+                        quotedText: nil,
+                        maxBubbleWidth: bubbleWidth,
+                        onOpenSource: onOpenSource,
+                        referenceKeys: referenceKeys,
+                        referenceIndexReady: referenceIndexReady,
+                        onOpenReference: onOpenReference,
+                        followUps: ConversationFollowUps.shouldShow(
+                            on: message,
+                            in: messages,
+                            isResponding: isResponding
+                        ) ? followUpsFor(message) : [],
+                        onAskFollowUp: onAskFollowUp
+                    )
+                    .id(message.id)
+                }
+
+                if isResponding, let streamingText, !streamingText.isEmpty {
+                    MessageBubble(
+                        message: ThreadMessage(role: .assistant, content: streamingText),
+                        maxBubbleWidth: bubbleWidth,
+                        referenceKeys: referenceKeys,
+                        referenceIndexReady: referenceIndexReady,
+                        onOpenReference: onOpenReference
+                    )
+                    .id("streaming")
+                }
+
+                if let failureMessage, !failureMessage.isEmpty, !isResponding {
+                    Text(failureMessage)
+                        .font(.callout)
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, ConversationChrome.bubbleContentPaddingH)
+                        .padding(.vertical, ConversationChrome.bubbleContentPaddingV)
+                        .background(Color.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius))
+                        .frame(maxWidth: bubbleWidth, alignment: .leading)
+                        .id("failure")
+                }
+
+                if isResponding,
+                   streamingText == nil || streamingText?.isEmpty == true {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 8)
+                        .id("thinking")
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                if !followsLatest {
-                    Button("Jump to latest", systemImage: "arrow.down") {
-                        followsLatest = true
-                        scrollToBottom(proxy: proxy)
-                    }
-                    .buttonStyle(.glass)
-                    .padding(12)
-                }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 80
+        } action: { _, nearBottom in
+            if userIsScrolling { followsLatest = nearBottom }
+        }
+        .onScrollPhaseChange { oldPhase, newPhase, context in
+            userIsScrolling = newPhase == .interacting || newPhase == .decelerating
+            if newPhase == .idle && (oldPhase == .interacting || oldPhase == .decelerating) {
+                let geometry = context.geometry
+                followsLatest = geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 80
             }
-            .safeAreaBar(edge: .top) {
-                header
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(ConversationChrome.headerBackdrop)
-            }
-            .safeAreaBar(edge: .bottom) { composerBar }
-            // `.soft` at both edges: a progressive blur that fades the messages
-            // out under the chrome. `.hard` draws a defined block instead,
-            // which puts the header back to being the solid band this layout
-            // exists to get rid of.
-            .scrollEdgeEffectStyle(.soft, for: .top)
-            .scrollEdgeEffectStyle(.soft, for: .bottom)
-            .onAppear {
+        }
+        .overlay(alignment: .bottom) {
+            // Centred on the transcript, 8pt above the chip. Text may pass
+            // behind the glass. The chip is outside this scroll view, so the
+            // button cannot cover it. It fades out once the reader is at the bottom.
+            JumpToLatestButton {
+                followsLatest = true
                 scrollToBottom(proxy: proxy)
             }
-            .onChange(of: messages.count) { _, _ in
-                if messages.last?.role == .user { followsLatest = true }
-                if followsLatest { scrollToBottom(proxy: proxy) }
-            }
-            .onChange(of: streamingText) { _, _ in
-                if followsLatest { scrollToBottom(proxy: proxy) }
-            }
+            .padding(.bottom, ConversationChrome.jumpButtonGap)
+            .opacity(followsLatest ? 0 : 1)
+            .allowsHitTesting(!followsLatest)
+            .accessibilityHidden(followsLatest)
+            .animation(.easeOut(duration: 0.2), value: followsLatest)
+        }
+        .safeAreaBar(edge: .top) {
+            header
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ConversationChrome.headerBackdrop)
+        }
+        // `.soft` under the header only. The bottom edge is a hard stop at
+        // the opaque composer, so a soft blur cannot draw the transcript
+        // through the chip.
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .onAppear {
+            scrollToBottom(proxy: proxy)
+        }
+        .onChange(of: messages.count) { _, _ in
+            if messages.last?.role == .user { followsLatest = true }
+            if followsLatest { scrollToBottom(proxy: proxy) }
+        }
+        .onChange(of: streamingText) { _, _ in
+            if followsLatest { scrollToBottom(proxy: proxy) }
         }
     }
 

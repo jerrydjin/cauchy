@@ -42,6 +42,7 @@ struct HighlightThreadDetailView: View {
                 onRecovery: { performRecovery(ask.recovery) },
                 onOpenSource: { workspace.goToAnswerSource($0) },
                 referenceKeys: workspace.referenceIndex.referenceKeys,
+                referenceIndexReady: !workspace.isIndexingReferences,
                 onOpenReference: { workspace.openCitedReference($0) },
                 followUpsFor: { workspace.suggestedFollowUps(for: $0) },
                 onAskFollowUp: { workspace.sendThreadMessage($0) },

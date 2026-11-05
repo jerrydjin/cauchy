@@ -56,6 +56,26 @@ enum AssistantResponseValidator {
         return accepted
     }
 
+    /// Links to draw in an answer.
+    ///
+    /// The index loads after the first paint on a cold launch. Waiting for it
+    /// and then rewriting plain text into links changes the answer after it
+    /// has appeared. Until the index is ready, every detected reference is
+    /// already a link. When the index arrives, a reference the document
+    /// contains stays that same link, and a number the notes do not contain
+    /// is not one.
+    static func presentedReferences(
+        in text: String,
+        known: Set<ReferenceKey>,
+        indexReady: Bool
+    ) -> [DetectedReferenceMatch] {
+        if indexReady {
+            return linkableReferences(in: text, known: known)
+        }
+        let detected = Set(ReferenceDetector.allReferences(in: text).map(\.reference.key))
+        return linkableReferences(in: text, known: detected)
+    }
+
     private static func rangesOverlap(_ lhs: Range<String.Index>, _ rhs: Range<String.Index>) -> Bool {
         lhs.lowerBound < rhs.upperBound && rhs.lowerBound < lhs.upperBound
     }

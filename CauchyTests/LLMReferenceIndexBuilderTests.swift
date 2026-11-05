@@ -817,6 +817,59 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "4")))
     }
 
+    func testBareOwnLineFragmentsAreNotEquations() {
+        // Synthetic. A split subscript, "(0)" under a one-digit line, and a
+        // left-margin wrapped item are not tags. A formula on the next line,
+        // a dotted tag, and "(14)" under a one-digit limit stay.
+        let page = """
+        Set f = g before the split.
+        The expectation of the kernel E[R
+        (1)
+        x is at most one, which the hypothesis requires.
+        L = a + b
+        (2)
+        where both terms are positive.
+        The map sends each point to E
+        0
+        (0)
+        decreases with the energy, as required.
+        (3)
+        xn = yn + 1
+        An ideal containing I.
+        (4)
+        Q + 1
+        The integral equals f = g.
+        1
+        (14)
+        the bound continues below.
+        The kernel E[R
+        (8)
+        x = y + z
+        (1.4)
+        """
+        let nsPage = page as NSString
+        let positions = [
+            nsPage.range(of: "(4)").location: 0.16,
+        ]
+
+        let withGeometry = LLMReferenceIndexSupport.declarationMatches(
+            in: page, equationLabelX: positions
+        ).map(\.reference)
+        XCTAssertFalse(withGeometry.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(withGeometry.contains(DetectedReference(kind: .equation, number: "0")))
+        XCTAssertFalse(withGeometry.contains(DetectedReference(kind: .equation, number: "4")))
+        XCTAssertTrue(withGeometry.contains(DetectedReference(kind: .equation, number: "2")))
+        XCTAssertTrue(withGeometry.contains(DetectedReference(kind: .equation, number: "3")))
+        XCTAssertTrue(withGeometry.contains(DetectedReference(kind: .equation, number: "8")))
+        XCTAssertTrue(withGeometry.contains(DetectedReference(kind: .equation, number: "14")))
+        XCTAssertTrue(withGeometry.contains(DetectedReference(kind: .equation, number: "1.4")))
+
+        let withoutGeometry = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+        XCTAssertFalse(withoutGeometry.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(withoutGeometry.contains(DetectedReference(kind: .equation, number: "0")))
+        XCTAssertTrue(withoutGeometry.contains(DetectedReference(kind: .equation, number: "4")))
+    }
+
     func testTheoremEvidenceKeepsEquationWithinItsStatement() {
         let page = """
         Theorem 6.13. Detailed balance holds iff

@@ -3,6 +3,7 @@ import CoreText
 import Foundation
 import PDFKit
 import QuartzCore
+import ScreenCaptureKit
 import SwiftMath
 import SwiftUI
 
@@ -2151,8 +2152,14 @@ private struct ScrolledChipPanel: View {
                 .padding(.bottom, 10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
-                JumpToLatestButton()
-                    .opacity(jumpVisibility.shown ? 1 : 0)
+                Group {
+                    if jumpVisibility.shown {
+                        JumpToLatestButton()
+                    } else {
+                        Color.clear
+                    }
+                }
+                    .frame(width: ConversationChrome.jumpButtonDiameter, height: ConversationChrome.jumpButtonDiameter)
                     .background {
                         GeometryReader { geo in
                             Color.clear.preference(
@@ -2226,7 +2233,9 @@ private func renderScrolledChip(to url: URL) throws {
         NSApp.finishLaunching()
     }
     let policy = NSApp.activationPolicy()
-    NSApp.setActivationPolicy(.accessory)
+    // An accessory app's windows are left out of the glass compositor.
+    NSApp.setActivationPolicy(.regular)
+    NSApp.activate(ignoringOtherApps: true)
     defer { NSApp.setActivationPolicy(policy) }
     let probe = JerryFrameProbe()
     let jumpVisibility = JumpVisibility()
@@ -2262,11 +2271,12 @@ private func renderScrolledChip(to url: URL) throws {
     if !captureUntilGlassShows(hosted.window, to: url, jump: jump) {
         fputs("swiftui glassEffect captured as a flat disc; opening NSGlassEffectView over the answer\n", stdout)
         jumpVisibility.shown = false
+        hosted.window.level = .normal
         pump(0.5)
         let glass = presentGlassChevron(over: hosted.window, jump: jump)
         defer { glass?.close() }
         pump(1.4)
-        if !captureUntilGlassShows(hosted.window, to: url, jump: jump) {
+        if !captureUntilGlassShows(hosted.window, overlay: glass, to: url, jump: jump) {
             try assertGlassShowsTheTextBehind(in: url, jump: jump)
         }
     }
@@ -2319,7 +2329,7 @@ private func presentGlassChevron(over window: NSWindow, jump: CGRect) -> NSWindo
     if #available(macOS 26.0, *) {
         let glass = NSGlassEffectView(frame: NSRect(origin: .zero, size: button.size))
         glass.cornerRadius = jump.width / 2
-        glass.style = .regular
+        glass.style = .clear
         glass.contentView = holder
         panel.contentView = glass
     } else {
@@ -2353,11 +2363,18 @@ private func placeOnScreen(_ window: NSWindow) {
 /// miss Liquid Glass. Returns when one of the captures shows the answer
 /// through the circle.
 @MainActor
-private func captureUntilGlassShows(_ window: NSWindow, to url: URL, jump: CGRect) -> Bool {
+private func captureUntilGlassShows(_ window: NSWindow, overlay: NSWindow? = nil, to url: URL, jump: CGRect) -> Bool {
+    overlay?.orderFrontRegardless()
+    if captureScreenCaptureKit(window, to: url) {
+        fputs("captured with ScreenCaptureKit\n", stdout)
+        if glassShowsTheText(in: url, jump: jump) { return true }
+    }
+    overlay?.orderFrontRegardless()
     if captureDisplay(window, to: url) {
         fputs("captured the display framebuffer\n", stdout)
         if glassShowsTheText(in: url, jump: jump) { return true }
     }
+    overlay?.orderFrontRegardless()
     do {
         try screenCapture(window, to: url)
     } catch {
@@ -2365,6 +2382,80 @@ private func captureUntilGlassShows(_ window: NSWindow, to url: URL, jump: CGRec
         return false
     }
     return glassShowsTheText(in: url, jump: jump)
+}
+
+/// ScreenCaptureKit's screenshot is the composited display. `CGDisplayCreateImage`
+/// and `screencapture` on this runner both return the glass plate without the
+/// answer sampled into it.
+@MainActor
+private func captureScreenCaptureKit(_ window: NSWindow, to url: URL) -> Bool {
+    final class Box: @unchecked Sendable {
+        var image: CGImage?
+        var failure: String?
+        var finished = false
+    }
+    let box = Box()
+    let done = NSCondition()
+    Task { @MainActor in
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            guard let display = content.displays.first else {
+                box.failure = "no display"
+                done.lock(); box.finished = true; done.signal(); done.unlock()
+                return
+            }
+            let filter = SCContentFilter(display: display, excludingWindows: [])
+            let config = SCStreamConfiguration()
+            config.width = display.width
+            config.height = display.height
+            config.showsCursor = false
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            box.image = image
+        } catch {
+            box.failure = String(describing: error)
+        }
+        done.lock(); box.finished = true; done.signal(); done.unlock()
+    }
+    let deadline = Date().addingTimeInterval(8)
+    done.lock()
+    while !box.finished && Date() < deadline {
+        done.unlock()
+        RunLoop.current.run(mode: .common, before: Date().addingTimeInterval(0.05))
+        done.lock()
+    }
+    done.unlock()
+    if let failure = box.failure {
+        fputs("ScreenCaptureKit \(failure)\n", stdout)
+        return false
+    }
+    guard let image = box.image,
+          let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else {
+        fputs("ScreenCaptureKit produced no image\n", stdout)
+        return false
+    }
+    let scale = screen.backingScaleFactor
+    let screenFrame = screen.frame
+    let frame = window.frame
+    let crop = CGRect(
+        x: (frame.minX - screenFrame.minX) * scale,
+        y: (screenFrame.maxY - frame.maxY) * scale,
+        width: frame.width * scale,
+        height: frame.height * scale
+    ).integral
+    guard let cropped = image.cropping(to: crop) else {
+        fputs("ScreenCaptureKit crop \(crop) missed a \(image.width)x\(image.height) display\n", stdout)
+        return false
+    }
+    let rep = NSBitmapImageRep(cgImage: cropped)
+    guard let png = rep.representation(using: .png, properties: [:]) else { return false }
+    do {
+        try png.write(to: url)
+    } catch {
+        fputs("ScreenCaptureKit write failed \(error)\n", stdout)
+        return false
+    }
+    fputs("ScreenCaptureKit crop \(crop) -> \(cropped.width)x\(cropped.height)\n", stdout)
+    return true
 }
 
 @MainActor

@@ -205,12 +205,17 @@ let package = Package(
                 .swiftLanguageMode(.v5)
             ],
             linkerSettings: [
-                .linkedFramework("PDFKit")
+                .linkedFramework("PDFKit"),
+                .linkedFramework("ScreenCaptureKit")
             ]
         )
     ]
 )
 EOF
+
+# Liquid Glass is an opaque plate while Reduce Transparency is on.
+defaults write com.apple.universalaccess reduceTransparency -bool false || true
+echo "reduceTransparency=$(defaults read com.apple.universalaccess reduceTransparency 2>/dev/null || echo unset)"
 
 MACOSX_DEPLOYMENT_TARGET=14.0 xcrun --sdk macosx swift build -c release --package-path "$stage"
 chat_bin="$(MACOSX_DEPLOYMENT_TARGET=14.0 xcrun --sdk macosx swift build -c release --package-path "$stage" --show-bin-path)/RenderChatCitation"

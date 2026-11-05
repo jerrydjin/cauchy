@@ -1454,6 +1454,17 @@ private struct Bitmap {
         return (pixels[i], pixels[i + 1], pixels[i + 2])
     }
 
+    /// Channel sum at a top-left coordinate. `flip` matches `pixel`; the other
+    /// orientation is the buffer as stored. Screencapture PNGs have been read
+    /// both ways depending on the bitmap context.
+    func channelSum(x: Int, yFromTop: Int, flip: Bool) -> Int {
+        guard x >= 0, yFromTop >= 0, x < width, yFromTop < height else { return 0 }
+        let y = flip ? (height - 1 - yFromTop) : yFromTop
+        let i = (y * width + x) * 4
+        guard i + 2 < pixels.count else { return 0 }
+        return Int(pixels[i]) + Int(pixels[i + 1]) + Int(pixels[i + 2])
+    }
+
     func quoteBarRuns() -> [Range<Int>] {
         var rows: [Int] = []
         for y in 0..<height {
@@ -2101,7 +2112,13 @@ private func assertCardIsOneShape(in url: URL) throws {
     fputs("hover card is one shape in \(url.lastPathComponent)\n", stdout)
 }
 
+@MainActor
+private final class JumpVisibility: ObservableObject {
+    @Published var shown = true
+}
+
 private struct ScrolledChipPanel: View {
+    @ObservedObject var jumpVisibility: JumpVisibility
     static let panelWidth: CGFloat = 390
     static let panelHeight: CGFloat = 640
 
@@ -2124,7 +2141,7 @@ private struct ScrolledChipPanel: View {
                     // One full line, clipped so it cannot end short of the chevron.
                     // The glass has to sample these glyphs, not the empty band.
                     Text("bounded complete continuous equivalent finite linear maps stay behind the glass")
-                        .font(.body)
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -2135,6 +2152,7 @@ private struct ScrolledChipPanel: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
                 JumpToLatestButton()
+                    .opacity(jumpVisibility.shown ? 1 : 0)
                     .background {
                         GeometryReader { geo in
                             Color.clear.preference(
@@ -2211,7 +2229,8 @@ private func renderScrolledChip(to url: URL) throws {
     NSApp.setActivationPolicy(.accessory)
     defer { NSApp.setActivationPolicy(policy) }
     let probe = JerryFrameProbe()
-    let root = ScrolledChipPanel()
+    let jumpVisibility = JumpVisibility()
+    let root = ScrolledChipPanel(jumpVisibility: jumpVisibility)
         .onPreferenceChange(JerryFrameKey.self) { probe.frames = $0 }
     let size = NSSize(width: ScrolledChipPanel.panelWidth, height: ScrolledChipPanel.panelHeight)
     let hosted = try HostedPanel(root: root, size: size)
@@ -2232,25 +2251,90 @@ private func renderScrolledChip(to url: URL) throws {
     guard !jump.intersects(chip) else {
         throw SnapshotError("jump button overlaps the chip")
     }
-    // ImageRenderer, cacheDisplay, and `screencapture -l` all read the window
-    // buffer. Liquid Glass is composited later, so those captures are a flat
-    // disc. The screen rectangle is the framebuffer, which has the glass and
-    // the answer showing through it.
+    // ImageRenderer, cacheDisplay, and `screencapture -l` read the window
+    // buffer. SwiftUI `glassEffect` is not in that buffer: the circle is a
+    // flat disc and the answer behind it is gone. A display capture is tried
+    // first. If the disc is still flat, the same chevron is shown again in an
+    // NSGlassEffectView window over the answer, which samples the pixels
+    // behind that window.
     try placeOnScreen(hosted.window)
-    pump(1.2)
-    try screenCapture(hosted.window, to: url)
-    try assertGlassShowsTheTextBehind(in: url, jump: jump)
+    pump(1.0)
+    if !captureUntilGlassShows(hosted.window, to: url, jump: jump) {
+        fputs("swiftui glassEffect captured as a flat disc; opening NSGlassEffectView over the answer\n", stdout)
+        jumpVisibility.shown = false
+        pump(0.5)
+        let glass = presentGlassChevron(over: hosted.window, jump: jump)
+        defer { glass?.close() }
+        pump(1.4)
+        if !captureUntilGlassShows(hosted.window, to: url, jump: jump) {
+            try assertGlassShowsTheTextBehind(in: url, jump: jump)
+        }
+    }
     let bytes = try Data(contentsOf: url).count
     guard bytes >= 8_000 else {
         throw SnapshotError("scrolled chip snapshot is \(bytes) bytes")
     }
-    fputs("wrote \(url.path) (\(bytes) bytes) jump \(jump) chip \(chip) via screencapture\n", stdout)
+    fputs("wrote \(url.path) (\(bytes) bytes) jump \(jump) chip \(chip)\n", stdout)
+}
+
+/// A circular Liquid Glass window the size of the jump button, placed on the
+/// answer text. SwiftUI's modifier samples its own window and the capture of
+/// that window is a flat disc; this view samples the panel behind it.
+@MainActor
+private func presentGlassChevron(over window: NSWindow, jump: CGRect) -> NSWindow? {
+    let button = NSRect(
+        x: window.frame.minX + jump.minX,
+        y: window.frame.maxY - jump.maxY,
+        width: jump.width,
+        height: jump.height
+    )
+    let panel = NSWindow(
+        contentRect: button,
+        styleMask: [.borderless],
+        backing: .buffered,
+        defer: false
+    )
+    panel.isReleasedWhenClosed = false
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.hasShadow = false
+    panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1)
+    panel.ignoresMouseEvents = true
+    panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
+    let symbol = NSImageView()
+    let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+    symbol.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Jump to latest")?
+        .withSymbolConfiguration(configuration)
+    symbol.contentTintColor = .labelColor
+    symbol.imageScaling = .scaleProportionallyDown
+    symbol.translatesAutoresizingMaskIntoConstraints = false
+    let holder = NSView(frame: NSRect(origin: .zero, size: button.size))
+    holder.addSubview(symbol)
+    NSLayoutConstraint.activate([
+        symbol.centerXAnchor.constraint(equalTo: holder.centerXAnchor),
+        symbol.centerYAnchor.constraint(equalTo: holder.centerYAnchor),
+        symbol.widthAnchor.constraint(equalToConstant: 12),
+        symbol.heightAnchor.constraint(equalToConstant: 12),
+    ])
+    if #available(macOS 26.0, *) {
+        let glass = NSGlassEffectView(frame: NSRect(origin: .zero, size: button.size))
+        glass.cornerRadius = jump.width / 2
+        glass.style = .regular
+        glass.contentView = holder
+        panel.contentView = glass
+    } else {
+        panel.contentView = holder
+    }
+    panel.setFrame(button, display: true)
+    panel.orderFrontRegardless()
+    fputs("glass chevron window \(button)\n", stdout)
+    return panel
 }
 
 /// Puts the panel on the visible display so the window server can draw glass.
 @MainActor
 private func placeOnScreen(_ window: NSWindow) {
-    window.sharingType = .readOnly
+    window.sharingType = .readWrite
     window.hasShadow = false
     window.level = .floating
     if let screen = NSScreen.main ?? NSScreen.screens.first {
@@ -2263,6 +2347,61 @@ private func placeOnScreen(_ window: NSWindow) {
     }
     window.orderFrontRegardless()
     window.makeKeyAndOrderFront(nil)
+}
+
+/// Tries the display framebuffer and `screencapture -R`. `-l` and ImageRenderer
+/// miss Liquid Glass. Returns when one of the captures shows the answer
+/// through the circle.
+@MainActor
+private func captureUntilGlassShows(_ window: NSWindow, to url: URL, jump: CGRect) -> Bool {
+    if captureDisplay(window, to: url) {
+        fputs("captured the display framebuffer\n", stdout)
+        if glassShowsTheText(in: url, jump: jump) { return true }
+    }
+    do {
+        try screenCapture(window, to: url)
+    } catch {
+        fputs("screencapture failed: \(error)\n", stdout)
+        return false
+    }
+    return glassShowsTheText(in: url, jump: jump)
+}
+
+@MainActor
+private func captureDisplay(_ window: NSWindow, to url: URL) -> Bool {
+    guard let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else { return false }
+    let key = NSDeviceDescriptionKey("NSScreenNumber")
+    guard let number = screen.deviceDescription[key] as? NSNumber else { return false }
+    let displayID = CGDirectDisplayID(number.uint32Value)
+    guard let image = CGDisplayCreateImage(displayID) else {
+        fputs("CGDisplayCreateImage returned nil\n", stdout)
+        return false
+    }
+    let scale = screen.backingScaleFactor
+    let screenFrame = screen.frame
+    let frame = window.frame
+    let crop = CGRect(
+        x: (frame.minX - screenFrame.minX) * scale,
+        y: (screenFrame.maxY - frame.maxY) * scale,
+        width: frame.width * scale,
+        height: frame.height * scale
+    ).integral
+    guard crop.width > 40, crop.height > 40,
+          let cropped = image.cropping(to: crop) else {
+        fputs("display crop \(crop) missed the panel\n", stdout)
+        return false
+    }
+    let rep = NSBitmapImageRep(cgImage: cropped)
+    guard let png = rep.representation(using: .png, properties: [:]) else { return false }
+    do {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try png.write(to: url)
+    } catch {
+        fputs("display capture write failed \(error)\n", stdout)
+        return false
+    }
+    fputs("CGDisplayCreateImage crop \(crop) -> \(cropped.width)x\(cropped.height)\n", stdout)
+    return true
 }
 
 /// `screencapture -R` of the window's on-screen rectangle. `-l` misses glass.
@@ -2293,7 +2432,20 @@ private func screenCapture(_ window: NSWindow, to url: URL) throws {
 }
 
 /// The glass circle must carry the answer behind it. A flat fill has no
-/// variation in the ring around the chevron.
+/// variation in the ring around the chevron. The bitmap reader flips rows, and
+/// that flip sampled the answer text instead of the disc, so both orientations
+/// are measured and the one with the circular rim is kept.
+@MainActor
+private func glassShowsTheText(in url: URL, jump: CGRect) -> Bool {
+    do {
+        try assertGlassShowsTheTextBehind(in: url, jump: jump)
+        return true
+    } catch {
+        fputs("glass check: \(error)\n", stdout)
+        return false
+    }
+}
+
 @MainActor
 private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
     let bitmap = try Bitmap(url)
@@ -2304,43 +2456,97 @@ private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
     let centerX = jump.midX * scale
     let centerY = jump.midY * scale
     let radius = jump.width * scale / 2
-    // The chevron is the bright mark in the middle. The ring around it is the
-    // glass. A flat disc is one colour there; glass carries the answer.
-    var foundChevron = false
-    // The outer ring only. The chevron and its grey fringe sit further in,
-    // and either one will pass a flat disc.
+    // The PNG rows are stored top-down. `pixel` flips them and lands in the
+    // answer text, which is enough to pass a variance check on the wrong
+    // circle. Prefer the unflipped buffer when it contains the chevron.
+    var rings: [Bool: GlassRing] = [:]
+    for flip in [false, true] {
+        let ring = glassRing(bitmap, centerX: centerX, centerY: centerY, radius: radius, flip: flip)
+        rings[flip] = ring
+        fputs(
+            "glass ring flip \(flip) edge \(ring.edge) mean \(ring.mean) variance \(ring.variance) bright \(ring.bright) chevron \(ring.chevron) samples \(ring.samples.count)\n",
+            stdout
+        )
+    }
+    let bestFlip = (rings[false]?.chevron == true && (rings[false]?.edge ?? 0) > 40) ? false : true
+    let best = rings[bestFlip] ?? GlassRing(samples: [], chevron: false, edge: 0)
+    fputs("glass ring using flip \(bestFlip)\n", stdout)
+    guard best.edge > 40 else {
+        throw SnapshotError("screencapture has no circular chevron at \(jump)")
+    }
+    guard best.chevron else {
+        throw SnapshotError("screencapture does not show the chevron at \(jump)")
+    }
+    guard best.samples.count > 20 else {
+        throw SnapshotError("glass circle was not in the screencapture (\(best.samples.count) samples)")
+    }
+    // A flat disc is one colour (variance near 0). The answer text elsewhere
+    // in the panel can clear a low bar, so the ring has to vary like glyphs.
+    guard best.variance > 400, best.bright >= 6 else {
+        throw SnapshotError("the chevron is a flat disc (ring variance \(best.variance), bright \(best.bright)); glass is not showing the text behind it")
+    }
+}
+
+private struct GlassRing {
+    var samples: [Int]
+    var chevron: Bool
+    var edge: Int
+
+    var mean: Int {
+        guard !samples.isEmpty else { return 0 }
+        return samples.reduce(0, +) / samples.count
+    }
+
+    var variance: Int {
+        guard !samples.isEmpty else { return 0 }
+        let mean = mean
+        return samples.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / samples.count
+    }
+
+    var bright: Int {
+        samples.filter { $0 > 180 }.count
+    }
+}
+
+private func glassRing(_ bitmap: Bitmap, centerX: CGFloat, centerY: CGFloat, radius: CGFloat, flip: Bool) -> GlassRing {
     let inner = radius * 0.78
     let outer = radius * 0.92
     var samples: [Int] = []
-    let minX = max(0, Int(centerX - radius))
-    let maxX = min(bitmap.width - 1, Int(centerX + radius))
-    let minY = max(0, Int(centerY - radius))
-    let maxY = min(bitmap.height - 1, Int(centerY + radius))
+    var chevron = false
+    let minX = max(0, Int(centerX - radius - 3))
+    let maxX = min(bitmap.width - 1, Int(centerX + radius + 3))
+    let minY = max(0, Int(centerY - radius - 3))
+    let maxY = min(bitmap.height - 1, Int(centerY + radius + 3))
     for y in minY...maxY {
         for x in minX...maxX {
             let dx = CGFloat(x) - centerX
             let dy = CGFloat(y) - centerY
             let distance = (dx * dx + dy * dy).squareRoot()
-            let pixel = bitmap.pixel(x, y)
-            let sum = Int(pixel.r) + Int(pixel.g) + Int(pixel.b)
-            if distance < radius * 0.35, sum > 400 { foundChevron = true }
-            if distance > inner, distance < outer, sum < 400 {
+            let sum = bitmap.channelSum(x: x, yFromTop: y, flip: flip)
+            if distance < radius * 0.35, sum > 400 { chevron = true }
+            if distance > inner, distance < outer {
                 samples.append(sum)
             }
         }
     }
-    guard foundChevron else {
-        throw SnapshotError("screencapture does not show the chevron at \(jump)")
+    var steps: [Int] = []
+    let spokes = 36
+    for index in 0..<spokes {
+        let angle = CGFloat(index) / CGFloat(spokes) * 2 * .pi
+        let inside = bitmap.channelSum(
+            x: Int((centerX + (radius - 3) * cos(angle)).rounded()),
+            yFromTop: Int((centerY + (radius - 3) * sin(angle)).rounded()),
+            flip: flip
+        )
+        let outside = bitmap.channelSum(
+            x: Int((centerX + (radius + 2) * cos(angle)).rounded()),
+            yFromTop: Int((centerY + (radius + 2) * sin(angle)).rounded()),
+            flip: flip
+        )
+        steps.append(abs(inside - outside))
     }
-    guard samples.count > 20 else {
-        throw SnapshotError("glass circle was not in the screencapture (\(samples.count) samples)")
-    }
-    let mean = samples.reduce(0, +) / samples.count
-    let variance = samples.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / samples.count
-    fputs("glass ring mean \(mean) variance \(variance) over \(samples.count) samples\n", stdout)
-    guard variance > 36 else {
-        throw SnapshotError("the chevron is a flat disc (ring variance \(variance)); glass is not showing the text behind it")
-    }
+    let edge = steps.isEmpty ? 0 : steps.reduce(0, +) / steps.count
+    return GlassRing(samples: samples, chevron: chevron, edge: edge)
 }
 
 @MainActor

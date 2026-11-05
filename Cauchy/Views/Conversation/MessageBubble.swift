@@ -52,12 +52,14 @@ struct MessageBubble: View {
                     PassageChipView(
                         passage: passage.pinned,
                         role: .transcript,
+                        maxWidth: maxBubbleWidth,
                         showsHoverCard: showsPassageCard,
                         onOpen: {}
                     )
                 }
                 if showsQuestionBubble {
                     styledBubble
+                        .background { sentBubbleFrame }
                 }
             }
             // Alignment inside the frame is what actually sides the bubble:
@@ -68,6 +70,26 @@ struct MessageBubble: View {
             .fixedSize(horizontal: false, vertical: true)
 
             if !isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
+        }
+        .coordinateSpace(name: "sent-passage")
+        .background { sentRowFrame }
+    }
+
+    private var sentBubbleFrame: some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: SentPassageFrameKey.self,
+                value: ["bubble": geo.frame(in: .named("sent-passage"))]
+            )
+        }
+    }
+
+    private var sentRowFrame: some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: SentPassageFrameKey.self,
+                value: ["row": geo.frame(in: .named("sent-passage"))]
+            )
         }
     }
 

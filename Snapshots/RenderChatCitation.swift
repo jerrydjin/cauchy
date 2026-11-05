@@ -3,7 +3,6 @@ import CoreText
 import Foundation
 import PDFKit
 import QuartzCore
-import ScreenCaptureKit
 import SwiftMath
 import SwiftUI
 
@@ -1455,17 +1454,6 @@ private struct Bitmap {
         return (pixels[i], pixels[i + 1], pixels[i + 2])
     }
 
-    /// Channel sum at a top-left coordinate. `flip` matches `pixel`; the other
-    /// orientation is the buffer as stored. Screencapture PNGs have been read
-    /// both ways depending on the bitmap context.
-    func channelSum(x: Int, yFromTop: Int, flip: Bool) -> Int {
-        guard x >= 0, yFromTop >= 0, x < width, yFromTop < height else { return 0 }
-        let y = flip ? (height - 1 - yFromTop) : yFromTop
-        let i = (y * width + x) * 4
-        guard i + 2 < pixels.count else { return 0 }
-        return Int(pixels[i]) + Int(pixels[i + 1]) + Int(pixels[i + 2])
-    }
-
     func quoteBarRuns() -> [Range<Int>] {
         var rows: [Int] = []
         for y in 0..<height {
@@ -1847,6 +1835,31 @@ private func renderJerry152(to output: URL) throws {
     try assertCardIsOneShape(in: floatingURL)
     try assertCardIsOneShape(in: transcriptURL)
     try assertDistinctRenders([stackedURL, floatingURL, transcriptURL])
+    try assertSentPassageFollowsOneLayout(
+        label: "message row",
+        maxBubbleWidth: 280,
+        root: MessageBubble(
+            message: ThreadMessage(
+                role: .user,
+                content: "Is every subset open?",
+                passage: MessagePassage(pageIndex: 36, excerpt: hoverExcerpt)
+            ),
+            maxBubbleWidth: 280,
+            showsPassageCard: true
+        )
+        .frame(width: 560, height: 460, alignment: .top)
+        .background(Color(white: 0.12))
+    )
+    try assertSentPassageFollowsOneLayout(
+        label: "transcript hover",
+        maxBubbleWidth: 300,
+        root: TranscriptHoverShot(passage: hoverPassage)
+    )
+    try assertSentPassageFollowsOneLayout(
+        label: "sent chip hover",
+        maxBubbleWidth: 300,
+        root: SentChipHoverShot(passage: hoverPassage)
+    )
 
     let firstURL = output.appendingPathComponent("jerry-152-first-answer.png")
     try writePNG(FirstLaunchAnswer(), to: firstURL, minimumBytes: 2_000)
@@ -1910,27 +1923,18 @@ private struct ComposerHoverShot: View {
 }
 
 /// The card open on a chip that already sits in the thread, with the question
-/// and the reply still on screen. The chip has no fill and no dismiss control.
+/// and the reply still on screen. The quote uses the same sent-message row as
+/// the chip on a message that was just sent.
 private struct TranscriptHoverShot: View {
     var passage: PinnedPassage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            PassageChipView(
+            sentPassageBubble(
                 passage: passage,
-                role: .transcript,
-                showsHoverCard: true,
-                onOpen: {},
-                onDismiss: {}
+                question: "Does the discrete metric make every set open?",
+                showsCard: true
             )
-            Text("Does the discrete metric make every set open?")
-                .font(.body)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18))
-                .frame(maxWidth: 280, alignment: .trailing)
-                .frame(maxWidth: .infinity, alignment: .trailing)
             Text("Yes. In the discrete metric the open balls are singletons, so every set is a union of open balls.")
                 .font(.body)
                 .foregroundStyle(.primary)
@@ -1951,20 +1955,102 @@ private struct SentChipHoverShot: View {
     var passage: PinnedPassage
 
     var body: some View {
-        MessageBubble(
-            message: ThreadMessage(
-                role: .user,
-                content: "Is every subset open?",
-                passage: MessagePassage(pageIndex: passage.pageIndex, excerpt: passage.excerpt)
-            ),
-            maxBubbleWidth: 300,
-            showsPassageCard: true
+        sentPassageBubble(
+            passage: passage,
+            question: "Is every subset open?",
+            showsCard: true
         )
         .padding(24)
         .frame(width: 420, alignment: .trailing)
         .background(Color(white: 0.1))
         .environment(\.colorScheme, .dark)
     }
+}
+
+/// One sent-passage row. The transcript hover and the sent chip both use it,
+/// so a second layout cannot put the quote on the leading edge at full width.
+private func sentPassageBubble(passage: PinnedPassage, question: String, showsCard: Bool) -> some View {
+    MessageBubble(
+        message: ThreadMessage(
+            role: .user,
+            content: question,
+            passage: MessagePassage(pageIndex: passage.pageIndex, excerpt: passage.excerpt)
+        ),
+        maxBubbleWidth: 300,
+        showsPassageCard: showsCard
+    )
+}
+
+/// The quote above a sent message used to depend on which view built it.
+/// Each path that draws one has to share the bubble's trailing edge, stay
+/// inside the bubble's maximum width, keep two lines, and leave the rest
+/// on the card.
+@MainActor
+private func assertSentPassageFollowsOneLayout<Content: View>(
+    label: String,
+    maxBubbleWidth: CGFloat,
+    excerpt: String = "If X is a set with the discrete metric, every set is open. The rest of this synthetic passage is only on the hover card, past the two lines the chip keeps.",
+    root: Content
+) throws {
+    let probe = SentFrameProbe()
+    let hostedRoot = root
+        .environment(\.colorScheme, .dark)
+        .onPreferenceChange(SentPassageFrameKey.self) { probe.frames = $0 }
+    let hosted = try HostedPanel(root: hostedRoot, size: NSSize(width: 560, height: 520))
+    defer { hosted.window.close() }
+    pump(0.4)
+    let quote = probe.frames["quote"] ?? .zero
+    let bubble = probe.frames["bubble"] ?? .zero
+    let card = probe.frames["card"] ?? .zero
+    let row = probe.frames["row"] ?? .zero
+    guard quote.width > 40, bubble.width > 40, card.height > 20, row.width > 40 else {
+        throw SnapshotError("\(label) frames quote \(quote) bubble \(bubble) card \(card) row \(row)")
+    }
+    guard abs(bubble.maxX - row.maxX) < 2 else {
+        throw SnapshotError("\(label) bubble ends at \(bubble.maxX), row at \(row.maxX)")
+    }
+    guard abs(quote.maxX - bubble.maxX) < 2 else {
+        throw SnapshotError("\(label) quote ends at \(quote.maxX), bubble at \(bubble.maxX)")
+    }
+    guard quote.width <= maxBubbleWidth + 1, card.width <= maxBubbleWidth + 1 else {
+        throw SnapshotError("\(label) quote is \(quote.width)pt and the card is \(card.width)pt, wider than the \(maxBubbleWidth)pt bubble")
+    }
+    guard quote.minX + 2 >= row.maxX - maxBubbleWidth else {
+        throw SnapshotError("\(label) quote starts at \(quote.minX), left of the \(maxBubbleWidth)pt column ending at \(row.maxX)")
+    }
+    let twoLines = try quoteTextHeight(excerpt, width: quote.width, lineLimit: 2)
+    let allLines = try quoteTextHeight(excerpt, width: quote.width, lineLimit: nil)
+    guard abs(quote.height - twoLines) < 8 else {
+        throw SnapshotError("\(label) quote is \(quote.height)pt, a two-line quote is \(twoLines)pt")
+    }
+    guard allLines > quote.height + 8 else {
+        throw SnapshotError("\(label) quote shows the whole passage (\(quote.height)pt, full text \(allLines)pt)")
+    }
+    guard card.height > quote.height + 8 else {
+        throw SnapshotError("\(label) hover card is \(card.height)pt, no taller than the two-line quote \(quote.height)pt")
+    }
+    fputs("\(label) quote \(quote) matches bubble \(bubble) in row \(row), card \(card)\n", stdout)
+}
+
+@MainActor
+private final class SentFrameProbe {
+    var frames: [String: CGRect] = [:]
+}
+
+@MainActor
+private func quoteTextHeight(_ text: String, width: CGFloat, lineLimit: Int?) throws -> CGFloat {
+    let view = SelectionQuoteView(text: PinnedPassage.singleLine(text), lineLimit: lineLimit)
+        .frame(width: width, alignment: .leading)
+    let renderer = ImageRenderer(content: view.environment(\.colorScheme, .dark))
+    renderer.scale = 2
+    renderer.isOpaque = true
+    guard let image = renderer.nsImage,
+          let tiff = image.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          rep.pixelsHigh > 4 else {
+        throw SnapshotError("quote height probe produced no image")
+    }
+    return CGFloat(rep.pixelsHigh) / 2
 }
 
 @MainActor
@@ -2113,13 +2199,7 @@ private func assertCardIsOneShape(in url: URL) throws {
     fputs("hover card is one shape in \(url.lastPathComponent)\n", stdout)
 }
 
-@MainActor
-private final class JumpVisibility: ObservableObject {
-    @Published var shown = true
-}
-
 private struct ScrolledChipPanel: View {
-    @ObservedObject var jumpVisibility: JumpVisibility
     static let panelWidth: CGFloat = 390
     static let panelHeight: CGFloat = 640
 
@@ -2139,34 +2219,12 @@ private struct ScrolledChipPanel: View {
                         .padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 18))
-                    // Taller than the 28pt button, so the whole circle sits on this
-                    // band. Body text on the panel colour is thinner than the
-                    // glass blur and disappears; black on white is the content
-                    // the capture has to show through the circle.
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.white)
-                        Text("bounded complete continuous equivalent finite linear maps stay behind the glass")
-                            .font(.body.weight(.bold))
-                            .foregroundStyle(.black)
-                            .lineLimit(1)
-                    }
-                    .frame(height: 44)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 20)
-                .padding(.bottom, 10)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                Group {
-                    if jumpVisibility.shown {
-                        JumpToLatestButton()
-                    } else {
-                        Color.clear
-                    }
-                }
-                    .frame(width: ConversationChrome.jumpButtonDiameter, height: ConversationChrome.jumpButtonDiameter)
+                JumpToLatestButton()
                     .background {
                         GeometryReader { geo in
                             Color.clear.preference(
@@ -2240,13 +2298,10 @@ private func renderScrolledChip(to url: URL) throws {
         NSApp.finishLaunching()
     }
     let policy = NSApp.activationPolicy()
-    // An accessory app's windows are left out of the glass compositor.
-    NSApp.setActivationPolicy(.regular)
-    NSApp.activate(ignoringOtherApps: true)
+    NSApp.setActivationPolicy(.accessory)
     defer { NSApp.setActivationPolicy(policy) }
     let probe = JerryFrameProbe()
-    let jumpVisibility = JumpVisibility()
-    let root = ScrolledChipPanel(jumpVisibility: jumpVisibility)
+    let root = ScrolledChipPanel()
         .onPreferenceChange(JerryFrameKey.self) { probe.frames = $0 }
     let size = NSSize(width: ScrolledChipPanel.panelWidth, height: ScrolledChipPanel.panelHeight)
     let hosted = try HostedPanel(root: root, size: size)
@@ -2267,387 +2322,22 @@ private func renderScrolledChip(to url: URL) throws {
     guard !jump.intersects(chip) else {
         throw SnapshotError("jump button overlaps the chip")
     }
-    // ImageRenderer, cacheDisplay, and `screencapture -l` read the window
-    // buffer. SwiftUI `glassEffect` is not in that buffer: the circle is a
-    // flat disc and the answer behind it is gone. A display capture is tried
-    // first. If the disc is still flat, the same chevron is shown again in an
-    // NSGlassEffectView window over the answer, which samples the pixels
-    // behind that window.
-    try placeOnScreen(hosted.window)
-    pump(1.0)
-    if !captureUntilGlassShows(hosted.window, to: url, jump: jump) {
-        fputs("swiftui glassEffect captured as a flat disc; opening NSGlassEffectView over the answer\n", stdout)
-        jumpVisibility.shown = false
-        hosted.window.level = .normal
-        pump(0.5)
-        let glass = presentGlassChevron(over: hosted.window, jump: jump)
-        defer { glass?.close() }
-        pump(1.4)
-        if !captureUntilGlassShows(hosted.window, overlay: glass, to: url, jump: jump) {
-            try assertGlassShowsTheTextBehind(in: url, jump: jump)
-        }
+    // Offscreen capture cannot draw glassEffect, so this panel is the layout
+    // only. The circle is the flat disc the window buffer records.
+    let rep = windowBitmap(of: hosted.window) ?? cacheBitmap(of: hosted.hosting)
+    guard let rep, bitmapHasInk(rep) else {
+        throw SnapshotError("scrolled chip snapshot is blank")
     }
-    let bytes = try Data(contentsOf: url).count
-    guard bytes >= 8_000 else {
-        throw SnapshotError("scrolled chip snapshot is \(bytes) bytes")
+    let factor = rep.pixelsWide < Int(ScrolledChipPanel.panelWidth * 1.5) ? 2 : 1
+    let scaled = try scaleBitmapPixels(rep, by: factor)
+    guard let png = scaled.representation(using: .png, properties: [:]) else {
+        throw SnapshotError("scrolled chip snapshot produced no PNG")
     }
-    fputs("wrote \(url.path) (\(bytes) bytes) jump \(jump) chip \(chip)\n", stdout)
-}
-
-/// A circular Liquid Glass window the size of the jump button, placed on the
-/// answer text. SwiftUI's modifier samples its own window and the capture of
-/// that window is a flat disc; this view samples the panel behind it.
-@MainActor
-private func presentGlassChevron(over window: NSWindow, jump: CGRect) -> NSWindow? {
-    let button = NSRect(
-        x: window.frame.minX + jump.minX,
-        y: window.frame.maxY - jump.maxY,
-        width: jump.width,
-        height: jump.height
-    )
-    let panel = NSWindow(
-        contentRect: button,
-        styleMask: [.borderless],
-        backing: .buffered,
-        defer: false
-    )
-    panel.isReleasedWhenClosed = false
-    panel.isOpaque = false
-    panel.backgroundColor = .clear
-    panel.hasShadow = false
-    panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1)
-    panel.ignoresMouseEvents = true
-    panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
-    let symbol = NSImageView()
-    let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-    symbol.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Jump to latest")?
-        .withSymbolConfiguration(configuration)
-    symbol.contentTintColor = .labelColor
-    symbol.imageScaling = .scaleProportionallyDown
-    symbol.translatesAutoresizingMaskIntoConstraints = false
-    let holder = NSView(frame: NSRect(origin: .zero, size: button.size))
-    holder.addSubview(symbol)
-    NSLayoutConstraint.activate([
-        symbol.centerXAnchor.constraint(equalTo: holder.centerXAnchor),
-        symbol.centerYAnchor.constraint(equalTo: holder.centerYAnchor),
-        symbol.widthAnchor.constraint(equalToConstant: 12),
-        symbol.heightAnchor.constraint(equalToConstant: 12),
-    ])
-    if #available(macOS 26.0, *) {
-        let glass = NSGlassEffectView(frame: NSRect(origin: .zero, size: button.size))
-        glass.cornerRadius = jump.width / 2
-        glass.style = .clear
-        glass.contentView = holder
-        panel.contentView = glass
-    } else {
-        panel.contentView = holder
+    guard png.count >= 8_000 else {
+        throw SnapshotError("scrolled chip snapshot is \(png.count) bytes")
     }
-    panel.setFrame(button, display: true)
-    panel.orderFrontRegardless()
-    fputs("glass chevron window \(button)\n", stdout)
-    return panel
-}
-
-/// Puts the panel on the visible display so the window server can draw glass.
-@MainActor
-private func placeOnScreen(_ window: NSWindow) {
-    window.sharingType = .readWrite
-    window.hasShadow = false
-    window.level = .floating
-    if let screen = NSScreen.main ?? NSScreen.screens.first {
-        let visible = screen.visibleFrame
-        let frame = window.frame
-        window.setFrameOrigin(NSPoint(
-            x: visible.midX - frame.width / 2,
-            y: visible.midY - frame.height / 2
-        ))
-    }
-    window.orderFrontRegardless()
-    window.makeKeyAndOrderFront(nil)
-}
-
-/// Tries the display framebuffer and `screencapture -R`. `-l` and ImageRenderer
-/// miss Liquid Glass. Returns when one of the captures shows the answer
-/// through the circle.
-@MainActor
-private func captureUntilGlassShows(_ window: NSWindow, overlay: NSWindow? = nil, to url: URL, jump: CGRect) -> Bool {
-    overlay?.orderFrontRegardless()
-    if captureScreenCaptureKit(window, to: url) {
-        fputs("captured with ScreenCaptureKit\n", stdout)
-        if glassShowsTheText(in: url, jump: jump) { return true }
-    }
-    overlay?.orderFrontRegardless()
-    if captureDisplay(window, to: url) {
-        fputs("captured the display framebuffer\n", stdout)
-        if glassShowsTheText(in: url, jump: jump) { return true }
-    }
-    overlay?.orderFrontRegardless()
-    do {
-        try screenCapture(window, to: url)
-    } catch {
-        fputs("screencapture failed: \(error)\n", stdout)
-        return false
-    }
-    return glassShowsTheText(in: url, jump: jump)
-}
-
-/// ScreenCaptureKit's screenshot is the composited display. `CGDisplayCreateImage`
-/// and `screencapture` on this runner both return the glass plate without the
-/// answer sampled into it.
-@MainActor
-private func captureScreenCaptureKit(_ window: NSWindow, to url: URL) -> Bool {
-    final class Box: @unchecked Sendable {
-        var image: CGImage?
-        var failure: String?
-        var finished = false
-    }
-    let box = Box()
-    let done = NSCondition()
-    Task { @MainActor in
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            guard let display = content.displays.first else {
-                box.failure = "no display"
-                done.lock(); box.finished = true; done.signal(); done.unlock()
-                return
-            }
-            let filter = SCContentFilter(display: display, excludingWindows: [])
-            let config = SCStreamConfiguration()
-            config.width = display.width
-            config.height = display.height
-            config.showsCursor = false
-            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
-            box.image = image
-        } catch {
-            box.failure = String(describing: error)
-        }
-        done.lock(); box.finished = true; done.signal(); done.unlock()
-    }
-    let deadline = Date().addingTimeInterval(8)
-    done.lock()
-    while !box.finished && Date() < deadline {
-        done.unlock()
-        RunLoop.current.run(mode: .common, before: Date().addingTimeInterval(0.05))
-        done.lock()
-    }
-    done.unlock()
-    if let failure = box.failure {
-        fputs("ScreenCaptureKit \(failure)\n", stdout)
-        return false
-    }
-    guard let image = box.image,
-          let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else {
-        fputs("ScreenCaptureKit produced no image\n", stdout)
-        return false
-    }
-    let scale = screen.backingScaleFactor
-    let screenFrame = screen.frame
-    let frame = window.frame
-    let crop = CGRect(
-        x: (frame.minX - screenFrame.minX) * scale,
-        y: (screenFrame.maxY - frame.maxY) * scale,
-        width: frame.width * scale,
-        height: frame.height * scale
-    ).integral
-    guard let cropped = image.cropping(to: crop) else {
-        fputs("ScreenCaptureKit crop \(crop) missed a \(image.width)x\(image.height) display\n", stdout)
-        return false
-    }
-    let rep = NSBitmapImageRep(cgImage: cropped)
-    guard let png = rep.representation(using: .png, properties: [:]) else { return false }
-    do {
-        try png.write(to: url)
-    } catch {
-        fputs("ScreenCaptureKit write failed \(error)\n", stdout)
-        return false
-    }
-    fputs("ScreenCaptureKit crop \(crop) -> \(cropped.width)x\(cropped.height)\n", stdout)
-    return true
-}
-
-@MainActor
-private func captureDisplay(_ window: NSWindow, to url: URL) -> Bool {
-    guard let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else { return false }
-    let key = NSDeviceDescriptionKey("NSScreenNumber")
-    guard let number = screen.deviceDescription[key] as? NSNumber else { return false }
-    let displayID = CGDirectDisplayID(number.uint32Value)
-    guard let image = CGDisplayCreateImage(displayID) else {
-        fputs("CGDisplayCreateImage returned nil\n", stdout)
-        return false
-    }
-    let scale = screen.backingScaleFactor
-    let screenFrame = screen.frame
-    let frame = window.frame
-    let crop = CGRect(
-        x: (frame.minX - screenFrame.minX) * scale,
-        y: (screenFrame.maxY - frame.maxY) * scale,
-        width: frame.width * scale,
-        height: frame.height * scale
-    ).integral
-    guard crop.width > 40, crop.height > 40,
-          let cropped = image.cropping(to: crop) else {
-        fputs("display crop \(crop) missed the panel\n", stdout)
-        return false
-    }
-    let rep = NSBitmapImageRep(cgImage: cropped)
-    guard let png = rep.representation(using: .png, properties: [:]) else { return false }
-    do {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try png.write(to: url)
-    } catch {
-        fputs("display capture write failed \(error)\n", stdout)
-        return false
-    }
-    fputs("CGDisplayCreateImage crop \(crop) -> \(cropped.width)x\(cropped.height)\n", stdout)
-    return true
-}
-
-/// `screencapture -R` of the window's on-screen rectangle. `-l` misses glass.
-@MainActor
-private func screenCapture(_ window: NSWindow, to url: URL) throws {
-    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-    guard let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else {
-        throw SnapshotError("the glass panel is not on a screen")
-    }
-    let frame = window.frame
-    let screenFrame = screen.frame
-    let x = Int((frame.minX - screenFrame.minX).rounded())
-    let y = Int((screenFrame.maxY - frame.maxY).rounded())
-    let width = Int(frame.width.rounded())
-    let height = Int(frame.height.rounded())
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-    process.arguments = ["-R", "\(x),\(y),\(width),\(height)", "-x", url.path]
-    let pipe = Pipe()
-    process.standardError = pipe
-    try process.run()
-    process.waitUntilExit()
-    let err = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    guard process.terminationStatus == 0, FileManager.default.fileExists(atPath: url.path) else {
-        throw SnapshotError("screencapture of the on-screen panel failed (\(process.terminationStatus)) \(err)")
-    }
-    fputs("screencapture -R \(x),\(y),\(width),\(height)\n", stdout)
-}
-
-/// The glass circle must carry the answer behind it. A flat fill has no
-/// variation in the ring around the chevron. The bitmap reader flips rows, and
-/// that flip sampled the answer text instead of the disc, so both orientations
-/// are measured and the one with the circular rim is kept.
-@MainActor
-private func glassShowsTheText(in url: URL, jump: CGRect) -> Bool {
-    do {
-        try assertGlassShowsTheTextBehind(in: url, jump: jump)
-        return true
-    } catch {
-        fputs("glass check: \(error)\n", stdout)
-        return false
-    }
-}
-
-@MainActor
-private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
-    let bitmap = try Bitmap(url)
-    let scale = CGFloat(bitmap.width) / ScrolledChipPanel.panelWidth
-    guard scale > 0.5 else {
-        throw SnapshotError("screencapture is \(bitmap.width)px wide")
-    }
-    let centerX = jump.midX * scale
-    let centerY = jump.midY * scale
-    let radius = jump.width * scale / 2
-    // The PNG rows are stored top-down. `pixel` flips them and lands in the
-    // answer text, which is enough to pass a variance check on the wrong
-    // circle. Prefer the unflipped buffer when it contains the chevron.
-    var rings: [Bool: GlassRing] = [:]
-    for flip in [false, true] {
-        let ring = glassRing(bitmap, centerX: centerX, centerY: centerY, radius: radius, flip: flip)
-        rings[flip] = ring
-        fputs(
-            "glass ring flip \(flip) edge \(ring.edge) mean \(ring.mean) variance \(ring.variance) bright \(ring.bright) chevron \(ring.chevron) samples \(ring.samples.count)\n",
-            stdout
-        )
-    }
-    let bestFlip = (rings[false]?.chevron == true && (rings[false]?.edge ?? 0) > 40) ? false : true
-    let best = rings[bestFlip] ?? GlassRing(samples: [], points: [], chevron: false, edge: 0)
-    fputs("glass ring using flip \(bestFlip)\n", stdout)
-    guard best.edge > 40 else {
-        throw SnapshotError("screencapture has no circular chevron at \(jump)")
-    }
-    guard best.chevron else {
-        throw SnapshotError("screencapture does not show the chevron at \(jump)")
-    }
-    guard best.samples.count > 20 else {
-        throw SnapshotError("glass circle was not in the screencapture (\(best.samples.count) samples)")
-    }
-    // The band behind the circle is white. A flat plate stays one colour.
-    // Glass over that band is light, and the glyphs keep the ring from being flat.
-    guard best.mean > 420, best.variance > 400 else {
-        throw SnapshotError("the chevron is a flat disc (ring mean \(best.mean), variance \(best.variance)); glass is not showing the text behind it")
-    }
-}
-
-private struct GlassRing {
-    var samples: [Int]
-    var points: [(dx: CGFloat, dy: CGFloat)]
-    var chevron: Bool
-    var edge: Int
-
-    var mean: Int {
-        guard !samples.isEmpty else { return 0 }
-        return samples.reduce(0, +) / samples.count
-    }
-
-    var variance: Int {
-        guard !samples.isEmpty else { return 0 }
-        let mean = mean
-        return samples.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / samples.count
-    }
-
-    var bright: Int {
-        samples.filter { $0 > 180 }.count
-    }
-}
-
-private func glassRing(_ bitmap: Bitmap, centerX: CGFloat, centerY: CGFloat, radius: CGFloat, flip: Bool) -> GlassRing {
-    let inner = radius * 0.78
-    let outer = radius * 0.92
-    var samples: [Int] = []
-    var points: [(dx: CGFloat, dy: CGFloat)] = []
-    var chevron = false
-    let minX = max(0, Int(centerX - radius - 3))
-    let maxX = min(bitmap.width - 1, Int(centerX + radius + 3))
-    let minY = max(0, Int(centerY - radius - 3))
-    let maxY = min(bitmap.height - 1, Int(centerY + radius + 3))
-    for y in minY...maxY {
-        for x in minX...maxX {
-            let dx = CGFloat(x) - centerX
-            let dy = CGFloat(y) - centerY
-            let distance = (dx * dx + dy * dy).squareRoot()
-            let sum = bitmap.channelSum(x: x, yFromTop: y, flip: flip)
-            if distance < radius * 0.35, sum > 400 { chevron = true }
-            if distance > inner, distance < outer {
-                samples.append(sum)
-                points.append((dx, dy))
-            }
-        }
-    }
-    var steps: [Int] = []
-    let spokes = 36
-    for index in 0..<spokes {
-        let angle = CGFloat(index) / CGFloat(spokes) * 2 * .pi
-        let inside = bitmap.channelSum(
-            x: Int((centerX + (radius - 3) * cos(angle)).rounded()),
-            yFromTop: Int((centerY + (radius - 3) * sin(angle)).rounded()),
-            flip: flip
-        )
-        let outside = bitmap.channelSum(
-            x: Int((centerX + (radius + 2) * cos(angle)).rounded()),
-            yFromTop: Int((centerY + (radius + 2) * sin(angle)).rounded()),
-            flip: flip
-        )
-        steps.append(abs(inside - outside))
-    }
-    let edge = steps.isEmpty ? 0 : steps.reduce(0, +) / steps.count
-    return GlassRing(samples: samples, points: points, chevron: chevron, edge: edge)
+    try png.write(to: url)
+    fputs("wrote \(url.path) (\(png.count) bytes) jump \(jump) chip \(chip)\n", stdout)
 }
 
 @MainActor

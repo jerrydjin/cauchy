@@ -28,7 +28,7 @@ enum PassageChipRole {
 /// no popover: the system popover drew an arrow and a second plate, and that
 /// arrow landed as a thin bar above the card whenever the anchor flipped.
 struct SentPassageFrameKey: PreferenceKey {
-    static var defaultValue: [String: CGRect] = [:]
+    static let defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
     }

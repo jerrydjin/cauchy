@@ -71,8 +71,8 @@ struct MessageBubble: View {
 
             if !isUser { Spacer(minLength: ConversationChrome.bubbleHorizontalInset) }
         }
-        .coordinateSpace(name: "sent-passage")
         .background { sentRowFrame }
+        .coordinateSpace(name: "sent-passage")
     }
 
     private var sentBubbleFrame: some View {

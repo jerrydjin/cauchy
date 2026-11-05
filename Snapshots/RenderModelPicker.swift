@@ -42,6 +42,59 @@ enum RenderModelPicker {
                 try writePNG(view, to: url, minimumBytes: 2_000)
             }
         }
+        try renderUnavailable(to: output.appendingPathComponent("jerry-151-picker-unavailable.png"))
+    }
+
+    @MainActor
+    private static func renderUnavailable(to url: URL) throws {
+        let antigravity = AssistantConnectorID.antigravity.connector
+        let codex = AssistantConnectorID.codex.connector
+        let claude = AssistantConnectorID.claudeCode.connector
+        let signedOut = ConnectorStatus.resolved(
+            access: antigravity.access,
+            name: antigravity.name,
+            readiness: .blocked(.notSignedIn(.antigravity))
+        )
+        let missing = ConnectorStatus.resolved(
+            access: codex.access,
+            name: codex.name,
+            readiness: .blocked(.notInstalled(.codex))
+        )
+        let ready = ConnectorStatus.resolved(
+            access: claude.access,
+            name: claude.name,
+            readiness: .ready
+        )
+        guard !signedOut.allowsSelection, signedOut.menuTitle(name: antigravity.name) == "Antigravity — Not signed in" else {
+            throw SnapshotError("Antigravity probe failure is not a greyed row")
+        }
+        guard !missing.allowsSelection, missing.menuTitle(name: codex.name) == "Codex — Not installed" else {
+            throw SnapshotError("Codex probe failure is not a greyed row")
+        }
+        guard ready.allowsSelection, ready.menuTitle(name: claude.name) == claude.name else {
+            throw SnapshotError("a ready connector should show its name alone")
+        }
+        let checking = ConnectorStatus.resolved(
+            access: antigravity.access,
+            name: antigravity.name,
+            readiness: .checking
+        )
+        guard checking.shortNote == nil, checking.hint == nil, checking.allowsSelection else {
+            throw SnapshotError("checking still has a picker note")
+        }
+        let view = SnapshotChrome(
+            caption: "Model picker · probe failed",
+            dark: true,
+            content: UnavailableModelMenu(
+                rows: [
+                    (ready.menuTitle(name: claude.name), true),
+                    (missing.menuTitle(name: codex.name), false),
+                    (signedOut.menuTitle(name: antigravity.name), false),
+                    (AssistantConnectorID.gemini.connector.name, true),
+                ]
+            )
+        )
+        try writePNG(view, to: url, minimumBytes: 2_000)
     }
 
     private static func filename(for id: AssistantConnectorID, dark: Bool) -> String {
@@ -104,6 +157,36 @@ private struct OpenModelMenu: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(checked ? (dark ? Color(red: 0.16, green: 0.36, blue: 0.62) : Color.accentColor.opacity(0.16)) : Color.clear)
+    }
+}
+
+private struct UnavailableModelMenu: View {
+    var rows: [(String, Bool)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.clear)
+                        .frame(width: 14)
+                    Text(row.0)
+                        .font(.system(size: 13))
+                        .foregroundStyle(row.1 ? Color(white: 0.96) : Color(white: 0.42))
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+            }
+        }
+        .frame(width: 280)
+        .padding(.vertical, 4)
+        .background(Color(white: 0.17), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
     }
 }
 

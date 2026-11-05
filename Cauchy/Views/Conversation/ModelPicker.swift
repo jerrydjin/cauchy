@@ -68,7 +68,7 @@ struct ModelPicker: View {
         let status = connector.status
 
         if connector.hasModelChoice {
-            Menu(menuTitle(connector, status)) {
+            Menu(status.menuTitle(name: connector.name)) {
                 ForEach(connector.models) { model in
                     Toggle(
                         model.name,
@@ -79,16 +79,9 @@ struct ModelPicker: View {
             .disabled(!status.allowsSelection)
         } else {
             // Nothing to choose inside, so the connector itself is the item.
-            Toggle(menuTitle(connector, status), isOn: binding(for: .connector(connector.id)))
+            Toggle(status.menuTitle(name: connector.name), isOn: binding(for: .connector(connector.id)))
                 .disabled(!status.allowsSelection)
         }
-    }
-
-    /// A disabled row has to say why it is disabled — Settings carries the full
-    /// instructions, so this is only the reason in three words.
-    private func menuTitle(_ connector: AssistantConnector, _ status: ConnectorStatus) -> String {
-        guard let note = status.shortNote else { return connector.name }
-        return "\(connector.name) — \(note)"
     }
 
     // MARK: - Collapsed label

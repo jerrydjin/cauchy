@@ -51,8 +51,7 @@ struct ReferenceIndexMenuItems: View {
         Divider()
 
         ForEach(AssistantConnector.primary + AssistantConnector.advanced) { connector in
-            let title = connector.status.shortNote.map { "\(connector.name) — \($0)" }
-                ?? connector.name
+            let title = connector.status.menuTitle(name: connector.name)
             if connector.hasModelChoice {
                 Menu(title) {
                     ForEach(connector.models) { model in

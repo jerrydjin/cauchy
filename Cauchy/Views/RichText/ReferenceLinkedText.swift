@@ -6,8 +6,8 @@ extension CitationChrome {
     static var wash: Color { Color.accentColor.opacity(washOpacity) }
 }
 
-/// Prose with the document's own results as quiet inline links. Words of a
-/// citation wrap with the sentence; the comma after one stays on its last word.
+/// Prose with the document's own results as quiet inline links. A labelled
+/// reference is one run. The comma after it stays on that run, in the body colour.
 struct ReferenceLinkedText: View {
     let text: String
     var font: Font = .body
@@ -15,6 +15,8 @@ struct ReferenceLinkedText: View {
     var knownKeys: Set<ReferenceKey> = []
     var chips: [AnswerSourceMarkers.Chip] = []
     var sourceAnchors: [AnswerSourceAnchor] = []
+    /// The designer snapshot draws the hover underline. Live hover uses the pointer.
+    var linkShowsHover = false
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
 
@@ -51,6 +53,7 @@ struct ReferenceLinkedText: View {
                 suffix: suffix,
                 font: font,
                 textColor: textColor,
+                showsHover: linkShowsHover,
                 reference: reference,
                 action: { onOpenReference(reference) }
             )
@@ -66,6 +69,8 @@ struct InlineReferenceLink: View {
     var suffix: String = ""
     var font: Font = .body
     var textColor: Color = .primary
+    /// Draws the hover underline without a pointer. Snapshots set this.
+    var showsHover = false
     var reference: DetectedReference
     var action: () -> Void
 
@@ -84,7 +89,7 @@ struct InlineReferenceLink: View {
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
                 if !citation.isEmpty {
-                    CitationLinkText.tinted(citation, underlined: isHovered)
+                    CitationLinkText.tinted(citation, underlined: isHovered || showsHover)
                 }
                 if !trailingSpace.isEmpty {
                     Text(trailingSpace)

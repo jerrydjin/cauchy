@@ -235,6 +235,26 @@ enum RenderChatCitation {
         try writePNG(tallHover, to: tallHoverURL, minimumBytes: 4_000)
         try assertChipHugsItsText(in: tallHoverURL, panelHeight: TallHoverChip.panelHeight, allowsCardBar: true)
 
+        try assertLabelledReferenceIsOneLink()
+        let linkRest = RefLinkSentence(showsHover: false)
+        try writePNG(linkRest, to: output.appendingPathComponent("jerry-151-ref-link-rest.png"), minimumBytes: 1_000)
+        let linkHover = RefLinkSentence(showsHover: true)
+        try writePNG(linkHover, to: output.appendingPathComponent("jerry-151-ref-link-hover.png"), minimumBytes: 1_000)
+
+        let chipNoBar = QuoteCardShot(card: false)
+        let chipNoBarURL = output.appendingPathComponent("jerry-151-chip-nobar.png")
+        try writePNG(chipNoBar, to: chipNoBarURL, minimumBytes: 1_000)
+        try assertQuoteTextStartsAtThePadding(in: chipNoBarURL)
+
+        let hoverNoBar = QuoteCardShot(card: true)
+        let hoverNoBarURL = output.appendingPathComponent("jerry-151-hovercard-nobar.png")
+        try writePNG(hoverNoBar, to: hoverNoBarURL, minimumBytes: 1_000)
+        try assertQuoteTextStartsAtThePadding(in: hoverNoBarURL)
+
+        try assertProbeStaysOutOfTheChat()
+        let firstOpen = FirstOpenCheckingChat()
+        try writePNG(firstOpen, to: output.appendingPathComponent("jerry-151-first-open-checking.png"), minimumBytes: 2_000)
+
         let headerEmpty = HeaderBand(scrolled: false)
         try writePNG(headerEmpty, to: output.appendingPathComponent("jerry-151-header-empty.png"), minimumBytes: 2_000)
         let headerScrolled = HeaderBand(scrolled: true)
@@ -536,34 +556,231 @@ private var snapshotHeader: some View {
     }
 }
 
-/// The quote bar stays a couple of lines tall and sits down by the composer.
-/// A bar that takes the panel's spare height fails here.
+/// The chip hugs its text and sits down by the composer. A card that takes
+/// the panel's spare height fails here. The blue quote bar is gone.
 private func assertChipHugsItsText(in url: URL, panelHeight: CGFloat, allowsCardBar: Bool = false) throws {
     let bitmap = try Bitmap(url)
     let runs = bitmap.quoteBarRuns()
-    guard !runs.isEmpty else {
-        throw SnapshotError("quote bar did not draw in \(url.lastPathComponent)")
+    guard runs.isEmpty else {
+        throw SnapshotError("quote bar is back in \(url.lastPathComponent)")
     }
-    let scale = CGFloat(bitmap.height) / panelHeight
-    for run in runs {
-        let points = CGFloat(run.upperBound - run.lowerBound) / scale
-        let limit: CGFloat = allowsCardBar ? 120 : 56
-        guard points < limit else {
-            throw SnapshotError("quote bar is \(Int(points))pt tall in \(url.lastPathComponent); it took the panel's spare height")
-        }
-    }
-    let barY = runs.map { ($0.lowerBound + $0.upperBound) / 2 }.max() ?? 0
     let titleY = bitmap.averageRow { $0.r > 210 && $0.g > 210 && $0.b > 210 }
     guard let titleY else {
         throw SnapshotError("could not find the header title in \(url.lastPathComponent)")
     }
-    // The title and the chip sit at opposite ends of the panel. Measuring the
-    // gap avoids assuming which buffer row is the top.
-    guard abs(barY - titleY) > bitmap.height / 2 else {
-        let heights = runs.map { Int(CGFloat($0.upperBound - $0.lowerBound) / scale) }
-        throw SnapshotError("quote bar is \(abs(barY - titleY))px from the title in \(url.lastPathComponent) (heights \(heights)pt); it is not pinned above the composer")
+    guard let contentY = bitmap.lowestContentRow() else {
+        throw SnapshotError("empty panel in \(url.lastPathComponent)")
     }
-    fputs("chip hugs content in \(url.lastPathComponent): bars \(runs.map { "\($0.lowerBound)-\($0.upperBound)" })\n", stdout)
+    let gap = abs(contentY - titleY)
+    guard gap > bitmap.height / 3 else {
+        throw SnapshotError("chip content is \(gap)px from the title in \(url.lastPathComponent); it is not pinned above the composer")
+    }
+    try assertChipHugsWhenOfferedSpareHeight(showsHoverCard: allowsCardBar)
+    fputs("chip hugs content in \(url.lastPathComponent) (panel \(Int(panelHeight))pt)\n", stdout)
+}
+
+/// Offers the chip the panel's spare height. The card must stay at the top
+/// of that offer instead of painting the whole frame.
+@MainActor
+private func assertChipHugsWhenOfferedSpareHeight(showsHoverCard: Bool) throws {
+    let passage = PinnedPassage(
+        pageIndex: 10,
+        excerpt: "Theorem 1.5.3 (Chain Rule). Let f : Rn → Rm, g : Rm → Rp and a ∈ Rn. Assume that f is differentiable at a and g is continuous.",
+        fingerprint: "hug-probe",
+        bounds: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08)
+    )
+    let probe = HugProbe(passage: passage, showsHoverCard: showsHoverCard)
+        .environment(\.colorScheme, .dark)
+    let renderer = ImageRenderer(content: probe)
+    renderer.scale = 2
+    renderer.isOpaque = true
+    guard let image = renderer.nsImage, let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else {
+        throw SnapshotError("chip hug probe produced no image")
+    }
+    let bitmap = try Bitmap(rep)
+    guard let lowest = bitmap.lowestContentRow(background: (38, 38, 38), slack: 12) else {
+        throw SnapshotError("chip hug probe drew nothing")
+    }
+    let points = CGFloat(lowest) / 2
+    let limit: CGFloat = showsHoverCard ? 280 : 120
+    guard points < limit else {
+        throw SnapshotError("chip is \(Int(points))pt tall when offered 600pt")
+    }
+    fputs("chip hug probe is \(Int(points))pt (hover \(showsHoverCard))\n", stdout)
+}
+
+private struct HugProbe: View {
+    var passage: PinnedPassage
+    var showsHoverCard: Bool
+
+    var body: some View {
+        PassageChipView(
+            passage: passage,
+            role: .composer,
+            showsHoverCard: showsHoverCard,
+            onOpen: {},
+            onDismiss: {}
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(width: 358, height: 600)
+        .background(Color(white: 0.15))
+    }
+}
+
+private struct RefLinkSentence: View {
+    var showsHover: Bool
+
+    var body: some View {
+        ReferenceLinkedText(
+            text: "By Proposition 5.3.1, f is continuous exactly when the preimage is open.",
+            knownKeys: [ReferenceKey(kind: .proposition, number: "5.3.1")],
+            linkShowsHover: showsHover
+        )
+        .font(.body)
+        .padding(28)
+        .frame(width: 560, alignment: .leading)
+        .background(Color(white: 0.12))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private struct QuoteCardShot: View {
+    var card: Bool
+
+    private var excerpt: String {
+        "Theorem 1.5.3 (Chain Rule). Let f : Rn → Rm and g : Rm → Rp. Assume that f is differentiable at a and g is continuous. The rest of this sentence is only on the hover card."
+    }
+
+    var body: some View {
+        let passage = PinnedPassage(
+            pageIndex: 10,
+            excerpt: excerpt,
+            fingerprint: "nobar",
+            bounds: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08)
+        )
+        Group {
+            if card {
+                PassageQuoteCard(text: excerpt)
+            } else {
+                PassageChipView(passage: passage, role: .composer, onOpen: {}, onDismiss: {})
+            }
+        }
+        .padding(32)
+        .frame(width: 420, alignment: .topLeading)
+        .background(Color(white: 0.15))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private struct FirstOpenCheckingChat: View {
+    var body: some View {
+        ZStack {
+            ConversationChrome.headerBackdrop
+            VStack(spacing: 0) {
+                snapshotHeader
+                Text("Ask a question about this passage")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 48)
+                Spacer(minLength: 0)
+                SnapshotComposerBar()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+            }
+        }
+        .frame(width: 390, height: 520)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+private func assertLabelledReferenceIsOneLink() throws {
+    let text = "By Proposition 5.3.1, f is continuous exactly when the preimage is open."
+    let match = DetectedReferenceMatch(
+        reference: DetectedReference(kind: .proposition, number: "5.3.1"),
+        range: text.range(of: "Proposition 5.3.1")!
+    )
+    let pieces = InlineReferenceFlow.pieces(in: text, matches: [match])
+    let links = pieces.compactMap { piece -> (String, String)? in
+        if case .link(let label, let suffix, _) = piece { return (label, suffix) }
+        return nil
+    }
+    guard links.count == 1 else {
+        throw SnapshotError("labelled reference split into \(links.count) links")
+    }
+    guard links[0].0 == "Proposition\u{00A0}5.3.1", !links[0].0.contains(" "), links[0].1 == ", " else {
+        throw SnapshotError("citation is \(links[0].0) suffix \(links[0].1)")
+    }
+    let samples = ["Theorem 1.5.3", "Lemma 2", "Definition 4.1", "Corollary 3.2.1", "Equation 1.2", "Section 5"]
+    for sample in samples {
+        let line = "See \(sample), next."
+        let sampleMatch = DetectedReferenceMatch(
+            reference: DetectedReference(kind: .theorem, number: "1"),
+            range: line.range(of: sample)!
+        )
+        let samplePieces = InlineReferenceFlow.pieces(in: line, matches: [sampleMatch])
+        let sampleLinks = samplePieces.compactMap { piece -> String? in
+            if case .link(let label, _, _) = piece { return label }
+            return nil
+        }
+        guard sampleLinks == [sample.replacingOccurrences(of: " ", with: "\u{00A0}")] else {
+            throw SnapshotError("\(sample) split into \(sampleLinks)")
+        }
+    }
+}
+
+private func assertProbeStaysOutOfTheChat() throws {
+    let connector = AssistantConnectorID.antigravity.connector
+    let ready = AskPresentation.make(connector: connector, state: .ready)
+    let states: [ReadinessState] = [.unknown, .checking, .blocked(.notSignedIn(.antigravity))]
+    for state in states {
+        let ask = AskPresentation.make(connector: connector, state: state)
+        guard ask == ready, ask.canAsk, ask.message == nil, ask.buttonTitle == nil else {
+            throw SnapshotError("a probe state is visible in the chat")
+        }
+    }
+    let signedOut = ConnectorStatus.resolved(
+        access: connector.access,
+        name: connector.name,
+        readiness: .blocked(.notSignedIn(.antigravity))
+    )
+    guard !signedOut.allowsSelection,
+          signedOut.menuTitle(name: connector.name) == "Antigravity — Not signed in" else {
+        throw SnapshotError("signed-out Antigravity is not a greyed picker row")
+    }
+    let missing = ConnectorStatus.resolved(
+        access: AssistantConnectorID.codex.connector.access,
+        name: "Codex",
+        readiness: .blocked(.notInstalled(.codex))
+    )
+    guard missing.menuTitle(name: "Codex") == "Codex — Not installed", !missing.allowsSelection else {
+        throw SnapshotError("missing Codex is not a greyed picker row")
+    }
+    let checking = ConnectorStatus.resolved(
+        access: connector.access,
+        name: connector.name,
+        readiness: .checking
+    )
+    guard checking.hint == nil, checking.shortNote == nil, checking.allowsSelection else {
+        throw SnapshotError("checking still publishes a status line")
+    }
+}
+
+/// The quote starts at the card's 12pt padding. The old bar added another
+/// 10pt before the text, so an inset near 20pt means that width is still there.
+private func assertQuoteTextStartsAtThePadding(in url: URL) throws {
+    let bitmap = try Bitmap(url)
+    guard bitmap.quoteBarRuns().isEmpty else {
+        throw SnapshotError("quote bar is back in \(url.lastPathComponent)")
+    }
+    guard let inset = bitmap.quoteTextInset() else {
+        throw SnapshotError("could not measure the quote inset in \(url.lastPathComponent)")
+    }
+    let points = CGFloat(inset) / 2
+    guard points >= 8, points <= 16 else {
+        throw SnapshotError("quote text starts \(String(format: "%.1f", points))pt into the card in \(url.lastPathComponent); the padding is 12pt")
+    }
+    fputs("quote text inset \(String(format: "%.1f", points))pt in \(url.lastPathComponent)\n", stdout)
 }
 
 /// A bright line placed on the subtitle must not survive the header.
@@ -1262,6 +1479,69 @@ private struct Bitmap {
             runs.append(start..<previous + 1)
         }
         return runs
+    }
+
+    /// Lowest row that is not the backdrop. y is from the top.
+    func lowestContentRow(background: (UInt8, UInt8, UInt8)? = nil, slack: Int = 18) -> Int? {
+        let corner = pixel(min(2, width - 1), min(2, height - 1))
+        let bg = background ?? (corner.r, corner.g, corner.b)
+        var lowest: Int?
+        let step = max(1, width / 180)
+        for y in 0..<height {
+            for x in stride(from: 4, to: max(5, width - 4), by: step) {
+                let p = pixel(x, y)
+                if abs(Int(p.r) - Int(bg.0)) > slack
+                    || abs(Int(p.g) - Int(bg.1)) > slack
+                    || abs(Int(p.b) - Int(bg.2)) > slack {
+                    lowest = y
+                    break
+                }
+            }
+        }
+        return lowest
+    }
+
+    /// How far the quote ink starts past the card's left edge, in pixels.
+    func quoteTextInset() -> Int? {
+        let corner = pixel(min(2, width - 1), min(2, height - 1))
+        var bestInset: Int?
+        let step = 2
+        for y in stride(from: 8, to: height - 8, by: step) {
+            var cardLeft: Int?
+            var cardRight = 0
+            var x = 0
+            while x < width {
+                let p = pixel(x, y)
+                if isCardFill(p, background: corner) {
+                    if cardLeft == nil { cardLeft = x }
+                    cardRight = x
+                }
+                x += 1
+            }
+            guard let left = cardLeft, cardRight - left > 80 else { continue }
+            var textX: Int?
+            for x in left...cardRight {
+                let p = pixel(x, y)
+                let luma = (Int(p.r) + Int(p.g) + Int(p.b)) / 3
+                let bg = (Int(corner.r) + Int(corner.g) + Int(corner.b)) / 3
+                if luma > bg + 70 {
+                    textX = x
+                    break
+                }
+            }
+            guard let textX else { continue }
+            let inset = textX - left
+            if bestInset == nil || inset < bestInset! {
+                bestInset = inset
+            }
+        }
+        return bestInset
+    }
+
+    private func isCardFill(_ p: (r: UInt8, g: UInt8, b: UInt8), background: (r: UInt8, g: UInt8, b: UInt8)) -> Bool {
+        let neutral = abs(Int(p.r) - Int(p.g)) < 12 && abs(Int(p.g) - Int(p.b)) < 12
+        let lift = Int(p.r) - Int(background.r)
+        return neutral && lift > 6 && lift < 36
     }
 }
 

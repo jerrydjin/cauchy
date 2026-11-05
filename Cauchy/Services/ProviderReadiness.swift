@@ -1,15 +1,6 @@
 import Foundation
 import Observation
 
-/// Whether a connector and model have passed a real request. `ready` is the
-/// only state that enables the ask box, and it is cached only after success.
-enum ReadinessState: Equatable, Sendable {
-    case unknown
-    case checking
-    case ready
-    case blocked(AssistantFailure)
-}
-
 struct ProbeKey: Hashable, Codable, Sendable {
     var connector: String
     var model: String

@@ -2124,7 +2124,9 @@ private struct ScrolledChipPanel: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 20)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // The tail of the answer sits under the chevron. A button floating
+                // in the empty band below the bubble has nothing for the glass to show.
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
                 JumpToLatestButton()
                     .background {
@@ -2299,8 +2301,10 @@ private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
     // The chevron is the bright mark in the middle. The ring around it is the
     // glass. A flat disc is one colour there; glass carries the answer.
     var foundChevron = false
-    let inner = radius * 0.55
-    let outer = radius * 0.88
+    // Outside the chevron. Its antialiased edge is bright and would pass a
+    // flat disc; the glass itself is the outer ring.
+    let inner = radius * 0.72
+    let outer = radius * 0.90
     var samples: [Int] = []
     let minX = max(0, Int(centerX - radius))
     let maxX = min(bitmap.width - 1, Int(centerX + radius))

@@ -1826,12 +1826,15 @@ private func renderJerry152(to output: URL) throws {
     let stackedURL = output.appendingPathComponent("jerry-152-hover-stacked.png")
     let floatingURL = output.appendingPathComponent("jerry-152-hover-floating.png")
     let transcriptURL = output.appendingPathComponent("jerry-152-hover-transcript.png")
-    try writePNG(HoverCardShot(passage: hoverPassage, kind: .stacked), to: stackedURL, minimumBytes: 2_000)
-    try writePNG(HoverCardShot(passage: hoverPassage, kind: .floating), to: floatingURL, minimumBytes: 2_000)
-    try writePNG(HoverCardShot(passage: hoverPassage, kind: .transcript), to: transcriptURL, minimumBytes: 2_000)
+    // Three places the card actually opens: the composer chip, a chip already
+    // in the transcript, and the chip on a sent message. Same card, different views.
+    try writePNG(ComposerHoverShot(passage: hoverPassage), to: stackedURL, minimumBytes: 2_000)
+    try writePNG(TranscriptHoverShot(passage: hoverPassage), to: floatingURL, minimumBytes: 2_000)
+    try writePNG(SentChipHoverShot(passage: hoverPassage), to: transcriptURL, minimumBytes: 2_000)
     try assertCardIsOneShape(in: stackedURL)
     try assertCardIsOneShape(in: floatingURL)
     try assertCardIsOneShape(in: transcriptURL)
+    try assertDistinctRenders([stackedURL, floatingURL, transcriptURL])
 
     let firstURL = output.appendingPathComponent("jerry-152-first-answer.png")
     try writePNG(FirstLaunchAnswer(), to: firstURL, minimumBytes: 2_000)
@@ -1871,32 +1874,98 @@ private struct CitationLinePair: View {
     }
 }
 
-private enum HoverCardKind {
-    case stacked
-    case floating
-    case transcript
-}
-
-/// The same passage card, opened three ways: above the composer chip, on
-/// hover, and on the sent chip. The card is in the stack in every case.
-private struct HoverCardShot: View {
+/// The card open on the composer chip: filled quote, dismiss control, and the
+/// ask field underneath. This is not the transcript chip.
+private struct ComposerHoverShot: View {
     var passage: PinnedPassage
-    var kind: HoverCardKind
 
     var body: some View {
-        PassageChipView(
-            passage: passage,
-            role: kind == .transcript ? .transcript : .composer,
-            showsHoverCard: kind == .stacked,
-            showsFloatingHoverCard: kind != .stacked,
-            onOpen: {},
-            onDismiss: {}
-        )
+        VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
+            PassageChipView(
+                passage: passage,
+                role: .composer,
+                showsHoverCard: true,
+                onOpen: {},
+                onDismiss: {}
+            )
+            SnapshotComposerBar()
+        }
         .padding(24)
-        .frame(width: 420, alignment: .bottomLeading)
+        .frame(width: 420, alignment: .leading)
         .background(Color(white: 0.15))
         .environment(\.colorScheme, .dark)
     }
+}
+
+/// The card open on a chip that already sits in the thread, with the question
+/// and the reply still on screen. The chip has no fill and no dismiss control.
+private struct TranscriptHoverShot: View {
+    var passage: PinnedPassage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            PassageChipView(
+                passage: passage,
+                role: .transcript,
+                showsHoverCard: true,
+                onOpen: {},
+                onDismiss: {}
+            )
+            Text("Does the discrete metric make every set open?")
+                .font(.body)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18))
+                .frame(maxWidth: 280, alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            Text("Yes. In the discrete metric the open balls are singletons, so every set is a union of open balls.")
+                .font(.body)
+                .foregroundStyle(.primary)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ContentSurface.bubble, in: RoundedRectangle(cornerRadius: 18))
+        }
+        .padding(24)
+        .frame(width: 460, alignment: .leading)
+        .background(Color(white: 0.12))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// The card open on the chip of a message that was just sent. The real
+/// message row: the quote, then the blue question, trailing in the panel.
+private struct SentChipHoverShot: View {
+    var passage: PinnedPassage
+
+    var body: some View {
+        MessageBubble(
+            message: ThreadMessage(
+                role: .user,
+                content: "Is every subset open?",
+                passage: MessagePassage(pageIndex: passage.pageIndex, excerpt: passage.excerpt)
+            ),
+            maxBubbleWidth: 300,
+            showsPassageCard: true
+        )
+        .padding(24)
+        .frame(width: 420, alignment: .trailing)
+        .background(Color(white: 0.1))
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+@MainActor
+private func assertDistinctRenders(_ urls: [URL]) throws {
+    var seen: [Data: String] = [:]
+    for url in urls {
+        let data = try Data(contentsOf: url)
+        if let previous = seen[data] {
+            throw SnapshotError("\(url.lastPathComponent) is the same render as \(previous)")
+        }
+        seen[data] = url.lastPathComponent
+    }
+    fputs("hover cards are three different renders\n", stdout)
 }
 
 /// Cold launch: the index is not ready and the key set is empty. The
@@ -2157,20 +2226,93 @@ private func renderScrolledChip(to url: URL) throws {
     guard !jump.intersects(chip) else {
         throw SnapshotError("jump button overlaps the chip")
     }
-    let rep = windowBitmap(of: hosted.window) ?? cacheBitmap(of: hosted.hosting)
-    guard let rep, bitmapHasInk(rep) else {
-        throw SnapshotError("scrolled chip snapshot is blank")
+    // ImageRenderer and cacheDisplay never composite Liquid Glass: the circle
+    // comes back as a flat disc. screencapture reads the on-screen window,
+    // which is where glassEffect and the text behind it actually appear.
+    try placeOnScreen(hosted.window)
+    pump(0.8)
+    try screenCapture(hosted.window, to: url)
+    try assertGlassShowsTheTextBehind(in: url, jump: jump)
+    let bytes = try Data(contentsOf: url).count
+    guard bytes >= 8_000 else {
+        throw SnapshotError("scrolled chip snapshot is \(bytes) bytes")
     }
-    let factor = rep.pixelsWide < Int(ScrolledChipPanel.panelWidth * 1.5) ? 2 : 1
-    let scaled = try scaleBitmapPixels(rep, by: factor)
-    guard let png = scaled.representation(using: .png, properties: [:]) else {
-        throw SnapshotError("scrolled chip snapshot produced no PNG")
+    fputs("wrote \(url.path) (\(bytes) bytes) jump \(jump) chip \(chip) via screencapture\n", stdout)
+}
+
+/// Puts the panel on the visible display so the window server can draw glass.
+@MainActor
+private func placeOnScreen(_ window: NSWindow) {
+    window.sharingType = .readOnly
+    window.hasShadow = false
+    if let screen = NSScreen.main ?? NSScreen.screens.first {
+        let visible = screen.visibleFrame
+        let frame = window.frame
+        window.setFrameOrigin(NSPoint(
+            x: visible.midX - frame.width / 2,
+            y: visible.midY - frame.height / 2
+        ))
     }
-    guard png.count >= 8_000 else {
-        throw SnapshotError("scrolled chip snapshot is \(png.count) bytes")
+    window.orderFrontRegardless()
+    window.makeKeyAndOrderFront(nil)
+}
+
+/// `screencapture -l` of the live window. A view bitmap cannot stand in for it.
+@MainActor
+private func screenCapture(_ window: NSWindow, to url: URL) throws {
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+    process.arguments = ["-l", "\(window.windowNumber)", "-o", "-x", url.path]
+    let pipe = Pipe()
+    process.standardError = pipe
+    try process.run()
+    process.waitUntilExit()
+    let err = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    guard process.terminationStatus == 0, FileManager.default.fileExists(atPath: url.path) else {
+        throw SnapshotError("screencapture of the live window failed (\(process.terminationStatus)) \(err)")
     }
-    try png.write(to: url)
-    fputs("wrote \(url.path) (\(png.count) bytes) jump \(jump) chip \(chip)\n", stdout)
+}
+
+/// The glass circle must carry the answer behind it. A flat fill has no
+/// variation in the ring around the chevron.
+@MainActor
+private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
+    let bitmap = try Bitmap(url)
+    let scale = CGFloat(bitmap.width) / ScrolledChipPanel.panelWidth
+    guard scale > 0.5 else {
+        throw SnapshotError("screencapture is \(bitmap.width)px wide")
+    }
+    let centerX = jump.midX * scale
+    let centerY = jump.midY * scale
+    let radius = jump.width * scale / 2
+    let inner = radius * 0.42
+    let outer = radius * 0.84
+    var samples: [Int] = []
+    let minX = max(0, Int(centerX - outer))
+    let maxX = min(bitmap.width - 1, Int(centerX + outer))
+    let minY = max(0, Int(centerY - outer))
+    let maxY = min(bitmap.height - 1, Int(centerY + outer))
+    for y in minY...maxY {
+        for x in minX...maxX {
+            let dx = CGFloat(x) - centerX
+            let dy = CGFloat(y) - centerY
+            let distance = (dx * dx + dy * dy).squareRoot()
+            if distance > inner, distance < outer {
+                let pixel = bitmap.pixel(x, y)
+                samples.append(Int(pixel.r) + Int(pixel.g) + Int(pixel.b))
+            }
+        }
+    }
+    guard samples.count > 20 else {
+        throw SnapshotError("glass circle was not in the screencapture (\(samples.count) samples)")
+    }
+    let mean = samples.reduce(0, +) / samples.count
+    let variance = samples.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / samples.count
+    fputs("glass ring mean \(mean) variance \(variance) over \(samples.count) samples\n", stdout)
+    guard variance > 36 else {
+        throw SnapshotError("the chevron is a flat disc (ring variance \(variance)); glass is not showing the text behind it")
+    }
 }
 
 @MainActor

@@ -17,6 +17,9 @@ struct MessageBubble: View {
     /// The snapshot shows the pills at rest. A live answer fades them in
     /// after the text is committed, without changing the bubble's height.
     var followUpsStartVisible = false
+    /// The snapshot opens the passage card on a sent message. A live chip
+    /// opens the same card on hover.
+    var showsPassageCard = false
     var onAskFollowUp: (String) -> Void = { _ in }
 
     private var isUser: Bool {
@@ -49,6 +52,7 @@ struct MessageBubble: View {
                     PassageChipView(
                         passage: passage.pinned,
                         role: .transcript,
+                        showsHoverCard: showsPassageCard,
                         onOpen: {}
                     )
                 }

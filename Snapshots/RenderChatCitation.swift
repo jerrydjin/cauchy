@@ -569,12 +569,14 @@ private func assertChipHugsItsText(in url: URL, panelHeight: CGFloat, allowsCard
     guard let titleY else {
         throw SnapshotError("could not find the header title in \(url.lastPathComponent)")
     }
-    guard let contentY = bitmap.lowestContentRow() else {
+    guard let range = bitmap.contentYRange() else {
         throw SnapshotError("empty panel in \(url.lastPathComponent)")
     }
-    let gap = abs(contentY - titleY)
+    // Row numbers grow either up or down depending on the bitmap, so the pin
+    // is the content farthest from the title, not the larger row number.
+    let gap = max(abs(range.lowerBound - titleY), abs(range.upperBound - titleY))
     guard gap > bitmap.height / 3 else {
-        throw SnapshotError("chip content is \(gap)px from the title in \(url.lastPathComponent); it is not pinned above the composer")
+        throw SnapshotError("chip content spans \(range) and is \(gap)px from the title in \(url.lastPathComponent); it is not pinned above the composer")
     }
     try assertChipHugsWhenOfferedSpareHeight(showsHoverCard: allowsCardBar)
     fputs("chip hugs content in \(url.lastPathComponent) (panel \(Int(panelHeight))pt)\n", stdout)
@@ -599,10 +601,10 @@ private func assertChipHugsWhenOfferedSpareHeight(showsHoverCard: Bool) throws {
         throw SnapshotError("chip hug probe produced no image")
     }
     let bitmap = try Bitmap(rep)
-    guard let lowest = bitmap.lowestContentRow(background: (38, 38, 38), slack: 12) else {
+    guard let range = bitmap.contentYRange(slack: 10) else {
         throw SnapshotError("chip hug probe drew nothing")
     }
-    let points = CGFloat(lowest) / 2
+    let points = CGFloat(range.upperBound - range.lowerBound) / 2
     let limit: CGFloat = showsHoverCard ? 280 : 120
     guard points < limit else {
         throw SnapshotError("chip is \(Int(points))pt tall when offered 600pt")
@@ -1482,11 +1484,12 @@ private struct Bitmap {
         return runs
     }
 
-    /// Lowest row that is not the backdrop. y is from the top.
-    func lowestContentRow(background: (UInt8, UInt8, UInt8)? = nil, slack: Int = 18) -> Int? {
-        let corner = pixel(min(2, width - 1), min(2, height - 1))
-        let bg = background ?? (corner.r, corner.g, corner.b)
-        var lowest: Int?
+    /// Rows that are not the backdrop. The ends are the content, whichever
+    /// way the bitmap numbers its rows.
+    func contentYRange(background: (UInt8, UInt8, UInt8)? = nil, slack: Int = 18) -> ClosedRange<Int>? {
+        let bg = background ?? backdrop()
+        var minY: Int?
+        var maxY = 0
         let step = max(1, width / 180)
         for y in 0..<height {
             for x in stride(from: 4, to: max(5, width - 4), by: step) {
@@ -1494,12 +1497,29 @@ private struct Bitmap {
                 if abs(Int(p.r) - Int(bg.0)) > slack
                     || abs(Int(p.g) - Int(bg.1)) > slack
                     || abs(Int(p.b) - Int(bg.2)) > slack {
-                    lowest = y
+                    if minY == nil { minY = y }
+                    maxY = y
                     break
                 }
             }
         }
-        return lowest
+        guard let minY else { return nil }
+        return minY...maxY
+    }
+
+    /// The colour that covers most of the image. A corner can be the chip.
+    private func backdrop() -> (UInt8, UInt8, UInt8) {
+        var counts: [Int: Int] = [:]
+        let step = max(1, width / 40)
+        for y in stride(from: 0, to: height, by: step) {
+            for x in stride(from: 0, to: width, by: step) {
+                let p = pixel(x, y)
+                let key = (Int(p.r) / 8) << 16 | (Int(p.g) / 8) << 8 | (Int(p.b) / 8)
+                counts[key, default: 0] += 1
+            }
+        }
+        let key = counts.max { $0.value < $1.value }?.key ?? 0
+        return (UInt8((key >> 16) * 8 + 4), UInt8(((key >> 8) & 0xff) * 8 + 4), UInt8((key & 0xff) * 8 + 4))
     }
 
     /// How far the quote ink starts past the card's left edge, in pixels.

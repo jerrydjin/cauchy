@@ -1827,7 +1827,14 @@ private func renderJerry152(to output: URL) throws {
     let floatingURL = output.appendingPathComponent("jerry-152-hover-floating.png")
     let transcriptURL = output.appendingPathComponent("jerry-152-hover-transcript.png")
     try writePNG(HoverCardShot(passage: hoverPassage, kind: .stacked), to: stackedURL, minimumBytes: 2_000)
-    try writePNG(HoverCardShot(passage: hoverPassage, kind: .floating), to: floatingURL, minimumBytes: 2_000)
+    // ImageRenderer ignores the alignment guide that lifts the card off the
+    // chip, so the floating shot is taken from a real window.
+    try writeHostedPNG(
+        HoverCardShot(passage: hoverPassage, kind: .floating),
+        to: floatingURL,
+        size: NSSize(width: HoverCardShot.floatingWidth, height: HoverCardShot.floatingHeight),
+        minimumBytes: 2_000
+    )
     try writePNG(HoverCardShot(passage: hoverPassage, kind: .transcript), to: transcriptURL, minimumBytes: 2_000)
     try assertCardIsOneShape(in: stackedURL)
     try assertCardIsOneShape(in: floatingURL)
@@ -1884,6 +1891,9 @@ private enum HoverCardKind {
 /// and ImageRenderer clips that overlay at the chip's top edge, so this shot
 /// puts the card in the stack. It is the same `PassageQuoteCard` the hover shows.
 private struct HoverCardShot: View {
+    static let floatingWidth: CGFloat = 420
+    static let floatingHeight: CGFloat = 340
+
     var passage: PinnedPassage
     var kind: HoverCardKind
 
@@ -1898,10 +1908,39 @@ private struct HoverCardShot: View {
         )
         .padding(.top, kind == .floating ? 180 : 24)
         .padding(24)
-        .frame(width: 420, alignment: .bottomLeading)
+        .frame(
+            width: Self.floatingWidth,
+            height: kind == .floating ? Self.floatingHeight : nil,
+            alignment: .bottomLeading
+        )
         .background(Color(white: 0.15))
         .environment(\.colorScheme, .dark)
     }
+}
+
+/// A window capture. ImageRenderer drops the alignment guide that holds the
+/// hover card above the chip, so the floating card is photographed here.
+@MainActor
+private func writeHostedPNG<V: View>(_ view: V, to url: URL, size: NSSize, minimumBytes: Int) throws {
+    if !NSApp.isRunning {
+        NSApp.finishLaunching()
+    }
+    let policy = NSApp.activationPolicy()
+    NSApp.setActivationPolicy(.accessory)
+    defer { NSApp.setActivationPolicy(policy) }
+    let hosted = try HostedPanel(root: view, size: size)
+    defer { hosted.window.close() }
+    pump(0.35)
+    let rep = try bitmap(of: hosted.hosting, scale: 2)
+    guard let png = rep.representation(using: .png, properties: [:]) else {
+        throw SnapshotError("hosted snapshot produced no PNG")
+    }
+    guard png.count >= minimumBytes, rep.pixelsWide > 80, rep.pixelsHigh > 80 else {
+        throw SnapshotError("hosted snapshot is \(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh)")
+    }
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try png.write(to: url)
+    fputs("wrote \(url.path) (\(png.count) bytes, \(rep.pixelsWide)x\(rep.pixelsHigh))\n", stdout)
 }
 
 /// Cold launch: the index is not ready and the key set is empty. The

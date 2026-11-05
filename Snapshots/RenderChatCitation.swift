@@ -2224,11 +2224,12 @@ private func renderScrolledChip(to url: URL) throws {
     guard !jump.intersects(chip) else {
         throw SnapshotError("jump button overlaps the chip")
     }
-    // ImageRenderer and cacheDisplay never composite Liquid Glass: the circle
-    // comes back as a flat disc. screencapture reads the on-screen window,
-    // which is where glassEffect and the text behind it actually appear.
+    // ImageRenderer, cacheDisplay, and `screencapture -l` all read the window
+    // buffer. Liquid Glass is composited later, so those captures are a flat
+    // disc. The screen rectangle is the framebuffer, which has the glass and
+    // the answer showing through it.
     try placeOnScreen(hosted.window)
-    pump(0.8)
+    pump(1.2)
     try screenCapture(hosted.window, to: url)
     try assertGlassShowsTheTextBehind(in: url, jump: jump)
     let bytes = try Data(contentsOf: url).count
@@ -2243,6 +2244,7 @@ private func renderScrolledChip(to url: URL) throws {
 private func placeOnScreen(_ window: NSWindow) {
     window.sharingType = .readOnly
     window.hasShadow = false
+    window.level = .floating
     if let screen = NSScreen.main ?? NSScreen.screens.first {
         let visible = screen.visibleFrame
         let frame = window.frame
@@ -2255,21 +2257,31 @@ private func placeOnScreen(_ window: NSWindow) {
     window.makeKeyAndOrderFront(nil)
 }
 
-/// `screencapture -l` of the live window. A view bitmap cannot stand in for it.
+/// `screencapture -R` of the window's on-screen rectangle. `-l` misses glass.
 @MainActor
 private func screenCapture(_ window: NSWindow, to url: URL) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    guard let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else {
+        throw SnapshotError("the glass panel is not on a screen")
+    }
+    let frame = window.frame
+    let screenFrame = screen.frame
+    let x = Int((frame.minX - screenFrame.minX).rounded())
+    let y = Int((screenFrame.maxY - frame.maxY).rounded())
+    let width = Int(frame.width.rounded())
+    let height = Int(frame.height.rounded())
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-    process.arguments = ["-l", "\(window.windowNumber)", "-o", "-x", url.path]
+    process.arguments = ["-R", "\(x),\(y),\(width),\(height)", "-x", url.path]
     let pipe = Pipe()
     process.standardError = pipe
     try process.run()
     process.waitUntilExit()
     let err = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     guard process.terminationStatus == 0, FileManager.default.fileExists(atPath: url.path) else {
-        throw SnapshotError("screencapture of the live window failed (\(process.terminationStatus)) \(err)")
+        throw SnapshotError("screencapture of the on-screen panel failed (\(process.terminationStatus)) \(err)")
     }
+    fputs("screencapture -R \(x),\(y),\(width),\(height)\n", stdout)
 }
 
 /// The glass circle must carry the answer behind it. A flat fill has no
@@ -2284,23 +2296,31 @@ private func assertGlassShowsTheTextBehind(in url: URL, jump: CGRect) throws {
     let centerX = jump.midX * scale
     let centerY = jump.midY * scale
     let radius = jump.width * scale / 2
-    let inner = radius * 0.42
-    let outer = radius * 0.84
+    // The chevron is the bright mark in the middle. The ring around it is the
+    // glass. A flat disc is one colour there; glass carries the answer.
+    var foundChevron = false
+    let inner = radius * 0.55
+    let outer = radius * 0.88
     var samples: [Int] = []
-    let minX = max(0, Int(centerX - outer))
-    let maxX = min(bitmap.width - 1, Int(centerX + outer))
-    let minY = max(0, Int(centerY - outer))
-    let maxY = min(bitmap.height - 1, Int(centerY + outer))
+    let minX = max(0, Int(centerX - radius))
+    let maxX = min(bitmap.width - 1, Int(centerX + radius))
+    let minY = max(0, Int(centerY - radius))
+    let maxY = min(bitmap.height - 1, Int(centerY + radius))
     for y in minY...maxY {
         for x in minX...maxX {
             let dx = CGFloat(x) - centerX
             let dy = CGFloat(y) - centerY
             let distance = (dx * dx + dy * dy).squareRoot()
-            if distance > inner, distance < outer {
-                let pixel = bitmap.pixel(x, y)
-                samples.append(Int(pixel.r) + Int(pixel.g) + Int(pixel.b))
+            let pixel = bitmap.pixel(x, y)
+            let sum = Int(pixel.r) + Int(pixel.g) + Int(pixel.b)
+            if distance < radius * 0.35, sum > 400 { foundChevron = true }
+            if distance > inner, distance < outer, sum < 400 {
+                samples.append(sum)
             }
         }
+    }
+    guard foundChevron else {
+        throw SnapshotError("screencapture does not show the chevron at \(jump)")
     }
     guard samples.count > 20 else {
         throw SnapshotError("glass circle was not in the screencapture (\(samples.count) samples)")

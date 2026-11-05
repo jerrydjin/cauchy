@@ -24,16 +24,15 @@ enum PassageChipRole {
 }
 
 /// The quote. No page number, no icon, no rule. Hovering either chip opens
-/// the full passage as the same card. There is no popover: the system popover
-/// drew an arrow and a second plate, and that arrow landed as a thin bar above
-/// the card whenever the anchor flipped to the top edge.
+/// the full passage as the same card, in the stack above the chip. There is
+/// no popover: the system popover drew an arrow and a second plate, and that
+/// arrow landed as a thin bar above the card whenever the anchor flipped.
 struct PassageChipView: View {
     var passage: PinnedPassage
     var role: PassageChipRole
     /// The designer snapshot paints the card in the stack above the chip.
     var showsHoverCard = false
-    /// The live hover, forced on for a snapshot. The card floats above the
-    /// chip and does not push the composer.
+    /// Snapshot of the hover. The card is the same stack as `showsHoverCard`.
     var showsFloatingHoverCard = false
     var onOpen: () -> Void
     var onDismiss: () -> Void = {}
@@ -60,30 +59,21 @@ struct PassageChipView: View {
         PinnedPassage.singleLine(passage.excerpt)
     }
 
-    private var showsFloatingCard: Bool {
-        showsFloatingHoverCard || (isHovering && !showsHoverCard)
+    private var showsCard: Bool {
+        showsHoverCard || showsFloatingHoverCard || isHovering
     }
 
     var body: some View {
+        // The card is in the stack, above the chip, with the same gap the
+        // chip uses. An overlay aligned by a guide stayed on the chip: the
+        // card and the quote drew as one shape, and the old popover's arrow
+        // had been a bar above that. Hovering the card does not dismiss it,
+        // because the card is inside this view.
         VStack(alignment: .leading, spacing: ConversationChrome.passageChipComposerSpacing) {
-            if showsHoverCard {
+            if showsCard {
                 PassageQuoteCard(text: passage.excerpt)
             }
             chipRow
-                .overlay(alignment: .top) {
-                    if showsFloatingCard {
-                        VStack(spacing: 0) {
-                            PassageQuoteCard(text: passage.excerpt)
-                            // The gap is part of the hover, so moving onto the
-                            // card does not dismiss it. It is not a second shape.
-                            Color.clear.frame(height: ConversationChrome.passageChipComposerSpacing)
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .alignmentGuide(.top) { dimensions in
-                            dimensions[.bottom]
-                        }
-                    }
-                }
         }
         // Hug the quote. A parent that proposes the panel's spare height
         // must not stretch the card. The frame keeps the card as wide as the composer.

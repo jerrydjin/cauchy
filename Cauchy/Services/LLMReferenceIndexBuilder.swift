@@ -423,6 +423,19 @@ enum LLMReferenceIndexSupport {
                 return true
             }
 
+            // A bare number alone on a line is still not an equation when the
+            // text layer split a subscript ("E[R" / "(1)" / "x") or wrapped a
+            // list item ("I." / "(2)" / "R√"). A formula on the next line stays.
+            if bareOwnLineIsFragment(
+                number: match.reference.number,
+                labelX: labelX,
+                sourceText: sourceText,
+                matchStart: match.range.lowerBound,
+                matchEnd: match.range.upperBound
+            ) {
+                return false
+            }
+
             let displayStart = sourceText.index(
                 match.range.lowerBound,
                 offsetBy: -600,
@@ -503,6 +516,98 @@ enum LLMReferenceIndexSupport {
         guard operators.contains(where: { prefix.contains($0) }) else { return false }
         let words = prefix.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
         return words.count <= 2
+    }
+
+    /// A bare number alone on a line is a split subscript or a wrapped list item.
+    ///
+    /// The formula on the next line is what makes "(1)" an equation. A subscript
+    /// broken as "E[R" / "(1)" / "x (Zd)", "(0)" under a one-digit line, or a
+    /// left-margin "(2)" whose next line is a symbol fragment, is not a tag.
+    /// A tag such as "(14)" can sit under a one-digit integral limit, so only
+    /// zero is rejected for that shape. The scorecard port uses the same tests.
+    private static func bareOwnLineIsFragment(
+        number: String,
+        labelX: Double?,
+        sourceText: String,
+        matchStart: String.Index,
+        matchEnd: String.Index
+    ) -> Bool {
+        if followingLineIsDisplay(sourceText, after: matchEnd) {
+            return false
+        }
+        let previous = nonemptyLineBefore(sourceText, index: matchStart)
+        let following = nonemptyLineAfter(sourceText, index: matchEnd)
+        if let last = previous.last, last.isLetter, !following.isEmpty,
+           lastAsciiLetterRunLength(previous) == 1, isIndexToken(following) {
+            return true
+        }
+        // "(0)" under a one-digit line is the other half of a subscript.
+        if number == "0", previous.count == 1, let digit = previous.first,
+           digit >= "0", digit <= "9" {
+            return true
+        }
+        let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+        if let labelX, labelX < 0.4,
+           previous.last == "." || previous.last == "?" || previous.last == "!",
+           !following.isEmpty,
+           let first = following.first, first != "(", first != "[", first != "{",
+           !startsWithCapitalWord(following),
+           !operators.contains(where: { following.contains($0) }) {
+            return true
+        }
+        return false
+    }
+
+    /// Length of the last `[A-Za-z]+` run, matching the scorecard port.
+    private static func lastAsciiLetterRunLength(_ line: String) -> Int {
+        var current = 0
+        var last = 0
+        for character in line {
+            let asciiLetter = (character >= "a" && character <= "z") || (character >= "A" && character <= "Z")
+            if asciiLetter {
+                current += 1
+                last = current
+            } else {
+                current = 0
+            }
+        }
+        return last
+    }
+
+    /// "x (Zd)", "n+1", or "i ,": one index letter, not a word.
+    private static func isIndexToken(_ following: String) -> Bool {
+        guard let first = following.first else { return false }
+        let indexLetter = (first >= "a" && first <= "z") || first == "ℓ"
+        guard indexLetter else { return false }
+        guard let second = following.dropFirst().first else { return true }
+        let asciiLetter = (second >= "a" && second <= "z") || (second >= "A" && second <= "Z")
+        return !asciiLetter
+    }
+
+    /// `[A-Z][A-Za-z]`, so "This" is a sentence and "Q + 1" is a symbol fragment.
+    private static func startsWithCapitalWord(_ following: String) -> Bool {
+        guard let first = following.first, first >= "A", first <= "Z" else { return false }
+        guard let second = following.dropFirst().first else { return false }
+        return (second >= "a" && second <= "z") || (second >= "A" && second <= "Z")
+    }
+
+    private static func nonemptyLineBefore(_ text: String, index: String.Index) -> String {
+        let prefix = text[..<index]
+        for line in prefix.split(separator: "\n", omittingEmptySubsequences: false).reversed() {
+            let stripped = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !stripped.isEmpty { return stripped }
+        }
+        return ""
+    }
+
+    private static func nonemptyLineAfter(_ text: String, index: String.Index) -> String {
+        let rest = text[index...]
+        let lines = rest.split(separator: "\n", omittingEmptySubsequences: false)
+        for line in lines.dropFirst().prefix(4) {
+            let stripped = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !stripped.isEmpty { return stripped }
+        }
+        return ""
     }
 
     /// The next non-empty line after an own-line equation number is a display

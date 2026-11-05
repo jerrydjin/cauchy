@@ -353,6 +353,52 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("4", numbers)
         self.assertIn("5", numbers)
 
+    def test_bare_own_line_fragments_are_not_equations(self) -> None:
+        # Synthetic. A split subscript, "(0)" under a one-digit line, and a
+        # left-margin wrapped item are not tags. A formula on the next line,
+        # a dotted tag, and "(14)" under a one-digit limit stay.
+        page = "\n".join([
+            "Set f = g before the split.",
+            "The expectation of the kernel E[R",
+            "(1)",
+            "x is at most one, which the hypothesis requires.",
+            "L = a + b",
+            "(2)",
+            "where both terms are positive.",
+            "The map sends each point to E",
+            "0",
+            "(0)",
+            "decreases with the energy, as required.",
+            "(3)",
+            "xn = yn + 1",
+            "An ideal containing I.",
+            "(4)",
+            "Q + 1",
+            "The integral equals f = g.",
+            "1",
+            "(14)",
+            "the bound continues below.",
+            "The kernel E[R",
+            "(8)",
+            "x = y + z",
+            "(1.4)",
+        ])
+        positions = {page.index("(4)"): 0.16}
+        numbers = [item.number for item in declaration_matches(page, positions)]
+        self.assertNotIn("1", numbers)
+        self.assertNotIn("0", numbers)
+        self.assertNotIn("4", numbers)
+        self.assertIn("2", numbers)
+        self.assertIn("3", numbers)
+        self.assertIn("8", numbers)
+        self.assertIn("14", numbers)
+        self.assertIn("1.4", numbers)
+
+        unpositioned = [item.number for item in declaration_matches(page)]
+        self.assertNotIn("1", unpositioned)
+        self.assertNotIn("0", unpositioned)
+        self.assertIn("4", unpositioned)
+
     def test_prose_sentence_does_not_declare_a_bare_equation(self) -> None:
         page = "\n".join([
             "Proof. By construction f = g, so the equivalence between (1) follows at once.",

@@ -1878,7 +1878,11 @@ private enum HoverCardKind {
 }
 
 /// The same passage card, opened three ways: stacked above the composer chip,
-/// floating on hover, and floating on the sent chip.
+/// floating on the composer chip, and open on the sent chip.
+///
+/// The sent chip is only two lines tall. Its live card floats in an overlay,
+/// and ImageRenderer clips that overlay at the chip's top edge, so this shot
+/// puts the card in the stack. It is the same `PassageQuoteCard` the hover shows.
 private struct HoverCardShot: View {
     var passage: PinnedPassage
     var kind: HoverCardKind
@@ -1887,12 +1891,12 @@ private struct HoverCardShot: View {
         PassageChipView(
             passage: passage,
             role: kind == .transcript ? .transcript : .composer,
-            showsHoverCard: kind == .stacked,
-            showsFloatingHoverCard: kind != .stacked,
+            showsHoverCard: kind != .floating,
+            showsFloatingHoverCard: kind == .floating,
             onOpen: {},
             onDismiss: {}
         )
-        .padding(.top, kind == .stacked ? 24 : 180)
+        .padding(.top, kind == .floating ? 180 : 24)
         .padding(24)
         .frame(width: 420, alignment: .bottomLeading)
         .background(Color(white: 0.15))
@@ -2012,7 +2016,10 @@ private func assertCardIsOneShape(in url: URL) throws {
         }
     }
     guard let cardTop, cardTop > 4 else {
-        throw SnapshotError("hover card did not draw in \(url.lastPathComponent)")
+        let sample = bitmap.pixel(min(12, bitmap.width - 1), min(12, bitmap.height - 1))
+        throw SnapshotError(
+            "hover card did not draw in \(url.lastPathComponent) (\(bitmap.width)x\(bitmap.height), cardTop \(cardTop.map(String.init) ?? "none"), sample \(sample))"
+        )
     }
     var ruleRows: [Int] = []
     for y in max(0, cardTop - 10)..<cardTop {

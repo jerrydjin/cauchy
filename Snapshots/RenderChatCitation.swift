@@ -558,6 +558,7 @@ private var snapshotHeader: some View {
 
 /// The chip hugs its text and sits down by the composer. A card that takes
 /// the panel's spare height fails here. The blue quote bar is gone.
+@MainActor
 private func assertChipHugsItsText(in url: URL, panelHeight: CGFloat, allowsCardBar: Bool = false) throws {
     let bitmap = try Bitmap(url)
     let runs = bitmap.quoteBarRuns()

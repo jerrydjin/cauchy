@@ -7,6 +7,9 @@ struct MessageBubble: View {
     var maxBubbleWidth: CGFloat = 300
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
     var referenceKeys: Set<ReferenceKey> = []
+    /// False on the first paint of a cold launch, before the reference index
+    /// has loaded. References are still links; see `presentedReferences`.
+    var referenceIndexReady = true
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     /// Grounded next questions. Empty while an answer is still streaming, and
     /// empty when the document does not support a real next step.
@@ -112,6 +115,7 @@ struct MessageBubble: View {
                         font: .body,
                         textColor: .primary,
                         referenceKeys: referenceKeys,
+                        referenceIndexReady: referenceIndexReady,
                         onOpenReference: onOpenReference
                     )
                 }
@@ -122,6 +126,7 @@ struct MessageBubble: View {
                 font: .body,
                 textColor: .primary,
                 referenceKeys: referenceKeys,
+                referenceIndexReady: referenceIndexReady,
                 onOpenReference: onOpenReference,
                 interpretsSourceMarkers: !isUser,
                 sourceAnchors: message.answerEvidence?.sourceAnchors ?? [],

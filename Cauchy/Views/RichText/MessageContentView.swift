@@ -7,8 +7,11 @@ struct MessageContentView: View {
     /// Chat keeps code and failed math in a monospace chip. The reference
     /// card turns this off so a broken span stays in the body font.
     var allowsMonospace = true
-    /// Results that exist in the open document. Empty leaves every citation as prose.
+    /// Results that exist in the open document. Empty leaves every citation as prose
+    /// once the index has loaded. While it is still loading, detected references
+    /// are links on the first paint.
     var referenceKeys: Set<ReferenceKey> = []
+    var referenceIndexReady = true
     var onOpenReference: (DetectedReference) -> Void = { _ in }
     /// Assistant replies only. `[R1]` becomes a page tag at the end of its claim.
     var interpretsSourceMarkers: Bool = false
@@ -16,8 +19,11 @@ struct MessageContentView: View {
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
 
     private var usesCitationLayout: Bool {
-        let hasLink = !referenceKeys.isEmpty
-            && !AssistantResponseValidator.linkableReferences(in: content, known: referenceKeys).isEmpty
+        let hasLink = !AssistantResponseValidator.presentedReferences(
+            in: content,
+            known: referenceKeys,
+            indexReady: referenceIndexReady
+        ).isEmpty
         let hasMarker = interpretsSourceMarkers && AnswerSourceMarkers.containsMarker(in: content)
         return hasLink || hasMarker
     }
@@ -210,6 +216,7 @@ struct MessageContentView: View {
                 font: font,
                 textColor: textColor,
                 knownKeys: referenceKeys,
+                referenceIndexReady: referenceIndexReady,
                 chips: line.chips,
                 sourceAnchors: sourceAnchors,
                 onOpenReference: onOpenReference,
@@ -240,6 +247,7 @@ struct MessageContentView: View {
                 font: font,
                 textColor: textColor,
                 knownKeys: referenceKeys,
+                referenceIndexReady: referenceIndexReady,
                 chips: chips,
                 sourceAnchors: sourceAnchors,
                 onOpenReference: onOpenReference,
@@ -280,7 +288,11 @@ struct MessageContentView: View {
     private func citedTokens(from segments: [MessageSegment]) -> [CitedToken] {
         segments.flatMap { segment -> [CitedToken] in
             guard case .text(let value) = segment else { return [.segment(segment)] }
-            let matches = AssistantResponseValidator.linkableReferences(in: value, known: referenceKeys)
+            let matches = AssistantResponseValidator.presentedReferences(
+                in: value,
+                known: referenceKeys,
+                indexReady: referenceIndexReady
+            )
             return InlineReferenceFlow.pieces(in: value, matches: matches).map { piece in
                 switch piece {
                 case .text(let text): return .text(text)

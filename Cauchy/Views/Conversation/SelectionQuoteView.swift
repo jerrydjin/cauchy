@@ -24,13 +24,17 @@ enum PassageChipRole {
 }
 
 /// The quote. No page number, no icon, no rule. Hovering either chip opens
-/// the full passage.
+/// the full passage as the same card. There is no popover: the system popover
+/// drew an arrow and a second plate, and that arrow landed as a thin bar above
+/// the card whenever the anchor flipped to the top edge.
 struct PassageChipView: View {
     var passage: PinnedPassage
     var role: PassageChipRole
-    /// The designer snapshot paints the hover card in the layout. Live hover
-    /// uses a popover, which ImageRenderer does not draw.
+    /// The designer snapshot paints the card in the stack above the chip.
     var showsHoverCard = false
+    /// The live hover, forced on for a snapshot. The card floats above the
+    /// chip and does not push the composer.
+    var showsFloatingHoverCard = false
     var onOpen: () -> Void
     var onDismiss: () -> Void = {}
 
@@ -40,12 +44,14 @@ struct PassageChipView: View {
         passage: PinnedPassage,
         role: PassageChipRole,
         showsHoverCard: Bool = false,
+        showsFloatingHoverCard: Bool = false,
         onOpen: @escaping () -> Void,
         onDismiss: @escaping () -> Void = {}
     ) {
         self.passage = passage
         self.role = role
         self.showsHoverCard = showsHoverCard
+        self.showsFloatingHoverCard = showsFloatingHoverCard
         self.onOpen = onOpen
         self.onDismiss = onDismiss
     }
@@ -54,13 +60,8 @@ struct PassageChipView: View {
         PinnedPassage.singleLine(passage.excerpt)
     }
 
-    private var popoverPresented: Binding<Bool> {
-        Binding(
-            get: { isHovering && !showsHoverCard },
-            set: { presented in
-                if !presented { isHovering = false }
-            }
-        )
+    private var showsFloatingCard: Bool {
+        showsFloatingHoverCard || (isHovering && !showsHoverCard)
     }
 
     var body: some View {
@@ -69,18 +70,27 @@ struct PassageChipView: View {
                 PassageQuoteCard(text: passage.excerpt)
             }
             chipRow
+                .overlay(alignment: .top) {
+                    if showsFloatingCard {
+                        VStack(spacing: 0) {
+                            PassageQuoteCard(text: passage.excerpt)
+                            // The gap is part of the hover, so moving onto the
+                            // card does not dismiss it. It is not a second shape.
+                            Color.clear.frame(height: ConversationChrome.passageChipComposerSpacing)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .alignmentGuide(.top) { dimensions in
+                            dimensions[.bottom]
+                        }
+                    }
+                }
         }
-        // Hug the quote. The composer sits in a safe-area bar that proposes
-        // the panel's spare height; without this the card and the bar take it.
-        // The frame keeps the card as wide as the composer.
+        // Hug the quote. A parent that proposes the panel's spare height
+        // must not stretch the card. The frame keeps the card as wide as the composer.
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .onHover { hovering in
             if isHovering != hovering { isHovering = hovering }
-        }
-        .popover(isPresented: popoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-            PassageQuoteCard(text: passage.excerpt)
-                .presentationBackground(ConversationChrome.headerBackdrop)
         }
     }
 
@@ -91,10 +101,7 @@ struct PassageChipView: View {
         if role == .composer {
             chipContents
                 .padding(ConversationChrome.passageChipPadding)
-                .background(
-                    ConversationChrome.passageChipFill,
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
+                .background { PassageChipBackground(cornerRadius: 14) }
         } else {
             chipContents
         }
@@ -151,9 +158,8 @@ struct PassageQuoteCard: View {
             .fixedSize(horizontal: false, vertical: true)
             .padding(ConversationChrome.passageChipPadding)
             .frame(maxWidth: Self.maxWidth, alignment: .leading)
-            .background(
-                ConversationChrome.passageChipFill,
-                in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius, style: .continuous)
-            )
+            .background {
+                PassageChipBackground(cornerRadius: ConversationChrome.bubbleCornerRadius)
+            }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import PDFKit
 
 /// A text-layer citation after the defining statement. This is an observed
@@ -402,7 +403,13 @@ struct ReferenceIndexProvenance: Equatable, Sendable {
 /// LLMReferenceIndexBuilder (which hands over an immutable snapshot), but only
 /// ever read and mutated on the main actor (WorkspaceViewModel, PDFCanvasView
 /// hover detection, ask-time statement retrieval).
+///
+/// Observable so a chat that painted an answer while `entries` was still
+/// empty renders again when the cache lands. Replacing the dictionary inside
+/// this object does not change `WorkspaceViewModel.referenceIndex`'s identity,
+/// and a view that only stored that identity never re-linked the first answer.
 @MainActor
+@Observable
 final class DocumentReferenceIndex {
     private var entries: [ReferenceKey: IndexedReference] = [:]
     private var bodyEmbeddings: [ReferenceKey: [Float]] = [:]

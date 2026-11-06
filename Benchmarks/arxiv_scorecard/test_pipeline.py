@@ -300,6 +300,125 @@ class PrintedNumberTests(unittest.TestCase):
         self.assertIn(("remark", "2.1"), mentioned)
         self.assertIn(("equation", "1.1"), mentioned)
 
+    def test_a_number_only_tag_uses_the_kind_word_in_the_body(self) -> None:
+        # Synthetic. The tag is the counter; "Example" is the first word after it.
+        html = """
+        <div id="S3">
+          <div id="S3.Thmteo16" class="ltx_theorem ltx_theorem_strc">
+            <h6 class="ltx_title ltx_title_theorem">
+              <span class="ltx_tag ltx_tag_theorem">3.16</span>.
+            </h6>
+            <p>Example. For the bounded case the lattice is a chain.</p>
+          </div>
+        </div>
+        """
+        truth = parse_html(html)
+        self.assertEqual(
+            [(item.kind, item.number) for item in truth.declarations],
+            [("example", "3.16")],
+        )
+
+    def test_a_class_kind_and_ligature_use_the_printed_section_number(self) -> None:
+        # Synthetic. The tag is "1" and the class says definition. The PDF
+        # prints the ligature "Deﬁnition 2.1", which is what the reader indexes.
+        html = """
+        <section id="S2">
+          <div id="Thmproposition1" class="ltx_theorem ltx_theorem_definition">
+            <span class="ltx_tag ltx_tag_theorem">1</span>.
+            <p>A decorated representation of a knot.</p>
+          </div>
+          <div id="Thmproposition2" class="ltx_theorem ltx_theorem_lemma">
+            <span class="ltx_tag ltx_tag_theorem">2</span>.
+            <p>Let the diagram be open.</p>
+          </div>
+        </section>
+        <p>By <a class="ltx_ref" href="#Thmproposition1" title="Definition 1">1</a>.</p>
+        """
+        truth = parse_html(html)
+        use_printed_numbers(
+            truth,
+            "De\ufb01nition 2.1. A decorated representation of a knot.\n"
+            "Lemma 2.2. Let the diagram be open.",
+        )
+        self.assertEqual(
+            [(item.kind, item.number) for item in truth.declarations],
+            [("definition", "2.1"), ("lemma", "2.2")],
+        )
+        self.assertIn(("definition", "2.1"), {(item.kind, item.number) for item in truth.mentions})
+
+    def test_a_local_counter_is_not_restarted_and_a_citation_is_not_the_label(self) -> None:
+        # Synthetic. Section 2's HTML numbers are already the local index.
+        # "[31, Proposition 6]" is a citation, not proof that the paper prints
+        # a bare Proposition 6.
+        html = """
+        <div id="S2">
+          <div id="Thmtheorem2" class="ltx_theorem">
+            <span class="ltx_tag ltx_tag_theorem">Definition 2.</span>
+          </div>
+          <div id="Thmtheorem3" class="ltx_theorem">
+            <span class="ltx_tag ltx_tag_theorem">Remark 3.</span>
+          </div>
+          <div id="Thmtheorem6" class="ltx_theorem">
+            <span class="ltx_tag ltx_tag_theorem">Proposition 6.</span>
+          </div>
+        </div>
+        <p>See <a class="ltx_ref" href="#Thmtheorem2" title="Definition 2">2</a>.</p>
+        """
+        truth = parse_html(html)
+        use_printed_numbers(
+            truth,
+            "Definition 2.2. A system is admissible.\n"
+            "Remarks 2.3. (a) Let tau be positive.\n"
+            "Proposition 2.6. In Setting 2.1 the operator is bounded.\n"
+            "The proof of [31, Proposition 6] adapts.\n",
+        )
+        self.assertEqual(
+            [(item.kind, item.number) for item in truth.declarations],
+            [("definition", "2.2"), ("remark", "2.3"), ("proposition", "2.6")],
+        )
+        self.assertIn(("definition", "2.2"), {(item.kind, item.number) for item in truth.mentions})
+
+    def test_a_line_start_bare_theorem_stays_bare(self) -> None:
+        # Synthetic. "Theorem 1." is the printed statement. The definition in
+        # the same section uses the restarted section number.
+        html = """
+        <div id="S3">
+          <div id="Thmproposition13" class="ltx_theorem ltx_theorem_definition">
+            <span class="ltx_tag ltx_tag_theorem">13</span>
+            <p>We call this the action.</p>
+          </div>
+          <div id="Thmbigtheorem1" class="ltx_theorem">
+            <span class="ltx_tag ltx_tag_theorem">Theorem 1.</span>
+            <p>Under the hypotheses the sum converges.</p>
+          </div>
+        </div>
+        """
+        truth = parse_html(html)
+        use_printed_numbers(
+            truth,
+            "Definition 3.1. We call this the action.\n"
+            "Theorem 1. Under the hypotheses the sum converges.\n",
+        )
+        self.assertEqual(
+            {(item.kind, item.number) for item in truth.declarations},
+            {("definition", "3.1"), ("theorem", "1")},
+        )
+
+    def test_a_real_bare_definition_is_not_renumbered(self) -> None:
+        html = """
+        <div id="S2">
+          <div id="Thmtheorem1" class="ltx_theorem">
+            <span class="ltx_tag ltx_tag_theorem">Definition 1.</span>
+          </div>
+        </div>
+        """
+        truth = parse_html(html)
+        use_printed_numbers(truth, "Definition 1. A set is finite when it is not infinite.\n")
+        self.assertEqual(
+            [(item.kind, item.number) for item in truth.declarations],
+            [("definition", "1")],
+        )
+
     def test_figure_and_table_anchors_are_not_sections(self) -> None:
         # Synthetic. A float's id hangs off a section (#S2.F1, #S4.T2) and the
         # link text is the float number. A subsubsection id is still a section.

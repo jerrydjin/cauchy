@@ -756,7 +756,10 @@ def _write_markdown(payload: dict) -> None:
         "or else a title-shaped line. A numbered sentence is not that heading. "
         "An outline bookmark that reads “Introduction” rather than “1. Introduction” is still section 1 when it is the first section bookmark. "
         "A citation bracket may be split by a line break, as in “[17, Theorem 3.31(c)]”. "
-        "The HTML declaration list includes a plural tag such as “Examples 6.7” and a bold run-in such as “Remark 3.13.” When every HTML equation tag is a bare integer but the PDF prints “(1.1)”, and every HTML statement uses one counter but the PDF prints “Remark 2.1”, the score uses the printed number.",
+        "The HTML declaration list includes a plural tag such as “Examples 6.7” and a bold run-in such as “Remark 3.13.” When every HTML equation tag is a bare integer but the PDF prints “(1.1)”, and every HTML statement uses one counter but the PDF prints “Remark 2.1”, the score uses the printed number. "
+        "A theorem tag that is only a number still counts: the kind is the theorem class, or the first word of the statement, so “3.16” followed by “Example” is Example 3.16. "
+        "A section whose counter does not restart at 1 is aligned on its own, so Definition 2 in section 2 is Definition 2.2 when that line is printed, and Definition 19 in section 3 is Definition 3.1 when the page restarts. "
+        "“Deﬁnition 2.1” is that statement. A citation such as “[31, Proposition 6]” is not a bare local label.",
         "",
         (
             f"Shared counters, such as a theorem followed by a lemma with the next number, "

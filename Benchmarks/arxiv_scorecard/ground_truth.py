@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
+from cauchy_logic import fold_ligatures
+
 
 STATEMENT_KINDS = {
     "theorem": "theorem",
@@ -60,6 +62,41 @@ _NAMED_PAREN = re.compile(
     r"proposition|prop\.?|corollary|cor\.?|definition|def\.?|remark|section|sec\.?|appendix)\s*\(\s*$"
 )
 _NUMBER = re.compile(r"[A-Z]?(?:\d+(?:\.\d+)*|\d+)|[A-Z](?:\.\d+)+")
+# A theorem head that is only the counter. The kind word is the class, or
+# the first word of the statement, as in <tag>3.16</tag> followed by "Example".
+_NUMBER_ONLY_TAG = re.compile(r"^(\d+(?:\.\d+)*)\.?$")
+_BODY_KIND = re.compile(
+    r"(?i)^(theorem|lemma|proposition|corollary|definition|remark|example)\b"
+)
+_CLASS_KIND = {
+    "ltx_theorem_theorem": "theorem",
+    "ltx_theorem_lemma": "lemma",
+    "ltx_theorem_proposition": "proposition",
+    "ltx_theorem_corollary": "corollary",
+    "ltx_theorem_definition": "definition",
+    "ltx_theorem_remark": "remark",
+    "ltx_theorem_example": "example",
+    "ltx_theorem_teo": "theorem",
+    "ltx_theorem_lem": "lemma",
+    "ltx_theorem_prop": "proposition",
+    "ltx_theorem_coro": "corollary",
+    "ltx_theorem_defi": "definition",
+    "ltx_theorem_rem": "remark",
+    "ltx_theorem_ex": "example",
+    "ltx_theorem_exmp": "example",
+    "ltx_theorem_exm": "example",
+    "ltx_theorem_defn": "definition",
+    "ltx_theorem_def": "definition",
+}
+_KIND_PLURAL = {
+    "theorem": "theorems",
+    "lemma": "lemmas",
+    "proposition": "propositions",
+    "corollary": "corollaries",
+    "definition": "definitions",
+    "remark": "remarks",
+    "example": "examples",
+}
 _TITLE_KIND = re.compile(
     r"(?i)^(theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof|"
     r"conjecture|claim)\s+([A-Z]?(?:\d+(?:\.\d+)*))"
@@ -178,6 +215,33 @@ def _kind_number_from_tag(text: str) -> tuple[str, str, str | None] | None:
     return kind, found.group(2), (found.group(3).strip() if found.group(3) else None)
 
 
+def _number_only_statement(span: Tag) -> tuple[str, str, None] | None:
+    """A theorem head whose tag is the counter and not the kind word.
+
+    LaTeXML writes ``<span class="ltx_tag_theorem">3.16</span>`` and puts
+    "Example" on the next run, or writes ``1`` inside ``ltx_theorem_definition``.
+    The printed line is still "Example 3.16" or "Definition 2.1".
+    """
+    raw = re.sub(r"\s+", " ", span.get_text(" ", strip=True)).strip()
+    found = _NUMBER_ONLY_TAG.match(raw)
+    if not found:
+        return None
+    host = span.find_parent(class_=lambda value: value and "ltx_theorem" in value)
+    if not isinstance(host, Tag):
+        return None
+    kind = next((
+        _CLASS_KIND[item] for item in (host.get("class") or []) if item in _CLASS_KIND
+    ), None)
+    if kind is None:
+        paragraph = host.find("p")
+        blob = paragraph.get_text(" ", strip=True) if isinstance(paragraph, Tag) else ""
+        body = _BODY_KIND.match(blob)
+        kind = body.group(1).lower() if body else None
+    if kind is None:
+        return None
+    return kind, found.group(1), None
+
+
 # LaTeXML numbers an enumerated item as #S4.I7.i2 or #S1.I1.ix2. The link
 # text is the item number. That is not a section.
 _ITEM_HREF = re.compile(r"(?:^|#|\.)(?:I\d+|ix?\d+)(?:\.|$)")
@@ -221,6 +285,8 @@ def parse_html(html: str) -> PaperTruth:
         if not isinstance(span, Tag) or _in_toc(span):
             continue
         parsed = _kind_number_from_tag(span.get_text(" ", strip=True))
+        if parsed is None:
+            parsed = _number_only_statement(span)
         if parsed is None:
             continue
         kind, number, name = parsed
@@ -382,10 +448,14 @@ def use_printed_numbers(truth: PaperTruth, pdf_text: str) -> None:
 
     Equation tag ``(1)`` with id ``S1.E1`` is ``(1.1)`` on the page. Remark 1 in
     section 2 is Remark 2.1. Apply this only when every guessed label is printed,
-    so a paper that really uses ``(1)`` is left alone.
+    so a paper that really uses ``(1)`` is left alone. A section whose counter
+    does not restart at 1 is aligned on its own: Definition 2 in section 2 is
+    Definition 2.2 when that is the line the PDF prints. A citation such as
+    ``[31, Proposition 6]`` is not that line.
     """
     _remap_equations(truth, pdf_text)
     _remap_statements(truth, pdf_text)
+    _remap_statements_by_section(truth, pdf_text)
 
 
 def _remap_equations(truth: PaperTruth, pdf_text: str) -> None:
@@ -440,6 +510,99 @@ def _remap_statements(truth: PaperTruth, pdf_text: str) -> None:
     for mention in truth.mentions:
         if mention.anchor in planned:
             mention.number = planned[mention.anchor]
+
+
+def _kind_words(kind: str) -> list[str]:
+    words = [kind]
+    plural = _KIND_PLURAL.get(kind)
+    if plural:
+        words.append(plural)
+    return words
+
+
+def _printed_statement_present(text: str, kind: str, printed: str) -> bool:
+    """The page prints this statement, including a number-first head and a ligature."""
+    for word in _kind_words(kind):
+        kind_first = fold_ligatures(
+            rf"(?i)\b{word}\s+{re.escape(printed)}(?!\.\d)(?!\d)"
+        )
+        number_first = fold_ligatures(
+            rf"(?i)(?<!\d)(?<!\.){re.escape(printed)}\.?\s+{word}\b"
+        )
+        if re.search(kind_first, text) or re.search(number_first, text):
+            return True
+    return False
+
+
+def _bare_line_declaration(text: str, kind: str, number: str) -> bool:
+    """The PDF declares this bare label on its own line.
+
+    ``[31, Proposition 6]`` cites another paper. ``Theorem 1.`` at the start
+    of a line is the statement itself and must not be renumbered.
+    """
+    for word in _kind_words(kind):
+        pattern = fold_ligatures(
+            rf"(?im)^[ \t]*{word}\s+{re.escape(number)}(?!\.\d)(?!\d)"
+        )
+        if re.search(pattern, text):
+            return True
+    return False
+
+
+def _remap_mentions(truth: PaperTruth, planned: dict[str, str]) -> None:
+    for mention in truth.mentions:
+        if mention.anchor in planned:
+            mention.number = planned[mention.anchor]
+            continue
+        host = next(
+            (anchor for anchor in planned if mention.anchor.startswith(anchor + ".")),
+            None,
+        )
+        if host is not None:
+            mention.number = planned[host]
+
+
+def _remap_statements_by_section(truth: PaperTruth, pdf_text: str) -> None:
+    """Align one section when the whole paper does not share one counter.
+
+    The all-or-nothing pass above already rewrote a paper whose every statement
+    is ``section.index`` from 1. What remains is a bare counter. Within one
+    section, restarting at 1 (``Definition 19`` in section 3 is Definition 3.1)
+    wins when every label is printed; otherwise the HTML number is the local
+    index (``Definition 2`` in section 2 is Definition 2.2). A label the PDF
+    already prints bare, such as ``Theorem 1.``, stays bare.
+    """
+    statements = [
+        item for item in truth.declarations
+        if item.kind in _STATEMENT_KINDS
+        and item.anchor.startswith("Thm")
+        and item.section
+        and _BARE_NUMBER.fullmatch(item.number)
+        and not _bare_line_declaration(pdf_text, item.kind, item.number)
+    ]
+    groups: dict[str, list[Declaration]] = {}
+    for item in statements:
+        groups.setdefault(item.section, []).append(item)
+    for section, items in groups.items():
+        enumerated = [f"{section}.{index}" for index, _item in enumerate(items, start=1)]
+        local = [f"{section}.{item.number}" for item in items]
+        schemes = [enumerated]
+        if local != enumerated:
+            schemes.append(local)
+        chosen: list[str] | None = None
+        for numbers in schemes:
+            if all(
+                _printed_statement_present(pdf_text, item.kind, number)
+                for item, number in zip(items, numbers)
+            ):
+                chosen = numbers
+                break
+        if chosen is None:
+            continue
+        planned = {item.anchor: number for item, number in zip(items, chosen)}
+        for item, number in zip(items, chosen):
+            item.number = number
+        _remap_mentions(truth, planned)
 
 
 def shared_counter(declarations: list[Declaration]) -> list[str]:

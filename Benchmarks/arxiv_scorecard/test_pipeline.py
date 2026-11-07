@@ -419,6 +419,25 @@ class PrintedNumberTests(unittest.TestCase):
             [("definition", "1")],
         )
 
+    def test_a_bibliography_backref_is_not_a_local_mention(self) -> None:
+        # Synthetic. The back-reference list is HTML chrome. Its title can
+        # contain the word "equation" without naming an equation, while a
+        # theorem named in the bibliography entry itself still counts.
+        html = """
+        <p>From equation <a class="ltx_ref" href="#S1.E1" title="Equation 1.1">(1.1)</a>.</p>
+        <section class="ltx_bibliography">
+          <li class="ltx_bibitem">
+            See Theorem <a class="ltx_ref" href="#S1.Thmtheorem1" title="Theorem 1.2">1.2</a>.
+            <span class="ltx_bibblock ltx_bib_cited">Cited by:
+              <a class="ltx_ref" href="#S4.SS3.p1" title="type=equation,Name-sg=Equation, name-sg=equation">§4.3</a>
+            </span>
+          </li>
+        </section>
+        """
+        truth = parse_html(html)
+        mentioned = [(item.kind, item.number) for item in truth.mentions if not item.in_citation]
+        self.assertEqual(mentioned, [("equation", "1.1"), ("theorem", "1.2")])
+
     def test_figure_and_table_anchors_are_not_sections(self) -> None:
         # Synthetic. A float's id hangs off a section (#S2.F1, #S4.T2) and the
         # link text is the float number. A subsubsection id is still a section.

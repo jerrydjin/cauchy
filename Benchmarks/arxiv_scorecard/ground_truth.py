@@ -180,6 +180,22 @@ def _in_toc(node: Tag) -> bool:
     return False
 
 
+def _in_cited_by(node: Tag) -> bool:
+    """A bibliography back-reference is not a local mention.
+
+    LaTeXML lists where an entry is cited in ``span.ltx_bib_cited`` ("Cited
+    by: §4.3"). That link points at the paper, and its title breadcrumb can
+    contain the word "equation" from a dumped language file, so the scorer
+    would count §4.3 as equation 4.3. The PDF does not print that list.
+    """
+    parent: Tag | None = node
+    while isinstance(parent, Tag):
+        if "ltx_bib_cited" in (parent.get("class") or []):
+            return True
+        parent = parent.parent if isinstance(parent.parent, Tag) else None
+    return False
+
+
 def _preceding(node: Tag, limit: int = 80) -> str:
     chunks: list[str] = []
     current: Tag | NavigableString | None = node
@@ -365,7 +381,7 @@ def parse_html(html: str) -> PaperTruth:
 
     seen_cites: set[str] = set()
     for anchor in soup.select("a.ltx_ref"):
-        if not isinstance(anchor, Tag) or _in_toc(anchor):
+        if not isinstance(anchor, Tag) or _in_toc(anchor) or _in_cited_by(anchor):
             continue
         href = anchor.get("href") or ""
         if "bib" in href:

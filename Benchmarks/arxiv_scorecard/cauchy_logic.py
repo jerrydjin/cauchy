@@ -30,6 +30,12 @@ to ASCII before it is looked up.
   is a superscript, and "(1)" between a one-digit row and a control-character
   fence is a matrix cell. A heading after a blank line, and a tag whose next
   line is a formula, stay.
+  A parenthesized number is an equation label when the rest of its line is
+  empty or is a display formula. A sentence that continues past the number,
+  as in "(2.52) respectively …", is a citation. A bare integer between two
+  integer lines, as in "1" then "(12)" then "12", is a column cell. A tag
+  that ends a formula line, and "(14)" under a one-digit limit followed by
+  a sentence, stay.
 - cursor/reference-hover-detection-0cb7: abbreviated, plural, and
   numeric bibliography-qualified references
 - cursor/jerry-60-ask-highlight-da7d: AskStructureLocator
@@ -525,6 +531,11 @@ def declaration_matches(
         # (1.10), a right-margin label, and a number on its own line stay.
         if match.number.isdigit() and suffix and (label_x is None or label_x < 0.78):
             continue
+        # A label is the formula's number. The rest of its line is empty or
+        # is that formula. A sentence that continues past the number, and a
+        # bare integer between two integer lines, is not a label.
+        if _equation_number_is_not_a_label(source_text, match, prefix, suffix):
+            continue
 
         if not prefix and not suffix:
             nearby = before[-180:] + after[:180]
@@ -686,13 +697,47 @@ def _bare_own_line_is_fragment(text: str, match: Match, label_x: float | None) -
     return False
 
 
+def _is_display_formula(line: str) -> bool:
+    """A short formula: a relation and at most two words."""
+    if not line or not any(op in line for op in _DISPLAY_OPERATORS):
+        return False
+    return len(re.findall(r"[A-Za-z]{3,}", line)) <= 2
+
+
+def _substantive_remainder(suffix: str) -> str:
+    """Leading punctuation is the tag's period, not more text on the line."""
+    rest = suffix.strip()
+    while rest and rest[0] in ".,;:":
+        rest = rest[1:].strip()
+    return rest
+
+
+def _equation_number_is_not_a_label(text: str, match: Match, prefix: str, suffix: str) -> bool:
+    """The parenthesized number is not an equation label.
+
+    A label has a display formula on its line, or the line is only the
+    number. "(2.52) respectively …" has no formula, so it is a citation.
+    "A = B + C (4) for the constant term" keeps the formula in front of the
+    number. A bare integer between two integer lines, as in "1" / "(12)" /
+    "12", is a column cell. A tag under a one-digit limit whose next line is
+    a sentence stays.
+    """
+    remainder = _substantive_remainder(suffix)
+    # "(2.52) respectively …" has no formula on the line. "A = B + C (4)
+    # for the constant term" keeps the formula in front of the number.
+    if remainder and not _is_display_formula(remainder) and not _is_display_formula(prefix):
+        return True
+    if not match.number.isdigit() or prefix or remainder:
+        return False
+    previous = _nonempty_line_before(text, match.start)
+    following = _nonempty_line_after(text, match.end)
+    return bool(re.fullmatch(r"\d+", previous) and re.fullmatch(r"\d+", following))
+
+
 def _following_line_is_display(rest: str) -> bool:
     lines = rest.split("\n")[1:5]
     next_line = next((line.strip() for line in lines if line.strip()), "")
-    if not next_line or not any(op in next_line for op in _DISPLAY_OPERATORS):
-        return False
-    words = re.findall(r"[A-Za-z]{3,}", next_line)
-    return len(words) <= 2
+    return _is_display_formula(next_line)
 
 
 def _fallback_body(source_text: str, match: Match, declarations: list[Match]) -> str | None:

@@ -1026,6 +1026,51 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         ))
     }
 
+    func testEquationNumberNeedsAFormulaOnItsLine() {
+        // Synthetic. A citation that continues past the number, and a cell
+        // between two integers, are not labels. A formula on the same line,
+        // a tag that ends the line, a dotted tag, and "(14)" under a one-digit
+        // limit followed by a sentence stay.
+        let page = """
+        The estimate is recorded below.
+        (1.10) |x| ≤ r ⇒ |ψ(x)| ≤ r/2.
+        A long identity satisfies A = B = C = D = E = F. (5.1)
+        x = y + z (8).
+        (2.4)
+        where the symbol denotes the usual pairing.
+        Let η1 and η2 solve the inequalities (2.51) and
+        (2.52) respectively on the interval such that y2(t0) ≤ ηk(t0).
+        The integral equals f = g.
+        1
+        (14)
+        the bound continues below.
+        1
+        (12)
+        12
+        (9)
+        where the sum is taken.
+        """
+        let nsPage = page as NSString
+        let positions = [
+            nsPage.range(of: "(5.1)").location: 0.86,
+            nsPage.range(of: "(2.51)").location: 0.82,
+            nsPage.range(of: "(8)").location: 0.84,
+        ]
+        let declarations = LLMReferenceIndexSupport.declarationMatches(
+            in: page, equationLabelX: positions
+        ).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1.10")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "5.1")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "8")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "2.4")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "14")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "9")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2.51")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2.52")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "12")))
+    }
+
     func testEquationFallbackRetainsSourceEvidenceWhenModelMissesIt() {
         let page = """
         We minimize the joint loss

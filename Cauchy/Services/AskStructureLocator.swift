@@ -564,10 +564,54 @@ enum AskStructureLocator {
         return true
     }
 
+    /// Every component of a dotted section number is a small index.
+    /// "6.2" is one. "1.518665" is a table entry.
+    private static func sectionComponentsOk(_ number: String) -> Bool {
+        let parts = number.split(separator: ".")
+        guard (1...3).contains(parts.count) else { return false }
+        for part in parts {
+            guard let value = Int(part), (1...40).contains(value) else { return false }
+        }
+        return true
+    }
+
+    /// The line after a dotted section number is a title, not a sentence.
+    /// "Γ(X) = 0" and "Introduction" are titles. "The estimate follows from
+    /// the bound" is a sentence, and "D-rings and D-rings" is a contents
+    /// entry. A long lowercase word is what those two have and a formula does not.
+    private static func compactHeadingTitle(_ text: String) -> Bool {
+        let stripped = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !stripped.isEmpty, stripped.count <= 80 else { return false }
+        guard lineMatches(stripped, pattern: sectionNumberLine) == false else { return false }
+        guard lineMatches(stripped, pattern: #"(\.\s*){3,}"#) == false else { return false }
+        guard lineMatches(stripped, pattern: sentenceOpener) == false else { return false }
+        let words = stripped.split(whereSeparator: \.isWhitespace)
+        guard (1...8).contains(words.count), let first = stripped.first else { return false }
+        let ascii = first.unicodeScalars.allSatisfy(\.isASCII)
+        if ascii {
+            guard first.isLetter && first.isUppercase else { return false }
+        } else if first.isLetter == false {
+            return false
+        }
+        let separators = Set<Character>(["-", "‐", "‑", "–", "—", "/"])
+        for word in words {
+            for part in word.split(whereSeparator: { separators.contains($0) }) {
+                let letters = part.filter { $0.isASCII && $0.isLetter }
+                if letters.count >= 4, letters.allSatisfy(\.isLowercase) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
     /// Join "1." and "Introduction" when both lines are emphasized.
+    /// A dotted number such as "3.2." also keeps a formula on the next line
+    /// when neither line is bold: the title is the formula, not a proof step.
+    /// A bare "3." still needs emphasis, so a page number and an enumerated
+    /// step stay prose.
     private static func logicalLines(_ text: String, bold: [Bool], italic: [Bool]) -> [String] {
         let raw = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        guard !bold.isEmpty || !italic.isEmpty else { return raw }
         func flag(_ flags: [Bool], _ index: Int) -> Bool {
             index < flags.count ? flags[index] : false
         }
@@ -580,16 +624,22 @@ enum AskStructureLocator {
             let dotted = captured?.contains(".") ?? false
             let emphasized = flag(bold, index) || (flag(italic, index) && dotted)
             let head = Int(captured?.split(separator: ".").first.map(String.init) ?? "")
-            if emphasized, let captured, let head, (1...40).contains(head) {
+            if let captured, let head, (1...40).contains(head) {
                 var next = index + 1
                 while next < raw.count, raw[next].trimmingCharacters(in: .whitespaces).isEmpty {
                     next += 1
                 }
-                if next < raw.count, flag(bold, next) || flag(italic, next), splitHeadingTitle(raw[next]) {
-                    let tag = line.hasSuffix(".") ? line : "\(captured)."
-                    joined.append("\(tag) \(raw[next].trimmingCharacters(in: .whitespaces))")
-                    index = next + 1
-                    continue
+                if next < raw.count {
+                    let title = raw[next]
+                    let nextEmphasized = flag(bold, next) || flag(italic, next)
+                    let keepEmphasized = emphasized && nextEmphasized && splitHeadingTitle(title)
+                    let keepFormula = dotted && line.hasSuffix(".") && sectionComponentsOk(captured) && compactHeadingTitle(title)
+                    if keepEmphasized || keepFormula {
+                        let tag = line.hasSuffix(".") ? line : "\(captured)."
+                        joined.append("\(tag) \(title.trimmingCharacters(in: .whitespaces))")
+                        index = next + 1
+                        continue
+                    }
                 }
             }
             joined.append(raw[index])
@@ -683,8 +733,9 @@ enum AskStructureLocator {
         return groups
     }
 
-    /// The text after the number has to open with a capital. "4. Block-sum"
-    /// does. "4 be the" and "1 + z" do not.
+    /// The text after the number opens the title. "4. Block-sum" and
+    /// "3.2. Γ(X) = 0" do. "4 be the" and "1 + z" do not. A formula may
+    /// start with a lowercase Greek letter; an ASCII word has to be capitalised.
     private static func titleTextFollows(_ line: String, number: String) -> Bool {
         var rest = line.trimmingCharacters(in: .whitespaces)
         if rest.hasPrefix("§") {
@@ -697,7 +748,13 @@ enum AskStructureLocator {
         }
         rest = rest.trimmingCharacters(in: .whitespaces)
         guard let first = rest.first else { return false }
-        return first.isLetter && first.isUppercase
+        let ascii = first.unicodeScalars.allSatisfy(\.isASCII)
+        if ascii {
+            return first.isLetter && first.isUppercase
+        }
+        // "3.2. Γ(X) = 0" is a subsection title. "8 ζ(1) − ζ(2)" is a formula
+        // on its own, and a bare integer does not make it a section.
+        return number.contains(".") && first.isLetter
     }
 
     private static func isTitleLine(_ line: String) -> Bool {

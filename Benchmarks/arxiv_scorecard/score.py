@@ -194,7 +194,37 @@ def _true_section_page(
             if len(heading) > 160:
                 continue
             return page["page_index"]
+    # The HTML title can split math ("S 1 2 ( r )") so it matches neither the
+    # bookmark nor a heading line. The locator still answers from the section
+    # number printed on the bookmark. A title match and a heading line above
+    # keep priority over that number.
+    if outline:
+        numbered = _outline_section_page(outline, number)
+        if numbered is not None:
+            return numbered
     return None
+
+
+def _outline_section_page(outline: list[OutlineNode], number: str) -> int | None:
+    """Page of the bookmark whose printed section number is `number`.
+
+    The shallowest bookmark wins, so a section is preferred to a later
+    repeat of the same number.
+    """
+    found: list[tuple[int, int]] = []
+
+    def walk(nodes: list[OutlineNode], depth: int = 0) -> None:
+        for node in nodes:
+            bookmark_number = _explicit_section_number(node.title)
+            if node.page_index >= 0 and bookmark_number == number:
+                found.append((depth, node.page_index))
+            walk(node.children, depth + 1)
+
+    walk(outline)
+    if not found:
+        return None
+    found.sort()
+    return found[0][1]
 
 
 def _section_questions(truth: PaperTruth, pages: list[dict], structure: Structure | None) -> dict:

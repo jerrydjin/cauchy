@@ -377,8 +377,10 @@ enum LLMReferenceIndexSupport {
 
             // Operators such as a bare hyphen are too common in prose and
             // bibliographies. These stronger signals distinguish a display
-            // equation from citation years such as “(2019)”.
-            let mathSignals = ["=", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
+            // equation from citation years such as “(2019)”. A strict
+            // inequality is the same relation as “≤” and “≥” when the text
+            // layer prints “<” or “>”.
+            let mathSignals = ["=", "<", ">", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
             // PDF text can place a genuine label after its formula on the
             // same line, or on a line of its own. Do not borrow math symbols
             // from neighbouring lines to legitimize an inline citation near
@@ -389,7 +391,7 @@ enum LLMReferenceIndexSupport {
             } else {
                 nearbyDisplay = prefix + suffix
             }
-            let displayOperators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+            let displayOperators = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
             let bare = Int(match.reference.number) != nil
             // A bare "(1)" at the right margin of a prose sentence is a cross
             // reference that happened to wrap there. A tag after a short
@@ -409,7 +411,7 @@ enum LLMReferenceIndexSupport {
             }
             if suffix.isEmpty {
                 let recentPrefix = String(prefix.suffix(80))
-                let labelMath = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+                let labelMath = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
                 if prefix.split(whereSeparator: \.isWhitespace).count <= 10,
                    labelMath.contains(where: recentPrefix.contains) {
                     // "λ = 1 ⇒ (1) and (2)" is a list of references.
@@ -547,7 +549,7 @@ enum LLMReferenceIndexSupport {
            last.lowercased() == "and" || last.lowercased() == "or" {
             return false
         }
-        let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+        let operators = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
         guard operators.contains(where: { prefix.contains($0) }) else { return false }
         let words = prefix.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
         return words.count <= 2
@@ -680,7 +682,7 @@ enum LLMReferenceIndexSupport {
            digit >= "0", digit <= "9" {
             return true
         }
-        let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+        let operators = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
         if let labelX, labelX < 0.4,
            previous.last == "." || previous.last == "?" || previous.last == "!",
            !following.isEmpty,
@@ -802,9 +804,10 @@ enum LLMReferenceIndexSupport {
     }
 
     /// A short formula: a relation and at most two words. The same test as
-    /// the line after an own-line equation number.
+    /// the line after an own-line equation number. "<" and ">" are relations,
+    /// the same as "≤" and "≥".
     private static func isDisplayFormula(_ line: String) -> Bool {
-        let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+        let operators = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
         guard operators.contains(where: { line.contains($0) }) else { return false }
         let words = line.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
         return words.count <= 2
@@ -1138,7 +1141,7 @@ enum LLMReferenceIndexSupport {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             let beforeLabel = sourceText[excerptRange.lowerBound..<chosen.range.lowerBound]
             let afterLabel = sourceText[chosen.range.upperBound..<excerptRange.upperBound]
-            let strongMath = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+            let strongMath = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
             if fullLine == String(sourceText[chosen.range]),
                !strongMath.contains(where: beforeLabel.contains),
                !strongMath.contains(where: afterLabel.contains) {

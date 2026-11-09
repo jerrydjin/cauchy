@@ -1310,5 +1310,118 @@ class HtmlReferenceTests(unittest.TestCase):
         self.assertIn("SL", truth.sections[0].title)
 
 
+class PdfStatementHeadingTests(unittest.TestCase):
+    def test_a_statement_heading_matches_the_kind_and_exact_number(self) -> None:
+        # Synthetic. A heading starts the line: kind then number, or number
+        # then kind. ".", "(" and ":" mark the statement. ﬁ is the PDF's "fi".
+        from score import pdf_statement_heading
+
+        pages = [{
+            "page_index": 2,
+            "text": "\n".join([
+                "The notes above are ordinary prose.",
+                "Proposition 3.2. Let the group be finite.",
+                "Proposition 4.1 (Orbit). Let the action be free.",
+                "Lemma 9: The claim follows at once.",
+                "Corollary 2.8",
+                "The bound is the one just stated.",
+                "3.5. Theorem. Let the set be finite.",
+                "2.1. De\ufb01nition. A widget is a finite set.",
+            ]),
+        }]
+        proposition = pdf_statement_heading(pages, "proposition", "3.2")
+        self.assertEqual(proposition["line"], "Proposition 3.2. Let the group be finite.")
+        self.assertEqual(proposition["form"], "line-start")
+        self.assertEqual(proposition["page_index"], 2)
+        named = pdf_statement_heading(pages, "proposition", "4.1")
+        self.assertEqual(named["line"], "Proposition 4.1 (Orbit). Let the action be free.")
+        lemma = pdf_statement_heading(pages, "lemma", "9")
+        self.assertEqual(lemma["line"], "Lemma 9: The claim follows at once.")
+        own_line = pdf_statement_heading(pages, "corollary", "2.8")
+        self.assertEqual(own_line["line"], "Corollary 2.8")
+        self.assertEqual(own_line["form"], "line-start")
+        numbered = pdf_statement_heading(pages, "theorem", "3.5")
+        self.assertEqual(numbered["form"], "number-first")
+        self.assertEqual(numbered["line"], "3.5. Theorem. Let the set be finite.")
+        definition = pdf_statement_heading(pages, "definition", "2.1")
+        self.assertEqual(definition["form"], "number-first")
+        self.assertIn("Definition", definition["line"].replace("\ufb01", "fi"))
+
+    def test_an_in_text_reference_is_not_a_heading(self) -> None:
+        from score import pdf_statement_heading, pdf_statement_mention
+
+        pages = [{
+            "page_index": 0,
+            "text": "\n".join([
+                "The bound follows by Proposition 3.2 and the rest of the argument.",
+                "A sentence can also end at Remark 3.12.",
+                "Proposition 3.6, we have the next bound.",
+                "Propositions 3.2 and 3.4 are cited in the next paragraph.",
+            ]),
+        }]
+        self.assertIsNone(pdf_statement_heading(pages, "proposition", "3.2"))
+        mention = pdf_statement_mention(pages, "proposition", "3.2")
+        self.assertIn("by Proposition 3.2", mention["line"])
+        self.assertIsNone(pdf_statement_heading(pages, "remark", "3.12"))
+        self.assertIn("Remark 3.12.", pdf_statement_mention(pages, "remark", "3.12")["line"])
+        self.assertIsNone(pdf_statement_heading(pages, "proposition", "3.6"))
+        self.assertIsNone(pdf_statement_heading(pages, "proposition", "3.4"))
+
+    def test_a_different_number_is_not_that_statement(self) -> None:
+        from score import pdf_statement_heading, pdf_statement_mention
+
+        pages = [{
+            "page_index": 0,
+            "text": "\n".join([
+                "Proposition 3.20. Let the group be finite.",
+                "Proposition 3.3. Another claim is short.",
+                "Proposition 3.2.1. The longer number is a different statement.",
+                "Lemma 3.2. The kind does not match.",
+            ]),
+        }]
+        self.assertIsNone(pdf_statement_heading(pages, "proposition", "3.2"))
+        self.assertIsNone(pdf_statement_mention(pages, "proposition", "3.2"))
+        self.assertIsNotNone(pdf_statement_heading(pages, "proposition", "3.20"))
+        self.assertIsNotNone(pdf_statement_heading(pages, "lemma", "3.2"))
+
+    def test_a_pdf_heading_is_not_a_false_declaration(self) -> None:
+        # Synthetic. The HTML never declares these statements. The proposition
+        # heading is enough. The equation tag is not a statement heading, and
+        # a citation still is not a wrong link.
+        from ground_truth import Declaration, Mention, PaperTruth, SectionInfo
+        from score import score_profile
+
+        truth = PaperTruth(
+            mentions=[
+                Mention("lemma", "1.1", "named", "Lemma", False, "Lemma 1.1"),
+                Mention("proposition", "3.2", "named", "Proposition", False, "Proposition 3.2"),
+            ],
+            declarations=[Declaration("lemma", "1.1", None, 0)],
+            sections=[SectionInfo("1", "Introduction", 1)],
+        )
+        pages = [{
+            "page_index": 0,
+            "text": "\n".join([
+                "1. Introduction",
+                "Lemma 1.1. The first claim is short.",
+                "Proposition 3.2. Let the group be finite.",
+                "The identity is recorded below.",
+                "(2.4)",
+                "where the symbol denotes the usual pairing.",
+                "See [IK99, Lemma 1.15] for the other proof.",
+            ]),
+        }]
+        card = score_profile(truth, pages, "main", use_structure=False)
+        self.assertEqual(card["wrong_links"], 0)
+        self.assertEqual(card["citation_detections"], 0)
+        self.assertEqual(card["pdf_verified_count"], 1)
+        self.assertEqual(card["pdf_verified_declarations"][0]["kind"], "proposition")
+        self.assertEqual(card["pdf_verified_declarations"][0]["number"], "3.2")
+        self.assertIn("Proposition 3.2.", card["pdf_verified_declarations"][0]["pdf_line"])
+        self.assertEqual(card["false_declaration_count"], 1)
+        self.assertEqual(card["false_declarations"], ["p.1 equation 2.4"])
+        self.assertTrue(any("not a PDF statement heading" in reason for reason in card["fail_reasons"]))
+
+
 if __name__ == "__main__":
     unittest.main()

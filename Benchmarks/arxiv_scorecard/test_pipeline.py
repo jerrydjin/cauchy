@@ -567,6 +567,50 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("1", numbers)
         self.assertNotIn("2", numbers)
 
+    def test_equation_number_needs_a_formula_on_its_line(self) -> None:
+        # Synthetic. A citation that continues past the number, and a cell
+        # between two integers, are not labels. A formula on the same line,
+        # a tag that ends the line, a dotted tag, and "(14)" under a one-digit
+        # limit followed by a sentence stay.
+        page = "\n".join([
+            "The estimate is recorded below.",
+            "(1.10) |x| ≤ r ⇒ |ψ(x)| ≤ r/2.",
+            "A long identity satisfies A = B = C = D = E = F. (5.1)",
+            "x = y + z (8).",
+            "(2.4)",
+            "where the symbol denotes the usual pairing.",
+            "Let η1 and η2 solve the inequalities (2.51) and",
+            "(2.52) respectively on the interval such that y2(t0) ≤ ηk(t0).",
+            "The integral equals f = g.",
+            "1",
+            "(14)",
+            "the bound continues below.",
+            "1",
+            "(12)",
+            "12",
+            "(9)",
+            "where the sum is taken.",
+        ])
+        positions = {
+            page.index("(5.1)"): 0.86,
+            page.index("(2.51)"): 0.82,
+            page.index("(8)"): 0.84,
+        }
+        numbers = [item.number for item in declaration_matches(page, positions)]
+        for kept in ("1.10", "5.1", "8", "2.4", "14", "9"):
+            self.assertIn(kept, numbers)
+        for dropped in ("2.51", "2.52", "12"):
+            self.assertNotIn(dropped, numbers)
+        indexed = build_statement_index([{
+            "page_index": 0,
+            "text": page,
+            "equation_label_x": positions,
+        }])
+        keys = {entry.number for entry in indexed.entries.values() if entry.kind == "equation"}
+        self.assertNotIn("2.52", keys)
+        self.assertNotIn("12", keys)
+        self.assertIn("2.4", keys)
+
     def test_a_fragment_of_the_previous_line_is_not_indexed(self) -> None:
         # Synthetic. A wrapped mention, a superscript, and a matrix cell are
         # not declarations. A heading after a blank line or after "is", and a

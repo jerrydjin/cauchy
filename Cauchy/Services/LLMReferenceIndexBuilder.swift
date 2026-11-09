@@ -290,7 +290,8 @@ enum LLMReferenceIndexSupport {
     /// heading such as "6.1 Definition." is the same shape. Equations require
     /// equation-like content on the numbered line, a dotted tag on its own line,
     /// or a short display on one of the next four lines. A bare tag at the end
-    /// of a prose sentence is not an equation.
+    /// of a prose sentence is not an equation. Neither is a number whose line
+    /// continues as a sentence, or a bare integer between two integer lines.
     static func declarationMatches(
         in sourceText: String,
         equationLabelX: [Int: Double] = [:]
@@ -356,6 +357,21 @@ enum LLMReferenceIndexSupport {
             // that occupies the line by itself.
             if Int(match.reference.number) != nil, !suffix.isEmpty,
                (labelX ?? 0) < 0.78 {
+                return false
+            }
+
+            // A label is the formula's number. The rest of its line is empty
+            // (a period still counts as empty) or is that formula. A sentence
+            // that continues past the number, and a bare integer between two
+            // integer lines, is not a label.
+            if equationNumberIsNotALabel(
+                number: match.reference.number,
+                prefix: String(prefix),
+                suffix: String(suffix),
+                sourceText: sourceText,
+                matchStart: match.range.lowerBound,
+                matchEnd: match.range.upperBound
+            ) {
                 return false
             }
 
@@ -744,10 +760,58 @@ enum LLMReferenceIndexSupport {
         guard let next = lines.lazy.map({ $0.trimmingCharacters(in: .whitespaces) }).first(where: { !$0.isEmpty }) else {
             return false
         }
+        return isDisplayFormula(next)
+    }
+
+    /// The parenthesized number is not an equation label.
+    ///
+    /// A label has a display formula on its line, or the line is only the
+    /// number. A period after the tag is still only the number. "(2.52)
+    /// respectively …" has no formula, so it is a citation. "A = B + C (4)
+    /// for the constant term" keeps the formula in front of the number. A
+    /// bare integer between two integer lines, as in "1" / "(12)" / "12", is
+    /// a column cell. A tag under a one-digit limit whose next line is a
+    /// sentence stays.
+    private static func equationNumberIsNotALabel(
+        number: String,
+        prefix: String,
+        suffix: String,
+        sourceText: String,
+        matchStart: String.Index,
+        matchEnd: String.Index
+    ) -> Bool {
+        let remainder = substantiveRemainder(suffix)
+        // "(2.52) respectively …" has no formula on the line. "A = B + C (4)
+        // for the constant term" keeps the formula in front of the number.
+        if !remainder.isEmpty, !isDisplayFormula(remainder), !isDisplayFormula(prefix) {
+            return true
+        }
+        guard Int(number) != nil, prefix.isEmpty, remainder.isEmpty else { return false }
+        let previous = nonemptyLineBefore(sourceText, index: matchStart)
+        let following = nonemptyLineAfter(sourceText, index: matchEnd)
+        return isBareIntegerLine(previous) && isBareIntegerLine(following)
+    }
+
+    /// Leading punctuation is the tag's period, not more text on the line.
+    private static func substantiveRemainder(_ suffix: String) -> String {
+        var rest = suffix.trimmingCharacters(in: .whitespacesAndNewlines)
+        while let first = rest.first, first == "." || first == "," || first == ";" || first == ":" {
+            rest = String(rest.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return rest
+    }
+
+    /// A short formula: a relation and at most two words. The same test as
+    /// the line after an own-line equation number.
+    private static func isDisplayFormula(_ line: String) -> Bool {
         let operators = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
-        guard operators.contains(where: { next.contains($0) }) else { return false }
-        let words = next.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
+        guard operators.contains(where: { line.contains($0) }) else { return false }
+        let words = line.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
         return words.count <= 2
+    }
+
+    private static func isBareIntegerLine(_ line: String) -> Bool {
+        !line.isEmpty && line.allSatisfy { $0 >= "0" && $0 <= "9" }
     }
 
     static func isLikelyDeclaration(

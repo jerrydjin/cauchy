@@ -722,7 +722,7 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         See (7a) again.
         """
         XCTAssertFalse(
-            LLMReferenceIndexSupport.declarationMatches(in: solo).contains(
+            LLMReferenceIndexSupport.declarationMatches(in: solo).map(\.reference).contains(
                 DetectedReference(kind: .equation, number: "7")
             )
         )

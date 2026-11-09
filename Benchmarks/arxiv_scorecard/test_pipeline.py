@@ -567,6 +567,56 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("1", numbers)
         self.assertNotIn("2", numbers)
 
+    def test_a_fragment_of_the_previous_line_is_not_indexed(self) -> None:
+        # Synthetic. A wrapped mention, a superscript, and a matrix cell are
+        # not declarations. A heading after a blank line or after "is", and a
+        # tag whose next line is a formula, stay in the index.
+        page = "\n".join([
+            "A = B + C",
+            "(9)",
+            "where the sum is taken.",
+            "Finally, the argument was required to prove step 2 of",
+            "Lemma 7. Since an alternative proof is given, Lemma 8 is not adapted.",
+            "Lemma 4.2. Let G be a finite group.",
+            "The matrix rows are",
+            "0",
+            "(1)",
+            "\x13",
+            "happens when B",
+            "(2)",
+            "n+1 = 1 and Yn+1 = 0, hence",
+            "We first consider recurrences of the form",
+            "(3)",
+            "xn+mxn = P(xn+1) =",
+            "The kernel E[R",
+            "(8)",
+            "x = y + z",
+            "1",
+            "(14)",
+            "the bound continues below.",
+            "Our first significant result is",
+            "Theorem 1. Let X be a finite set.",
+            "This completes the proof of the claim.",
+            "",
+            "Theorem 5. Let G be a finite group.",
+        ])
+        seen = {(item.kind, item.number) for item in declaration_matches(page)}
+        self.assertIn(("lemma", "7"), seen)
+        self.assertIn(("equation", "1"), seen)
+        self.assertIn(("equation", "2"), seen)
+        indexed = build_statement_index([{"page_index": 0, "text": page}])
+        keys = {(entry.kind, entry.number) for entry in indexed.entries.values()}
+        self.assertNotIn(("lemma", "7"), keys)
+        self.assertNotIn(("equation", "1"), keys)
+        self.assertNotIn(("equation", "2"), keys)
+        self.assertIn(("lemma", "4.2"), keys)
+        self.assertIn(("equation", "9"), keys)
+        self.assertIn(("equation", "3"), keys)
+        self.assertIn(("equation", "8"), keys)
+        self.assertIn(("equation", "14"), keys)
+        self.assertIn(("theorem", "1"), keys)
+        self.assertIn(("theorem", "5"), keys)
+
     def test_parenthesized_statement_number_is_not_an_equation(self) -> None:
         text = "Theorem (3.2) gives the bound used in (3.1)."
         for profile in ("main", "hover"):

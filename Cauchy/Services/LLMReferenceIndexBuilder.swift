@@ -460,6 +460,19 @@ enum LLMReferenceIndexSupport {
             .sorted { $0.range.lowerBound < $1.range.lowerBound }
     }
 
+    /// Declarations the source fallback stores. A candidate that only continues
+    /// the previous line is not one of them: the text layer wrapped a sentence
+    /// or split a symbol. `declarationMatches` still reports the candidate; the
+    /// index does not open it.
+    static func indexableDeclarationMatches(
+        in sourceText: String,
+        equationLabelX: [Int: Double] = [:]
+    ) -> [DetectedReferenceMatch] {
+        declarationMatches(in: sourceText, equationLabelX: equationLabelX).filter {
+            !continuesPreviousLine($0, in: sourceText)
+        }
+    }
+
     /// "6.1 Definition." and "6.13 Theorem (Name)." Number-first headings use
     /// the same line-start test as "Definition 6.1."
     private static let numberFirstPattern = try! NSRegularExpression(
@@ -522,6 +535,105 @@ enum LLMReferenceIndexSupport {
         guard operators.contains(where: { prefix.contains($0) }) else { return false }
         let words = prefix.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 3 }
         return words.count <= 2
+    }
+
+    /// The previous line ends by naming whatever the next line is. "is" and
+    /// "as" introduce a heading. A preposition attaches the next line to the
+    /// sentence ("proof of", "required by").
+    private static let lineEndPrepositions: Set<String> = [
+        "of", "in", "by", "to", "for", "from", "with", "via", "into", "under",
+        "over", "per", "on", "at", "through", "about", "between", "among",
+        "after", "before", "during", "without", "within", "upon", "onto",
+        "than", "versus", "vs", "vs.",
+    ]
+
+    /// A declaration candidate that is the rest of the previous line.
+    ///
+    /// "step 2 of" / "Lemma 7. Since..." is a wrapped mention. "B" / "(2)" /
+    /// "n+1" is a superscript, even when the continuation contains "=".
+    /// "(1)" under a one-digit row and before a control-character fence is a
+    /// matrix cell. A heading after a blank line, and a tag whose next line
+    /// is a formula ("x = y + z", "xn+mxn = P"), stay.
+    private static func continuesPreviousLine(
+        _ match: DetectedReferenceMatch,
+        in text: String
+    ) -> Bool {
+        if match.reference.kind != .equation && match.reference.kind != .figure {
+            guard linePrefix(before: match.range.lowerBound, in: text).isEmpty else { return false }
+            let previous = adjacentLine(before: match.range.lowerBound, in: text)
+            return !previous.isEmpty && endsWithPreposition(previous)
+        }
+        guard match.reference.kind == .equation,
+              Int(match.reference.number) != nil,
+              occupiesOwnLine(match, in: text) else { return false }
+        let previous = adjacentLine(before: match.range.lowerBound, in: text)
+        let following = adjacentLine(after: match.range.upperBound, in: text)
+        guard !previous.isEmpty, !following.isEmpty else { return false }
+        if let last = previous.last, last.isLetter,
+           lastAsciiLetterRunLength(previous) == 1, isIndexContinuation(following) {
+            return true
+        }
+        if isSingleDigit(previous), startsWithControlCharacter(following) {
+            return true
+        }
+        return false
+    }
+
+    private static func endsWithPreposition(_ line: String) -> Bool {
+        guard let last = line.split(whereSeparator: \.isWhitespace).last else { return false }
+        return lineEndPrepositions.contains(last.lowercased())
+    }
+
+    /// "n+1" continues a superscript. "x = y" is the formula after a real tag.
+    private static func isIndexContinuation(_ following: String) -> Bool {
+        guard let first = following.first else { return false }
+        let indexLetter = (first >= "a" && first <= "z") || first == "ℓ"
+        guard indexLetter, let second = following.dropFirst().first else { return false }
+        if second >= "0" && second <= "9" { return true }
+        return second == "+" || second == "-" || second == "−" || second == "_"
+    }
+
+    private static func isSingleDigit(_ line: String) -> Bool {
+        line.count == 1 && line.first.map { $0 >= "0" && $0 <= "9" } == true
+    }
+
+    private static func startsWithControlCharacter(_ line: String) -> Bool {
+        guard let scalar = line.unicodeScalars.first else { return false }
+        return scalar.value < 32
+    }
+
+    private static func linePrefix(before index: String.Index, in text: String) -> String {
+        let head = text[..<index]
+        let start = head.lastIndex(of: "\n").map { head.index(after: $0) } ?? head.startIndex
+        return head[start...].trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The line that touches this offset. A blank line stays blank, so a
+    /// heading that starts a paragraph is not treated as a wrap.
+    private static func adjacentLine(before index: String.Index, in text: String) -> String {
+        let head = text[..<index]
+        guard let newline = head.lastIndex(of: "\n") else { return "" }
+        let before = head[..<newline]
+        let start = before.lastIndex(of: "\n").map { before.index(after: $0) } ?? before.startIndex
+        return before[start...].trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func adjacentLine(after index: String.Index, in text: String) -> String {
+        let rest = text[index...]
+        guard let newline = rest.firstIndex(of: "\n") else { return "" }
+        let after = rest[rest.index(after: newline)...]
+        let end = after.firstIndex(of: "\n") ?? after.endIndex
+        return after[..<end].trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func occupiesOwnLine(_ match: DetectedReferenceMatch, in text: String) -> Bool {
+        let fullLineStart = text[..<match.range.lowerBound].lastIndex(of: "\n")
+            .map { text.index(after: $0) } ?? text.startIndex
+        let fullLineEnd = text[match.range.upperBound...].firstIndex(of: "\n") ?? text.endIndex
+        let fullLine = text[fullLineStart..<fullLineEnd]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let matched = text[match.range].trimmingCharacters(in: .whitespacesAndNewlines)
+        return fullLine == matched
     }
 
     /// A bare number alone on a line is a split subscript or a wrapped list item.
@@ -643,7 +755,7 @@ enum LLMReferenceIndexSupport {
         in sourceText: String,
         equationLabelX: [Int: Double] = [:]
     ) -> Bool {
-        declarationMatches(in: sourceText, equationLabelX: equationLabelX).contains {
+        indexableDeclarationMatches(in: sourceText, equationLabelX: equationLabelX).contains {
             $0.reference == reference
         }
     }
@@ -664,7 +776,7 @@ enum LLMReferenceIndexSupport {
         ) ?? sourceText.endIndex
         var end = hardEnd
 
-        if let next = declarationMatches(in: sourceText).first(where: {
+        if let next = indexableDeclarationMatches(in: sourceText).first(where: {
             $0.reference.kind != .equation &&
                 $0.range.lowerBound > match.range.lowerBound && $0.range.lowerBound < end
         }) {
@@ -713,7 +825,7 @@ enum LLMReferenceIndexSupport {
         equationLabelX: [Int: Double] = [:],
         to results: inout [ReferenceKey: IndexedReference]
     ) {
-        for match in declarationMatches(in: sourceText, equationLabelX: equationLabelX)
+        for match in indexableDeclarationMatches(in: sourceText, equationLabelX: equationLabelX)
             where match.reference.kind != .equation && match.reference.kind != .figure &&
                 results[match.reference.key] == nil {
             guard let evidence = evidence(
@@ -806,7 +918,7 @@ enum LLMReferenceIndexSupport {
         equationLabelX: [Int: Double] = [:],
         to results: inout [ReferenceKey: IndexedReference]
     ) {
-        for match in declarationMatches(in: sourceText, equationLabelX: equationLabelX)
+        for match in indexableDeclarationMatches(in: sourceText, equationLabelX: equationLabelX)
             where match.reference.kind == .equation && results[match.reference.key] == nil {
             guard let evidence = evidence(
                 for: match.reference,

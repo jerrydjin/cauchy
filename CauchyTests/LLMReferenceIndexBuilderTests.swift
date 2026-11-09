@@ -971,6 +971,61 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertEqual(entry?.evidence?.sourceExcerpt, page)
     }
 
+    func testFragmentOfThePreviousLineIsNotIndexed() {
+        let page = """
+        A = B + C
+        (9)
+        where the sum is taken.
+        Finally, the argument was required to prove step 2 of
+        Lemma 7. Since an alternative proof is given, Lemma 8 is not adapted.
+        Lemma 4.2. Let G be a finite group.
+        The matrix rows are
+        0
+        (1)
+        \u{13}
+        happens when B
+        (2)
+        n+1 = 1 and Yn+1 = 0, hence
+        We first consider recurrences of the form
+        (3)
+        xn+mxn = P(xn+1) =
+        The kernel E[R
+        (8)
+        x = y + z
+        1
+        (14)
+        the bound continues below.
+        Our first significant result is
+        Theorem 1. Let X be a finite set.
+        This completes the proof of the claim.
+
+        Theorem 5. Let G be a finite group.
+        """
+        let detected = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+        XCTAssertTrue(detected.contains(DetectedReference(kind: .lemma, number: "7")))
+        XCTAssertTrue(detected.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertTrue(detected.contains(DetectedReference(kind: .equation, number: "2")))
+        let entries = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
+            sourceText: page, pageIndex: 0
+        )
+        XCTAssertNil(entries[ReferenceKey(kind: .lemma, number: "7")])
+        XCTAssertNil(entries[ReferenceKey(kind: .equation, number: "1")])
+        XCTAssertNil(entries[ReferenceKey(kind: .equation, number: "2")])
+        XCTAssertNotNil(entries[ReferenceKey(kind: .lemma, number: "4.2")])
+        XCTAssertNotNil(entries[ReferenceKey(kind: .equation, number: "9")])
+        XCTAssertNotNil(entries[ReferenceKey(kind: .equation, number: "3")])
+        XCTAssertNotNil(entries[ReferenceKey(kind: .equation, number: "8")])
+        XCTAssertNotNil(entries[ReferenceKey(kind: .equation, number: "14")])
+        XCTAssertNotNil(entries[ReferenceKey(kind: .theorem, number: "1")])
+        XCTAssertNotNil(entries[ReferenceKey(kind: .theorem, number: "5")])
+        XCTAssertFalse(LLMReferenceIndexSupport.isLikelyDeclaration(
+            DetectedReference(kind: .equation, number: "1"), in: page
+        ))
+        XCTAssertTrue(LLMReferenceIndexSupport.isLikelyDeclaration(
+            DetectedReference(kind: .equation, number: "9"), in: page
+        ))
+    }
+
     func testEquationFallbackRetainsSourceEvidenceWhenModelMissesIt() {
         let page = """
         We minimize the joint loss

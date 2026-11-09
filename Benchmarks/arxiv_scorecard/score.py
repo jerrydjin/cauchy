@@ -39,6 +39,7 @@ from cauchy_logic import (
     logical_lines,
     is_likely_table_of_contents,
     locate,
+    part_letter_bases,
     structural_query,
 )
 from ground_truth import IN_SCOPE, PaperTruth
@@ -80,7 +81,9 @@ def _patterns(kind: str, number: str) -> list[re.Pattern[str]]:
             re.compile(rf"(?i)\bappendices\s+{token}|\bappendix\s*{token}\b"),
         ]
     if kind == "equation":
-        # "(2.7a)" prints equation 2.7. A letter on a bare integer does not.
+        # "(2.7a)" prints equation 2.7. A bare "(7a)" prints equation 7 only
+        # when the page also prints another part letter; _hits_for adds that
+        # pattern. A lone "(1a)" does not.
         letter = r"[a-z]" if "." in number else ""
         optional = f"{letter}?" if letter else ""
         return [re.compile(rf"(?i)(?:\beq(?:uation)?\.?\s*)?\(\s*{re.escape(number)}{optional}\s*\)")]
@@ -234,9 +237,17 @@ def _section_questions(truth: PaperTruth, pages: list[dict], structure: Structur
 def _hits_for(pages: list[dict], kind: str, number: str) -> list[tuple[int, int, int, str]]:
     found = []
     patterns = _patterns(kind, number)
+    # "(7a)" and "(7b)" are equation 7. Only a page that prints two part
+    # letters contributes those spans, matching the detector.
+    bare_part = None
+    if kind == "equation" and number.isdigit():
+        bare_part = re.compile(rf"\(\s*{re.escape(number)}[a-z]\s*\)")
     for page in pages:
+        page_patterns = patterns
+        if bare_part is not None and number in part_letter_bases(page["text"]):
+            page_patterns = [*patterns, bare_part]
         occupied: list[tuple[int, int]] = []
-        for pattern in patterns:
+        for pattern in page_patterns:
             for match in pattern.finditer(page["text"]):
                 # A list tail captures the number itself. The whole match
                 # would also cover the earlier numbers and look like a link

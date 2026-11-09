@@ -54,8 +54,10 @@ enum ReferenceParsing {
         #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs|thm\.|lem\.|prop\.|cor\.|def\.)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
     )
 
-    /// Group 2 is a subequation part letter, as in "(2.7a)". It belongs to a
-    /// dotted number only. "(1a)" is not equation 1.
+    /// Group 2 is a subequation part letter, as in "(2.7a)" or "(7a)". A dotted
+    /// number always keeps the letter. A bare integer keeps it only when the
+    /// same text prints another part letter, so "(7a)" and "(7b)" are equation
+    /// 7 and a lone "(1a)" is not.
     static let equationCitePattern = #"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)([a-z])?\s*\)"#
 
     // The optional panel suffix belongs to the mention, not the figure's

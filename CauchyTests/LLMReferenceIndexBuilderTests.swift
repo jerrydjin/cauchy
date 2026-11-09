@@ -701,6 +701,33 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains { $0.number.contains("a") || $0.number.contains("b") })
     }
 
+    func testBareSubequationFamilyOnItsOwnLineIsTheBaseEquation() {
+        let page = """
+        Constraints of the model.
+        (7a)
+        (7b)
+        Both tags are the same equation.
+        A lone label (1a) is not an equation.
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertEqual(
+            declarations.filter { $0 == DetectedReference(kind: .equation, number: "7") }.count,
+            2
+        )
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "1")))
+        let solo = """
+        Only one part is printed.
+        (7a)
+        See (7a) again.
+        """
+        XCTAssertFalse(
+            LLMReferenceIndexSupport.declarationMatches(in: solo).contains(
+                DetectedReference(kind: .equation, number: "7")
+            )
+        )
+    }
+
     func testOwnLineEquationKeepsTheFormulaOnTheNextLine() {
         let page = """
         (2)

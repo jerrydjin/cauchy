@@ -25,6 +25,11 @@ to ASCII before it is looked up.
   period is required: "Thm 3.2" and "lem (11)" stay unresolved, so a
   parenthesized equation is not read as a statement. Hover still allows
   the period to be omitted.
+  A candidate that continues the previous line is not indexed. "step 2 of"
+  then "Lemma 7. Since..." is a wrapped mention. "B" then "(2)" then "n+1"
+  is a superscript, and "(1)" between a one-digit row and a control-character
+  fence is a matrix cell. A heading after a blank line, and a tag whose next
+  line is a formula, stay.
 - cursor/reference-hover-detection-0cb7: abbreviated, plural, and
   numeric bibliography-qualified references
 - cursor/jerry-60-ask-highlight-da7d: AskStructureLocator
@@ -770,6 +775,82 @@ class StatementIndex:
         return results
 
 
+# The previous line ends by naming the thing on the next line. "is" and
+# "as" introduce a heading ("the result is" / "defined as"); a preposition
+# attaches the next line to the sentence ("proof of" / "required by").
+_LINE_END_PREPOSITION = re.compile(
+    r"(?i)(?:^|\s)(?:of|in|by|to|for|from|with|via|into|under|over|per|on|at|"
+    r"through|about|between|among|after|before|during|without|within|upon|"
+    r"onto|than|versus|vs\.?)\s*$"
+)
+# "n+1" continues a superscript. "x = y" is the formula after a real tag.
+_INDEX_CONTINUATION = re.compile(r"^[a-zℓ](?:\d|[+\-−_])")
+
+
+def _adjacent_line(text: str, offset: int, *, after: bool) -> str:
+    """The line that touches this offset. A blank line stays blank."""
+    if after:
+        rest = text[offset:]
+        newline = rest.find("\n")
+        if newline < 0:
+            return ""
+        nxt = rest[newline + 1 :]
+        end = nxt.find("\n")
+        line = nxt if end < 0 else nxt[:end]
+        return line.strip()
+    head = text[:offset]
+    newline = head.rfind("\n")
+    if newline < 0:
+        return ""
+    prev = head[:newline]
+    previous_break = prev.rfind("\n")
+    line = prev if previous_break < 0 else prev[previous_break + 1 :]
+    return line.strip()
+
+
+def _occupies_own_line(text: str, match: Match) -> bool:
+    full_start = text.rfind("\n", 0, match.start)
+    full_start = 0 if full_start < 0 else full_start + 1
+    full_end = text.find("\n", match.end)
+    if full_end < 0:
+        full_end = len(text)
+    return text[full_start:full_end].strip() == match.text.strip()
+
+
+def continues_previous_line(text: str, match: Match) -> bool:
+    """A declaration candidate that is really the rest of the previous line.
+
+    The text layer wraps a sentence and splits a symbol. Indexing that
+    fragment stores a statement the paper does not declare. A heading that
+    starts a paragraph, and an equation tag followed by its formula, stay.
+    """
+    if match.kind not in {"equation", "figure"}:
+        newline = text.rfind("\n", 0, match.start)
+        prefix = text[: match.start] if newline < 0 else text[newline + 1 : match.start]
+        if prefix.strip():
+            return False
+        previous = _adjacent_line(text, match.start, after=False)
+        return bool(previous) and _LINE_END_PREPOSITION.search(previous) is not None
+
+    if match.kind != "equation" or not match.number.isdigit() or not _occupies_own_line(text, match):
+        return False
+    previous = _adjacent_line(text, match.start, after=False)
+    following = _adjacent_line(text, match.end, after=True)
+    if not previous or not following:
+        return False
+    # "B" / "(2)" / "n+1 = ...". The continuation contains "=", so the
+    # display test would otherwise treat the parenthesis as a tag.
+    if previous[-1].isalpha():
+        runs = re.findall(r"[A-Za-z]+", previous)
+        if runs and len(runs[-1]) == 1 and _INDEX_CONTINUATION.match(following):
+            return True
+    # "(1)" under a one-digit matrix row and before a control-character fence.
+    # A tag under an integral limit is followed by a formula or a sentence.
+    if re.fullmatch(r"\d", previous) and ord(following[0]) < 32:
+        return True
+    return False
+
+
 def build_statement_index(pages: list[dict], profile: str = "main") -> StatementIndex:
     index = StatementIndex()
     for page in pages:
@@ -777,7 +858,10 @@ def build_statement_index(pages: list[dict], profile: str = "main") -> Statement
         if not text.strip() or not should_index_statements(text):
             continue
         positions = page.get("equation_label_x") or {}
-        declarations = declaration_matches(text, positions, profile)
+        declarations = [
+            match for match in declaration_matches(text, positions, profile)
+            if not continues_previous_line(text, match)
+        ]
         for match in declarations:
             if match.kind in {"equation", "figure"}:
                 body = match.text.strip() or text[max(0, match.start - 80) : match.end + 80].strip()

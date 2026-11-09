@@ -447,9 +447,11 @@ def should_index_statements(page_text: str) -> bool:
     return prose >= 2
 
 
-_MATH_SIGNALS = ["=", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
-_DISPLAY_OPERATORS = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
-_LABEL_MATH = ["=", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+# "<" and ">" are the same relations as "≤" and "≥". A text layer that
+# prints the strict form still marks a display equation.
+_MATH_SIGNALS = ["=", "<", ">", "≤", "≥", "≠", "≈", "∈", "∉", "⊂", "⊆", "→", "⇒", "∑", "∂", "√", "∞", "∫"]
+_DISPLAY_OPERATORS = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
+_LABEL_MATH = ["=", "<", ">", "≤", "≥", "≠", "≈", "⇒", "∑", "∫"]
 _CITATION_WORDS = ["by", "see", "using", "from", "equation", "eq."]
 
 

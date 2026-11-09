@@ -97,9 +97,13 @@ _KIND_PLURAL = {
     "remark": "remarks",
     "example": "examples",
 }
+# The number is the app's referenceNumberPattern, including an appendix
+# label such as C.1, plus a leading letter glued to digits ("Theorem A1")
+# that this title parser already accepted. "Lemma C.1" stays a lemma when a
+# later breadcrumb contains the word "equation".
 _TITLE_KIND = re.compile(
     r"(?i)^(theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof|"
-    r"conjecture|claim)\s+([A-Z]?(?:\d+(?:\.\d+)*))"
+    r"conjecture|claim)\s+([A-Z]?(?:\d+(?:\.\d+)*)|[A-Z](?:\.\d+)+)"
 )
 
 

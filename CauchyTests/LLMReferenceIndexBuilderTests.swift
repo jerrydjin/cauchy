@@ -844,6 +844,39 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "4")))
     }
 
+    func testOwnLineTagAfterStrictInequalityIsAnEquation() {
+        // Synthetic. "≥" already counts as a display. A strict inequality is
+        // the same relation when the text layer prints ">" or "<". A sentence
+        // that only mentions the number is still a cross reference.
+        let page = """
+        The bound is strict.
+        x_n > 0.
+        (30)
+        The argument continues in the next paragraph.
+        0 < y < 1
+        (12)
+        A sentence that merely says n > 1 points at (8) for the bound.
+        """
+        let nsPage = page as NSString
+        let positions = [
+            nsPage.range(of: "(30)").location: 0.83,
+            nsPage.range(of: "(12)").location: 0.83,
+            nsPage.range(of: "(8)").location: 0.90,
+        ]
+        let declarations = LLMReferenceIndexSupport.declarationMatches(
+            in: page, equationLabelX: positions
+        ).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "30")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "12")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "8")))
+
+        let withoutGeometry = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+        XCTAssertTrue(withoutGeometry.contains(DetectedReference(kind: .equation, number: "30")))
+        XCTAssertTrue(withoutGeometry.contains(DetectedReference(kind: .equation, number: "12")))
+        XCTAssertFalse(withoutGeometry.contains(DetectedReference(kind: .equation, number: "8")))
+    }
+
     func testBareOwnLineFragmentsAreNotEquations() {
         // Synthetic. A split subscript, "(0)" under a one-digit line, and a
         // left-margin wrapped item are not tags. A formula on the next line,

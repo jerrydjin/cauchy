@@ -300,6 +300,21 @@ class PrintedNumberTests(unittest.TestCase):
         self.assertIn(("remark", "2.1"), mentioned)
         self.assertIn(("equation", "1.1"), mentioned)
 
+    def test_appendix_letter_number_stays_the_named_statement(self) -> None:
+        # Synthetic. The breadcrumb says "equation" after the title. The
+        # number token is the app's referenceNumberPattern, so C.1 is the lemma.
+        html = """
+        <p>Apply Lemma <a class="ltx_ref" href="#ThmlemmaC.1"
+          title="Lemma C.1. ‣ Appendix C The equation">C.1</a>
+        and Theorem <a class="ltx_ref" href="#Thmtheorem3.6"
+          title="Theorem 3.6. The bound">3.6</a>
+        and Proposition <a class="ltx_ref" href="#ThmpropositionB.2"
+          title="Proposition B.2. ‣ Appendix B The equation">B.2</a>.</p>
+        """
+        truth = parse_html(html)
+        mentioned = [(item.kind, item.number) for item in truth.mentions if not item.in_citation]
+        self.assertEqual(mentioned, [("lemma", "C.1"), ("theorem", "3.6"), ("proposition", "B.2")])
+
     def test_a_number_only_tag_uses_the_kind_word_in_the_body(self) -> None:
         # Synthetic. The tag is the counter; "Example" is the first word after it.
         html = """
@@ -553,6 +568,32 @@ class DeclarationTests(unittest.TestCase):
         self.assertNotIn("3", numbers)
         self.assertIn("7", numbers)
         self.assertIn("5", numbers)
+
+    def test_own_line_tag_after_a_strict_inequality_is_an_equation(self) -> None:
+        # Synthetic. ">=" already counts as a display. The strict forms do too.
+        # A sentence that only mentions the number is still a cross reference.
+        page = "\n".join([
+            "The bound is strict.",
+            "x_n > 0.",
+            "(30)",
+            "The argument continues in the next paragraph.",
+            "0 < y < 1",
+            "(12)",
+            "A sentence that merely says n > 1 points at (8) for the bound.",
+        ])
+        positions = {
+            page.index("(30)"): 0.83,
+            page.index("(12)"): 0.83,
+            page.index("(8)"): 0.90,
+        }
+        numbers = [item.number for item in declaration_matches(page, positions)]
+        self.assertIn("30", numbers)
+        self.assertIn("12", numbers)
+        self.assertNotIn("8", numbers)
+        unpositioned = [item.number for item in declaration_matches(page)]
+        self.assertIn("30", unpositioned)
+        self.assertIn("12", unpositioned)
+        self.assertNotIn("8", unpositioned)
 
     def test_own_line_equation_keeps_the_formula_on_the_next_line(self) -> None:
         page = "\n".join([
@@ -1024,6 +1065,27 @@ class StructureTests(unittest.TestCase):
         outline = [OutlineNode("2. Shared title", 3)]
         self.assertEqual(_true_section_page(pages, "2.2", "Shared title", outline), 5)
         self.assertEqual(_true_section_page(pages, "2", "Shared title", outline), 3)
+
+    def test_outline_section_number_answers_when_the_html_title_does_not_match(self) -> None:
+        from score import _true_section_page
+
+        pages = [{
+            "page_index": 5,
+            "text": "The section begins without a numbered heading line in the text layer.",
+        }]
+        outline = [OutlineNode("5 S21(r)-Colorings of torus knots", 5)]
+        self.assertEqual(
+            _true_section_page(pages, "5", "S 1 2 ( r ) -Colorings of torus knots", outline),
+            5,
+        )
+        # A heading line that agrees with the HTML title still wins over a
+        # bookmark that prints the same number on a different page.
+        pages = [
+            {"page_index": 1, "text": "Contents only."},
+            {"page_index": 9, "text": "5. Colorings of knots\nThe section body."},
+        ]
+        outline = [OutlineNode("5 Other bookmark", 1)]
+        self.assertEqual(_true_section_page(pages, "5", "Colorings of knots", outline), 9)
 
     def test_numbered_sibling_keeps_its_number_beside_introduction(self) -> None:
         structure = Structure(

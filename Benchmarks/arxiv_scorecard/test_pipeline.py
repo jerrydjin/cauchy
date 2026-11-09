@@ -963,6 +963,48 @@ class StructureTests(unittest.TestCase):
         self.assertEqual(found.start_page, 2)
         self.assertIn("Introduction", found.label)
 
+    def test_a_formula_on_the_next_line_is_that_subsection(self) -> None:
+        structure = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                5,
+                "3.2.\nΓ(X) = 0\nThe rank is computed in the next paragraph.",
+                [False, False, False],
+            )],
+            page_count=8,
+        )
+        found = locate(structural_query("what is section 3.2 about"), structure)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.start_page, 5)
+        self.assertIn("Γ", found.label)
+
+        numbered_formula = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                3,
+                "8 ζ(1) - ζ(2) + 2ζ(3)\n8. Conclusion\nThe paper ends here.",
+                [False, False, False],
+            )],
+            page_count=5,
+        )
+        conclusion = locate(structural_query("what is section 8 about"), numbered_formula)
+        self.assertIsNotNone(conclusion)
+        self.assertEqual(conclusion.start_page, 3)
+        self.assertIn("Conclusion", conclusion.label)
+        self.assertNotIn("ζ", conclusion.label)
+
+        prose = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                2,
+                "2.4.\nThe estimate follows from the usual bound.\n2.1.\nD-rings and D-rings",
+                [False, False, False, False],
+            )],
+            page_count=4,
+        )
+        self.assertIsNone(locate(structural_query("what is section 2.4 about"), prose))
+        self.assertIsNone(locate(structural_query("what is section 2.1 about"), prose))
+
     def test_an_italic_subsection_number_on_its_own_line_keeps_the_title(self) -> None:
         structure = Structure(
             outline=[],

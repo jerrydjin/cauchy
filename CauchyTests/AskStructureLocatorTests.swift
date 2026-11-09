@@ -160,6 +160,67 @@ final class AskStructureLocatorTests: XCTestCase {
         XCTAssertTrue(span.label.contains("Introduction"))
     }
 
+    func testFormulaTitleOnTheNextLineIsThatSubsection() {
+        let structure = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 5,
+                    text: "3.2.\nΓ(X) = 0\nThe rank is computed in the next paragraph.",
+                    lineBold: [false, false, false]
+                ),
+            ],
+            pageCount: 8
+        )
+        let query = AskStructureLocator.query(in: "what is section 3.2 about")!
+        guard case .found(let span) = AskStructureLocator.locate(query, in: structure) else {
+            return XCTFail("Expected the formula heading")
+        }
+        XCTAssertEqual(span.startPage, 5)
+        XCTAssertTrue(span.label.contains("Γ"))
+
+        let formula = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 3,
+                    text: "8 ζ(1) - ζ(2) + 2ζ(3)\n8. Conclusion\nThe paper ends here.",
+                    lineBold: [false, false, false]
+                ),
+            ],
+            pageCount: 5
+        )
+        let section8 = AskStructureLocator.query(in: "what is section 8 about")!
+        guard case .found(let conclusion) = AskStructureLocator.locate(section8, in: formula) else {
+            return XCTFail("Expected the written section, not the formula")
+        }
+        XCTAssertEqual(conclusion.startPage, 3)
+        XCTAssertTrue(conclusion.label.contains("Conclusion"))
+        XCTAssertFalse(conclusion.label.contains("ζ"))
+    }
+
+    func testSentenceAfterADottedNumberIsNotAHeading() {
+        let structure = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 2,
+                    text: "2.4.\nThe estimate follows from the usual bound.\n2.1.\nD-rings and D-rings",
+                    lineBold: [false, false, false, false]
+                ),
+            ],
+            pageCount: 4
+        )
+        let sentence = AskStructureLocator.query(in: "what is section 2.4 about")!
+        if case .found = AskStructureLocator.locate(sentence, in: structure) {
+            XCTFail("A sentence after a dotted number is not a section heading")
+        }
+        let contents = AskStructureLocator.query(in: "what is section 2.1 about")!
+        if case .found = AskStructureLocator.locate(contents, in: structure) {
+            XCTFail("A contents entry after a dotted number is not a section heading")
+        }
+    }
+
     func testItalicSubsectionNumberOnItsOwnLineKeepsTheTitle() {
         let structure = AskDocumentStructure(
             outline: [],

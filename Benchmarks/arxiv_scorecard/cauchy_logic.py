@@ -1167,22 +1167,69 @@ def _split_heading_title(text: str) -> bool:
     return True
 
 
+def _section_components_ok(number: str) -> bool:
+    """Every component of a dotted section number is a small index.
+
+    "6.2" is one. "1.518665" is a table entry.
+    """
+    parts = number.split(".")
+    if not 1 <= len(parts) <= 3:
+        return False
+    for part in parts:
+        if not part.isdigit() or not 1 <= int(part) <= 40:
+            return False
+    return True
+
+
+def _compact_heading_title(text: str) -> bool:
+    """The line after a dotted section number is a title, not a sentence.
+
+    "Γ(X) = 0" and "Introduction" are titles. "The estimate follows from
+    the bound" is a sentence, and "D-rings and D-rings" is a contents
+    entry. A long lowercase word is what those two have and a formula does not.
+    """
+    stripped = text.strip()
+    if not stripped or len(stripped) > 80:
+        return False
+    if _SECTION_NUMBER_LINE.match(stripped):
+        return False
+    if re.search(r"(\.\s*){3,}", stripped):
+        return False
+    if _SENTENCE_OPENER.match(stripped):
+        return False
+    words = stripped.split()
+    if not 1 <= len(words) <= 8:
+        return False
+    first = stripped[0]
+    if first.isascii() and first.isalpha():
+        if not first.isupper():
+            return False
+    elif not first.isalpha():
+        return False
+    for word in words:
+        for part in re.split(r"[-‐‑–—/]", word):
+            letters = "".join(ch for ch in part if ch.isascii() and ch.isalpha())
+            if len(letters) >= 4 and letters.islower():
+                return False
+    return True
+
+
 def logical_lines(
     text: str,
     line_bold: list[bool] | None = None,
     line_italic: list[bool] | None = None,
 ) -> list[str]:
-    """Join an emphasized section number to the title on the next line.
+    """Join a section number to the title on the next line.
 
     Many article classes put "1." and "Introduction" on separate visual
-    lines, with the number bold and a subsection number italic. A page
-    number or an enumerated step is not emphasized on both lines. Emphasis
-    is the first glyph, so a math symbol at the end of the title does not
-    cancel it.
+    lines, with the number bold and a subsection number italic. A dotted
+    number such as "3.2." also keeps a formula on the next line when neither
+    line is bold: the title is the formula, not a proof step. A bare "3."
+    still needs emphasis, so a page number and an enumerated step stay prose.
+    Emphasis is the first glyph, so a math symbol at the end of the title
+    does not cancel it.
     """
     raw = text.split("\n")
-    if not line_bold and not line_italic:
-        return raw
     bold = list(line_bold or []) + [False] * max(0, len(raw) - len(line_bold or []))
     italic = list(line_italic or []) + [False] * max(0, len(raw) - len(line_italic or []))
     joined: list[str] = []
@@ -1190,16 +1237,29 @@ def logical_lines(
     while index < len(raw):
         line = raw[index].strip()
         number = _SECTION_NUMBER_LINE.match(line)
-        emphasized = bold[index] or (italic[index] and number is not None and "." in number.group(1))
-        if emphasized and number is not None and 1 <= int(number.group(1).split(".")[0]) <= 40:
+        captured = number.group(1) if number is not None else None
+        dotted = captured is not None and "." in captured
+        emphasized = bold[index] or (italic[index] and dotted)
+        head_ok = captured is not None and captured.split(".")[0].isdigit() and 1 <= int(captured.split(".")[0]) <= 40
+        if head_ok and captured is not None:
             nxt = index + 1
             while nxt < len(raw) and not raw[nxt].strip():
                 nxt += 1
-            if nxt < len(raw) and (bold[nxt] or italic[nxt]) and _split_heading_title(raw[nxt]):
-                tag = line if line.endswith(".") else f"{line}."
-                joined.append(f"{tag} {raw[nxt].strip()}")
-                index = nxt + 1
-                continue
+            if nxt < len(raw):
+                title = raw[nxt]
+                next_emphasized = bold[nxt] or italic[nxt]
+                keep_emphasized = emphasized and next_emphasized and _split_heading_title(title)
+                keep_formula = (
+                    dotted
+                    and line.endswith(".")
+                    and _section_components_ok(captured)
+                    and _compact_heading_title(title)
+                )
+                if keep_emphasized or keep_formula:
+                    tag = line if line.endswith(".") else f"{captured}."
+                    joined.append(f"{tag} {title.strip()}")
+                    index = nxt + 1
+                    continue
         joined.append(raw[index])
         index += 1
     return joined
@@ -1222,12 +1282,21 @@ def heading_line(line: str) -> str | None:
 
 
 def _title_text_follows(line: str, number: str) -> bool:
-    """A heading continues with a capitalised word.
+    """A heading continues with a title, not an operator or a lowercase word.
 
-    "1. Introduction" and "4. Block-sum" do. "1 + z", "4 =", and "4 be the" do not.
+    "1. Introduction", "4. Block-sum", and "3.2. Γ(X) = 0" do. "1 + z",
+    "4 =", and "4 be the" do not. A formula may open with a lowercase
+    Greek letter. An ASCII word still has to be capitalised.
     """
     rest = re.sub(rf"^\s*(?:§\s*)?{re.escape(number)}\.?\s*", "", line.strip(), count=1)
-    return bool(re.match(r"[A-Z]", rest))
+    if not rest:
+        return False
+    first = rest[0]
+    if first.isascii() and first.isalpha():
+        return first.isupper()
+    # "3.2. Γ(X) = 0" is a subsection title. "8 ζ(1) − ζ(2)" is a formula
+    # on its own, and a bare integer does not make it a section.
+    return "." in number and first.isalpha()
 
 
 def _opens_with_section_title(line: str) -> bool:

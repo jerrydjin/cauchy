@@ -5,7 +5,8 @@ branch. Line-start statements and number-first headings follow main.
 A dotted equation tag on its own line is a declaration, and the display
 after a bare number is only read from the next four lines. A bare tag at
 the end of a prose sentence is not a declaration. A part letter on a dotted
-tag, as in "(2.7a)", is that equation; a letter on a bare integer, "(1a)",
+tag, as in "(2.7a)", is that equation. A bare integer printed with two or
+more part letters, as in "(7a)" and "(7b)", is that equation; a lone "(1a)"
 is not. A parenthesized number printed after a statement word, as in
 "Theorem (3.2)", is that statement. A PDF font prints the letters "fi"
 inside "Definition" and "Figure" as one character, ﬁ. The keyword
@@ -96,9 +97,13 @@ PLURAL_MAIN = fold_ligatures(
 PLURAL_HOVER = fold_ligatures(
     "theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
 )
-# Group 2 is a subequation part letter, as in "(2.7a)". It belongs to a
-# dotted number only. "(1a)" is not equation 1.
+# Group 2 is a subequation part letter, as in "(2.7a)" or "(7a)". A dotted
+# number keeps the letter. A bare integer keeps it only when another part
+# letter of that integer is printed, so "(7a)" and "(7b)" are equation 7
+# and a lone "(1a)" is not.
 EQUATION = r"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)([a-z])?\s*\)"
+# The closing parenthesis must not continue a factor, as in "(2a)1/q".
+_BARE_PART = re.compile(r"\(\s*(\d+)([a-z])\s*\)(?!\w)")
 FIGURE = fold_ligatures(r"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b")
 PAIRED_FIGURES = fold_ligatures(
     r"(?i)\b(?:figures|figs\.)\s*((\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?)\s*(?:and|&|,)\s*"
@@ -163,6 +168,18 @@ _MAIN_PLURAL = {
     "remarks": "remark",
     "proofs": "proof",
 }
+
+
+def part_letter_bases(text: str) -> set[str]:
+    """Bare integers that are printed with at least two part letters.
+
+    "(7a)" and "(7b)" are parts of equation 7. A lone "(1a)" is a label, not
+    an equation, and "(2.7a)" is handled by the dotted-number rule instead.
+    """
+    found: dict[str, set[str]] = {}
+    for number, letter in _BARE_PART.findall(text):
+        found.setdefault(number, set()).add(letter)
+    return {number for number, letters in found.items() if len(letters) >= 2}
 
 
 def kind_for_keyword(keyword: str, profile: str) -> str | None:
@@ -308,10 +325,12 @@ def detection(text: str, profile: str = "main") -> Detection:
                 span_start = found.start() if number.start() == 0 else abs_start
                 raw.append(Match(kind, number.group(0), span_start, abs_end, text[span_start:abs_end]))
 
+    bare_parts = part_letter_bases(text)
     for found in patterns["equation"].finditer(text):
         number = found.group(1)
-        # "(2.7a)" is equation 2.7. A letter on a bare integer is not a number.
-        if found.group(2) and "." not in number:
+        # "(2.7a)" is equation 2.7. "(7a)" is equation 7 when "(7b)" is
+        # printed too. A lone "(1a)" is not an equation number.
+        if found.group(2) and "." not in number and number not in bare_parts:
             continue
         if found.group(0).lstrip().startswith("("):
             named = _STATEMENT_BEFORE_PAREN.search(text[: found.start()])
@@ -540,6 +559,12 @@ def declaration_matches(
         # A dotted tag alone on a line is the equation number. Enumerated
         # items are bare integers, and a math font often extracts no "=".
         if "." in match.number:
+            accepted.append(match)
+            continue
+        # "(7a)" alone on a line is equation 7 when another part letter is
+        # printed. The detector only emits that tag in that case, so a lone
+        # "(1a)" never reaches here. A math font may extract no "=".
+        if re.fullmatch(r"\(\s*\d+[a-z]\s*\)", matched_text):
             accepted.append(match)
             continue
         # A bare number alone on a line is still not an equation when the

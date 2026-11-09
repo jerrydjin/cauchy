@@ -65,6 +65,22 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertNil(ReferenceDetector.firstReference(in: "The label (1a) is not an equation."))
     }
 
+    func testBareSubequationFamilyUsesTheBaseNumber() {
+        let text = """
+        Constraints of the model.
+        (7a)
+        (7b)
+        Later the text cites (7a) and (7b).
+        A lone label (1a) is not an equation.
+        """
+        let matches = ReferenceDetector.allReferences(in: text)
+        XCTAssertEqual(matches.filter { $0.reference == DetectedReference(kind: .equation, number: "7") }.count, 4)
+        XCTAssertFalse(matches.contains { $0.reference.number == "1" })
+        XCTAssertTrue(ReferenceDetector.allReferences(in: "Only one part is printed.\n(7a)\nSee (7a) again.").isEmpty)
+        let factor = "The inequality (a + b) <= (2a)1/q + (2b)1/q holds."
+        XCTAssertFalse(ReferenceDetector.allReferences(in: factor).contains { $0.reference.number == "2" })
+    }
+
     func testFigurePanelMentionResolvesToNumberedFigure() {
         let reference = ReferenceDetector.firstReference(in: "See Fig. 3a,b for the comparison.")
         XCTAssertEqual(reference, DetectedReference(kind: .figure, number: "3"))

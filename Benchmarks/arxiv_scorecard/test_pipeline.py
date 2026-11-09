@@ -649,6 +649,33 @@ class DeclarationTests(unittest.TestCase):
         self.assertEqual(sorted(item[3] for item in hits), ["(4.2a)", "(4.2b)"])
         self.assertEqual(_hits_for(pages, "equation", "1"), [])
 
+    def test_bare_subequation_family_is_the_base_equation(self) -> None:
+        # Synthetic. Two part letters make the base equation; one does not.
+        page = "\n".join([
+            "Constraints of the model.",
+            "(7a)",
+            "(7b)",
+            "Both tags are the same equation.",
+            "Later the text cites (7a) and (7b).",
+            "A lone label (1a) is not an equation.",
+        ])
+        references = [(item.kind, item.number) for item in all_references(page)]
+        self.assertEqual(references.count(("equation", "7")), 4)
+        self.assertNotIn(("equation", "1"), references)
+        numbers = [item.number for item in declaration_matches(page)]
+        self.assertEqual(numbers.count("7"), 2)
+        self.assertNotIn("1", numbers)
+        from score import _hits_for  # noqa: E402
+
+        pages = [{"page_index": 0, "text": page}]
+        self.assertEqual(len(_hits_for(pages, "equation", "7")), 4)
+        self.assertEqual(_hits_for(pages, "equation", "1"), [])
+        solo = "\n".join(["Only one part is printed.", "(7a)", "See (7a) again."])
+        self.assertFalse(any(item.number == "7" for item in all_references(solo)))
+        self.assertEqual(_hits_for([{"page_index": 0, "text": solo}], "equation", "7"), [])
+        factor = "The inequality (a + b) <= (2a)1/q + (2b)1/q holds."
+        self.assertFalse(any(item.number == "2" for item in all_references(factor)))
+
 
 class StructureTests(unittest.TestCase):
     def test_chapter_section_and_part_from_the_outline(self) -> None:

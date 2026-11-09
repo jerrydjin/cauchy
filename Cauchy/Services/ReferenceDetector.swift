@@ -94,7 +94,7 @@ enum ReferenceDetector {
     private static func detection(in text: String) -> Detection {
         let raw = namedBlockMatches(in: text)
             + pluralBlockMatches(in: text)
-            + equationCiteMatches(in: text)
+            + equationCiteMatches(in: text, barePartBases: barePartBases(in: text))
             + figureMatches(in: text)
             + pairedFigureMatches(in: text)
         let citations = externalCitations(in: text)
@@ -218,16 +218,34 @@ enum ReferenceDetector {
         }
     }
 
-    private static func equationCiteMatches(in text: String) -> [DetectedReferenceMatch] {
+    /// "(7a)" and "(7b)" share equation 7. A lone "(1a)" does not, and "(2.7a)"
+    /// is not in this set: the dotted rule already keeps that letter.
+    /// The closing parenthesis must not continue a factor, as in "(2a)1/q".
+    private static let barePartRegex = try! NSRegularExpression(pattern: #"\(\s*(\d+)([a-z])\s*\)(?!\w)"#)
+
+    private static func barePartBases(in text: String) -> Set<String> {
+        var letters: [String: Set<String>] = [:]
+        let range = NSRange(text.startIndex..., in: text)
+        for match in barePartRegex.matches(in: text, range: range) {
+            guard let numberRange = Range(match.range(at: 1), in: text),
+                  let letterRange = Range(match.range(at: 2), in: text) else { continue }
+            letters[String(text[numberRange]), default: []].insert(String(text[letterRange]))
+        }
+        return Set(letters.compactMap { $0.value.count >= 2 ? $0.key : nil })
+    }
+
+    private static func equationCiteMatches(in text: String, barePartBases: Set<String>) -> [DetectedReferenceMatch] {
         return matches(from: equationCiteRegex, in: text) { match, source in
             guard let numberRange = Range(match.range(at: 1), in: source),
                   let range = Range(match.range, in: source) else { return nil }
             let number = String(source[numberRange])
-            // "(2.7a)" and "(2.7b)" are parts of equation 2.7. A letter on a
-            // bare integer, "(1a)", is not an equation number. An unmatched
-            // optional group is NSNotFound; require a real letter either way.
+            // "(2.7a)" and "(2.7b)" are parts of equation 2.7. "(7a)" is
+            // equation 7 when "(7b)" is printed in the same text. A lone
+            // "(1a)" is not an equation number. An unmatched optional group
+            // is NSNotFound; require a real letter either way.
             let letter = match.range(at: 2)
-            if letter.location != NSNotFound, letter.length > 0, !number.contains(".") {
+            if letter.location != NSNotFound, letter.length > 0, !number.contains("."),
+               !barePartBases.contains(number) {
                 return nil
             }
             // A bare parenthetical after a statement word is that statement.

@@ -422,6 +422,12 @@ enum LLMReferenceIndexSupport {
             if match.reference.number.contains(".") {
                 return true
             }
+            // "(7a)" alone on a line is equation 7 when another part letter is
+            // printed. The detector only emits that tag in that case, so a
+            // lone "(1a)" never reaches here.
+            if fullLine.range(of: #"^\(\s*\d+[a-z]\s*\)$"#, options: .regularExpression) != nil {
+                return true
+            }
 
             // A bare number alone on a line is still not an equation when the
             // text layer split a subscript ("E[R" / "(1)" / "x") or wrapped a

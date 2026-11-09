@@ -10,10 +10,14 @@
   reference resolves when "what is section N about" locates the body page
   that prints the section heading. Main locates a heading written as
   “N. Title” or “N.N. Title.”
-- No wrong link. A wrong link is a hover that would open: a citation span
-  whose detector hit is in the index, a printed reference resolved to a
-  different indexed statement, or an index entry that is not a real
-  declaration in the HTML.
+- No wrong link. A wrong link is a hover that would open a citation span
+  whose detector hit is in the index, or a printed reference resolved to a
+  different indexed statement.
+- No indexed statement that the HTML does not declare, unless the PDF text
+  prints that statement as a heading. A heading starts a line: "Proposition
+  3.2.", "Proposition 3.2 (Name)", "Proposition 3.2:", or "3.2. Proposition."
+  "by Proposition 3.2" and "see Remark 3.12." are mentions. An equation tag
+  or a section title is not this exception.
 - No bracket or author-year citation is emitted as a local reference, even
   when that reference is not in the index.
 - Every probed "what is section N about" question lands on the heading's page.
@@ -31,9 +35,11 @@ from cauchy_logic import (
     StatementIndex,
     Structure,
     _external_citation_spans,
+    _number_sort_key,
     all_references,
     build_statement_index,
     _explicit_section_number,
+    _is_line_start_statement,
     fold_ligatures,
     heading_line,
     logical_lines,
@@ -63,12 +69,95 @@ _KIND_PATTERN = {
     "proof": r"proofs?",
 }
 
+# Numbered statements whose printed heading is "Proposition 3.2". Equation
+# tags and section titles stay on the HTML declaration list: "(3.2)" and
+# "1. Introduction" are not this heading.
+_PDF_HEADING_KINDS = {
+    "theorem", "lemma", "proposition", "corollary", "definition", "remark", "example",
+}
+
 
 
 def _boundary_number(number: str) -> str:
     # A heading is often "Theorem 2.1." The period is punctuation, not part of
     # a longer number. Reject only a following digit or a dotted continuation.
     return re.escape(number) + r"(?!\.\d)(?!\d)"
+
+
+def _at_line_start(text: str, index: int) -> bool:
+    line_start = text.rfind("\n", 0, index) + 1
+    return text[line_start:index].strip() == ""
+
+
+def _line_around(text: str, start: int, end: int) -> str:
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", end)
+    if line_end < 0:
+        line_end = len(text)
+    line = " ".join(text[line_start:line_end].split())
+    if len(line) > 300:
+        return line[:300].rstrip() + "…"
+    return line
+
+
+def _pdf_statement_hits(pages: list[dict], kind: str, number: str) -> tuple[dict | None, dict | None]:
+    """The first heading line, and the first in-text line, for this statement.
+
+    A heading starts a line and reads as a statement, not a mention. The kind
+    word comes first ("Proposition 3.2.", "Proposition 3.2 (Name)",
+    "Lemma 9:") or the number does ("3.2. Proposition."). The same test the
+    reader uses for a line-start statement rejects a comma ("Proposition 3.6,
+    we have") and a dot leader ("Proposition 3.2 .... 12"). "by Proposition
+    3.2" and "see Remark 3.12." do not start the line. "Proposition 3.20" is
+    a different number. The ﬁ ligature in "Deﬁnition" is the PDF's "fi".
+
+    The in-text line is kept so a rejection can be spot-checked.
+    """
+    if kind not in _PDF_HEADING_KINDS or not number:
+        return None, None
+    word = fold_ligatures(kind)
+    token = _boundary_number(number)
+    kind_first = re.compile(rf"(?i)\b(?:{word})[ \t]+{token}")
+    number_first = re.compile(rf"(?im)^[ \t]*{token}\.?[ \t]+(?:{word})\b")
+    heading: dict | None = None
+    mention: dict | None = None
+    for page in pages:
+        text = page.get("text") or ""
+        if not text:
+            continue
+        hits: list[tuple[int, int, str, bool]] = []
+        for match in kind_first.finditer(text):
+            is_heading = _at_line_start(text, match.start()) and _is_line_start_statement(text[match.end():])
+            hits.append((match.start(), match.end(), "line-start", is_heading))
+        for match in number_first.finditer(text):
+            is_heading = _is_line_start_statement(text[match.end():])
+            hits.append((match.start(), match.end(), "number-first", is_heading))
+        for start, end, form, is_heading in sorted(hits):
+            found = {
+                "page_index": page["page_index"],
+                "line": _line_around(text, start, end),
+                "form": form if is_heading else "mention",
+            }
+            if is_heading:
+                if heading is None:
+                    heading = found
+            elif mention is None:
+                mention = found
+        if heading is not None and mention is not None:
+            return heading, mention
+    return heading, mention
+
+
+def pdf_statement_heading(pages: list[dict], kind: str, number: str) -> dict | None:
+    """The PDF line that prints this statement as a heading, if there is one."""
+    heading, _mention = _pdf_statement_hits(pages, kind, number)
+    return heading
+
+
+def pdf_statement_mention(pages: list[dict], kind: str, number: str) -> dict | None:
+    """A non-heading line that still contains the kind word and exact number."""
+    _heading, mention = _pdf_statement_hits(pages, kind, number)
+    return mention
 
 
 def _patterns(kind: str, number: str) -> list[re.Pattern[str]]:
@@ -410,13 +499,41 @@ def score_profile(
                 citation_links += 1
 
     false_keys = []
+    pdf_verified = []
+    rejected_statements = []
     for key, entry in index.entries.items():
         if key in truth.declaration_keys:
             continue
         if entry.kind not in IN_SCOPE and entry.kind not in {"proposition", "corollary", "remark", "example"}:
             continue
+        # LaTeXML sometimes drops a numbered statement (a broken counter, or
+        # an environment such as {proposition} that it did not expand). The
+        # statement is still correct when the PDF prints its heading. An
+        # equation or a section has no such heading, and a statement that is
+        # in neither place stays a failure.
+        if entry.kind in _PDF_HEADING_KINDS:
+            heading, mention = _pdf_statement_hits(pages, entry.kind, entry.number)
+            if heading is not None:
+                pdf_verified.append({
+                    "page": entry.page_index + 1,
+                    "kind": entry.kind,
+                    "number": entry.number,
+                    "pdf_page": heading["page_index"] + 1,
+                    "pdf_line": heading["line"],
+                    "form": heading["form"],
+                })
+                continue
+            rejected_statements.append({
+                "page": entry.page_index + 1,
+                "kind": entry.kind,
+                "number": entry.number,
+                "pdf_page": None if mention is None else mention["page_index"] + 1,
+                "pdf_line": "" if mention is None else mention["line"],
+            })
         false_keys.append(f"p.{entry.page_index + 1} {entry.kind} {entry.number}")
     false_keys.sort()
+    pdf_verified.sort(key=lambda item: (item["kind"], _number_sort_key(item["number"]), item["page"]))
+    rejected_statements.sort(key=lambda item: (item["kind"], _number_sort_key(item["number"]), item["page"]))
 
     denominator = correct + missed + wrong + extraction_misses
     rate = 1.0 if denominator == 0 else correct / denominator
@@ -443,6 +560,9 @@ def score_profile(
         "citation_links": citation_links,
         "false_declarations": false_keys[:12],
         "false_declaration_count": len(false_keys),
+        "pdf_verified_declarations": pdf_verified,
+        "pdf_verified_count": len(pdf_verified),
+        "rejected_statement_declarations": rejected_statements,
         "index_size": len(index),
         "index_seconds": round(index_seconds, 3),
         "section_questions": questions,
@@ -469,7 +589,8 @@ def _fail_reasons(denominator, rate, wrong, citations, false_keys, questions_ok,
         count = len(false_keys)
         noun = "statement" if count == 1 else "statements"
         verb = "is" if count == 1 else "are"
-        reasons.append(f"{count} indexed {noun} {verb} not in the HTML declarations")
+        heading = "a PDF statement heading" if count == 1 else "PDF statement headings"
+        reasons.append(f"{count} indexed {noun} {verb} not in the HTML and {verb} not {heading}")
     if not questions_ok:
         reasons.append(
             "section questions are not implemented"

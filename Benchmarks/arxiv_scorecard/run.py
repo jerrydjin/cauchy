@@ -459,7 +459,7 @@ _GATE_ORDER = (
     ("resolution", "resolution under 90%"),
     ("wrong_link", "wrong link"),
     ("citation", "citation emitted as a local reference"),
-    ("false_declaration", "indexed statement absent from the HTML"),
+    ("false_declaration", "indexed statement absent from the HTML and the PDF"),
     ("section", "section question missed the heading page"),
 )
 
@@ -517,6 +517,88 @@ def _first_fail_lines(random_rows: list[dict]) -> list[str]:
         lines.append(f"- **{label}** ({len(ids)}): {', '.join(ids)}")
     lines.append("")
     return lines
+
+
+def _pdf_verified_note(card: dict) -> str:
+    count = card.get("pdf_verified_count") or 0
+    if not count:
+        return ""
+    noun = "heading" if count == 1 else "headings"
+    return f" ({count} PDF-verified {noun} not counted)"
+
+
+def _spread_heading_sample(items: list[tuple[str, dict]], limit: int = 5) -> list[tuple[str, dict]]:
+    """Up to `limit` rows, spreading across papers and then across kinds."""
+    picked: list[tuple[str, dict]] = []
+    seen_papers: set[str] = set()
+    seen_kinds: set[str] = set()
+    for arxiv_id, item in items:
+        if arxiv_id in seen_papers:
+            continue
+        seen_papers.add(arxiv_id)
+        seen_kinds.add(item["kind"])
+        picked.append((arxiv_id, item))
+        if len(picked) == limit:
+            return picked
+    for arxiv_id, item in items:
+        if item["kind"] in seen_kinds:
+            continue
+        seen_kinds.add(item["kind"])
+        picked.append((arxiv_id, item))
+        if len(picked) == limit:
+            return picked
+    for entry in items:
+        if entry in picked:
+            continue
+        picked.append(entry)
+        if len(picked) == limit:
+            break
+    return picked
+
+
+def _sample_heading_lines(items: list[tuple[str, dict]]) -> list[str]:
+    if not items:
+        return ["- none"]
+    lines = []
+    for arxiv_id, item in _spread_heading_sample(items):
+        where = f"p.{item['pdf_page']}" if item.get("pdf_page") else "no PDF line"
+        quoted = item.get("pdf_line") or "(no kind-and-number line)"
+        lines.append(f"- {arxiv_id} {item['kind']} {item['number']} ({where}): {quoted}")
+    return lines
+
+
+def _pdf_heading_lines(random_rows: list[dict]) -> list[str]:
+    """How many HTML-missing statements the PDF heading now accepts.
+
+    Accepted lines are the heading that cleared the statement. Rejected
+    lines are the in-text kind-and-number hit, when the PDF has one, so a
+    reader can check that a mention was not treated as a heading.
+    """
+    accepted: list[tuple[str, dict]] = []
+    rejected: list[tuple[str, dict]] = []
+    for row in random_rows:
+        card = row["profiles"]["main"]
+        for item in card.get("pdf_verified_declarations") or []:
+            accepted.append((row["id"], item))
+        for item in card.get("rejected_statement_declarations") or []:
+            rejected.append((row["id"], item))
+    if not accepted and not rejected:
+        return []
+    return [
+        "## Indexed statements missing from the HTML",
+        "",
+        f"{len(accepted)} indexed statements are accepted because the PDF prints the kind and number as a heading. "
+        f"{len(rejected)} stay rejected.",
+        "",
+        "Accepted sample:",
+        "",
+        *_sample_heading_lines(accepted),
+        "",
+        "Rejected sample:",
+        "",
+        *_sample_heading_lines(rejected),
+        "",
+    ]
 
 
 def _author_year_lines(random_rows: list[dict]) -> list[str]:
@@ -673,8 +755,9 @@ def _tickets(rows: list[dict]) -> list[dict]:
             "problem": "A left-margin line that contains a math arrow passes declarationMatches, so the source-fallback index stores equation keys the paper never displays.",
             "size": "medium. The declaration filter needs a tighter check than “label near the left margin and the line looks like mathematics.”",
             "evidence": (
-                f"{main_false} indexed keys on main are absent from the HTML declarations, "
-                f"after setting aside papers whose HTML numbers do not match the PDF."
+                f"{main_false} indexed keys on main are absent from the HTML and from a PDF statement heading, "
+                f"after setting aside papers whose HTML numbers do not match the PDF. "
+                "A numbered statement whose heading is printed is not in this count."
             ),
         },
         {
@@ -730,7 +813,8 @@ def _write_markdown(payload: dict) -> None:
         "",
         "- At least 8 theorem, lemma, definition, equation, or section references are recoverable.",
         "- At least 90% of them resolve. A statement resolves when the detector names the right kind and number and the source-fallback index contains that key. A section reference resolves when “what is section N about” lands on the page that prints the heading.",
-        "- There is no wrong link: no citation span opens an indexed statement, no printed reference opens a different statement, and the index contains no statement the HTML does not declare.",
+        "- There is no wrong link: no citation span opens an indexed statement, and no printed reference opens a different statement.",
+        "- The index contains no statement that is absent from both the HTML and the PDF. A numbered statement the HTML dropped still counts when the PDF prints its heading at the start of a line, such as “Proposition 3.2.”, “Proposition 3.2 (Name)”, “Proposition 3.2:”, or “3.2. Proposition.”. “by Proposition 3.2” and “see Remark 3.12.” are mentions, and “Proposition 3.6, we have” is not a heading. An equation tag is not this exception.",
         "- No bracket or author–year citation is emitted as a local reference.",
         "- Every probed “what is section N about” question lands on the heading page.",
         "",
@@ -772,6 +856,7 @@ def _write_markdown(payload: dict) -> None:
         _search_blurb(random_rows),
         "",
         *_first_fail_lines(random_rows),
+        *_pdf_heading_lines(random_rows),
         *_author_year_lines(random_rows),
         "## Random papers",
         "",
@@ -837,7 +922,8 @@ def _write_markdown(payload: dict) -> None:
             f"extraction gaps {main['extraction_misses']}, wrong links {main['wrong_links']}, "
             f"citation emissions {main['citation_detections']} "
             f"({main['citation_links']} of them indexed), "
-            f"false declarations {main['false_declaration_count']}. "
+            f"false declarations {main['false_declaration_count']}"
+            f"{_pdf_verified_note(main)}. "
             f"Index built in {main['index_seconds']:.2f}s plus {row['extract_seconds']:.2f}s extraction. "
             f"A model pass would send about {row['model_input']['estimated_input_tokens']} input tokens "
             f"across {row['model_input']['pages_that_would_call_the_model']} pages."

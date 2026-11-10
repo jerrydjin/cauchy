@@ -683,6 +683,25 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "3")))
     }
 
+    func testAppendixEquationTagAloneOnALineIsADeclaration() {
+        let page = """
+        The bound is recorded in the appendix.
+        (A.1)
+        where the constant is positive.
+        (B.10)
+        The hypotheses (H.1) and (H.2) stay inline.
+        A bare (A) is not an equation.
+        """
+
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "A.1")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "B.10")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "H.1")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "H.2")))
+        XCTAssertFalse(declarations.contains { $0.number == "A" })
+    }
+
     func testDottedSubequationPartOnItsOwnLineIsTheBaseEquation() {
         let page = """
         The two parts of the display are tagged separately.

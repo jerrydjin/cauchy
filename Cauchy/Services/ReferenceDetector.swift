@@ -241,8 +241,8 @@ enum ReferenceDetector {
             let number = String(source[numberRange])
             // "(2.7a)" and "(2.7b)" are parts of equation 2.7. "(7a)" is
             // equation 7 when "(7b)" is printed in the same text. A lone
-            // "(1a)" is not an equation number. An unmatched optional group
-            // is NSNotFound; require a real letter either way.
+            // "(1a)" is not an equation number. "(A.1)" is equation A.1.
+            // An unmatched optional group is NSNotFound; require a real letter either way.
             let letter = match.range(at: 2)
             if letter.location != NSNotFound, letter.length > 0, !number.contains("."),
                !barePartBases.contains(number) {

@@ -51,6 +51,13 @@ class DetectorTests(unittest.TestCase):
             part = first_reference("from Eq. (3.1c) the bound follows", profile)
             self.assertEqual((part.kind, part.number), ("equation", "3.1"))
             self.assertIsNone(first_reference("The label (1a) is not an equation.", profile))
+            appendix = all_references("Compare (A.1) with Eq. (B.10), and leave (A) and (a.1) alone.", profile)
+            self.assertEqual(
+                [(item.kind, item.number) for item in appendix],
+                [("equation", "A.1"), ("equation", "B.10")],
+            )
+            named = first_reference("Lemma (A.1) gives the bound used in (A.2).", profile)
+            self.assertEqual((named.kind, named.number), ("lemma", "A.1"))
             figure = first_reference("See Fig. 3a,b for the comparison.", profile)
             self.assertEqual((figure.kind, figure.number), ("figure", "3"))
             self.assertIsNone(first_reference("This is ordinary text.", profile))
@@ -764,6 +771,25 @@ class DeclarationTests(unittest.TestCase):
         numbers = [item.number for item in declaration_matches(page)]
         self.assertIn("2.4", numbers)
         self.assertNotIn("3", numbers)
+
+    def test_appendix_equation_tag_on_its_own_line_is_a_declaration(self) -> None:
+        # Synthetic. "(A.1)" is the appendix equation. "(H.1)" inline is a mention.
+        page = "\n".join([
+            "The bound is recorded in the appendix.",
+            "(A.1)",
+            "where the constant is positive.",
+            "(B.10)",
+            "The hypotheses (H.1) and (H.2) stay inline.",
+            "A bare (A) is not an equation.",
+        ])
+        declared = [(item.kind, item.number) for item in declaration_matches(page)]
+        self.assertIn(("equation", "A.1"), declared)
+        self.assertIn(("equation", "B.10"), declared)
+        self.assertNotIn(("equation", "H.1"), declared)
+        self.assertNotIn(("equation", "H.2"), declared)
+        mentions = [(item.kind, item.number) for item in all_references(page)]
+        self.assertIn(("equation", "H.1"), mentions)
+        self.assertNotIn(("equation", "A"), mentions)
 
     def test_dotted_subequation_part_is_the_base_equation(self) -> None:
         page = "\n".join([

@@ -65,6 +65,29 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertNil(ReferenceDetector.firstReference(in: "The label (1a) is not an equation."))
     }
 
+    func testAppendixEquationTagUsesThePrintedNumber() {
+        // Synthetic. The letter is the appendix, the same shape as Remark A.0.5.
+        let text = "Compare (A.1) with Eq. (B.10), and leave (A) and (a.1) alone."
+        let matches = ReferenceDetector.allReferences(in: text)
+        XCTAssertEqual(matches.map(\.reference), [
+            DetectedReference(kind: .equation, number: "A.1"),
+            DetectedReference(kind: .equation, number: "B.10"),
+        ])
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "Lemma (A.1) gives the bound used in (A.2)."),
+            DetectedReference(kind: .lemma, number: "A.1")
+        )
+        let parts = "The appendix splits the display.\n(A.1a)\n(A.1b)\nLater cite (A.1a)."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: parts).map(\.reference),
+            [
+                DetectedReference(kind: .equation, number: "A.1"),
+                DetectedReference(kind: .equation, number: "A.1"),
+                DetectedReference(kind: .equation, number: "A.1"),
+            ]
+        )
+    }
+
     func testBareSubequationFamilyUsesTheBaseNumber() {
         let text = """
         Constraints of the model.

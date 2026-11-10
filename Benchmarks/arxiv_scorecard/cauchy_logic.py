@@ -7,7 +7,9 @@ after a bare number is only read from the next four lines. A bare tag at
 the end of a prose sentence is not a declaration. A part letter on a dotted
 tag, as in "(2.7a)", is that equation. A bare integer printed with two or
 more part letters, as in "(7a)" and "(7b)", is that equation; a lone "(1a)"
-is not. A parenthesized number printed after a statement word, as in
+is not. An appendix tag "(A.1)" or "(B.10)" is that equation. The letter
+stays uppercase, so "(a.1)" is not one, and a bare "(A)" is not one either.
+A parenthesized number printed after a statement word, as in
 "Theorem (3.2)", is that statement. A PDF font prints the letters "fi"
 inside "Definition" and "Figure" as one character, ﬁ. The keyword
 patterns accept that spelling, and the captured word is folded back
@@ -111,8 +113,12 @@ PLURAL_HOVER = fold_ligatures(
 # Group 2 is a subequation part letter, as in "(2.7a)" or "(7a)". A dotted
 # number keeps the letter. A bare integer keeps it only when another part
 # letter of that integer is printed, so "(7a)" and "(7b)" are equation 7
-# and a lone "(1a)" is not.
-EQUATION = r"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)([a-z])?\s*\)"
+# and a lone "(1a)" is not. "(A.1)" and "(B.10)" are appendix equations.
+# The letter is uppercase only, so "(a.1)" and a bare "(A)" are not.
+EQUATION = (
+    r"(?i:(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*))?"
+    r"\(\s*([A-Z](?:\.\d+)+|\d+(?:\.\d+)*)(?i:([a-z]))?\s*\)"
+)
 # The closing parenthesis must not continue a factor, as in "(2a)1/q".
 _BARE_PART = re.compile(r"\(\s*(\d+)([a-z])\s*\)(?!\w)")
 FIGURE = fold_ligatures(r"(?i)\bfig(?:ure)?\.?\s*(\d+(?:\.\d+)*)(?:[a-z](?:,[a-z])?)?\b")

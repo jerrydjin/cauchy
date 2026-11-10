@@ -58,7 +58,9 @@ enum ReferenceParsing {
     /// number always keeps the letter. A bare integer keeps it only when the
     /// same text prints another part letter, so "(7a)" and "(7b)" are equation
     /// 7 and a lone "(1a)" is not.
-    static let equationCitePattern = #"(?i)(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*)?\(\s*(\d+(?:\.\d+)*)([a-z])?\s*\)"#
+    /// An appendix tag "(A.1)" or "(B.10)" is that equation. The letter stays
+    /// uppercase, so "(a.1)" is not one, and a bare "(A)" is not one either.
+    static let equationCitePattern = #"(?i:(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*))?\(\s*([A-Z](?:\.\d+)+|\d+(?:\.\d+)*)(?i:([a-z]))?\s*\)"#
 
     // The optional panel suffix belongs to the mention, not the figure's
     // identity: "Fig. 3a,b" links to the numbered Figure 3 object.

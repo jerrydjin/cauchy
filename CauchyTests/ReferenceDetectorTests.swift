@@ -235,6 +235,18 @@ final class ReferenceDetectorTests: XCTestCase {
             ReferenceDetector.firstReference(in: "Definition (2.5) names the term."),
             DetectedReference(kind: .definition, number: "2.5")
         )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "using the definition (3.2) of the symbol"),
+            DetectedReference(kind: .equation, number: "3.2")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "the theorem (1.1) is the displayed line"),
+            DetectedReference(kind: .equation, number: "1.1")
+        )
+        XCTAssertEqual(
+            ReferenceDetector.firstReference(in: "De\u{FB01}nition (2.5) names the term."),
+            DetectedReference(kind: .definition, number: "2.5")
+        )
         XCTAssertNil(ReferenceDetector.firstReference(in: "By [12, Theorem (3.2)] the map is continuous."))
         XCTAssertEqual(
             ReferenceDetector.firstReference(in: "from Eq. (2.3) it follows")?.kind,

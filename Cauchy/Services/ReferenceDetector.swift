@@ -275,6 +275,12 @@ enum ReferenceDetector {
               let kindRange = Range(match.range(at: 1), in: prefix),
               let word = Range(match.range, in: prefix),
               let kind = kind(forPrintedWord: String(prefix[kindRange])) else { return nil }
+        let printed = String(prefix[kindRange])
+        // "the definition (3.2)" names the equation. "Definition (2.5)" and
+        // "Lem. (4)" name the statement. A lowercase full word is the noun.
+        if !printed.contains("."), let first = printed.first, !first.isUppercase {
+            return nil
+        }
         let start = source.index(
             source.startIndex,
             offsetBy: prefix.distance(from: prefix.startIndex, to: word.lowerBound)

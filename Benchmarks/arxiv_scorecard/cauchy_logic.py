@@ -25,8 +25,10 @@ to ASCII before it is looked up.
   Main also reads the period-marked abbreviations Thm. Lem. Prop. Cor. and
   Def., including a list such as "Lem. 2, 3, and 4" and "Lem. (4)". The
   period is required: "Thm 3.2" and "lem (11)" stay unresolved, so a
-  parenthesized equation is not read as a statement. Hover still allows
-  the period to be omitted.
+  parenthesized equation is not read as a statement. A lowercase full
+  word is the noun: "the definition (3.2)" is equation 3.2, while
+  "Definition (2.5)" keeps the capital and stays a definition. Hover still
+  allows the period to be omitted.
   A candidate that continues the previous line is not indexed. "step 2 of"
   then "Lemma 7. Since..." is a wrapped mention. "B" then "(2)" then "n+1"
   is a superscript, and "(1)" between a one-digit row and a control-character
@@ -351,7 +353,9 @@ def detection(text: str, profile: str = "main") -> Detection:
             continue
         if found.group(0).lstrip().startswith("("):
             named = _STATEMENT_BEFORE_PAREN.search(text[: found.start()])
-            if named is not None:
+            # "the definition (3.2)" is the equation. "Definition (2.5)" and
+            # "Lem. (4)" are the statement. A lowercase full word is the noun.
+            if named is not None and ("." in named.group(1) or named.group(1)[:1].isupper()):
                 kind = kind_for_keyword(named.group(1), profile)
                 if kind is not None:
                     start = named.start()

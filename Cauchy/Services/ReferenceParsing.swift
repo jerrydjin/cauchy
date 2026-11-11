@@ -32,6 +32,8 @@ enum ReferenceParsing {
     /// Full words, plus the period-marked abbreviations Thm. Lem. Prop. Cor. Def.
     /// The period is required. "Thm 3.2" and "lem (11)" are not statement
     /// references, so a parenthesized equation is not read as a lemma.
+    /// A lowercase full word is the noun, not the label: "the definition (3.2)"
+    /// is equation 3.2. "Definition (2.5)" keeps the capital and stays a definition.
     /// `ReferenceKind.fromKeyword` does not map these abbreviations. The
     /// detector does, so a search for "def" does not become a kind filter.
     static let namedBlockKeywords = foldingLigatures(

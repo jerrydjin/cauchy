@@ -725,6 +725,14 @@ class DeclarationTests(unittest.TestCase):
                  first_reference("Definition (2.5) names the term.", profile).number),
                 ("definition", "2.5"),
             )
+            # A lowercase noun introduces the equation. The capital stays a statement.
+            noun = first_reference("using the definition (3.2) of the symbol", profile)
+            self.assertEqual((noun.kind, noun.number), ("equation", "3.2"))
+            theorem_noun = first_reference("the theorem (1.1) is the displayed line", profile)
+            self.assertEqual((theorem_noun.kind, theorem_noun.number), ("equation", "1.1"))
+            # The ﬁ ligature is inside the word. The capital still marks the label.
+            ligature = first_reference("De\uFB01nition (2.5) names the term.", profile)
+            self.assertEqual((ligature.kind, ligature.number), ("definition", "2.5"))
             self.assertEqual(all_references("By [12, Theorem (3.2)] the map is continuous.", profile), [])
             self.assertEqual(first_reference("from Eq. (2.3) it follows", profile).kind, "equation")
             self.assertEqual(first_reference("as shown by (1.2)", profile).kind, "equation")

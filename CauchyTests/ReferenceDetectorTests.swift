@@ -164,6 +164,70 @@ final class ReferenceDetectorTests: XCTestCase {
         XCTAssertEqual(matches.map { String(text[$0.range]) }, ["Lemmas 3.1", "3.2", "3.4"])
     }
 
+    func testSingularWordIntroducesEveryNumberInTheList() {
+        let joined = "Theorem 6 and 7 follow from the bound."
+        let joinedHits = ReferenceDetector.allReferences(in: joined)
+        XCTAssertEqual(
+            joinedHits.map(\.reference),
+            [
+                DetectedReference(kind: .theorem, number: "6"),
+                DetectedReference(kind: .theorem, number: "6"),
+                DetectedReference(kind: .theorem, number: "7"),
+            ]
+        )
+
+        let wrapped = "Theorem 3.1,\n3.4, 3.5 and 3.12 are proved later."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: wrapped).map(\.reference.number),
+            ["3.1", "3.1", "3.4", "3.5", "3.12"]
+        )
+
+        let oxford = "See Lemma 2, 3, and 4 before the estimate."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: oxford).map(\.reference),
+            [
+                DetectedReference(kind: .lemma, number: "2"),
+                DetectedReference(kind: .lemma, number: "2"),
+                DetectedReference(kind: .lemma, number: "3"),
+                DetectedReference(kind: .lemma, number: "4"),
+            ]
+        )
+
+        let prose = "Theorem 6 and the bound in 7 stay separate."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: prose).map(\.reference),
+            [DetectedReference(kind: .theorem, number: "6")]
+        )
+
+        let wrappedAnd = "Theorem 3 and\n9. Then the claim holds."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: wrappedAnd).map(\.reference.number),
+            ["3", "3", "9"]
+        )
+        let dottedBreak = "Theorem 3.1,\n3.4 and 3.5 follow."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: dottedBreak).map(\.reference.number),
+            ["3.1", "3.1", "3.4", "3.5"]
+        )
+
+        let numerator = "By Proposition 10,\n1\n1 + i(u + v) is the formula."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: numerator).map(\.reference),
+            [
+                DetectedReference(kind: .proposition, number: "10"),
+                DetectedReference(kind: .proposition, number: "10"),
+            ]
+        )
+        let fraction = "By Lemma 4.1,\n1\n2 is the fraction."
+        XCTAssertEqual(
+            ReferenceDetector.allReferences(in: fraction).map(\.reference),
+            [
+                DetectedReference(kind: .lemma, number: "4.1"),
+                DetectedReference(kind: .lemma, number: "4.1"),
+            ]
+        )
+    }
+
     func testPeriodMarkedAbbreviationsResolveOnTheMainReader() {
         XCTAssertEqual(
             ReferenceDetector.firstReference(in: "Thm. 3.2 is abbreviated."),

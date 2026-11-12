@@ -112,6 +112,12 @@ PLURAL_MAIN = fold_ligatures(
 PLURAL_HOVER = fold_ligatures(
     "theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs"
 )
+# A singular word names every number only when a second one follows.
+# "Theorem 6 and 7" is both theorems. "Theorem 6 and the bound" stays 6.
+# Abbreviations stay on the plural pattern, which already accepts one number.
+SINGULAR_LIST = fold_ligatures(
+    r"theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof"
+)
 # Group 2 is a subequation part letter, as in "(2.7a)" or "(7a)". A dotted
 # number keeps the letter. A bare integer keeps it only when another part
 # letter of that integer is printed, so "(7a)" and "(7b)" are equation 7
@@ -257,6 +263,10 @@ def _compile(profile: str) -> dict[str, re.Pattern[str]]:
     patterns["list"] = re.compile(
         rf"(?i)\b({plural})\s*({REFERENCE_NUMBER}(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER}){repeat})"
     )
+    if profile == "main":
+        patterns["singular_list"] = re.compile(
+            rf"(?i)\b({SINGULAR_LIST})\s*({REFERENCE_NUMBER}(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER})+)"
+        )
     patterns["number"] = re.compile(REFERENCE_NUMBER)
     return patterns
 
@@ -265,6 +275,22 @@ _PATTERNS = {
     "main": _compile("main"),
     "hover": _compile("hover"),
 }
+
+
+def _singular_continuation_ok(text: str, previous_end: int | None, start: int, number: str) -> bool:
+    """A later number in "Theorem 6 and 7" is part of the list.
+
+    A comma may break before a dotted number ("Theorem 3.1,\\n3.4").
+    "and" may break before a bare integer ("Theorem 3 and\\n9").
+    A comma, a line break, and a bare integer are a wrapped numerator
+    ("Proposition 10,\\n1" above "1 + i"), not the next statement.
+    """
+    if previous_end is None:
+        return True
+    gap = text[previous_end:start]
+    if "\n" not in gap or "." in number:
+        return True
+    return re.search(r"(?i)\b(?:and|&)\s*$", gap) is not None
 
 
 def _overlaps(start: int, end: int, spans: list[tuple[int, int]]) -> bool:
@@ -331,16 +357,27 @@ def detection(text: str, profile: str = "main") -> Detection:
             continue
         raw.append(Match(kind, found.group(2), found.start(), found.end(), found.group(0)))
 
-    if "list" in patterns:
-        for found in patterns["list"].finditer(text):
+    for list_key in ("list", "singular_list"):
+        pattern = patterns.get(list_key)
+        if pattern is None:
+            continue
+        for found in pattern.finditer(text):
             kind = kind_for_keyword(found.group(1), profile)
             if kind is None:
                 continue
             list_text = found.group(2)
             list_start = found.start(2)
+            previous_end = None
             for number in patterns["number"].finditer(list_text):
                 abs_start = list_start + number.start()
                 abs_end = list_start + number.end()
+                # "Proposition 10,\n1" then a formula is a wrapped numerator.
+                # "Theorem 3.1,\n3.4" and "Theorem 3 and\n9" are still lists.
+                if list_key == "singular_list" and not _singular_continuation_ok(
+                    text, previous_end, abs_start, number.group(0)
+                ):
+                    break
+                previous_end = abs_end
                 span_start = found.start() if number.start() == 0 else abs_start
                 raw.append(Match(kind, number.group(0), span_start, abs_end, text[span_start:abs_end]))
 

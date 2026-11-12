@@ -29,6 +29,7 @@ enum ReferenceDetector {
     private static let figureRegex = try! NSRegularExpression(pattern: ReferenceParsing.figurePattern)
     private static let pairedFiguresRegex = try! NSRegularExpression(pattern: ReferenceParsing.pairedFiguresPattern)
     private static let pluralBlockRegex = try! NSRegularExpression(pattern: ReferenceParsing.pluralBlockPattern)
+    private static let singularListRegex = try! NSRegularExpression(pattern: ReferenceParsing.singularListPattern)
     private static let pluralNumberRegex = try! NSRegularExpression(pattern: ReferenceParsing.referenceNumberPattern)
     private static let bracketCitationRegex = try! NSRegularExpression(pattern: ReferenceParsing.bracketCitationBody)
     private static let authorYearParentheticalRegex = try! NSRegularExpression(pattern: ReferenceParsing.authorYearParenthetical)
@@ -94,6 +95,7 @@ enum ReferenceDetector {
     private static func detection(in text: String) -> Detection {
         let raw = namedBlockMatches(in: text)
             + pluralBlockMatches(in: text)
+            + singularListMatches(in: text)
             + equationCiteMatches(in: text, barePartBases: barePartBases(in: text))
             + figureMatches(in: text)
             + pairedFigureMatches(in: text)
@@ -196,26 +198,61 @@ enum ReferenceDetector {
     }
 
     private static func pluralBlockMatches(in text: String) -> [DetectedReferenceMatch] {
+        listMatches(from: pluralBlockRegex, in: text, singular: false)
+    }
+
+    private static func singularListMatches(in text: String) -> [DetectedReferenceMatch] {
+        listMatches(from: singularListRegex, in: text, singular: true)
+    }
+
+    /// Each number in the list is its own reference. The first keeps the
+    /// keyword in its range, so it overlaps the named-pattern hit.
+    /// A singular list stops before a bare integer that only continues
+    /// because a comma wrapped onto a formula ("Proposition 10," then "1").
+    private static func listMatches(from regex: NSRegularExpression, in text: String, singular: Bool) -> [DetectedReferenceMatch] {
         let full = NSRange(text.startIndex..., in: text)
-        return pluralBlockRegex.matches(in: text, range: full).flatMap { match -> [DetectedReferenceMatch] in
+        return regex.matches(in: text, range: full).flatMap { match -> [DetectedReferenceMatch] in
             guard let kindRange = Range(match.range(at: 1), in: text),
                   let kind = kind(forPrintedWord: String(text[kindRange])),
-                  let phrase = Range(match.range, in: text) else { return [] }
-            let list = String(text[Range(match.range(at: 2), in: text)!])
+                  let phrase = Range(match.range, in: text),
+                  let listRange = Range(match.range(at: 2), in: text) else { return [] }
+            let list = String(text[listRange])
             let numbers = pluralNumberRegex.matches(in: list, range: NSRange(list.startIndex..., in: list))
-            return numbers.compactMap { numberMatch in
+            var hits: [DetectedReferenceMatch] = []
+            var previousEnd: String.Index?
+            for numberMatch in numbers {
                 let absolute = NSRange(
                     location: match.range(at: 2).location + numberMatch.range.location,
                     length: numberMatch.range.length
                 )
-                guard let numberRange = Range(absolute, in: text) else { return nil }
+                guard let numberRange = Range(absolute, in: text) else { return hits }
+                let number = String(text[numberRange])
+                if singular, !singularContinuationOK(in: text, previousEnd: previousEnd, start: numberRange.lowerBound, number: number) {
+                    break
+                }
+                previousEnd = numberRange.upperBound
                 let start = numberMatch.range.location == 0 ? phrase.lowerBound : numberRange.lowerBound
-                return DetectedReferenceMatch(
-                    reference: DetectedReference(kind: kind, number: String(text[numberRange])),
+                hits.append(DetectedReferenceMatch(
+                    reference: DetectedReference(kind: kind, number: number),
                     range: start..<numberRange.upperBound
-                )
+                ))
             }
+            return hits
         }
+    }
+
+    /// "Theorem 3.1,\\n3.4" and "Theorem 3 and\\n9" stay lists.
+    /// "Proposition 10,\\n1" above a formula does not.
+    private static func singularContinuationOK(
+        in text: String,
+        previousEnd: String.Index?,
+        start: String.Index,
+        number: String
+    ) -> Bool {
+        guard let previousEnd else { return true }
+        let gap = String(text[previousEnd..<start])
+        if !gap.contains("\n") || number.contains(".") { return true }
+        return gap.range(of: #"(?i)\b(?:and|&)\s*$"#, options: .regularExpression) != nil
     }
 
     /// "(7a)" and "(7b)" share equation 7. A lone "(1a)" does not, and "(2.7a)"

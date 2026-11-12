@@ -56,6 +56,13 @@ enum ReferenceParsing {
         #"(?i)\b(theorems|lemmas|propositions|corollaries|definitions|exercises|examples|remarks|proofs|thm\.|lem\.|prop\.|cor\.|def\.)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))*)"#
     )
 
+    /// "Theorem 6 and 7" and "Theorem 3.1, 3.4 and 3.5" name every number.
+    /// A singular word with one number stays on the named pattern, so the
+    /// list requires a second number. "Theorem 6 and the bound" is only 6.
+    static let singularListPattern = foldingLigatures(
+        #"(?i)\b(theorem|lemma|proposition|corollary|definition|exercise|example|remark|proof)\s*((?:\#(referenceNumberPattern))(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\#(referenceNumberPattern)))+)"#
+    )
+
     /// Group 2 is a subequation part letter, as in "(2.7a)" or "(7a)". A dotted
     /// number always keeps the letter. A bare integer keeps it only when the
     /// same text prints another part letter, so "(7a)" and "(7b)" are equation

@@ -175,6 +175,39 @@ class DetectorTests(unittest.TestCase):
             [("lemma", "2"), ("lemma", "2"), ("lemma", "3"), ("lemma", "4")],
         )
         self.assertEqual(all_references("[12, Thm. 3.2]", "main"), [])
+        singular = "Theorem 6 and 7 follow from the bound."
+        singular_hits = all_references(singular, "main")
+        self.assertEqual(
+            [(item.kind, item.number) for item in singular_hits],
+            [("theorem", "6"), ("theorem", "6"), ("theorem", "7")],
+        )
+        wrapped = all_references("Theorem 3.1,\n3.4, 3.5 and 3.12 are proved later.", "main")
+        self.assertEqual([item.number for item in wrapped], ["3.1", "3.1", "3.4", "3.5", "3.12"])
+        oxford = all_references("See Lemma 2, 3, and 4 before the estimate.", "main")
+        self.assertEqual(
+            [(item.kind, item.number) for item in oxford],
+            [("lemma", "2"), ("lemma", "2"), ("lemma", "3"), ("lemma", "4")],
+        )
+        prose = all_references("Theorem 6 and the bound in 7 stay separate.", "main")
+        self.assertEqual([(item.kind, item.number) for item in prose], [("theorem", "6")])
+        wrapped_and = all_references("Theorem 3 and\n9. Then the claim holds.", "main")
+        self.assertEqual([item.number for item in wrapped_and], ["3", "3", "9"])
+        dotted_break = all_references("Theorem 3.1,\n3.4 and 3.5 follow.", "main")
+        self.assertEqual([item.number for item in dotted_break], ["3.1", "3.1", "3.4", "3.5"])
+        numerator = all_references("By Proposition 10,\n1\n1 + i(u + v) is the formula.", "main")
+        self.assertEqual(
+            [(item.kind, item.number) for item in numerator],
+            [("proposition", "10"), ("proposition", "10")],
+        )
+        fraction = all_references("By Lemma 4.1,\n1\n2 is the fraction.", "main")
+        self.assertEqual(
+            [(item.kind, item.number) for item in fraction],
+            [("lemma", "4.1"), ("lemma", "4.1")],
+        )
+        self.assertEqual(
+            [(item.kind, item.number) for item in all_references("Theorem 6 and 7 follow from the bound.", "hover")],
+            [("theorem", "6")],
+        )
         bare = all_references("The bound lem (11) is the identity (11).", "main")
         self.assertEqual([(item.kind, item.number) for item in bare], [("equation", "11"), ("equation", "11")])
         parenthesized = first_reference("Lem. (4) is parenthesized.", "main")
@@ -1310,6 +1343,38 @@ class PluralListScoreTests(unittest.TestCase):
         card = score_profile(truth, pages, "main", use_structure=False)
         self.assertEqual(card["wrong_links"], 0)
         self.assertGreaterEqual(card["missed"], 1)
+
+    def test_a_singular_list_resolves_each_number(self) -> None:
+        from ground_truth import Declaration, Mention, PaperTruth, SectionInfo
+        from score import score_profile
+
+        truth = PaperTruth(
+            mentions=[
+                Mention("theorem", "6", "named", "Theorem", False, "Theorem 6 and 7"),
+                Mention("theorem", "7", "named", "Theorem", False, "Theorem 6 and 7"),
+            ],
+            declarations=[
+                Declaration("theorem", "6", None, 0),
+                Declaration("theorem", "7", None, 1),
+            ],
+            sections=[SectionInfo("1", "Introduction", 1)],
+        )
+        pages = [{
+            "page_index": 0,
+            "text": (
+                "1. Introduction\n"
+                "Theorem 6. The first claim is short.\n"
+                "Theorem 7. The second claim is short.\n"
+                "Theorem 6 and 7 follow from the bound."
+            ),
+            "width": 100,
+            "blocks": [],
+        }]
+        card = score_profile(truth, pages, "main", use_structure=False)
+        self.assertEqual(card["wrong_links"], 0)
+        self.assertEqual(card["missed"], 0)
+        self.assertEqual(card["extraction_misses"], 0)
+        self.assertGreaterEqual(card["correct"], 2)
 
 
 class HtmlReferenceTests(unittest.TestCase):

@@ -801,6 +801,39 @@ class DeclarationTests(unittest.TestCase):
         self.assertNotIn(("theorem", "4.1"), found)
         self.assertNotIn(("definition", "8.2"), found)
 
+    def test_dotted_tag_ending_a_formula_fragment_is_the_equation(self) -> None:
+        # Synthetic. The tag ends the line. A comma, "0.", or a formula with
+        # no equals sign is the equation. A sentence, a citation, and a table
+        # cell are not.
+        page = "\n".join([
+            "The display continues on the next line.",
+            ", (2.18)",
+            "where the remainder is positive.",
+            "f(x, y) - g(x, y). (3.8)",
+            "0. (5.9)",
+            "\u00b41qp0q (3.6)",
+            "we conclude from (4.9)",
+            "cf. (1.2)",
+            "25 (9.6)",
+            "27 (10.3) 26 (11.2)",
+            "The estimate (2.2) follows from the bound.",
+        ])
+        numbers = [item.number for item in declaration_matches(page)]
+        self.assertIn("2.18", numbers)
+        self.assertIn("3.8", numbers)
+        self.assertIn("5.9", numbers)
+        self.assertIn("3.6", numbers)
+        self.assertNotIn("4.9", numbers)
+        self.assertNotIn("1.2", numbers)
+        self.assertNotIn("9.6", numbers)
+        self.assertNotIn("10.3", numbers)
+        self.assertNotIn("11.2", numbers)
+        self.assertNotIn("2.2", numbers)
+        index = build_statement_index([{"page_index": 0, "text": page}], "main")
+        self.assertIsNotNone(index.lookup("equation", "2.18"))
+        self.assertIsNotNone(index.lookup("equation", "3.8"))
+        self.assertIsNone(index.lookup("equation", "9.6"))
+
     def test_dotted_own_line_tag_does_not_need_a_formula_above_it(self) -> None:
         page = "\n".join([
             "The estimate is recorded below.",

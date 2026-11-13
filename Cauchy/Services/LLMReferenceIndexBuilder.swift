@@ -375,6 +375,14 @@ enum LLMReferenceIndexSupport {
                 return false
             }
 
+            // ", (2.18)", "0. (5.9)", and a formula with no "=" still end in
+            // the tag. A sentence and a table cell do not. The scorecard
+            // port uses the same test.
+            if match.reference.number.contains("."), suffix.isEmpty,
+               prefixIsFormulaFragment(String(prefix)) {
+                return true
+            }
+
             // Operators such as a bare hyphen are too common in prose and
             // bibliographies. These stronger signals distinguish a display
             // equation from citation years such as “(2019)”. A strict
@@ -539,6 +547,47 @@ enum LLMReferenceIndexSupport {
         }
         if first == ":" || first == "(" { return true }
         return first.isUppercase
+    }
+
+    /// Text before a dotted tag that ends the line is a formula, not prose.
+    ///
+    /// ", (2.18)" keeps the comma the text layer left in front of the tag.
+    /// "0. (5.9)" and "f(x) - g(y). (3.8)" are the same shape when the formula
+    /// has no equals sign. "25 (9.6)" is a table cell, "27 (10.3) 26 (11.2)"
+    /// is a table row, and "cf. (1.2)" or "we conclude from (4.9)" is a citation.
+    private static func prefixIsFormulaFragment(_ prefix: String) -> Bool {
+        let trimmed = prefix.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, trimmed.allSatisfy(\.isNumber) {
+            return false
+        }
+        if trimmed.range(of: #"\b[a-z]{3,}\b"#, options: .regularExpression) != nil {
+            return false
+        }
+        if trimmed.range(of: #"\(\s*\d"#, options: .regularExpression) != nil {
+            return false
+        }
+        let hasAsciiLetter = trimmed.unicodeScalars.contains {
+            (65...90).contains($0.value) || (97...122).contains($0.value)
+        }
+        if hasAsciiLetter && !trimmed.contains(where: isFormulaSymbol) {
+            return false
+        }
+        return true
+    }
+
+    /// A character other than an ASCII letter, digit, space, or `,.;:`.
+    /// Greek letters and a leading comma's neighbours count; "cf." does not.
+    private static func isFormulaSymbol(_ character: Character) -> Bool {
+        for scalar in character.unicodeScalars {
+            let value = scalar.value
+            if value > 127 { return true }
+            if (65...90).contains(value) || (97...122).contains(value) { continue }
+            if (48...57).contains(value) { continue }
+            if value == 32 || value == 9 { continue }
+            if value == 46 || value == 44 || value == 59 || value == 58 { continue }
+            return true
+        }
+        return false
     }
 
     /// Text before a bare tag is a short formula, not "… and" or a sentence.

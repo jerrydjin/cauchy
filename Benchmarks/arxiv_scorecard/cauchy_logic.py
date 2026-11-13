@@ -3,7 +3,10 @@
 This is a line-by-line port of the non-UI rules on the combined reader
 branch. Line-start statements and number-first headings follow main.
 A dotted equation tag on its own line is a declaration, and the display
-after a bare number is only read from the next four lines. A bare tag at
+after a bare number is only read from the next four lines. A dotted tag
+that ends the line is still that equation when the text before it is a
+formula fragment: a comma, "0.", or a formula with no equals sign. A
+sentence, "cf. (1.2)", and a table cell such as "25 (9.6)" are not. A bare tag at
 the end of a prose sentence is not a declaration. A part letter on a dotted
 tag, as in "(2.7a)", is that equation. A bare integer printed with two or
 more part letters, as in "(7a)" and "(7b)", is that equation; a lone "(1a)"
@@ -585,6 +588,11 @@ def declaration_matches(
         # bare integer between two integer lines, is not a label.
         if _equation_number_is_not_a_label(source_text, match, prefix, suffix):
             continue
+        # ", (2.18)", "0. (5.9)", and a formula with no "=" still end in the
+        # tag. A sentence and a table cell do not.
+        if "." in match.number and not suffix and _prefix_is_formula_fragment(prefix):
+            accepted.append(match)
+            continue
 
         if not prefix and not suffix:
             nearby = before[-180:] + after[:180]
@@ -682,6 +690,26 @@ def _number_first_declarations(source_text: str) -> list[Match]:
             continue
         found.append(Match(kind, match.group(1), match.start(), match.end(), match.group(0)))
     return found
+
+
+def _prefix_is_formula_fragment(prefix: str) -> bool:
+    """Text before a dotted tag that ends the line is a formula, not prose.
+
+    ", (2.18)" keeps the comma the text layer left in front of the tag.
+    "0. (5.9)" and "f(x) - g(y). (3.8)" are the same shape when the formula
+    has no equals sign. "25 (9.6)" is a table cell, "27 (10.3) 26 (11.2)"
+    is a table row, and "cf. (1.2)" or "we conclude from (4.9)" is a citation.
+    """
+    trimmed = prefix.strip()
+    if re.fullmatch(r"\d+", trimmed):
+        return False
+    if re.search(r"\b[a-z]{3,}\b", trimmed):
+        return False
+    if re.search(r"\(\s*\d", trimmed):
+        return False
+    if re.search(r"[A-Za-z]", trimmed) and not re.search(r"[^A-Za-z0-9\s.,;:]", trimmed):
+        return False
+    return True
 
 
 def _prefix_is_display_tag(prefix: str) -> bool:

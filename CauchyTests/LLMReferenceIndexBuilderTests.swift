@@ -702,6 +702,37 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains { $0.number == "A" })
     }
 
+    func testDottedTagEndingAFormulaFragmentIsTheEquation() {
+        // Synthetic. The tag ends the line. A comma, "0.", or a formula with
+        // no equals sign is the equation. A sentence, a citation, and a table
+        // cell are not.
+        let page = """
+        The display continues on the next line.
+        , (2.18)
+        where the remainder is positive.
+        f(x, y) - g(x, y). (3.8)
+        0. (5.9)
+        \u{00B4}1qp0q (3.6)
+        we conclude from (4.9)
+        cf. (1.2)
+        25 (9.6)
+        27 (10.3) 26 (11.2)
+        The estimate (2.2) follows from the bound.
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "2.18")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "3.8")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "5.9")))
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "3.6")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "4.9")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "1.2")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "9.6")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "10.3")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "11.2")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2.2")))
+    }
+
     func testDottedSubequationPartOnItsOwnLineIsTheBaseEquation() {
         let page = """
         The two parts of the display are tagged separately.

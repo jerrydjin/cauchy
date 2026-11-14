@@ -330,6 +330,118 @@ final class AskStructureLocatorTests: XCTestCase {
         }
     }
 
+    func testNineWordTitleWithParenthesesIsAHeading() {
+        let structure = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 3,
+                    text: "2 Analyzing the local shape of the Lp(s, chi)\nThe body of the section follows."
+                ),
+            ],
+            pageCount: 6
+        )
+        let query = AskStructureLocator.query(in: "what is section 2 about")!
+        guard case .found(let span) = AskStructureLocator.locate(query, in: structure) else {
+            return XCTFail("Expected the nine-word title")
+        }
+        XCTAssertEqual(span.startPage, 3)
+        XCTAssertTrue(span.label.contains("local shape"))
+
+        let subsection = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 5,
+                    text: "6.1 Distribution of sample values in the first group"
+                ),
+            ],
+            pageCount: 8
+        )
+        let nested = AskStructureLocator.query(in: "what is section 6.1 about")!
+        guard case .found(let nestedSpan) = AskStructureLocator.locate(nested, in: subsection) else {
+            return XCTFail("Expected the subsection title without a period after the number")
+        }
+        XCTAssertEqual(nestedSpan.startPage, 5)
+        XCTAssertTrue(nestedSpan.label.contains("sample values"))
+    }
+
+    func testNineWordSentenceAndBibliographyAreNotHeadings() {
+        let sentence = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 1,
+                    text: "3 For a sample source the norm stays bounded"
+                ),
+            ],
+            pageCount: 4
+        )
+        let section3 = AskStructureLocator.query(in: "what is section 3 about")!
+        if case .found = AskStructureLocator.locate(section3, in: sentence) {
+            XCTFail("A numbered sentence past eight words is not a section heading")
+        }
+
+        let verb = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 1,
+                    text: "4. The estimated value of this medium is large."
+                ),
+            ],
+            pageCount: 4
+        )
+        let section4 = AskStructureLocator.query(in: "what is section 4 about")!
+        if case .found = AskStructureLocator.locate(section4, in: verb) {
+            XCTFail("A line with a finite verb is not a section heading")
+        }
+
+        let bibliography = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 0,
+                    text: "2. Ada Lovelace, Notes on the analytic engine and its later design"
+                ),
+            ],
+            pageCount: 3
+        )
+        let section2 = AskStructureLocator.query(in: "what is section 2 about")!
+        if case .found = AskStructureLocator.locate(section2, in: bibliography) {
+            XCTFail("A longer bibliography line is not a section heading")
+        }
+
+        let footnote = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 0,
+                    text: "1 In the terminology of the opening section here"
+                ),
+            ],
+            pageCount: 2
+        )
+        let section1 = AskStructureLocator.query(in: "what is section 1 about")!
+        if case .found = AskStructureLocator.locate(section1, in: footnote) {
+            XCTFail("A footnote past eight words is not a section heading")
+        }
+
+        let tooLong = AskDocumentStructure(
+            outline: [],
+            pages: [
+                AskPageSnapshot(
+                    pageIndex: 2,
+                    text: "2 Analyzing the local shape of the invariant under a small perturbation today"
+                ),
+            ],
+            pageCount: 4
+        )
+        if case .found = AskStructureLocator.locate(section2, in: tooLong) {
+            XCTFail("A thirteen-word line is not a title")
+        }
+    }
+
     private var paper: AskDocumentStructure {
         AskDocumentStructure(
             outline: [],

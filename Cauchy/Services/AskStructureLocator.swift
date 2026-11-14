@@ -516,6 +516,11 @@ enum AskStructureLocator {
     }
 
     private static let sentenceOpener = #"(?i)^(let|if|we|suppose|assume|since|then|clearly|hence|thus|therefore|now|next|indeed|moreover|however|where|when|because|it|this|note|recall|consequently|furthermore|also)\b"#
+    // A line past eight words picks up footnotes and numbered sentences that a
+    // short title does not. "In the terminology" and "For a sample source" are
+    // those; they are not headings.
+    private static let longTitleOpener = #"(?i)^(let|if|we|suppose|assume|since|then|clearly|hence|thus|therefore|now|next|indeed|moreover|however|where|when|because|it|this|note|recall|consequently|furthermore|also|in|as|our|for|to|by|from)\b"#
+    private static let longTitleVerb = #"(?i)\b(is|are|was|were|be|been)\b"#
     private static let nameThenComma = #"^[A-Z]\w+\s+[A-Z]\w+,"#
 
     /// "2.4. Small cases. Let G be a graph" is the heading "2.4. Small cases".
@@ -759,18 +764,59 @@ enum AskStructureLocator {
 
     private static func isTitleLine(_ line: String) -> Bool {
         let words = line.split(whereSeparator: \.isWhitespace)
-        guard (1...8).contains(words.count) else { return false }
+        // Nine to twelve words still names a section when the line is a title.
+        // "2 Analyzing the local shape of the Lp(s, chi)" is one. A numbered
+        // sentence and a bibliography line are not, so that band is filtered.
+        guard (1...12).contains(words.count) else { return false }
         let stripped = line.trimmingCharacters(in: .whitespaces)
         if stripped.hasSuffix("?") || stripped.hasSuffix("!") { return false }
         // amsart prints "3.1. From somewhere." The period closes the heading.
         // "2 Integrals appear here." has no period after the opening number.
         if stripped.hasSuffix(".") {
-            return line.range(
+            let closes = line.range(
                 of: #"^\s*\d+(?:\.\d+)*\.\s+\S"#,
                 options: .regularExpression
             ) != nil
+            if !closes { return false }
+        }
+        guard words.count > 8 else { return true }
+        let body = stripped.hasSuffix(".") ? String(stripped.dropLast()) : stripped
+        let rest = titleRest(body)
+        if lineMatches(rest, pattern: longTitleOpener) || lineMatches(rest, pattern: nameThenComma) {
+            return false
+        }
+        if commaOutsideParentheses(rest) || lineMatches(rest, pattern: longTitleVerb) {
+            return false
+        }
+        let first = rest.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
+        if first.filter(\.isLetter).count < 3 { return false }
+        guard let head = firstMatch(stripped, pattern: #"^\s*(\d+)"#),
+              head.count > 1,
+              let value = Int(head[1]),
+              (1...40).contains(value) else {
+            return false
         }
         return true
+    }
+
+    /// The words after the section number. "6.1 Distribution of values" gives
+    /// "Distribution of values".
+    private static func titleRest(_ line: String) -> String {
+        let pattern = #"^\s*(?:§\s*)?\d+(?:\.\d+)*\.?\s+"#
+        guard let range = line.range(of: pattern, options: .regularExpression) else {
+            return line.trimmingCharacters(in: .whitespaces)
+        }
+        return String(line[range.upperBound...])
+    }
+
+    /// A comma inside "(s, chi)" is mathematics. A comma outside it is a list.
+    private static func commaOutsideParentheses(_ text: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: #"\([^)]*\)"#) else {
+            return text.contains(",")
+        }
+        let range = NSRange(location: 0, length: (text as NSString).length)
+        let stripped = regex.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+        return stripped.contains(",")
     }
 
     private static func headingRank(_ title: String) -> Int {

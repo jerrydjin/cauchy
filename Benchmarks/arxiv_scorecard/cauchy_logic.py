@@ -1159,6 +1159,15 @@ _SENTENCE_OPENER = re.compile(
     r"now|next|indeed|moreover|however|where|when|because|it|this|note|recall|"
     r"consequently|furthermore|also)\b"
 )
+# A line past eight words picks up footnotes and numbered sentences that a
+# short title does not. "In the terminology" and "For a sample source" are
+# those; they are not headings.
+_LONG_TITLE_OPENER = re.compile(
+    r"(?i)^(let|if|we|suppose|assume|since|then|clearly|hence|thus|therefore|"
+    r"now|next|indeed|moreover|however|where|when|because|it|this|note|recall|"
+    r"consequently|furthermore|also|in|as|our|for|to|by|from)\b"
+)
+_LONG_TITLE_VERB = re.compile(r"(?i)\b(is|are|was|were|be|been)\b")
 _RUN_IN_HEADING = re.compile(
     r"^\s*(\d+(?:\.\d+)+)\.\s+([A-Z][^.=]{1,80}?)\.\s+\S"
 )
@@ -1167,7 +1176,10 @@ _NAME_THEN_COMMA = re.compile(r"^[A-Z]\w+\s+[A-Z]\w+,")
 
 def _is_title_line(line: str) -> bool:
     words = line.split()
-    if not 1 <= len(words) <= 8:
+    # Nine to twelve words still names a section when the line is a title.
+    # "2 Analyzing the local shape of the Lp(s, chi)" is one. A numbered
+    # sentence and a bibliography line are not, so that band is filtered.
+    if not 1 <= len(words) <= 12:
         return False
     stripped = line.strip()
     if stripped.endswith(("?", "!")):
@@ -1175,7 +1187,25 @@ def _is_title_line(line: str) -> bool:
     # amsart prints "3.1. From somewhere." The period closes the heading.
     # "2 Integrals appear here." has no period after the opening number.
     if stripped.endswith("."):
-        return re.match(r"^\s*\d+(?:\.\d+)*\.\s+\S", line) is not None
+        if re.match(r"^\s*\d+(?:\.\d+)*\.\s+\S", line) is None:
+            return False
+    if len(words) <= 8:
+        return True
+    body = stripped[:-1] if stripped.endswith(".") else stripped
+    rest = re.sub(r"^\s*(?:§\s*)?\d+(?:\.\d+)*\.?\s+", "", body.strip(), count=1)
+    if _LONG_TITLE_OPENER.match(rest) or _NAME_THEN_COMMA.match(rest):
+        return False
+    if "," in re.sub(r"\([^)]*\)", "", rest):
+        return False
+    if _LONG_TITLE_VERB.search(rest):
+        return False
+    first = rest.split(None, 1)[0] if rest.split() else ""
+    letters = "".join(character for character in first if character.isalpha())
+    if len(letters) < 3:
+        return False
+    head = re.match(r"^\s*(\d+)", stripped)
+    if head is None or not 1 <= int(head.group(1)) <= 40:
+        return False
     return True
 
 

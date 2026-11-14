@@ -1197,6 +1197,75 @@ class StructureTests(unittest.TestCase):
         )
         self.assertIsNone(locate(structural_query("what is section 2 about"), bibliography))
 
+    def test_nine_word_title_with_parentheses_is_a_heading(self) -> None:
+        titled = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                3,
+                "2 Analyzing the local shape of the Lp(s, chi)\nThe body of the section follows.",
+            )],
+            page_count=6,
+        )
+        found = locate(structural_query("what is section 2 about"), titled)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.start_page, 3)
+        self.assertIn("local shape", found.label)
+
+        subsection = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                5,
+                "6.1 Distribution of sample values in the first group",
+            )],
+            page_count=8,
+        )
+        nested = locate(structural_query("what is section 6.1 about"), subsection)
+        self.assertIsNotNone(nested)
+        self.assertEqual(nested.start_page, 5)
+        self.assertIn("sample values", nested.label)
+
+    def test_nine_word_sentence_and_bibliography_are_not_headings(self) -> None:
+        sentence = Structure(
+            outline=[],
+            pages=[PageSnapshot(1, "3 For a sample source the norm stays bounded")],
+            page_count=4,
+        )
+        self.assertIsNone(locate(structural_query("what is section 3 about"), sentence))
+
+        verb = Structure(
+            outline=[],
+            pages=[PageSnapshot(1, "4. The estimated value of this medium is large.")],
+            page_count=4,
+        )
+        self.assertIsNone(locate(structural_query("what is section 4 about"), verb))
+
+        bibliography = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                0,
+                "2. Ada Lovelace, Notes on the analytic engine and its later design",
+            )],
+            page_count=3,
+        )
+        self.assertIsNone(locate(structural_query("what is section 2 about"), bibliography))
+
+        footnote = Structure(
+            outline=[],
+            pages=[PageSnapshot(0, "1 In the terminology of the opening section here")],
+            page_count=2,
+        )
+        self.assertIsNone(locate(structural_query("what is section 1 about"), footnote))
+
+        too_long = Structure(
+            outline=[],
+            pages=[PageSnapshot(
+                2,
+                "2 Analyzing the local shape of the invariant under a small perturbation today",
+            )],
+            page_count=4,
+        )
+        self.assertIsNone(locate(structural_query("what is section 2 about"), too_long))
+
     def test_a_parent_bookmark_does_not_answer_a_subsection_with_the_same_title(self) -> None:
         from score import _true_section_page
 

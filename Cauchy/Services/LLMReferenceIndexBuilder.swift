@@ -127,6 +127,9 @@ struct PageIndexPayload: Sendable {
     /// by UTF-16 offset in `sourceText`. PDF geometry distinguishes a printed
     /// right-margin equation number from an inline cite or proof-step number.
     let equationLabelX: [Int: Double]
+    /// Verbatim text of the following PDF page. A statement label that is the
+    /// last line of this page keeps the statement that starts there.
+    let followingPageText: String
 }
 
 enum LLMReferenceIndexSupport {
@@ -880,9 +883,12 @@ enum LLMReferenceIndexSupport {
     /// the model omitted or formatted invalidly. It ends before the next strong
     /// heading or proof and is intentionally plain PDF text rather than guessed
     /// LaTeX. A faithful Unicode statement is preferable to a missing one.
+    /// A label that is the last line of the page keeps the statement that
+    /// starts the next page.
     static func fallbackBody(
         for match: DetectedReferenceMatch,
         in sourceText: String,
+        followingPageText: String = "",
         maximumCharacters: Int = 1_600
     ) -> String? {
         let hardEnd = sourceText.index(
@@ -917,7 +923,136 @@ enum LLMReferenceIndexSupport {
             body.removeFirst()
         }
         body = ReferenceFormattingHeuristics.lightClean(body)
+        if !body.isEmpty {
+            return body
+        }
+        guard !followingPageText.isEmpty else { return nil }
+        return continuationBody(
+            on: followingPageText,
+            after: match,
+            in: sourceText,
+            maximumCharacters: maximumCharacters
+        )
+    }
+
+    /// The statement that starts the next page, after a running header and a
+    /// page number. A wrapped mention is not a heading, and a next page that
+    /// opens a new section or statement is not this statement's body.
+    private static func continuationBody(
+        on followingPageText: String,
+        after match: DetectedReferenceMatch,
+        in sourceText: String,
+        maximumCharacters: Int
+    ) -> String? {
+        guard match.reference.kind != .equation, match.reference.kind != .figure,
+              isLastNonemptyLine(match, in: sourceText),
+              previousLineEndsSentence(before: match, in: sourceText) else {
+            return nil
+        }
+        let lines = followingPageText.components(separatedBy: "\n")
+        var start = 0
+        var skipped = 0
+        while start < lines.count && skipped < 4 {
+            let stripped = lines[start].trimmingCharacters(in: .whitespaces)
+            if stripped.isEmpty {
+                start += 1
+                continue
+            }
+            if isPageNumber(stripped) || isRunningHeader(stripped) {
+                start += 1
+                skipped += 1
+                continue
+            }
+            break
+        }
+        guard start < lines.count, !opensNewUnit(lines[start]) else { return nil }
+        let chunk = lines[start...].joined(separator: "\n")
+        return clippedContinuation(chunk, maximumCharacters: maximumCharacters)
+    }
+
+    private static func clippedContinuation(_ chunk: String, maximumCharacters: Int) -> String? {
+        let hardEnd = chunk.index(
+            chunk.startIndex,
+            offsetBy: maximumCharacters,
+            limitedBy: chunk.endIndex
+        ) ?? chunk.endIndex
+        var end = hardEnd
+        if let next = indexableDeclarationMatches(in: chunk).first(where: {
+            $0.reference.kind != .equation && $0.reference.kind != .figure &&
+                $0.range.lowerBound > chunk.startIndex && $0.range.lowerBound < end
+        }) {
+            end = next.range.lowerBound
+        }
+        if let section = nextSectionHeading(in: chunk, range: chunk.startIndex..<end) {
+            end = section
+        }
+        for marker in ["Proof.", "\nRemark."] {
+            if let boundary = chunk.range(
+                of: marker,
+                options: [.caseInsensitive],
+                range: chunk.startIndex..<end
+            ) {
+                end = boundary.lowerBound
+            }
+        }
+        let body = ReferenceFormattingHeuristics.lightClean(
+            String(chunk[chunk.startIndex..<end])
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
         return body.isEmpty ? nil : body
+    }
+
+    private static func isLastNonemptyLine(
+        _ match: DetectedReferenceMatch,
+        in sourceText: String
+    ) -> Bool {
+        let after = sourceText[match.range.upperBound...]
+        guard let newline = after.firstIndex(of: "\n") else { return true }
+        return sourceText[sourceText.index(after: newline)...]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty
+    }
+
+    private static func previousLineEndsSentence(
+        before match: DetectedReferenceMatch,
+        in sourceText: String
+    ) -> Bool {
+        let before = sourceText[..<match.range.lowerBound]
+        guard let newline = before.lastIndex(of: "\n") else { return true }
+        let prior = before[..<newline]
+        let lineStart = prior.lastIndex(of: "\n").map { before.index(after: $0) } ?? before.startIndex
+        let line = before[lineStart..<newline].trimmingCharacters(in: .whitespaces)
+        guard let last = line.last else { return true }
+        return last == "." || last == "?" || last == "!"
+    }
+
+    private static func isPageNumber(_ line: String) -> Bool {
+        (1...4).contains(line.count) && line.allSatisfy(\.isNumber)
+    }
+
+    private static func isRunningHeader(_ line: String) -> Bool {
+        let letters = line.filter(\.isLetter)
+        return letters.count >= 8 && line.count <= 90 && letters.allSatisfy(\.isUppercase)
+    }
+
+    private static func opensNewUnit(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.range(
+            of: #"(?i)^(theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof)\s+\d"#,
+            options: .regularExpression
+        ) != nil {
+            return true
+        }
+        guard trimmed.range(
+            of: #"^(\d+(?:\.\d+){0,2})\.?\s+[A-Z]"#,
+            options: .regularExpression
+        ) != nil else {
+            return false
+        }
+        let prefix = trimmed.prefix { $0.isNumber || $0 == "." }
+        let parts = prefix.split(separator: ".").filter { !$0.isEmpty }
+        return !parts.isEmpty && parts.allSatisfy { part in
+            Int(part).map { (1...40).contains($0) } ?? false
+        }
     }
 
     /// A PDF text layer has no heading styles, but a standalone dotted section
@@ -939,6 +1074,7 @@ enum LLMReferenceIndexSupport {
         sourceText: String,
         pageIndex: Int,
         equationLabelX: [Int: Double] = [:],
+        followingPageText: String = "",
         to results: inout [ReferenceKey: IndexedReference]
     ) {
         for match in indexableDeclarationMatches(in: sourceText, equationLabelX: equationLabelX)
@@ -949,7 +1085,11 @@ enum LLMReferenceIndexSupport {
                 in: sourceText,
                 equationLabelX: equationLabelX
             ),
-                  let body = fallbackBody(for: match, in: sourceText) else {
+                  let body = fallbackBody(
+                    for: match,
+                    in: sourceText,
+                    followingPageText: followingPageText
+                  ) else {
                 continue
             }
             let indexed = IndexedReference(
@@ -1060,13 +1200,15 @@ enum LLMReferenceIndexSupport {
     static func sourceDeclarationFallbacks(
         sourceText: String,
         pageIndex: Int,
-        equationLabelX: [Int: Double] = [:]
+        equationLabelX: [Int: Double] = [:],
+        followingPageText: String = ""
     ) -> [ReferenceKey: IndexedReference] {
         var results: [ReferenceKey: IndexedReference] = [:]
         addNamedDeclarationFallbacks(
             sourceText: sourceText,
             pageIndex: pageIndex,
             equationLabelX: equationLabelX,
+            followingPageText: followingPageText,
             to: &results
         )
         addEquationDeclarationFallbacks(
@@ -1577,7 +1719,7 @@ enum LLMReferenceIndexBuilder {
         guard let page = document.page(at: pageIndex) else {
             return PageIndexPayload(
                 sourceText: "", pageText: "", pageImagePNG: nil,
-                equationLabelX: [:]
+                equationLabelX: [:], followingPageText: ""
             )
         }
 
@@ -1592,9 +1734,16 @@ enum LLMReferenceIndexBuilder {
             pageImagePNG = png
         }
 
+        let followingPageText: String
+        if pageIndex + 1 < document.pageCount, let following = document.page(at: pageIndex + 1) {
+            followingPageText = fullPageText(from: following)
+        } else {
+            followingPageText = ""
+        }
+
         return PageIndexPayload(
             sourceText: rawText, pageText: pageText, pageImagePNG: pageImagePNG,
-            equationLabelX: equationLabelX
+            equationLabelX: equationLabelX, followingPageText: followingPageText
         )
     }
 
@@ -1622,7 +1771,8 @@ enum LLMReferenceIndexBuilder {
             return LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
-                equationLabelX: payload.equationLabelX
+                equationLabelX: payload.equationLabelX,
+                followingPageText: payload.followingPageText
             )
         }
 
@@ -1637,7 +1787,8 @@ enum LLMReferenceIndexBuilder {
             return LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
-                equationLabelX: payload.equationLabelX
+                equationLabelX: payload.equationLabelX,
+                followingPageText: payload.followingPageText
             )
         }
         return await finalizeItems(
@@ -1646,6 +1797,7 @@ enum LLMReferenceIndexBuilder {
             sourceText: payload.sourceText,
             pageIndex: pageIndex,
             equationLabelX: payload.equationLabelX,
+            followingPageText: payload.followingPageText,
             modelHandle: modelHandle
         )
     }
@@ -1658,6 +1810,7 @@ enum LLMReferenceIndexBuilder {
         sourceText: String,
         pageIndex: Int,
         equationLabelX: [Int: Double],
+        followingPageText: String,
         modelHandle: ModelHandle
     ) async -> [ReferenceKey: IndexedReference] {
         var results: [ReferenceKey: IndexedReference] = [:]
@@ -1710,6 +1863,7 @@ enum LLMReferenceIndexBuilder {
             sourceText: sourceText,
             pageIndex: pageIndex,
             equationLabelX: equationLabelX,
+            followingPageText: followingPageText,
             to: &results
         )
         LLMReferenceIndexSupport.addEquationDeclarationFallbacks(
@@ -1785,7 +1939,8 @@ enum LLMReferenceIndexBuilder {
             entries = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
-                equationLabelX: payload.equationLabelX
+                equationLabelX: payload.equationLabelX,
+                followingPageText: payload.followingPageText
             )
         }
         return SinglePageResult(
@@ -1863,7 +2018,8 @@ enum LLMReferenceIndexBuilder {
             let entries = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
-                equationLabelX: payload.equationLabelX
+                equationLabelX: payload.equationLabelX,
+                followingPageText: payload.followingPageText
             )
             return SinglePageResult(
                 parsedCount: 0,
@@ -1886,7 +2042,8 @@ enum LLMReferenceIndexBuilder {
             let entries = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
                 sourceText: payload.sourceText,
                 pageIndex: pageIndex,
-                equationLabelX: payload.equationLabelX
+                equationLabelX: payload.equationLabelX,
+                followingPageText: payload.followingPageText
             )
             return SinglePageResult(
                 parsedCount: 0,
@@ -1903,6 +2060,7 @@ enum LLMReferenceIndexBuilder {
             sourceText: payload.sourceText,
             pageIndex: pageIndex,
             equationLabelX: payload.equationLabelX,
+            followingPageText: payload.followingPageText,
             modelHandle: handle
         )
         return SinglePageResult(

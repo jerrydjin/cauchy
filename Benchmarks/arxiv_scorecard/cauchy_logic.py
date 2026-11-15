@@ -36,7 +36,11 @@ to ASCII before it is looked up.
   then "Lemma 7. Since..." is a wrapped mention. "B" then "(2)" then "n+1"
   is a superscript, and "(1)" between a one-digit row and a control-character
   fence is a matrix cell. A heading after a blank line, and a tag whose next
-  line is a formula, stay.
+  line is a formula, stay. A statement label that is the last line of a
+  page keeps the statement that starts the next page, after a running
+  header and a page number. The next page is not that statement when it
+  opens a new section or statement, and a wrapped mention whose previous
+  line does not end a sentence stays unindexed.
   A parenthesized number is an equation label when the rest of its line is
   empty or is a display formula. A sentence that continues past the number,
   as in "(2.52) respectively …", is a citation. A bare integer between two
@@ -841,6 +845,97 @@ def _fallback_body(source_text: str, match: Match, declarations: list[Match]) ->
     return body or None
 
 
+_NEW_UNIT_LABEL = re.compile(
+    r"(?i)^(?:theorem|lemma|proposition|corollary|definition|remark|example|exercise|proof)\s+\d"
+)
+_NEW_UNIT_SECTION = re.compile(r"^(\d+(?:\.\d+){0,2})\.?\s+[A-Z]")
+
+
+def _opens_new_unit(line: str) -> bool:
+    """A section heading or a new statement label, not this statement's text."""
+    stripped = line.strip()
+    if _NEW_UNIT_LABEL.match(stripped):
+        return True
+    section = _NEW_UNIT_SECTION.match(stripped)
+    if not section:
+        return False
+    parts = [part for part in section.group(1).split(".") if part]
+    return bool(parts) and all(part.isdigit() and 1 <= int(part) <= 40 for part in parts)
+
+
+def _running_header(line: str) -> bool:
+    letters = [character for character in line if character.isalpha()]
+    return len(letters) >= 8 and len(line) <= 90 and all(character.isupper() for character in letters)
+
+
+def _is_last_nonempty_line(text: str, match: Match) -> bool:
+    line_end = text.find("\n", match.end)
+    if line_end < 0:
+        return True
+    return text[line_end + 1 :].strip() == ""
+
+
+def _previous_line_ends_sentence(text: str, match: Match) -> bool:
+    previous = _adjacent_line(text, match.start, after=False)
+    if not previous:
+        return True
+    return previous.endswith((".", "?", "!"))
+
+
+def _clipped_continuation(chunk: str) -> str | None:
+    """The same end boundary as `_fallback_body`, on the next page's text."""
+    end = min(len(chunk), 1600)
+    window = chunk[:end]
+    cuts = [
+        later.start
+        for later in declaration_matches(window)
+        if later.kind not in {"equation", "figure"} and later.start > 0
+    ]
+    if cuts:
+        end = min(cuts)
+        window = chunk[:end]
+    section = re.search(r"(?m)^[ \t]*\d+(?:\.\d+)+\.?[ \t]+[A-Z][^\n]*$", window)
+    if section:
+        end = section.start()
+        window = chunk[:end]
+    for marker in ("Proof.", "\nRemark."):
+        found = window.lower().find(marker.lower())
+        if found >= 0:
+            end = found
+            window = chunk[:end]
+    body = window.strip()
+    return body or None
+
+
+def _body_on_next_page(text: str, match: Match, following: str) -> str | None:
+    """A label that ends the page keeps the statement that starts the next one.
+
+    A running header and a page number are skipped. A wrapped mention, such
+    as "which proves" then "Theorem 4.", is not a heading, and a next page
+    that opens a new section or statement is not this statement's body.
+    """
+    if not following or match.kind in {"equation", "figure"}:
+        return None
+    if not _is_last_nonempty_line(text, match) or not _previous_line_ends_sentence(text, match):
+        return None
+    lines = following.split("\n")
+    start = 0
+    skipped = 0
+    while start < len(lines) and skipped < 4:
+        stripped = lines[start].strip()
+        if not stripped:
+            start += 1
+            continue
+        if re.fullmatch(r"\d{1,4}", stripped) or _running_header(stripped):
+            start += 1
+            skipped += 1
+            continue
+        break
+    if start >= len(lines) or _opens_new_unit(lines[start]):
+        return None
+    return _clipped_continuation("\n".join(lines[start:]))
+
+
 @dataclass
 class IndexedStatement:
     kind: str
@@ -975,7 +1070,7 @@ def continues_previous_line(text: str, match: Match) -> bool:
 
 def build_statement_index(pages: list[dict], profile: str = "main") -> StatementIndex:
     index = StatementIndex()
-    for page in pages:
+    for page_number, page in enumerate(pages):
         text = page.get("text") or ""
         if not text.strip() or not should_index_statements(text):
             continue
@@ -984,11 +1079,18 @@ def build_statement_index(pages: list[dict], profile: str = "main") -> Statement
             match for match in declaration_matches(text, positions, profile)
             if not continues_previous_line(text, match)
         ]
+        following = (
+            pages[page_number + 1].get("text") or ""
+            if page_number + 1 < len(pages)
+            else ""
+        )
         for match in declarations:
             if match.kind in {"equation", "figure"}:
                 body = match.text.strip() or text[max(0, match.start - 80) : match.end + 80].strip()
             else:
                 body = _fallback_body(text, match, declarations) or ""
+                if not body:
+                    body = _body_on_next_page(text, match, following) or ""
             if not body:
                 continue
             if match.kind == "figure":

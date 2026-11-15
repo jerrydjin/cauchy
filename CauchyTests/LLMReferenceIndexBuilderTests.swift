@@ -496,6 +496,60 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(evidence?.sourceExcerpt.contains("Unrelated section prose") == true)
     }
 
+    func testStatementThatEndsThePageContinuesOnTheNext() {
+        let page = "The two maps agree on the dense subset.\nTheorem 4.\n"
+        let following = """
+        A RUNNING HEADER
+        2
+        (1) The assignment is a continuous surjection.
+        Proof. The kernel is prime.
+        """
+        let theorem = DetectedReference(kind: .theorem, number: "4")
+        let entry = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
+            sourceText: page,
+            pageIndex: 3,
+            followingPageText: following
+        )[theorem.key]
+
+        XCTAssertTrue(entry?.formattedBody.contains("continuous surjection") == true)
+        XCTAssertFalse(entry?.formattedBody.contains("RUNNING HEADER") == true)
+        XCTAssertFalse(entry?.formattedBody.contains("Proof") == true)
+        XCTAssertEqual(entry?.pageIndex, 3)
+
+        let lemma = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
+            sourceText: "Agreed.\nLemma 4.\n",
+            pageIndex: 1,
+            followingPageText: "Let G be finite.\nThe order divides n.\n"
+        )[DetectedReference(kind: .lemma, number: "4").key]
+        XCTAssertTrue(lemma?.formattedBody.contains("finite") == true)
+    }
+
+    func testWrappedMentionAtTheEndOfAPageIsNotTheNextPage() {
+        let wrapped = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
+            sourceText: "which proves\nTheorem 4.\n",
+            pageIndex: 0,
+            followingPageText: "(1) A different statement starts here.\n"
+        )
+        XCTAssertNil(wrapped[DetectedReference(kind: .theorem, number: "4").key])
+
+        let section = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
+            sourceText: "This completes the argument.\nTheorem 4.\n",
+            pageIndex: 0,
+            followingPageText: "6.1. Lifting the cycle discriminant.\nThe proof begins.\n"
+        )
+        XCTAssertNil(section[DetectedReference(kind: .theorem, number: "4").key])
+
+        let followed = LLMReferenceIndexSupport.sourceDeclarationFallbacks(
+            sourceText: "This completes the argument.\nTheorem 4.\nCorollary 5. Let n be large.\n",
+            pageIndex: 0,
+            followingPageText: "(1) A different statement starts here.\n"
+        )
+        XCTAssertNil(followed[DetectedReference(kind: .theorem, number: "4").key])
+        let corollary = followed[DetectedReference(kind: .corollary, number: "5").key]
+        XCTAssertTrue(corollary?.formattedBody.contains("large") == true)
+        XCTAssertFalse(corollary?.formattedBody.contains("different statement") == true)
+    }
+
     func testDeclarationGuardSeparatesHeadingsFromCitations() {
         let page = "By Theorem 1.1 we know this.\n\nTheorem 2.1. Every bounded sequence has a convergent subsequence."
         let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)

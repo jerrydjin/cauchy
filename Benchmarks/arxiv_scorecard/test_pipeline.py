@@ -742,6 +742,73 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn(("theorem", "1"), keys)
         self.assertIn(("theorem", "5"), keys)
 
+    def test_a_statement_that_ends_the_page_continues_on_the_next(self) -> None:
+        # Synthetic. The label is the last line, so the statement is the
+        # text that starts the next page. A running header and a page number
+        # are not part of it, and the proof is not either.
+        pages = [
+            {
+                "page_index": 0,
+                "text": "The two maps agree on the dense subset.\nTheorem 4.\n",
+            },
+            {
+                "page_index": 1,
+                "text": "\n".join([
+                    "A RUNNING HEADER",
+                    "2",
+                    "(1) The assignment is a continuous surjection.",
+                    "Proof. The kernel is prime.",
+                ]),
+            },
+        ]
+        entry = build_statement_index(pages).lookup("theorem", "4")
+        self.assertIsNotNone(entry)
+        assert entry is not None
+        self.assertIn("continuous surjection", entry.body)
+        self.assertNotIn("RUNNING HEADER", entry.body)
+        self.assertNotIn("Proof", entry.body)
+        self.assertEqual(entry.page_index, 0)
+
+        bare = build_statement_index([
+            {"page_index": 0, "text": "Agreed.\nLemma 4.\n"},
+            {"page_index": 1, "text": "Let G be finite.\nThe order divides n.\n"},
+        ]).lookup("lemma", "4")
+        self.assertIsNotNone(bare)
+        assert bare is not None
+        self.assertIn("finite", bare.body)
+
+    def test_a_wrapped_mention_does_not_take_the_next_page(self) -> None:
+        # Synthetic. "which proves" then "Theorem 4." is a wrapped mention,
+        # and a next page that opens a section is a new unit.
+        wrapped = build_statement_index([
+            {"page_index": 0, "text": "which proves\nTheorem 4.\n"},
+            {"page_index": 1, "text": "(1) A different statement starts here.\n"},
+        ])
+        self.assertIsNone(wrapped.lookup("theorem", "4"))
+
+        section = build_statement_index([
+            {"page_index": 0, "text": "This completes the argument.\nTheorem 4.\n"},
+            {
+                "page_index": 1,
+                "text": "6.1. Lifting the cycle discriminant.\nThe proof begins.\n",
+            },
+        ])
+        self.assertIsNone(section.lookup("theorem", "4"))
+
+        followed = build_statement_index([
+            {
+                "page_index": 0,
+                "text": "This completes the argument.\nTheorem 4.\nCorollary 5. Let n be large.\n",
+            },
+            {"page_index": 1, "text": "(1) A different statement starts here.\n"},
+        ])
+        self.assertIsNone(followed.lookup("theorem", "4"))
+        corollary = followed.lookup("corollary", "5")
+        self.assertIsNotNone(corollary)
+        assert corollary is not None
+        self.assertIn("large", corollary.body)
+        self.assertNotIn("different statement", corollary.body)
+
     def test_parenthesized_statement_number_is_not_an_equation(self) -> None:
         text = "Theorem (3.2) gives the bound used in (3.1)."
         for profile in ("main", "hover"):

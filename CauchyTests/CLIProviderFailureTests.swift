@@ -138,13 +138,13 @@ final class AssistantFailureClassificationTests: XCTestCase {
 
         let failure = AssistantFailure.classify(
             connectorID: .codex,
-            modelID: "gpt-6.1-sol",
+            modelID: "gpt-6.2-sol",
             parserError: parser.errorMessage,
             parserText: parser.finalText,
             rawOutput: "",
             processError: nil
         )
-        XCTAssertEqual(failure, .modelUnavailable(.codex, modelName: "GPT-6.1 Sol"))
+        XCTAssertEqual(failure, .modelUnavailable(.codex, modelName: "GPT-6.2 Sol"))
     }
 
     func testRequestsNameTheModelTheReaderPicked() {
@@ -154,8 +154,8 @@ final class AssistantFailureClassificationTests: XCTestCase {
         XCTAssertTrue(args.contains("read-only"))
         let claude = CLIInvocation.claudeArguments(prompt: "Hi", instructions: "Be brief", modelID: "opus")
         XCTAssertEqual(Array(claude.suffix(2)), ["--model", "opus"])
-        let agy = CLIInvocation.antigravityArguments(prompt: "Hi", modelID: "gemini-3.8-flash-high")
-        XCTAssertEqual(agy, ["-p", "Hi", "--sandbox", "--model", "gemini-3.8-flash-high"])
+        let agy = CLIInvocation.antigravityArguments(prompt: "Hi", modelID: "gemini-4-hydrogen-high")
+        XCTAssertEqual(agy, ["-p", "Hi", "--sandbox", "--model", "gemini-4-hydrogen-high"])
         XCTAssertFalse(agy.contains("--effort"))
         XCTAssertEqual(
             CLIInvocation.antigravityArguments(prompt: "Hi", modelID: nil),
@@ -322,14 +322,14 @@ final class CLIProviderScriptTests: XCTestCase {
     func testRejectedModelFailsInTheAnswerInsteadOfCrashing() async throws {
         let failure = try await requireFailure(
             .codex,
-            modelID: "gpt-6.1-sol",
+            modelID: "gpt-6.2-sol",
             script: """
             #!/bin/sh
-            printf '%s\\n' '{"type":"error","status":400,"error":{"message":"The model gpt-6.1-sol is not supported with this account."}}'
+            printf '%s\\n' '{"type":"error","status":400,"error":{"message":"The model gpt-6.2-sol is not supported with this account."}}'
             exit 0
             """
         )
-        XCTAssertEqual(failure, .modelUnavailable(.codex, modelName: "GPT-6.1 Sol"))
+        XCTAssertEqual(failure, .modelUnavailable(.codex, modelName: "GPT-6.2 Sol"))
     }
 
     func testEmptyGarbageAndStderrAreMessages() async throws {
@@ -488,9 +488,9 @@ final class CloudProviderFailureTests: XCTestCase {
 
         CloudHTTPStub.install(status: 404, body: Data(#"{"error":{"message":"not found"}}"#.utf8))
         let missing = await CloudReadinessProbe.run(
-            provider: .openai, apiKey: "sk-test", modelID: "gpt-6.1-sol", session: session
+            provider: .openai, apiKey: "sk-test", modelID: "gpt-6.2-sol", session: session
         )
-        XCTAssertEqual(missing, .modelUnavailable(.openaiAPI, modelName: "GPT-6.1 Sol"))
+        XCTAssertEqual(missing, .modelUnavailable(.openaiAPI, modelName: "GPT-6.2 Sol"))
 
         CloudHTTPStub.install(status: 200, body: Data("this is not an event stream\n".utf8))
         let garbage = await CloudReadinessProbe.run(

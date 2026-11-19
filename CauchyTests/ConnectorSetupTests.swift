@@ -75,15 +75,17 @@ final class ModelCatalogTests: XCTestCase {
             (.gemini, "gemini-3.5-flash", "gemini-4-hydrogen"),
             (.gemini, "gemini-3.6-flash", "gemini-4-hydrogen"),
             (.gemini, "gemini-3.7-flash", "gemini-4-hydrogen"),
-            (.gemini, "gemini-3.8-flash", "gemini-4-hydrogen"),
-            (.gemini, "gemini-3.7-flash-lite", "gemini-3.5-flash-lite"),
+            (.gemini, "gemini-3.7-flash-lite", "gemini-3.8-flash"),
+            (.gemini, "gemini-3.5-flash-lite", "gemini-3.8-flash"),
             (.gemini, "gemini-3.1-pro-preview", "gemini-4-carbon"),
             (.gemini, "gemini-4-argon", "gemini-4-carbon"),
             (.codex, "gpt-5.5", "gpt-6.1-terra"),
             (.antigravity, "gemini-4-argon-high", "gemini-4-neon-high"),
-            (.antigravity, "gemini-4-argon-medium", "gemini-4-neon-medium"),
-            (.antigravity, "gemini-3.8-flash-high", "gemini-4-hydrogen-high"),
-            (.antigravity, "gemini-3.8-flash-medium", "gemini-4-hydrogen-medium"),
+            (.antigravity, "gemini-4-argon-medium", "gemini-4-neon-high"),
+            (.antigravity, "gemini-4-carbon-medium", "gemini-4-carbon-high"),
+            (.antigravity, "gemini-4-neon-medium", "gemini-4-neon-high"),
+            (.antigravity, "gemini-4-hydrogen-medium", "gemini-4-hydrogen-high"),
+            (.antigravity, "gemini-3.8-flash-high", "gemini-3.8-flash-medium"),
         ]
 
         for (connectorID, storedID, expectedID) in cases {
@@ -120,8 +122,10 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertNil(AssistantConnectorID.openaiAPI.connector.model(id: "gpt-6.1-sol"))
         XCTAssertNil(AssistantConnectorID.anthropicAPI.connector.model(id: "claude-fable-5-1"))
         XCTAssertNil(AssistantConnectorID.gemini.connector.model(id: "gemini-4-argon"))
-        XCTAssertNil(AssistantConnectorID.gemini.connector.model(id: "gemini-3.8-flash"))
+        XCTAssertNil(AssistantConnectorID.gemini.connector.model(id: "gemini-3.5-flash-lite"))
         XCTAssertNil(AssistantConnectorID.antigravity.connector.model(id: "gemini-4-argon-high"))
+        XCTAssertNil(AssistantConnectorID.antigravity.connector.model(id: "gemini-4-carbon-medium"))
+        XCTAssertNil(AssistantConnectorID.antigravity.connector.model(id: "gemini-4-hydrogen-medium"))
         XCTAssertNotNil(AssistantConnectorID.codex.connector.model(id: "gpt-6.2-sol"))
         XCTAssertNotNil(AssistantConnectorID.codex.connector.model(id: "gpt-6.1-terra"))
         XCTAssertNotNil(AssistantConnectorID.openaiAPI.connector.model(id: "gpt-6.1-terra"))
@@ -158,14 +162,37 @@ final class ModelCatalogTests: XCTestCase {
             .codex: ["gpt-6.2-astra", "gpt-6.2-sol", "gpt-6.1-terra", "gpt-6-luna"],
             .openaiAPI: ["gpt-6.2-astra", "gpt-6.2-sol", "gpt-6.1-terra", "gpt-6-luna"],
             .antigravity: [
-                "gemini-4-carbon-high", "gemini-4-carbon-medium",
-                "gemini-4-neon-high", "gemini-4-neon-medium",
-                "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium",
+                "gemini-4-carbon-high", "gemini-4-neon-high",
+                "gemini-4-hydrogen-high", "gemini-3.8-flash-medium",
             ],
-            .gemini: ["gemini-4-carbon", "gemini-4-neon", "gemini-4-hydrogen", "gemini-3.5-flash-lite"],
+            .gemini: ["gemini-4-carbon", "gemini-4-neon", "gemini-4-hydrogen", "gemini-3.8-flash"],
         ]
         for (id, ids) in order {
             XCTAssertEqual(id.connector.models.map(\.id), ids, id.rawValue)
+        }
+    }
+
+    /// Each pair is one catalog written twice. Codex and the OpenAI API use
+    /// the same ids. Claude Code and the Anthropic API, and Antigravity and
+    /// the Gemini API, use the same names, tiers, and blurbs with a
+    /// per-connector id.
+    func testPairedConnectorsShareRows() {
+        let identical: [(AssistantConnectorID, AssistantConnectorID)] = [
+            (.codex, .openaiAPI),
+        ]
+        for (left, right) in identical {
+            XCTAssertEqual(left.connector.models, right.connector.models, left.rawValue)
+        }
+
+        let parallel: [(AssistantConnectorID, AssistantConnectorID)] = [
+            (.claudeCode, .anthropicAPI),
+            (.antigravity, .gemini),
+        ]
+        for (left, right) in parallel {
+            XCTAssertEqual(left.connector.models.map(\.name), right.connector.models.map(\.name), left.rawValue)
+            XCTAssertEqual(left.connector.models.map(\.tier), right.connector.models.map(\.tier), left.rawValue)
+            XCTAssertEqual(left.connector.models.map(\.blurb), right.connector.models.map(\.blurb), left.rawValue)
+            XCTAssertNotEqual(left.connector.models.map(\.id), right.connector.models.map(\.id), left.rawValue)
         }
     }
 }

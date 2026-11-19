@@ -166,16 +166,23 @@ extension AssistantConnector {
         case (.anthropicAPI, "claude-haiku-4-5"),
              (.anthropicAPI, "claude-haiku-4-5-20251001"): "claude-haiku-5-5"
         case (.gemini, "gemini-3.5-flash"), (.gemini, "gemini-3.6-flash"),
-             (.gemini, "gemini-3.7-flash"), (.gemini, "gemini-3.8-flash"): "gemini-4-hydrogen"
-        case (.gemini, "gemini-3.7-flash-lite"): "gemini-3.5-flash-lite"
+             (.gemini, "gemini-3.7-flash"): "gemini-4-hydrogen"
+        // Flash-Lite has no Antigravity slug, so the shared fast row is
+        // 3.8 Flash. A saved lite id lands on that row.
+        case (.gemini, "gemini-3.7-flash-lite"),
+             (.gemini, "gemini-3.5-flash-lite"): "gemini-3.8-flash"
         case (.gemini, "gemini-3.1-pro-preview"),
              (.gemini, "gemini-4-argon"): "gemini-4-carbon"
         // Neon is the Pro-available frontier that replaced Argon. Carbon is
         // Ultra-only, so a saved Argon choice stays on a plan that had Argon.
-        case (.antigravity, "gemini-4-argon-high"): "gemini-4-neon-high"
-        case (.antigravity, "gemini-4-argon-medium"): "gemini-4-neon-medium"
-        case (.antigravity, "gemini-3.8-flash-high"): "gemini-4-hydrogen-high"
-        case (.antigravity, "gemini-3.8-flash-medium"): "gemini-4-hydrogen-medium"
+        // Both efforts collapse onto the one Neon row.
+        case (.antigravity, "gemini-4-argon-high"),
+             (.antigravity, "gemini-4-argon-medium"): "gemini-4-neon-high"
+        case (.antigravity, "gemini-4-carbon-medium"): "gemini-4-carbon-high"
+        case (.antigravity, "gemini-4-neon-medium"): "gemini-4-neon-high"
+        case (.antigravity, "gemini-4-hydrogen-medium"): "gemini-4-hydrogen-high"
+        // 3.8 Flash is the shared fast row. The stored slug is the medium one.
+        case (.antigravity, "gemini-3.8-flash-high"): "gemini-3.8-flash-medium"
         default: nil
         }
         guard let replacement, model(id: replacement) != nil else { return defaultChoice }
@@ -321,18 +328,17 @@ extension AssistantConnector {
                     install: "Install it (`curl -fsSL https://antigravity.google/cli/install.sh | bash`)",
                     signIn: "Run `agy` in Terminal and sign in with Google"
                 ),
-                // Slugs printed in full by the headless docs. The suffix is the
-                // reasoning effort, so the row is both the model and the effort.
-                // High and medium only. Carbon is the strongest, Neon is the
-                // model Antigravity lists first, and Hydrogen is the everyday
-                // rung. Hydrogen high stays the first balanced row.
+                // Same rows as the Gemini API: one name, tier, and blurb per model.
+                // The id is the headless slug, the way Claude Code stores an
+                // alias beside the Anthropic API id. High for Gemini 4
+                // (Carbon's top, and the default for Neon and Hydrogen).
+                // Medium for 3.8 Flash, the quicker slug the headless docs
+                // print. Hydrogen high stays the first balanced row.
                 models: [
-                    AssistantModel(id: "gemini-4-carbon-high", name: "Gemini 4 Carbon (High)", tier: .max, blurb: "Strongest reasoning"),
-                    AssistantModel(id: "gemini-4-carbon-medium", name: "Gemini 4 Carbon (Medium)", tier: .max, blurb: "Strongest reasoning, medium effort"),
-                    AssistantModel(id: "gemini-4-neon-high", name: "Gemini 4 Neon (High)", tier: .max, blurb: "Frontier reasoning"),
-                    AssistantModel(id: "gemini-4-neon-medium", name: "Gemini 4 Neon (Medium)", tier: .max, blurb: "Frontier reasoning, medium effort"),
-                    AssistantModel(id: "gemini-4-hydrogen-high", name: "Gemini 4 Hydrogen (High)", tier: .balanced, blurb: "Strong everyday reasoning"),
-                    AssistantModel(id: "gemini-4-hydrogen-medium", name: "Gemini 4 Hydrogen (Medium)", tier: .fast, blurb: "Quicker replies"),
+                    AssistantModel(id: "gemini-4-carbon-high", name: "Gemini 4 Carbon", tier: .max, blurb: "Strongest reasoning"),
+                    AssistantModel(id: "gemini-4-neon-high", name: "Gemini 4 Neon", tier: .max, blurb: "Frontier reasoning, faster completion"),
+                    AssistantModel(id: "gemini-4-hydrogen-high", name: "Gemini 4 Hydrogen", tier: .balanced, blurb: "Everyday coding and agents"),
+                    AssistantModel(id: "gemini-3.8-flash-medium", name: "Gemini 3.8 Flash", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: false
@@ -387,14 +393,14 @@ extension AssistantConnector {
                 symbol: "sparkle",
                 tagline: "Direct API access. Needs your own key and billing.",
                 access: .apiKey(.gemini),
-                // Explicit text/vision ids. Carbon is the strongest reasoning
-                // model, Neon is the fast frontier model, Hydrogen is the
-                // recommended everyday model, and Flash-Lite stays the cheap rung.
+                // Same rows as Antigravity. These are the API ids; Antigravity
+                // stores the matching headless slug. 3.8 Flash is the fast
+                // rung both sides can name.
                 models: [
                     AssistantModel(id: "gemini-4-carbon", name: "Gemini 4 Carbon", tier: .max, blurb: "Strongest reasoning"),
                     AssistantModel(id: "gemini-4-neon", name: "Gemini 4 Neon", tier: .max, blurb: "Frontier reasoning, faster completion"),
                     AssistantModel(id: "gemini-4-hydrogen", name: "Gemini 4 Hydrogen", tier: .balanced, blurb: "Everyday coding and agents"),
-                    AssistantModel(id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite", tier: .fast, blurb: "Quickest replies"),
+                    AssistantModel(id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", tier: .fast, blurb: "Quickest replies"),
                 ],
                 noModelsNote: nil,
                 isAdvanced: true

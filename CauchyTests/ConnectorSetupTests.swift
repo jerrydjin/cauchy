@@ -56,22 +56,36 @@ final class ConnectorSetupTests: XCTestCase {
 final class ModelCatalogTests: XCTestCase {
     func testRetiredChoicesKeepTheirCapabilityTier() {
         let cases: [(AssistantConnectorID, String, String)] = [
-            (.codex, "gpt-5.6-sol", "gpt-6-astra"),
-            (.codex, "gpt-5.6-terra", "gpt-6.1-sol"),
-            (.codex, "gpt-6-sol", "gpt-6.1-sol"),
+            (.codex, "gpt-5.6-sol", "gpt-6.2-astra"),
+            (.codex, "gpt-6-astra", "gpt-6.2-astra"),
+            (.codex, "gpt-5.6-terra", "gpt-6.2-sol"),
+            (.codex, "gpt-6-sol", "gpt-6.2-sol"),
+            (.codex, "gpt-6.1-sol", "gpt-6.2-sol"),
             (.codex, "gpt-5.6-luna", "gpt-6-luna"),
-            (.openaiAPI, "gpt-5.6-sol", "gpt-6-astra"),
-            (.openaiAPI, "gpt-5.6-terra", "gpt-6.1-sol"),
-            (.openaiAPI, "gpt-6-sol", "gpt-6.1-sol"),
+            (.openaiAPI, "gpt-5.6-sol", "gpt-6.2-astra"),
+            (.openaiAPI, "gpt-6-astra", "gpt-6.2-astra"),
+            (.openaiAPI, "gpt-5.6-terra", "gpt-6.2-sol"),
+            (.openaiAPI, "gpt-6-sol", "gpt-6.2-sol"),
+            (.openaiAPI, "gpt-6.1-sol", "gpt-6.2-sol"),
+            (.anthropicAPI, "claude-fable-5-1", "claude-fable-5-2"),
             (.anthropicAPI, "claude-opus-5", "claude-opus-5-5"),
             (.anthropicAPI, "claude-sonnet-5", "claude-sonnet-5-5"),
             (.anthropicAPI, "claude-haiku-4-5", "claude-haiku-5-5"),
             (.anthropicAPI, "claude-haiku-4-5-20251001", "claude-haiku-5-5"),
-            (.gemini, "gemini-3.6-flash", "gemini-3.8-flash"),
-            (.gemini, "gemini-3.7-flash", "gemini-3.8-flash"),
-            (.gemini, "gemini-3.7-flash-lite", "gemini-3.5-flash-lite"),
-            (.gemini, "gemini-3.1-pro-preview", "gemini-4-argon"),
+            (.gemini, "gemini-3.5-flash", "gemini-4-hydrogen"),
+            (.gemini, "gemini-3.6-flash", "gemini-4-hydrogen"),
+            (.gemini, "gemini-3.7-flash", "gemini-4-hydrogen"),
+            (.gemini, "gemini-3.7-flash-lite", "gemini-3.8-flash"),
+            (.gemini, "gemini-3.5-flash-lite", "gemini-3.8-flash"),
+            (.gemini, "gemini-3.1-pro-preview", "gemini-4-carbon"),
+            (.gemini, "gemini-4-argon", "gemini-4-carbon"),
             (.codex, "gpt-5.5", "gpt-6.1-terra"),
+            (.antigravity, "gemini-4-argon-high", "gemini-4-neon-high"),
+            (.antigravity, "gemini-4-argon-medium", "gemini-4-neon-high"),
+            (.antigravity, "gemini-4-carbon-medium", "gemini-4-carbon-high"),
+            (.antigravity, "gemini-4-neon-medium", "gemini-4-neon-high"),
+            (.antigravity, "gemini-4-hydrogen-medium", "gemini-4-hydrogen-high"),
+            (.antigravity, "gemini-3.8-flash-high", "gemini-3.8-flash-medium"),
         ]
 
         for (connectorID, storedID, expectedID) in cases {
@@ -82,10 +96,10 @@ final class ModelCatalogTests: XCTestCase {
 
     func testFreshAndUnknownChoicesUseCurrentBalancedModels() {
         let defaults: [(AssistantConnectorID, String)] = [
-            (.codex, "gpt-6.1-sol"), (.openaiAPI, "gpt-6.1-sol"),
+            (.codex, "gpt-6.2-sol"), (.openaiAPI, "gpt-6.2-sol"),
             (.claudeCode, "sonnet"), (.anthropicAPI, "claude-sonnet-5-5"),
-            (.gemini, "gemini-3.8-flash"),
-            (.antigravity, "gemini-3.8-flash-high"),
+            (.gemini, "gemini-4-hydrogen"),
+            (.antigravity, "gemini-4-hydrogen-high"),
         ]
         for (id, modelID) in defaults {
             let connector = id.connector
@@ -103,8 +117,19 @@ final class ModelCatalogTests: XCTestCase {
             }
         }
         XCTAssertNil(AssistantConnectorID.codex.connector.model(id: "gpt-5.5"))
+        XCTAssertNil(AssistantConnectorID.codex.connector.model(id: "gpt-6.1-sol"))
+        XCTAssertNil(AssistantConnectorID.codex.connector.model(id: "gpt-6-astra"))
+        XCTAssertNil(AssistantConnectorID.openaiAPI.connector.model(id: "gpt-6.1-sol"))
+        XCTAssertNil(AssistantConnectorID.anthropicAPI.connector.model(id: "claude-fable-5-1"))
+        XCTAssertNil(AssistantConnectorID.gemini.connector.model(id: "gemini-4-argon"))
+        XCTAssertNil(AssistantConnectorID.gemini.connector.model(id: "gemini-3.5-flash-lite"))
+        XCTAssertNil(AssistantConnectorID.antigravity.connector.model(id: "gemini-4-argon-high"))
+        XCTAssertNil(AssistantConnectorID.antigravity.connector.model(id: "gemini-4-carbon-medium"))
+        XCTAssertNil(AssistantConnectorID.antigravity.connector.model(id: "gemini-4-hydrogen-medium"))
+        XCTAssertNotNil(AssistantConnectorID.codex.connector.model(id: "gpt-6.2-sol"))
         XCTAssertNotNil(AssistantConnectorID.codex.connector.model(id: "gpt-6.1-terra"))
         XCTAssertNotNil(AssistantConnectorID.openaiAPI.connector.model(id: "gpt-6.1-terra"))
+        XCTAssertNotNil(AssistantConnectorID.anthropicAPI.connector.model(id: "claude-fable-5-2"))
     }
 
     /// Every connector that can name a model has a non-empty list, and its
@@ -133,17 +158,41 @@ final class ModelCatalogTests: XCTestCase {
     func testPickerListsUseVersionThenCapabilityOrder() {
         let order: [AssistantConnectorID: [String]] = [
             .claudeCode: ["fable", "opus", "sonnet", "haiku"],
-            .anthropicAPI: ["claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
-            .codex: ["gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-astra", "gpt-6-luna"],
-            .openaiAPI: ["gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-astra", "gpt-6-luna"],
+            .anthropicAPI: ["claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
+            .codex: ["gpt-6.2-astra", "gpt-6.2-sol", "gpt-6.1-terra", "gpt-6-luna"],
+            .openaiAPI: ["gpt-6.2-astra", "gpt-6.2-sol", "gpt-6.1-terra", "gpt-6-luna"],
             .antigravity: [
-                "gemini-4-argon-high", "gemini-4-argon-medium",
-                "gemini-3.8-flash-high", "gemini-3.8-flash-medium",
+                "gemini-4-carbon-high", "gemini-4-neon-high",
+                "gemini-4-hydrogen-high", "gemini-3.8-flash-medium",
             ],
-            .gemini: ["gemini-4-argon", "gemini-3.8-flash", "gemini-3.5-flash-lite"],
+            .gemini: ["gemini-4-carbon", "gemini-4-neon", "gemini-4-hydrogen", "gemini-3.8-flash"],
         ]
         for (id, ids) in order {
             XCTAssertEqual(id.connector.models.map(\.id), ids, id.rawValue)
+        }
+    }
+
+    /// Each pair is one catalog written twice. Codex and the OpenAI API use
+    /// the same ids. Claude Code and the Anthropic API, and Antigravity and
+    /// the Gemini API, use the same names, tiers, and blurbs with a
+    /// per-connector id.
+    func testPairedConnectorsShareRows() {
+        let identical: [(AssistantConnectorID, AssistantConnectorID)] = [
+            (.codex, .openaiAPI),
+        ]
+        for (left, right) in identical {
+            XCTAssertEqual(left.connector.models, right.connector.models, left.rawValue)
+        }
+
+        let parallel: [(AssistantConnectorID, AssistantConnectorID)] = [
+            (.claudeCode, .anthropicAPI),
+            (.antigravity, .gemini),
+        ]
+        for (left, right) in parallel {
+            XCTAssertEqual(left.connector.models.map(\.name), right.connector.models.map(\.name), left.rawValue)
+            XCTAssertEqual(left.connector.models.map(\.tier), right.connector.models.map(\.tier), left.rawValue)
+            XCTAssertEqual(left.connector.models.map(\.blurb), right.connector.models.map(\.blurb), left.rawValue)
+            XCTAssertNotEqual(left.connector.models.map(\.id), right.connector.models.map(\.id), left.rawValue)
         }
     }
 }

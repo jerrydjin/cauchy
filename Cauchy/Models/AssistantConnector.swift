@@ -170,8 +170,10 @@ extension AssistantConnector {
         case (.gemini, "gemini-3.7-flash-lite"): "gemini-3.5-flash-lite"
         case (.gemini, "gemini-3.1-pro-preview"),
              (.gemini, "gemini-4-argon"): "gemini-4-carbon"
-        case (.antigravity, "gemini-4-argon-high"): "gemini-4-carbon-high"
-        case (.antigravity, "gemini-4-argon-medium"): "gemini-4-carbon-medium"
+        // Neon is the Pro-available frontier that replaced Argon. Carbon is
+        // Ultra-only, so a saved Argon choice stays on a plan that had Argon.
+        case (.antigravity, "gemini-4-argon-high"): "gemini-4-neon-high"
+        case (.antigravity, "gemini-4-argon-medium"): "gemini-4-neon-medium"
         case (.antigravity, "gemini-3.8-flash-high"): "gemini-4-hydrogen-high"
         case (.antigravity, "gemini-3.8-flash-medium"): "gemini-4-hydrogen-medium"
         default: nil

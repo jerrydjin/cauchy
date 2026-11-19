@@ -80,8 +80,8 @@ final class ModelCatalogTests: XCTestCase {
             (.gemini, "gemini-3.1-pro-preview", "gemini-4-carbon"),
             (.gemini, "gemini-4-argon", "gemini-4-carbon"),
             (.codex, "gpt-5.5", "gpt-6.1-terra"),
-            (.antigravity, "gemini-4-argon-high", "gemini-4-carbon-high"),
-            (.antigravity, "gemini-4-argon-medium", "gemini-4-carbon-medium"),
+            (.antigravity, "gemini-4-argon-high", "gemini-4-neon-high"),
+            (.antigravity, "gemini-4-argon-medium", "gemini-4-neon-medium"),
             (.antigravity, "gemini-3.8-flash-high", "gemini-4-hydrogen-high"),
             (.antigravity, "gemini-3.8-flash-medium", "gemini-4-hydrogen-medium"),
         ]

@@ -798,23 +798,41 @@ enum LLMReferenceIndexSupport {
         return ""
     }
 
-    /// The next non-empty line after an own-line equation number is a display
-    /// when it contains a relation and almost no words.
+    /// The lines after an own-line equation number are the formula.
+    ///
+    /// The relation may be the next line. A split integral puts glyphs and a
+    /// norm first ("Z", "R", "H(t)") and the relation a line or two later. A
+    /// sentence, a comma, or another parenthesized number stops the scan:
+    /// those are prose or a superscript. Only the next four lines belong to
+    /// this tag. The scorecard port uses the same test.
     private static func followingLineIsDisplay(_ sourceText: String, after index: String.Index) -> Bool {
         let rest = sourceText[index...]
         var lines = rest.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         if !lines.isEmpty {
             lines.removeFirst()
         }
-        // The scorecard port only inspects the next four lines. A display
-        // further down the page is a later equation, not this number.
         if lines.count > 4 {
             lines = Array(lines.prefix(4))
         }
-        guard let next = lines.lazy.map({ $0.trimmingCharacters(in: .whitespaces) }).first(where: { !$0.isEmpty }) else {
-            return false
+        for raw in lines {
+            let stripped = raw.trimmingCharacters(in: .whitespaces)
+            if stripped.isEmpty { continue }
+            if isDisplayFormula(stripped) { return true }
+            if isProseOrIndexLine(stripped) { return false }
         }
-        return isDisplayFormula(next)
+        return false
+    }
+
+    /// A line that ends the search for the formula under an own-line tag.
+    ///
+    /// A word, a comma, or another parenthesized number is prose or a
+    /// superscript ("i , B" / "(2)"). A glyph or a short norm is not.
+    private static func isProseOrIndexLine(_ line: String) -> Bool {
+        if line.count > 40 { return true }
+        if line.contains(",") { return true }
+        if line.range(of: #"\(\s*\d"#, options: .regularExpression) != nil { return true }
+        if line.range(of: #"[A-Za-z]{3,}"#, options: .regularExpression) != nil { return true }
+        return false
     }
 
     /// The parenthesized number is not an equation label.

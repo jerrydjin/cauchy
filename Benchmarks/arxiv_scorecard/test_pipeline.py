@@ -635,6 +635,52 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("12", unpositioned)
         self.assertNotIn("8", unpositioned)
 
+    def test_own_line_tag_before_a_split_integral_is_an_equation(self) -> None:
+        # Synthetic. The integral sign and the domain extract as their own
+        # lines, and the relation is still this tag's formula. A relation
+        # five lines down belongs to a later display. A superscript "(1)"
+        # above "i, B" is not a tag. Each page is separate so an earlier
+        # relation cannot license a later number.
+        split = "\n".join([
+            "By the definition of the kernel, we have",
+            "(45)",
+            "Z",
+            "R",
+            "H(t)",
+            "2 d(t) =",
+            "the sum of the traces.",
+        ])
+        too_far = "\n".join([
+            "The bound is introduced as follows",
+            "(7)",
+            "Z",
+            "R",
+            "H(t)",
+            "K(t)",
+            "2 d(t) =",
+            "which is too far below the number.",
+        ])
+        superscript = "\n".join([
+            "The indices are B",
+            "(1)",
+            "i , B",
+            "(2)",
+            "i , Ji",
+            "i=1",
+            "which stays a superscript.",
+        ])
+        self.assertIn("45", [item.number for item in declaration_matches(split)])
+        self.assertNotIn("7", [item.number for item in declaration_matches(too_far)])
+        superscript_numbers = [item.number for item in declaration_matches(superscript)]
+        self.assertNotIn("1", superscript_numbers)
+        self.assertNotIn("2", superscript_numbers)
+        index = build_statement_index([{"page_index": 0, "text": split}], "main")
+        self.assertIsNotNone(index.lookup("equation", "45"))
+        self.assertIsNone(build_statement_index([{"page_index": 0, "text": too_far}]).lookup("equation", "7"))
+        superscript_index = build_statement_index([{"page_index": 0, "text": superscript}])
+        self.assertIsNone(superscript_index.lookup("equation", "1"))
+        self.assertIsNone(superscript_index.lookup("equation", "2"))
+
     def test_own_line_equation_keeps_the_formula_on_the_next_line(self) -> None:
         page = "\n".join([
             "(2)",

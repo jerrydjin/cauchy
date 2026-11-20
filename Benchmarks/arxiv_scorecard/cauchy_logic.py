@@ -816,9 +816,29 @@ def _equation_number_is_not_a_label(text: str, match: Match, prefix: str, suffix
 
 
 def _following_line_is_display(rest: str) -> bool:
+    """The lines after an own-line tag are the formula.
+
+    The relation may be the next line. A split integral puts glyphs and a
+    norm first ("Z", "R", "H(t)") and the relation a line or two later. A
+    sentence, a comma, or another parenthesized number stops the scan:
+    those are prose or a superscript. Only the next four lines belong to
+    this tag.
+    """
     lines = rest.split("\n")[1:5]
-    next_line = next((line.strip() for line in lines if line.strip()), "")
-    return _is_display_formula(next_line)
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _is_display_formula(stripped):
+            return True
+        if (
+            re.search(r"[A-Za-z]{3,}", stripped)
+            or len(stripped) > 40
+            or "," in stripped
+            or re.search(r"\(\s*\d", stripped)
+        ):
+            return False
+    return False
 
 
 def _fallback_body(source_text: str, match: Match, declarations: list[Match]) -> str | None:

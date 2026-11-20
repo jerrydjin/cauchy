@@ -981,6 +981,49 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(withoutGeometry.contains(DetectedReference(kind: .equation, number: "8")))
     }
 
+    func testOwnLineTagBeforeASplitIntegralIsAnEquation() {
+        // Synthetic. The integral sign and the domain extract as their own
+        // lines, and the relation is still this tag's formula. A relation
+        // five lines down belongs to a later display. A superscript "(1)"
+        // above "i, B" is not a tag. Each page is separate so an earlier
+        // relation cannot license a later number.
+        let split = """
+        By the definition of the kernel, we have
+        (45)
+        Z
+        R
+        H(t)
+        2 d(t) =
+        the sum of the traces.
+        """
+        let tooFar = """
+        The bound is introduced as follows
+        (7)
+        Z
+        R
+        H(t)
+        K(t)
+        2 d(t) =
+        which is too far below the number.
+        """
+        let superscript = """
+        The indices are B
+        (1)
+        i , B
+        (2)
+        i , Ji
+        i=1
+        which stays a superscript.
+        """
+        let splitNumbers = LLMReferenceIndexSupport.indexableDeclarationMatches(in: split).map(\.reference)
+        XCTAssertTrue(splitNumbers.contains(DetectedReference(kind: .equation, number: "45")))
+        let tooFarNumbers = LLMReferenceIndexSupport.indexableDeclarationMatches(in: tooFar).map(\.reference)
+        XCTAssertFalse(tooFarNumbers.contains(DetectedReference(kind: .equation, number: "7")))
+        let superscriptNumbers = LLMReferenceIndexSupport.indexableDeclarationMatches(in: superscript).map(\.reference)
+        XCTAssertFalse(superscriptNumbers.contains(DetectedReference(kind: .equation, number: "1")))
+        XCTAssertFalse(superscriptNumbers.contains(DetectedReference(kind: .equation, number: "2")))
+    }
+
     func testBareOwnLineFragmentsAreNotEquations() {
         // Synthetic. A split subscript, "(0)" under a one-digit line, and a
         // left-margin wrapped item are not tags. A formula on the next line,

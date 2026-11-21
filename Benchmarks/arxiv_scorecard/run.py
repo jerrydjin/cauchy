@@ -822,6 +822,8 @@ def _write_markdown(payload: dict) -> None:
         "A run-in heading such as “2.4. Small cases. Let G be a graph” is that section; the sentence after the title period is the paragraph. "
         "A longer title with no following sentence, such as “6. Discriminants of minor-free graphs and completable cycles in the plane”, is still a heading. "
         "“Subsection 2.3” and “Subsubsection 6.2.1” are references to those units. "
+        "“Sections 4 and 6”, “Subsections 2.1–2.2”, and “Section 5, 5.2, and 8” name every printed number. "
+        "“Section 4 and the proof” stays section 4. “Sections 4–6” is 4 and 6; the dash does not invent 5. "
         "An HTML link whose target is an enumerated item, such as #S4.I1.i2, is not a section. "
         "A float anchor is not a section either: #S2.F1 is Figure 1 and #S3.T2 is Table 2, even though both ids sit under a section. "
         "A TeX annotation nested in a heading is not part of the title, and “SL 2” matches a bookmark “SL2”. "

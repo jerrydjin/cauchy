@@ -9,7 +9,8 @@
   and the source-fallback statement index contains that key. A section
   reference resolves when "what is section N about" locates the body page
   that prints the section heading. Main locates a heading written as
-  “N. Title” or “N.N. Title.”
+  “N. Title” or “N.N. Title.” A section list or range names every printed
+  number, so “Sections 4 and 6” and “Subsections 2.1–2.2” each locate both.
 - No wrong link. A wrong link is a hover that would open a citation span
   whose detector hit is in the index, or a printed reference resolved to a
   different indexed statement.
@@ -46,6 +47,7 @@ from cauchy_logic import (
     is_likely_table_of_contents,
     locate,
     part_letter_bases,
+    section_mention_patterns,
     structural_query,
 )
 from ground_truth import IN_SCOPE, PaperTruth
@@ -163,12 +165,10 @@ def pdf_statement_mention(pages: list[dict], kind: str, number: str) -> dict | N
 def _patterns(kind: str, number: str) -> list[re.Pattern[str]]:
     token = _boundary_number(number)
     if kind == "section":
-        # "Subsection 2.3" and "Subsubsection 6.2.1" name that numbered unit.
-        return [
-            re.compile(rf"(?i)\b(?:sub(?:sub)?sections?|sections?|sec\.?)\s*{token}"),
-            re.compile(rf"(?i)§\s*{token}"),
-            re.compile(rf"(?i)\bappendices\s+{token}|\bappendix\s*{token}\b"),
-        ]
+        # The word, the section sign, an appendix, and every later number in
+        # "Sections 4 and 6" or "Subsections 2.1–2.2". Same patterns as
+        # cauchy_logic.section_mention_patterns.
+        return section_mention_patterns(number)
     if kind == "equation":
         # "(2.7a)" prints equation 2.7. A bare "(7a)" prints equation 7 only
         # when the page also prints another part letter; _hits_for adds that

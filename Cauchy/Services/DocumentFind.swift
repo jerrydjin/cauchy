@@ -357,22 +357,22 @@ enum DocumentFind {
         entries: [Entry],
         sections: [Section]
     ) -> Outcome {
-        var hits: [Hit] = []
+        var found: [Hit] = []
         var seen: Set<String> = []
         for number in numbers {
             let numbered = NumberedQuery(kind: nil, number: number, name: nil, display: "Section \(number)")
             for hit in hits(for: numbered, entries: entries, sections: sections) where seen.insert(hit.id).inserted {
-                hits.append(hit)
+                found.append(hit)
             }
         }
-        if hits.isEmpty {
+        if found.isEmpty {
             return Outcome(
                 hits: [],
                 message: "No \"\(query)\" in this document",
                 suppressesTextSearch: true
             )
         }
-        return Outcome(hits: sort(hits), message: nil, suppressesTextSearch: true)
+        return Outcome(hits: sort(found), message: nil, suppressesTextSearch: true)
     }
 
     private static func numberedQuery(in query: String) -> NumberedQuery? {

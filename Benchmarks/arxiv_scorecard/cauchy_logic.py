@@ -1211,6 +1211,32 @@ def _roman_value(token: str) -> int | None:
     return total if 1 <= total <= 40 else None
 
 
+def section_mention_patterns(number: str) -> list[re.Pattern[str]]:
+    """Printed section mentions, including every number in a list or range.
+
+    "Subsection 2.3" and "Subsubsection 6.2.1" name that unit. A list or
+    range names every printed number: "Sections 4 and 6", "Subsections
+    2.1–2.2", and "Section 5, 5.2, and 8". "Section 4 and the proof" stays
+    section 4. "Sections 4–6" is 4 and 6; the dash does not invent 5.
+    The separators are the ones a statement list already uses. "Sect." and
+    a line-broken "Sec-tion" are not this word. DocumentFind.sectionListNumbers
+    uses the same words and separators when the whole query is a list.
+    """
+    token = re.escape(number) + r"(?!\.\d)(?!\d)"
+    word = r"sub(?:sub)?sections?|sections?|sec\.?"
+    later = (
+        rf"(?i)\b(?:{word})\s*{REFERENCE_NUMBER}"
+        rf"(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER})*"
+        rf"\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?({token})"
+    )
+    return [
+        re.compile(rf"(?i)\b(?:{word})\s*{token}"),
+        re.compile(rf"(?i)§\s*{token}"),
+        re.compile(rf"(?i)\bappendices\s+{token}|\bappendix\s*{token}\b"),
+        re.compile(later),
+    ]
+
+
 def structural_query(text: str) -> StructuralQuery | None:
     patterns = [
         ("section", _SECTION_QUERY),

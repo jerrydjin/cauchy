@@ -102,6 +102,9 @@ enum DocumentFind {
         guard !trimmed.isEmpty else {
             return Outcome(hits: [], message: nil, suppressesTextSearch: false)
         }
+        if let numbers = sectionListNumbers(in: trimmed) {
+            return sectionListOutcome(numbers, query: trimmed, entries: entries, sections: sections)
+        }
         if let numbered = numberedQuery(in: trimmed) {
             let hits = hits(for: numbered, entries: entries, sections: sections)
             if hits.isEmpty {
@@ -145,7 +148,7 @@ enum DocumentFind {
         if trimmed.isEmpty {
             return sort(entries.map(hit(for:)) + sections.map(sectionHit))
         }
-        if numberedQuery(in: trimmed) != nil {
+        if sectionListNumbers(in: trimmed) != nil || numberedQuery(in: trimmed) != nil {
             return search(query: trimmed, entries: entries, sections: sections).hits
         }
         let all = entries.map(hit(for:)) + sections.map(sectionHit)
@@ -188,6 +191,11 @@ enum DocumentFind {
     ) -> [Hit] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return catalogue }
+        if let numbers = sectionListNumbers(in: trimmed) {
+            return catalogue.filter { hit in
+                hit.group == "Sections" && numbers.contains { number(hit.number, extends: $0) }
+            }
+        }
         if let numbered = numberedQuery(in: trimmed) {
             return catalogue.filter { matchesNumbered($0, query: numbered) }
         }
@@ -295,6 +303,17 @@ enum DocumentFind {
     private static let headingRegex = try! NSRegularExpression(
         pattern: #"(?m)^[ \t]*(\d+(?:\.\d+)*)\.\s+(\S[^\n]*)$"#
     )
+    /// A whole query that names every section in a list or range.
+    /// "Sections 4 and 6", "Subsections 2.1–2.2", "Section 5, 5.2, and 8".
+    /// The separators match a statement list and cauchy_logic.section_mention_patterns.
+    /// "Section 4 and the proof" does not match. "Sections 4–6" is 4 and 6, not 5.
+    /// "Sect." and a hyphenated "Sec-tion" are not this word.
+    private static let sectionListRegex = try! NSRegularExpression(
+        pattern: #"(?i)^\s*(?:sub(?:sub)?sections?|sections?|sec\.?)\s+((?:\d+(?:\.\d+)*)(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\d+(?:\.\d+)*))+)\s*$"#
+    )
+    private static let sectionListNumberRegex = try! NSRegularExpression(
+        pattern: #"\d+(?:\.\d+)*"#
+    )
     private static let numberedRegex = try! NSRegularExpression(
         pattern: #"(?i)^\s*(theorems?|lemmas?|propositions?|corollaries|corollary|definitions?|exercises?|examples?|remarks?|proofs?|sections?)\s+(\d+(?:\.\d+)*)(?:\s*\(([^)]{1,80})\))?\s*$"#
     )
@@ -315,6 +334,45 @@ enum DocumentFind {
             end = space
         }
         return repaired[..<end].trimmingCharacters(in: .whitespaces) + "…"
+    }
+
+    /// Every number in a section-list query, or nil when the query is not one.
+    /// At least two numbers, so "Section 2" stays on the single-number path.
+    private static func sectionListNumbers(in query: String) -> [String]? {
+        let range = NSRange(query.startIndex..., in: query)
+        guard let match = sectionListRegex.firstMatch(in: query, range: range),
+              let listRange = Range(match.range(at: 1), in: query) else { return nil }
+        let list = String(query[listRange])
+        let listRangeNS = NSRange(list.startIndex..., in: list)
+        let numbers = sectionListNumberRegex.matches(in: list, range: listRangeNS).compactMap { found -> String? in
+            guard let numberRange = Range(found.range, in: list) else { return nil }
+            return String(list[numberRange])
+        }
+        return numbers.count >= 2 ? numbers : nil
+    }
+
+    private static func sectionListOutcome(
+        _ numbers: [String],
+        query: String,
+        entries: [Entry],
+        sections: [Section]
+    ) -> Outcome {
+        var found: [Hit] = []
+        var seen: Set<String> = []
+        for number in numbers {
+            let numbered = NumberedQuery(kind: nil, number: number, name: nil, display: "Section \(number)")
+            for hit in hits(for: numbered, entries: entries, sections: sections) where seen.insert(hit.id).inserted {
+                found.append(hit)
+            }
+        }
+        if found.isEmpty {
+            return Outcome(
+                hits: [],
+                message: "No \"\(query)\" in this document",
+                suppressesTextSearch: true
+            )
+        }
+        return Outcome(hits: sort(found), message: nil, suppressesTextSearch: true)
     }
 
     private static func numberedQuery(in query: String) -> NumberedQuery? {

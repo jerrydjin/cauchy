@@ -75,6 +75,52 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertTrue(missing.hits.isEmpty)
     }
 
+    func testSectionListNamesEveryNumberAndDoesNotInventOne() {
+        let sections = [
+            DocumentFind.Section(number: "4", title: "Setup", pageIndex: 3, anchor: "4. Setup"),
+            DocumentFind.Section(number: "4.1", title: "Detail", pageIndex: 4, anchor: "4.1. Detail"),
+            DocumentFind.Section(number: "5", title: "Middle", pageIndex: 5, anchor: "5. Middle"),
+            DocumentFind.Section(number: "6", title: "Proof", pageIndex: 8, anchor: "6. Proof"),
+            DocumentFind.Section(number: "2.1", title: "First", pageIndex: 1, anchor: "2.1. First"),
+            DocumentFind.Section(number: "2.2", title: "Second", pageIndex: 2, anchor: "2.2. Second"),
+            DocumentFind.Section(number: "5.2", title: "Case", pageIndex: 6, anchor: "5.2. Case"),
+            DocumentFind.Section(number: "8", title: "Identity", pageIndex: 9, anchor: "8. Identity"),
+        ]
+
+        let joined = DocumentFind.search(query: "Sections 4 and 6", entries: [], sections: sections)
+        XCTAssertEqual(joined.hits.map(\.number), ["4", "4.1", "6"])
+        XCTAssertTrue(joined.suppressesTextSearch)
+        XCTAssertFalse(joined.jumpsImmediately)
+
+        let range = DocumentFind.search(query: "Sections 4–6", entries: [], sections: sections)
+        XCTAssertEqual(range.hits.map(\.number), ["4", "4.1", "6"])
+        XCTAssertFalse(range.hits.map(\.number).contains("5"))
+
+        let dotted = DocumentFind.search(query: "Subsections 2.1–2.2", entries: [], sections: sections)
+        XCTAssertEqual(dotted.hits.map(\.number), ["2.1", "2.2"])
+
+        let singular = DocumentFind.search(query: "Section 5, 5.2, and 8", entries: [], sections: sections)
+        XCTAssertEqual(singular.hits.map(\.number), ["5", "5.2", "8"])
+
+        let prose = DocumentFind.search(query: "Section 4 and the proof", entries: [], sections: sections)
+        XCTAssertNil(prose.message)
+        XCTAssertFalse(prose.suppressesTextSearch)
+        XCTAssertTrue(prose.hits.isEmpty)
+
+        let theorem = DocumentFind.search(query: "Theorem 6 and 7", entries: [], sections: sections)
+        XCTAssertFalse(theorem.suppressesTextSearch)
+        XCTAssertTrue(theorem.hits.isEmpty)
+
+        let abbreviated = DocumentFind.search(query: "Sect. 4 and 6", entries: [], sections: sections)
+        XCTAssertFalse(abbreviated.suppressesTextSearch)
+
+        let broken = DocumentFind.search(query: "Sec-tion 4 and 6", entries: [], sections: sections)
+        XCTAssertFalse(broken.suppressesTextSearch)
+
+        let jumps = DocumentFind.jumpHits(query: "Sections 4 and 6", entries: [], sections: sections)
+        XCTAssertEqual(jumps.map(\.number), joined.hits.map(\.number))
+    }
+
     func testTruncatedPreviewEndsWithAnEllipsis() {
         let body = "A finite group of odd order is solvable when every proper sample subgroup is already known to be solvable."
         let line = DocumentFind.firstLine(of: body)

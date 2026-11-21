@@ -1737,5 +1737,55 @@ class PdfStatementHeadingTests(unittest.TestCase):
         self.assertTrue(any("not a PDF statement heading" in reason for reason in card["fail_reasons"]))
 
 
+class SectionListMentionTests(unittest.TestCase):
+    """Synthetic lines only. A section list names every printed number."""
+
+    def surfaces(self, text: str, number: str) -> list[str]:
+        from score import _hits_for
+
+        pages = [{"page_index": 0, "text": text}]
+        return [surface for _page, _start, _end, surface in _hits_for(pages, "section", number)]
+
+    def test_a_list_or_range_names_every_printed_number(self) -> None:
+        text = "\n".join([
+            "Subsections 2.1 and 2.2 recall the setup.",
+            "Subsections 4.3–4.4 settle the remaining case.",
+            "Sections 4–6 develop the proof.",
+            "Section 5, 5.2, and 8 give the identity.",
+            "Sections 9.2",
+            "and 9.3 close the argument.",
+        ])
+        self.assertEqual(self.surfaces(text, "2.2"), ["2.2"])
+        self.assertEqual(self.surfaces(text, "4.4"), ["4.4"])
+        self.assertEqual(self.surfaces(text, "6"), ["6"])
+        self.assertEqual(self.surfaces(text, "5.2"), ["5.2"])
+        self.assertEqual(self.surfaces(text, "8"), ["8"])
+        self.assertEqual(self.surfaces(text, "9.3"), ["9.3"])
+        self.assertEqual(self.surfaces(text, "2.1"), ["Subsections 2.1"])
+        self.assertIn("Sections 4", self.surfaces(text, "4")[0])
+        self.assertEqual(self.surfaces(text, "5"), ["Section 5"])
+        # The dash names the endpoints only.
+        self.assertEqual(self.surfaces("Sections 4–6 develop the proof.", "5"), [])
+
+    def test_a_list_does_not_invent_or_relabel_a_nearby_number(self) -> None:
+        text = "\n".join([
+            "Section 4 and the proof stay separate.",
+            "Subsections 4.3 and 4.4.1 are different units.",
+            "Theorem 6 and 7 are not sections.",
+            "See Sect. 4 and 6 in the other note.",
+            "See Sec-",
+            "tion 4 and 6 after the break.",
+            "see 2.1.1 without a section word.",
+        ])
+        self.assertEqual(self.surfaces(text, "5"), [])
+        self.assertEqual(self.surfaces(text, "7"), [])
+        self.assertEqual(self.surfaces(text, "4.4"), [])
+        self.assertEqual(self.surfaces(text, "2.1.1"), [])
+        self.assertEqual(self.surfaces(text, "6"), [])
+        self.assertEqual(self.surfaces(text, "4"), ["Section 4"])
+        self.assertEqual(self.surfaces(text, "4.3"), ["Subsections 4.3"])
+        self.assertEqual(self.surfaces(text, "4.4.1"), ["4.4.1"])
+
+
 if __name__ == "__main__":
     unittest.main()

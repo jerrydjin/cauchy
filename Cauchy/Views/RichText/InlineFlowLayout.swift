@@ -37,7 +37,7 @@ enum InlineFlowMeasurementLog {
         var centersWhenAlone: Bool
     }
 
-    static var samples: [Sample] = []
+    nonisolated(unsafe) static var samples: [Sample] = []
 }
 
 extension View {

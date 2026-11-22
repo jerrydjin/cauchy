@@ -1211,6 +1211,39 @@ def _roman_value(token: str) -> int | None:
     return total if 1 <= total <= 40 else None
 
 
+# Longest first. A shorter stem must not be the only form of a longer word.
+_SECTION_WORDS = (
+    "subsubsections",
+    "subsubsection",
+    "subsections",
+    "subsection",
+    "sections",
+    "section",
+)
+
+
+def section_word_pattern() -> str:
+    """Printed section words, including two forms the unbroken word misses.
+
+    "Sect." and "Sects." count, in either case, the way "Sec." and "sec." do.
+    The period is part of the abbreviation. A hyphen joins only when the line
+    ends with a stem of one of these words and the next line starts with the
+    remainder: "Sec-" then "tion 6", or "subsec-" then "tion 8.1".
+    "intersec-" then "tion" does not join, because the letters before the
+    hyphen are not that stem at a word boundary. "Sec-tion" on one line is
+    not this word, and "Sect" without a number is not a mention.
+    DocumentFind.sectionWordPattern is the same list.
+    """
+    parts: list[str] = []
+    for word in _SECTION_WORDS:
+        parts.append(word)
+        for cut in range(1, len(word)):
+            parts.append(f"{word[:cut]}-\\n{word[cut:]}")
+    parts.append(r"sects?\.")
+    parts.append(r"sec\.?")
+    return "(?:" + "|".join(parts) + ")"
+
+
 def section_mention_patterns(number: str) -> list[re.Pattern[str]]:
     """Printed section mentions, including every number in a list or range.
 
@@ -1218,12 +1251,13 @@ def section_mention_patterns(number: str) -> list[re.Pattern[str]]:
     range names every printed number: "Sections 4 and 6", "Subsections
     2.1–2.2", and "Section 5, 5.2, and 8". "Section 4 and the proof" stays
     section 4. "Sections 4–6" is 4 and 6; the dash does not invent 5.
-    The separators are the ones a statement list already uses. "Sect." and
-    a line-broken "Sec-tion" are not this word. DocumentFind.sectionListNumbers
-    uses the same words and separators when the whole query is a list.
+    The separators are the ones a statement list already uses. "Sect. 4"
+    and a line that ends with "Sec-" before "tion 4" are this word.
+    DocumentFind.sectionListNumbers uses the same words and separators when
+    the whole query is a list.
     """
     token = re.escape(number) + r"(?!\.\d)(?!\d)"
-    word = r"sub(?:sub)?sections?|sections?|sec\.?"
+    word = section_word_pattern()
     later = (
         rf"(?i)\b(?:{word})\s*{REFERENCE_NUMBER}"
         rf"(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?{REFERENCE_NUMBER})*"

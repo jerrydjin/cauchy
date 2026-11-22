@@ -27,6 +27,13 @@ struct CentersWhenAloneKey: LayoutValueKey {
     static let defaultValue = false
 }
 
+/// The formula's own width on the reference card. The snapshot image can
+/// report the whole text column when it is measured, which makes the centring
+/// shift zero. This is the width the line layout centres and wraps with.
+struct ReportedMathWidthKey: LayoutValueKey {
+    static let defaultValue: CGFloat? = nil
+}
+
 extension View {
     func centersWhenAloneOnALine(_ enabled: Bool = true) -> some View {
         layoutValue(key: CentersWhenAloneKey.self, value: enabled)
@@ -170,8 +177,12 @@ struct InlineFlowLayout: Layout {
         // remaining width made wrapped text re-flow at two different widths.
         let tokens = subviews.map { subview -> InlineFlowToken in
             let dimensions = subview.dimensions(in: ProposedViewSize(width: maxWidth, height: nil))
+            let reported = subview[ReportedMathWidthKey.self]
+            let width = reported.flatMap { value -> CGFloat? in
+                value > 1 && value < dimensions.width - 0.5 ? value : nil
+            } ?? dimensions.width
             return InlineFlowToken(
-                size: CGSize(width: dimensions.width, height: dimensions.height),
+                size: CGSize(width: width, height: dimensions.height),
                 baseline: dimensions[.firstTextBaseline],
                 centersWhenAlone: subview[CentersWhenAloneKey.self]
             )

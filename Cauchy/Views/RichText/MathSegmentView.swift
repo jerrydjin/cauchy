@@ -59,17 +59,52 @@ struct MathSegmentView: View {
     }
 
     var body: some View {
-        let snapshot = snapshotRendering()
+        let rendered = LaTeXValidator.cachedRenderableLatex(from: latex)
+        let snapshot = rendered.flatMap { latex in
+            rendersForSnapshot
+                ? MathMetrics.snapshotImage(
+                    latex: latex,
+                    mode: mode,
+                    fontSize: fontSize,
+                    textColor: glyphColor,
+                    scale: displayScale
+                )
+                : nil
+        }
+        // Only a formula wider than the card's text is given a frame. One that
+        // fits is the image itself, with the same fixed size main uses, so the
+        // line layout measures the formula and centres an equation on its own line.
+        let scalesToCard = snapshot.map {
+            fitsMathToContainer && CardMathLayout.scalesToColumn(naturalWidth: $0.size.width)
+        } ?? false
         Group {
-            if let snapshot {
-                snapshotImage(snapshot)
+            if let rendered, let snapshot {
+                if scalesToCard {
+                    let fitted = CardMathLayout.reportedWidth(naturalWidth: snapshot.size.width)
+                    let factor = fitted / snapshot.size.width
+                    Image(nsImage: snapshot)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: fitted, height: snapshot.size.height * factor)
+                        .alignmentGuide(.firstTextBaseline) { _ in
+                            (MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                ?? snapshot.size.height) * factor
+                        }
+                } else {
+                    Image(nsImage: snapshot)
+                        .alignmentGuide(.firstTextBaseline) { dimensions in
+                            MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                ?? dimensions[.bottom]
+                        }
+                }
             } else if rendersForSnapshot {
                 Text(visibleFallback)
                     .font(fallbackFont)
                     .foregroundStyle(textColor.opacity(0.85))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
-            } else if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
+            } else if let rendered {
                 if mode == .display, !fitsMathToContainer {
                     // Long equations scroll sideways inside the bubble rather
                     // than drawing past its edge.
@@ -100,10 +135,7 @@ struct MathSegmentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // A formula that fits reports its own width, same as chat on main, so
-        // the line layout can centre an equation that lands on its own line.
-        // A formula wider than the card does not: it takes the scaled frame.
-        .fixedSize(horizontal: reportsOwnWidth(snapshot), vertical: true)
+        .fixedSize(horizontal: !scalesToCard && (mode == .inline || fitsMathToContainer), vertical: true)
         .frame(
             maxWidth: mode == .display && !fitsMathToContainer ? .infinity : nil,
             alignment: mode == .display ? .center : .leading
@@ -114,87 +146,6 @@ struct MathSegmentView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Math expression: \(sourceText)")
         .accessibilityAddTraits(.isStaticText)
-    }
-
-    /// The bitmap the designer snapshot draws. `fitsCard` is true when that
-    /// bitmap is no wider than the card's text, so the line layout can centre
-    /// it. A wider one is scaled into an explicit frame instead.
-    private struct SnapshotRendering {
-        var image: NSImage
-        var latex: String
-        var fitsCard: Bool
-    }
-
-    private func snapshotRendering() -> SnapshotRendering? {
-        guard rendersForSnapshot,
-              let rendered = LaTeXValidator.cachedRenderableLatex(from: latex),
-              let image = MathMetrics.snapshotImage(
-                latex: rendered,
-                mode: mode,
-                fontSize: fontSize,
-                textColor: glyphColor,
-                scale: displayScale
-              ) else { return nil }
-        let cardTextWidth = ReferencePreviewMetrics.cardWidth
-            - ConversationChrome.answerPaddingH * 2
-        return SnapshotRendering(
-            image: image,
-            latex: rendered,
-            fitsCard: image.size.width > 0
-                && !CardMathLayout.scalesToColumn(naturalWidth: image.size.width, columnWidth: cardTextWidth)
-        )
-    }
-
-    @ViewBuilder
-    private func snapshotImage(_ snapshot: SnapshotRendering) -> some View {
-        if fitsMathToContainer {
-            let cardTextWidth = ReferencePreviewMetrics.cardWidth
-                - ConversationChrome.answerPaddingH * 2
-            if CardMathLayout.scalesToColumn(
-                naturalWidth: snapshot.image.size.width,
-                columnWidth: cardTextWidth
-            ) {
-                let fitted = CardMathLayout.reportedWidth(
-                    naturalWidth: snapshot.image.size.width,
-                    columnWidth: cardTextWidth
-                )
-                let scale = fitted / snapshot.image.size.width
-                Image(nsImage: snapshot.image)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: fitted, height: snapshot.image.size.height * scale)
-                    .alignmentGuide(.firstTextBaseline) { _ in
-                        (MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
-                            ?? snapshot.image.size.height) * scale
-                    }
-            } else {
-                Image(nsImage: snapshot.image)
-                    .alignmentGuide(.firstTextBaseline) { dimensions in
-                        MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
-                            ?? dimensions[.bottom]
-                    }
-            }
-        } else {
-            Image(nsImage: snapshot.image)
-                .alignmentGuide(.firstTextBaseline) { dimensions in
-                    MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
-                        ?? dimensions[.bottom]
-                }
-        }
-    }
-
-    /// Chat keeps main's rule: inline math reports its own width, display math
-    /// fills the bubble. On the card, own width is kept only while the formula
-    /// fits; a wider one is the scaled frame and must accept the column width.
-    private func reportsOwnWidth(_ snapshot: SnapshotRendering?) -> Bool {
-        if !fitsMathToContainer { return mode == .inline }
-        if let snapshot { return snapshot.fitsCard }
-        guard let rendered = LaTeXValidator.cachedRenderableLatex(from: latex),
-              let width = MathMetrics.measure(latex: rendered, mode: mode, fontSize: fontSize)?.size.width else {
-            return true
-        }
-        return !CardMathLayout.scalesToColumn(naturalWidth: width)
     }
 
     /// Spoken form. VoiceOver gets the formula even when the glyphs are a bitmap.

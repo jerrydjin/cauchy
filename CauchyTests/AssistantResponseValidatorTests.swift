@@ -477,7 +477,7 @@ final class AssistantResponseValidatorTests: XCTestCase {
         XCTAssertFalse(LaTeXNormalizer.containsCommand("\\rightarrow", "\\right"))
     }
 
-    func testInlinePunctuationStaysWithTheMathBeforeIt() {
+    func testInlinePunctuationStaysWithTheMathBeforeIt() throws {
         let content = "on an open set $U$, then $f(U)$ is open."
         let blocks = MessageContentParser.blocks(from: MessageContentParser.parse(content))
         guard case .inlineLine(let line) = blocks.first else {

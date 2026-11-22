@@ -60,7 +60,7 @@ enum ReadingPromptBuilder {
         - End every reply with exactly one machine-readable marker on its own line. The app hides it from the reader.
         - Use [[CAUCHY_BASIS: PDF]] only when every material mathematical or factual claim follows directly from a source with a listed, resolvable ID and each such claim carries its source ID. If no ID is available, do not declare PDF-only.
         - Use [[CAUCHY_BASIS: MIXED]] when any material claim uses established knowledge or an inference that is not stated in the text above. Do not add a sentence whose only job is to announce that split.
-        - Use [[CAUCHY_BASIS: INSUFFICIENT]] when the text is too incomplete to answer. Say what it does and does not establish, in the same voice as the rest of the reply. Do not guess.
+        - Use [[CAUCHY_BASIS: INSUFFICIENT]] when the text is too incomplete to answer. Say what it does and does not establish, in the same voice as the rest of the reply, and do not guess.
         - Never cite or imply access to a page that was not included above.
 
         \(latexOutputContract)

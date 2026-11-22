@@ -14,7 +14,7 @@ struct ArcSpinner: View {
     private var lineWidth: CGFloat { max(1.25, side * 0.12) }
 
     var body: some View {
-        TimelineView(TimelineSchedule.animation(minimumInterval: 1.0 / 30.0)) { context in
+        TimelineView(AnimationTimelineSchedule(minimumInterval: 1.0 / 30.0)) { context in
             let period = 0.8
             let turn = context.date.timeIntervalSinceReferenceDate
                 .truncatingRemainder(dividingBy: period) / period

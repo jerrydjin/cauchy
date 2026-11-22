@@ -111,13 +111,16 @@ enum ReaderFollowUps {
         statements: [ReaderFollowUpStatement],
         alreadyAsked: [String] = []
     ) -> [SuggestedFollowUp] {
-        // Only statements the answer, the question, or the selection actually
-        // names. The next proposition on the page is not a follow-up.
+        // Kept on the signature so callers can still pass the selection and
+        // the citation anchors. Neither one may put a label on a chip.
+        _ = selection
+        _ = anchors
+        // Only statements the question or the answer actually writes down.
+        // An anchor label, and the passage the reader selected, are not a
+        // second source: a chip may not name a result the turn never did.
         let allowed = allowedStatements(
             answer: answer,
             question: question,
-            selection: selection,
-            anchors: anchors,
             statements: statements
         )
         guard !allowed.isEmpty else { return [] }
@@ -133,6 +136,7 @@ enum ReaderFollowUps {
             guard !text.isEmpty, !isGeneric(text), !isFiller(text) else { return }
             guard !repeatsAsked(text, keys: askedKeys) else { return }
             guard namesOnly(text, allowed: allowed, statements: statements) else { return }
+            guard chipReferencesOnlyTheTurn(text, question: question, answer: answer) else { return }
             guard usedTargets.insert(target).inserted else { return }
             var accepted = followUp
             accepted.question = text
@@ -282,18 +286,72 @@ enum ReaderFollowUps {
 
     // MARK: - Grounding
 
+    /// True when every theorem, proposition, lemma, section, or equation
+    /// label in `chip` is written in the question or the answer. A chip with
+    /// no such label is left to the other grounding checks.
+    static func chipReferencesOnlyTheTurn(_ chip: String, question: String, answer: String) -> Bool {
+        let corpus = question + "\n" + answer
+        return statementLabels(in: chip).allSatisfy { labelAppears($0, in: corpus) }
+    }
+
+    struct ChipStatementLabel: Equatable {
+        var kind: String
+        var number: String
+    }
+
+    private static let chipLabelPattern = try! NSRegularExpression(
+        pattern: #"(?i)\b(theorems?|thm|propositions?|prop|lemmas?|lem|sections?|sec|equations?|eq)\.?\s+\(?([0-9]+(?:\.[0-9]+)*|[A-Z](?:\.[0-9]+)+)(?![0-9.])"#
+    )
+
+    private static let chipLabelAliases: [String: [String]] = [
+        "theorem": ["theorem", "thm"],
+        "proposition": ["proposition", "prop"],
+        "lemma": ["lemma", "lem"],
+        "section": ["section", "sec"],
+        "equation": ["equation", "eq"],
+    ]
+
+    private static let chipLabelAbbreviations = [
+        "thm": "theorem", "prop": "proposition", "lem": "lemma",
+        "sec": "section", "eq": "equation",
+    ]
+
+    static func statementLabels(in text: String) -> [ChipStatementLabel] {
+        let range = NSRange(text.startIndex..., in: text)
+        return chipLabelPattern.matches(in: text, range: range).compactMap { match in
+            guard let kindRange = Range(match.range(at: 1), in: text),
+                  let numberRange = Range(match.range(at: 2), in: text),
+                  let kind = canonicalChipKind(String(text[kindRange])) else { return nil }
+            return ChipStatementLabel(kind: kind, number: String(text[numberRange]))
+        }
+    }
+
+    private static func canonicalChipKind(_ raw: String) -> String? {
+        var word = raw.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        if word.hasSuffix("s"), chipLabelAliases[String(word.dropLast())] != nil {
+            word = String(word.dropLast())
+        }
+        if chipLabelAliases[word] != nil { return word }
+        return chipLabelAbbreviations[word]
+    }
+
+    private static func labelAppears(_ label: ChipStatementLabel, in text: String) -> Bool {
+        let aliases = chipLabelAliases[label.kind] ?? [label.kind]
+        let number = NSRegularExpression.escapedPattern(for: label.number)
+        for alias in aliases {
+            let pattern = "(?i)\\b\(alias)\\.?\\s+\\(?\(number)(?![0-9.])"
+            if text.range(of: pattern, options: .regularExpression) != nil { return true }
+        }
+        return false
+    }
+
     private static func allowedStatements(
         answer: String,
         question: String,
-        selection: String,
-        anchors: [AnswerSourceAnchor],
         statements: [ReaderFollowUpStatement]
     ) -> [ReaderFollowUpStatement] {
-        let corpus = [answer, question, selection].joined(separator: "\n")
-        var references = ReferenceDetector.allReferences(in: corpus).map(\.reference)
-        for anchor in anchors {
-            references.append(contentsOf: ReferenceDetector.allReferences(in: anchor.label).map(\.reference))
-        }
+        let corpus = [answer, question].joined(separator: "\n")
+        let references = ReferenceDetector.allReferences(in: corpus).map(\.reference)
         var seen = Set<ReferenceKey>()
         var resolved: [ReaderFollowUpStatement] = []
         for reference in references {

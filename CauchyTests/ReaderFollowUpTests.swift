@@ -5,8 +5,16 @@ import XCTest
 /// or the scorecard set.
 final class ReaderFollowUpTests: XCTestCase {
     func testFollowUpUsesTheCitedProofAndNotTheNextProposition() {
-        let followUps = ReaderFollowUps.suggest(
+        let fromTheAnchor = ReaderFollowUps.suggest(
             answer: "A continuous image of a closed interval is connected. [R1]",
+            question: "Why is the image connected?",
+            anchors: [anchor("R1", label: "Proposition 5.3")],
+            statements: notes
+        )
+        XCTAssertTrue(fromTheAnchor.isEmpty, "an anchor label the turn never wrote is not a chip")
+
+        let followUps = ReaderFollowUps.suggest(
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             question: "Why is the image connected?",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes
@@ -20,6 +28,55 @@ final class ReaderFollowUpTests: XCTestCase {
         XCTAssertEqual(followUps[0].pageLabel, "41")
         XCTAssertEqual(followUps[0].pageIndex, 40)
         XCTAssertTrue(followUps.allSatisfy { !ReaderFollowUps.isGeneric($0.question) })
+    }
+
+    func testAChipLabelMustAppearInTheQuestionOrTheAnswer() {
+        let question = "Why is the image connected?"
+        let answer = "A continuous image of a closed interval is connected."
+        let chip = "What fails in the proof of Proposition 5.3 without compactness?"
+        XCTAssertFalse(ReaderFollowUps.chipReferencesOnlyTheTurn(chip, question: question, answer: answer))
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                chip,
+                question: question,
+                answer: "By Proposition 5.3, a continuous image of a closed interval is connected."
+            )
+        )
+        XCTAssertFalse(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "Where does Lemma 2.1 enter?",
+                question: "Why?",
+                answer: "By Proposition 5.3 the image is connected."
+            )
+        )
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "What does Section 3 assume?",
+                question: "Read Section 3.",
+                answer: answer
+            )
+        )
+        XCTAssertFalse(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "Apply Equation (1.2).",
+                question: question,
+                answer: answer
+            )
+        )
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "Apply Equation (1.2).",
+                question: question,
+                answer: "From Equation (1.2) the constant term vanishes."
+            )
+        )
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "What does compactness require?",
+                question: question,
+                answer: answer
+            )
+        )
     }
 
     func testNearbyPropositionsTheAnswerNeverCitedAreNotSuggested() {
@@ -110,7 +167,7 @@ final class ReaderFollowUpTests: XCTestCase {
 
     func testAlreadyAskedQuestionIsDropped() {
         let followUps = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: [
@@ -128,7 +185,7 @@ final class ReaderFollowUpTests: XCTestCase {
     /// including a paraphrase. Synthetic statements only.
     func testFollowUpDoesNotRepeatOrParaphraseTheQuestionJustAsked() {
         let exact = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["What does Theorem 5.4 build on?"]
@@ -139,7 +196,7 @@ final class ReaderFollowUpTests: XCTestCase {
         XCTAssertFalse(exact.contains { $0.question.localizedCaseInsensitiveContains("Theorem 5.4") })
 
         let paraphrase = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["What is Theorem 5.4 built on?"]
@@ -148,7 +205,7 @@ final class ReaderFollowUpTests: XCTestCase {
         XCTAssertFalse(paraphrase.contains { $0.question.localizedCaseInsensitiveContains("5.4") })
 
         let depends = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["What does Thm. 5.4 depend on?"]
@@ -156,7 +213,7 @@ final class ReaderFollowUpTests: XCTestCase {
         XCTAssertEqual(depends.map(\.question), exact.map(\.question))
 
         let none = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: exact.map(\.question)
@@ -164,7 +221,7 @@ final class ReaderFollowUpTests: XCTestCase {
         XCTAssertTrue(none.isEmpty)
 
         let differentAsk = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["Why does the proof of Theorem 5.4 need compactness?"]
@@ -186,7 +243,7 @@ final class ReaderFollowUpTests: XCTestCase {
 
     func testFollowUpVoiceOverIsTheQuestionOnly() {
         let followUps = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected. [R1]",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected. [R1]",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes
         )

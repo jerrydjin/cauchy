@@ -456,15 +456,19 @@ final class AssistantResponseValidatorTests: XCTestCase {
         }
         XCTAssertEqual(display.count, 1)
         XCTAssertTrue(display[0].0.contains("a_0"))
-        XCTAssertEqual(display[0].1, ", so")
+        XCTAssertEqual(display[0].1, ",")
+        XCTAssertFalse(display[0].1.contains("so"))
         let following = blocks.drop { block in
             if case .displayMath = block { return false }
             return true
         }.dropFirst()
-        XCTAssertFalse(following.contains { block in
-            if case .text(let value) = block { return value.hasPrefix(",") || value.hasPrefix("so") }
+        XCTAssertTrue(following.contains { block in
+            if case .text(let value) = block {
+                return value.hasPrefix("so ") && value.contains("the constant term is zero")
+            }
             if case .inlineLine(let segments) = block, case .text(let value) = segments.first {
-                return value.trimmingCharacters(in: .whitespaces).hasPrefix(",")
+                let trimmed = value.trimmingCharacters(in: .whitespaces)
+                return trimmed.hasPrefix("so ") && trimmed.contains("the constant term is zero")
             }
             return false
         })

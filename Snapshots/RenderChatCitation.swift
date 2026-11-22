@@ -1668,7 +1668,7 @@ private enum PassageHighlight {
 /// Synthetic notes. The two follow-ups are whatever the planner emits for
 /// this answer, so the picture cannot drift from the questions a reader sees.
 private struct FollowUpFixture {
-    let answer = "A continuous image of a closed interval is connected. [R1]"
+    let answer = "By Proposition 5.3, a continuous image of a closed interval is connected. [R1]"
 
     let keys: Set<ReferenceKey> = []
 
@@ -2472,8 +2472,9 @@ private func renderJerry155(to output: URL) throws {
         to: output.appendingPathComponent("jerry-155-follow-ups-before.png"),
         minimumBytes: 2_000
     )
+    let groundedAnswer = "By Proposition 5.3, a continuous image of a closed interval is connected."
     let grounded = ReaderFollowUps.suggest(
-        answer: "A continuous image of a closed interval is connected. [R1]",
+        answer: groundedAnswer,
         question: "Why is the image connected?",
         anchors: [
             AnswerSourceAnchor(
@@ -2489,6 +2490,14 @@ private func renderJerry155(to output: URL) throws {
         answer: taylor.content,
         question: "slightly lost how we concluded this",
         selection: "Suppose h(z₀) = h′(z₀) = 0. Then a₀ = a₁ = 0.",
+        anchors: [
+            AnswerSourceAnchor(
+                label: "Proposition 5.3",
+                pageIndex: 40,
+                region: NormalizedRect(x: 0, y: 0, width: 0, height: 0),
+                sourceID: "R1"
+            ),
+        ],
         statements: [
             ReaderFollowUpStatement(
                 reference: DetectedReference(kind: .proposition, number: "1.4.14"),
@@ -2500,38 +2509,54 @@ private func renderJerry155(to output: URL) throws {
                 pageIndex: 89,
                 statementText: "The zeros of a non-zero holomorphic function are isolated."
             ),
+            ReaderFollowUpStatement(
+                reference: DetectedReference(kind: .proposition, number: "5.3"),
+                pageIndex: 40,
+                statementText: "A continuous image of a closed interval is connected.",
+                proofText: "The argument uses compactness of the domain to take a finite subcover.",
+                proofPageIndex: 40
+            ),
         ]
     )
-    guard taylorChips.isEmpty, grounded.count == 1, !ReaderFollowUps.isFiller(grounded[0].question) else {
+    guard taylorChips.isEmpty,
+          grounded.count == 1,
+          grounded[0].question.localizedCaseInsensitiveContains("Proposition 5.3"),
+          !ReaderFollowUps.isFiller(grounded[0].question) else {
         throw SnapshotError("follow-up panel is not grounded: \(taylorChips.map(\.question)) / \(grounded.map(\.question))")
     }
     try writePNG(
         ChatSnapshotChrome(
-            caption: "After · only a chip the answer actually supports",
+            caption: "A chip only when the answer names the proposition",
             width: 420,
-            content: VStack(alignment: .leading, spacing: 16) {
-                MessageBubble(
-                    message: taylor,
-                    maxBubbleWidth: 340,
-                    followUps: taylorChips,
-                    followUpsStartVisible: true
-                )
-                MessageBubble(
-                    message: ThreadMessage(role: .assistant, content: "A continuous image of a closed interval is connected."),
-                    maxBubbleWidth: 340,
-                    followUps: grounded,
-                    followUpsStartVisible: true
-                )
-            }
+            content: MessageBubble(
+                message: ThreadMessage(role: .assistant, content: groundedAnswer),
+                maxBubbleWidth: 340,
+                followUps: grounded,
+                followUpsStartVisible: true
+            )
         ),
         to: output.appendingPathComponent("jerry-155-follow-ups-after.png"),
+        minimumBytes: 2_000
+    )
+    try writePNG(
+        ChatSnapshotChrome(
+            caption: "Taylor coefficients · the answer names no statement, so no chip",
+            width: 420,
+            content: MessageBubble(
+                message: taylor,
+                maxBubbleWidth: 340,
+                followUps: taylorChips,
+                followUpsStartVisible: true
+            )
+        ),
+        to: output.appendingPathComponent("jerry-155-follow-ups-taylor.png"),
         minimumBytes: 2_000
     )
 
     let equation = "The first two coefficients vanish.\n$$a_0 = a_1 = 0$$\n, so the constant term is zero."
     try writePNG(
         ChatSnapshotChrome(
-            caption: "Display equation · punctuation stays on its line",
+            caption: "Display equation · the comma stays, the next word does not",
             width: 460,
             content: HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -2555,6 +2580,32 @@ private func renderJerry155(to output: URL) throws {
         to: output.appendingPathComponent("jerry-155-display-punctuation.png"),
         minimumBytes: 2_000
     )
+
+    let failed = Highlight(
+        pageIndex: 0,
+        bounds: NormalizedRect(x: 0.04, y: 0.38, width: 0.92, height: 0.22),
+        selectedText: "Suppose h(z₀) = h′(z₀) = 0. Then a₀ = a₁ = 0.",
+        color: .yellow,
+        title: "Why a₀ and a₁ vanish",
+        messages: [ThreadMessage(role: .user, content: "slightly lost how we concluded this")],
+        askFailure: AssistantFailure.cancelled.statusLine
+    )
+    guard failed.askFailure?.isEmpty == false else {
+        throw SnapshotError("the cancelled ask did not keep a failure")
+    }
+    try writePNG(
+        ChatSnapshotChrome(
+            caption: "Cancelled ask · the highlight stays, and the row offers Retry",
+            width: 560,
+            content: VStack(alignment: .leading, spacing: 16) {
+                Image(nsImage: jerry155Page(annotated: true, pulsing: false))
+                    .frame(width: 520, height: 200)
+                jerry155Row(failed, answering: false)
+            }
+        ),
+        to: output.appendingPathComponent("jerry-155-retry.png"),
+        minimumBytes: 2_000
+    )
 }
 
 private func jerry155Row(_ highlight: Highlight, answering: Bool) -> HighlightThreadRow {
@@ -2570,7 +2621,7 @@ private func jerry155Row(_ highlight: Highlight, answering: Bool) -> HighlightTh
     )
 }
 
-private func jerry155Page(annotated: Bool) -> NSImage {
+private func jerry155Page(annotated: Bool, pulsing: Bool? = nil) -> NSImage {
     let size = NSSize(width: 520, height: 200)
     let paper = NSImage(size: size)
     paper.lockFocus()
@@ -2596,12 +2647,14 @@ private func jerry155Page(annotated: Bool) -> NSImage {
             color: .yellow
         )
         HighlightAnnotationService.sync(document: document, highlights: [highlight], activeID: highlight.id)
-        HighlightAnnotationService.applyPulse(
-            document: document,
-            highlightID: highlight.id,
-            color: highlight.color.pageColor,
-            opacity: HighlightAnnotationService.pulseOpacity(at: 1.3)
-        )
+        if pulsing ?? true {
+            HighlightAnnotationService.applyPulse(
+                document: document,
+                highlightID: highlight.id,
+                color: highlight.color.pageColor,
+                opacity: HighlightAnnotationService.pulseOpacity(at: 1.3)
+            )
+        }
     }
     let bounds = page.bounds(for: .mediaBox)
     let rendered = NSImage(size: bounds.size)

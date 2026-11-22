@@ -12,8 +12,8 @@ enum MessageSegment: Equatable {
 enum MessageBlock: Equatable {
     case text(String)
     case inlineLine([MessageSegment])
-    /// `trailing` is the punctuation that was written immediately after the
-    /// display equation (", so"). It stays on the equation's line.
+    /// `trailing` is only the punctuation written immediately after the
+    /// display equation. The following word stays on the next line.
     case displayMath(String, trailing: String)
 }
 
@@ -296,8 +296,8 @@ enum MessageContentParser {
         return attachingDisplayPunctuation(blocks)
     }
 
-    /// Punctuation written right after a display equation belongs to that
-    /// equation. Left on the following block, ", so" starts a line of its own.
+    /// Punctuation written right after a display equation belongs on that
+    /// equation. The word after the punctuation stays on the next line.
     static func attachingDisplayPunctuation(_ blocks: [MessageBlock]) -> [MessageBlock] {
         var result: [MessageBlock] = []
         var index = 0
@@ -319,28 +319,16 @@ enum MessageContentParser {
         return result
     }
 
-    /// ", so the rest" -> (", so", "the rest"). Nil when the block does not
-    /// open with sentence punctuation.
+    /// ", so the rest" -> (",", " so the rest"). Only the punctuation moves
+    /// onto the equation. Nil when the block does not open with it.
     static func splitDisplayTrailing(_ text: String) -> (attached: String, rest: String)? {
         let trimmedStart = text.drop { $0 == " " || $0 == "\t" }
         guard let first = trimmedStart.first, ",.;:".contains(first) else { return nil }
-        var attached = String(first)
-        var rest = trimmedStart.dropFirst()
-        let glue = ["so", "and", "or", "then", "thus", "hence"]
-        if rest.first == " " {
-            let after = rest.dropFirst()
-            let lower = after.lowercased()
-            for word in glue.sorted(by: { $0.count > $1.count }) {
-                guard lower.hasPrefix(word) else { continue }
-                let end = after.index(after.startIndex, offsetBy: word.count)
-                if end == after.endIndex || !after[end].isLetter {
-                    attached += " " + String(after[..<end])
-                    rest = after[end...]
-                    break
-                }
-            }
+        var end = trimmedStart.startIndex
+        while end < trimmedStart.endIndex, ",.;:".contains(trimmedStart[end]) {
+            end = trimmedStart.index(after: end)
         }
-        return (attached, String(rest))
+        return (String(trimmedStart[..<end]), String(trimmedStart[end...]))
     }
 
     private static func peelDisplayTrailing(

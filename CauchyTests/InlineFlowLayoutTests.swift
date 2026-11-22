@@ -92,6 +92,45 @@ final class InlineFlowLayoutTests: XCTestCase {
         XCTAssertEqual(result.size.width, 200)
     }
 
+    /// A display that fits the card keeps its own width and is centred.
+    /// One that is wider is scaled to the text column and stays inside it.
+    func testNarrowDisplayIsCentredAndWideDisplayScalesToTheCard() {
+        let column = CardMathLayout.textWidth
+        let narrowNatural: CGFloat = 120
+        let narrow = CardMathLayout.reportedWidth(naturalWidth: narrowNatural, columnWidth: column)
+        XCTAssertEqual(narrow, narrowNatural)
+        XCTAssertFalse(CardMathLayout.scalesToColumn(naturalWidth: narrowNatural, columnWidth: column))
+
+        let centred = InlineFlowLayoutEngine.layout(
+            tokens: [
+                InlineFlowToken(size: CGSize(width: narrow, height: 36), centersWhenAlone: true),
+            ],
+            maxWidth: column,
+            horizontalSpacing: 0,
+            verticalSpacing: 0
+        )
+        XCTAssertEqual(centred.placements[0].x, (column - narrow) / 2, accuracy: 0.5)
+        XCTAssertLessThanOrEqual(centred.placements[0].x + centred.placements[0].size.width, column)
+
+        let wideNatural = column + 180
+        let wide = CardMathLayout.reportedWidth(naturalWidth: wideNatural, columnWidth: column)
+        XCTAssertEqual(wide, column)
+        XCTAssertLessThan(wide, wideNatural)
+        XCTAssertTrue(CardMathLayout.scalesToColumn(naturalWidth: wideNatural, columnWidth: column))
+
+        let scaled = InlineFlowLayoutEngine.layout(
+            tokens: [
+                InlineFlowToken(size: CGSize(width: wide, height: 36), centersWhenAlone: true),
+            ],
+            maxWidth: column,
+            horizontalSpacing: 0,
+            verticalSpacing: 0
+        )
+        XCTAssertEqual(scaled.placements[0].size.width, column)
+        XCTAssertEqual(scaled.placements[0].x, 0)
+        XCTAssertLessThanOrEqual(scaled.placements[0].x + scaled.placements[0].size.width, column)
+    }
+
     func testInlineEquationStaysBesideTheWords() {
         let result = InlineFlowLayoutEngine.layout(
             tokens: [

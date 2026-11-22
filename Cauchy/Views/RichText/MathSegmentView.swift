@@ -100,15 +100,14 @@ struct MathSegmentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // A short formula on the card has to report its own width. Otherwise
-        // the line layout measures it as the whole column, the centring shift
-        // is zero, and the glyphs sit on the left edge. A formula wider than
-        // the card already has an explicit narrower frame.
-        .fixedSize(
-            horizontal: mode == .inline && (!fitsMathToContainer || snapshot?.fitsCard == true),
-            vertical: true
+        // A formula that fits reports its own width, same as chat on main, so
+        // the line layout can centre an equation that lands on its own line.
+        // A formula wider than the card does not: it takes the scaled frame.
+        .fixedSize(horizontal: reportsOwnWidth(snapshot), vertical: true)
+        .frame(
+            maxWidth: mode == .display && !fitsMathToContainer ? .infinity : nil,
+            alignment: mode == .display ? .center : .leading
         )
-        .frame(maxWidth: mode == .display ? .infinity : nil, alignment: mode == .display ? .center : .leading)
         // SwiftMath draws the formula without exposing its text to assistive
         // technology. Preserve the original expression, including commands
         // approximated for rendering, instead of leaving a silent gap.
@@ -141,7 +140,8 @@ struct MathSegmentView: View {
         return SnapshotRendering(
             image: image,
             latex: rendered,
-            fitsCard: image.size.width > 0 && image.size.width <= cardTextWidth
+            fitsCard: image.size.width > 0
+                && !CardMathLayout.scalesToColumn(naturalWidth: image.size.width, columnWidth: cardTextWidth)
         )
     }
 
@@ -150,28 +150,26 @@ struct MathSegmentView: View {
         if fitsMathToContainer {
             let cardTextWidth = ReferencePreviewMetrics.cardWidth
                 - ConversationChrome.answerPaddingH * 2
-            if snapshot.image.size.width > cardTextWidth, snapshot.image.size.width > 0 {
-                let scale = cardTextWidth / snapshot.image.size.width
+            if CardMathLayout.scalesToColumn(
+                naturalWidth: snapshot.image.size.width,
+                columnWidth: cardTextWidth
+            ) {
+                let fitted = CardMathLayout.reportedWidth(
+                    naturalWidth: snapshot.image.size.width,
+                    columnWidth: cardTextWidth
+                )
+                let scale = fitted / snapshot.image.size.width
                 Image(nsImage: snapshot.image)
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: cardTextWidth, height: snapshot.image.size.height * scale)
+                    .frame(width: fitted, height: snapshot.image.size.height * scale)
                     .alignmentGuide(.firstTextBaseline) { _ in
                         (MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
                             ?? snapshot.image.size.height) * scale
                     }
             } else {
-                // ImageRenderer pins this bitmap to the leading edge of the
-                // column and ignores a centring alignment. An equation is
-                // drawn into a column-width image with the glyphs already in
-                // the middle. A symbol with no equals sign stays at its own
-                // width so it can sit beside the words.
-                let image = centersInCard(snapshot.latex)
-                    ? centeredCardImage(snapshot.image, column: cardTextWidth)
-                    : snapshot.image
-                Image(nsImage: image)
-                    .frame(width: image.size.width, height: image.size.height)
+                Image(nsImage: snapshot.image)
                     .alignmentGuide(.firstTextBaseline) { dimensions in
                         MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
                             ?? dimensions[.bottom]
@@ -186,54 +184,17 @@ struct MathSegmentView: View {
         }
     }
 
-    /// A display formula, or an inline formula with an equals sign, is the
-    /// equation the card centres. Other symbols stay inline.
-    private func centersInCard(_ latex: String) -> Bool {
-        mode == .display || latex.contains("=")
-    }
-
-    /// The formula bitmap, centred in a column-width image at the same pixel
-    /// scale. The card draws that image from the left edge.
-    private func centeredCardImage(_ image: NSImage, column: CGFloat) -> NSImage {
-        guard column > image.size.width + 0.5,
-              image.size.width > 0,
-              image.size.height > 0,
-              let tiff = image.tiffRepresentation,
-              let source = NSBitmapImageRep(data: tiff),
-              source.pixelsWide > 0,
-              let cgImage = source.cgImage else { return image }
-        let scale = CGFloat(source.pixelsWide) / image.size.width
-        let pixelsWide = Int((column * scale).rounded(.up))
-        let pixelsHigh = source.pixelsHigh
-        guard pixelsWide > source.pixelsWide,
-              let canvas = NSBitmapImageRep(
-                bitmapDataPlanes: nil,
-                pixelsWide: pixelsWide,
-                pixelsHigh: pixelsHigh,
-                bitsPerSample: 8,
-                samplesPerPixel: 4,
-                hasAlpha: true,
-                isPlanar: false,
-                colorSpaceName: .deviceRGB,
-                bytesPerRow: 0,
-                bitsPerPixel: 0
-              ) else { return image }
-        NSGraphicsContext.saveGraphicsState()
-        let graphics = NSGraphicsContext(bitmapImageRep: canvas)
-        NSGraphicsContext.current = graphics
-        graphics?.cgContext.clear(CGRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
-        graphics?.cgContext.interpolationQuality = .none
-        let originX = CGFloat(pixelsWide - source.pixelsWide) / 2
-        graphics?.cgContext.draw(
-            cgImage,
-            in: CGRect(x: originX, y: 0, width: CGFloat(source.pixelsWide), height: CGFloat(pixelsHigh))
-        )
-        NSGraphicsContext.restoreGraphicsState()
-        let pointSize = NSSize(width: column, height: image.size.height)
-        canvas.size = pointSize
-        let centered = NSImage(size: pointSize)
-        centered.addRepresentation(canvas)
-        return centered
+    /// Chat keeps main's rule: inline math reports its own width, display math
+    /// fills the bubble. On the card, own width is kept only while the formula
+    /// fits; a wider one is the scaled frame and must accept the column width.
+    private func reportsOwnWidth(_ snapshot: SnapshotRendering?) -> Bool {
+        if !fitsMathToContainer { return mode == .inline }
+        if let snapshot { return snapshot.fitsCard }
+        guard let rendered = LaTeXValidator.cachedRenderableLatex(from: latex),
+              let width = MathMetrics.measure(latex: rendered, mode: mode, fontSize: fontSize)?.size.width else {
+            return true
+        }
+        return !CardMathLayout.scalesToColumn(naturalWidth: width)
     }
 
     /// Spoken form. VoiceOver gets the formula even when the glyphs are a bitmap.
@@ -248,6 +209,26 @@ struct MathSegmentView: View {
     private var visibleFallback: String {
         if sourceText.contains("\\") || sourceText.contains("$") { return "…" }
         return sourceText
+    }
+}
+
+/// How wide a formula is on the reference card.
+///
+/// One that fits keeps its own width, so `InlineFlowLayout` can centre an
+/// equation that sits on its own line the same way chat does. One that is
+/// wider is scaled to the text column and is not drawn past it.
+enum CardMathLayout {
+    static var textWidth: CGFloat {
+        ReferencePreviewMetrics.cardWidth - ConversationChrome.answerPaddingH * 2
+    }
+
+    static func scalesToColumn(naturalWidth: CGFloat, columnWidth: CGFloat = textWidth) -> Bool {
+        naturalWidth > columnWidth && columnWidth > 0
+    }
+
+    static func reportedWidth(naturalWidth: CGFloat, columnWidth: CGFloat = textWidth) -> CGFloat {
+        guard naturalWidth > 0, columnWidth > 0 else { return naturalWidth }
+        return min(naturalWidth, columnWidth)
     }
 }
 

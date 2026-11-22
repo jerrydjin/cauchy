@@ -72,8 +72,7 @@ final class HighlightAskPersistenceTests: XCTestCase {
             XCTAssertEqual(saved.first?.messages.map(\.content), [question])
             partial("Because a0 vanishes")
             gate.markStarted()
-            try await gate.waitToFinish()
-            try Task.checkCancellation()
+            await gate.waitToFinish()
             return "Because a0 vanishes, the constant term is zero. [[CAUCHY_BASIS: PDF]]"
         }
         model.workspace.sendThreadMessage("Why is a0 zero?")
@@ -85,6 +84,7 @@ final class HighlightAskPersistenceTests: XCTestCase {
             if streaming == "Because a0 vanishes" { break }
             try await Task.sleep(nanoseconds: 25_000_000)
         }
+        print("in-flight stream: \(streaming ?? "nil")")
         XCTAssertEqual(streaming, "Because a0 vanishes")
         let id = try XCTUnwrap(model.workspace.answeringHighlightID)
         model.workspace.showHighlightList()
@@ -167,7 +167,8 @@ private final class AskGate: @unchecked Sendable {
     private let lock = NSLock()
     private var started: CheckedContinuation<Void, Never>?
     private var didStart = false
-    private var pendingFinish: CheckedContinuation<Void, Error>?
+    private var pendingFinish: CheckedContinuation<Void, Never>?
+    private var released = false
 
     func markStarted() {
         lock.lock()
@@ -191,16 +192,24 @@ private final class AskGate: @unchecked Sendable {
         }
     }
 
-    func waitToFinish() async throws {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+    /// Parks the ask until the test has reopened the thread. A finish that
+    /// arrives first is remembered, so the ask still continues.
+    func waitToFinish() async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             lock.lock()
-            pendingFinish = cont
-            lock.unlock()
+            if released {
+                lock.unlock()
+                cont.resume()
+            } else {
+                pendingFinish = cont
+                lock.unlock()
+            }
         }
     }
 
     func finish() {
         lock.lock()
+        released = true
         let waiting = pendingFinish
         pendingFinish = nil
         lock.unlock()

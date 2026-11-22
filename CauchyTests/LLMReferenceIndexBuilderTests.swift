@@ -2199,6 +2199,113 @@ final class ReferencePreviewPresentationTests: XCTestCase {
     }
 }
 
+/// The page crop the card shows. A bottom-left PDF crop drawn into a
+/// top-left bitmap puts the last line on top; this locks the other way.
+final class PDFRegionRendererTests: XCTestCase {
+    func testCropKeepsTheFirstLineAtTheTop() throws {
+        let pageRect = CGRect(x: 0, y: 0, width: 420, height: 560)
+        let first = "FIRST LINE AT THE TOP OF THE PAGE"
+        let last = "last"
+        let page = try Self.page(pageRect, first: first, last: last)
+        let rendered = try XCTUnwrap(
+            PDFRegionRenderer.render(
+                page: page,
+                bounds: NormalizedRect(x: 0, y: 0, width: 1, height: 1),
+                scale: 2
+            )
+        )
+        let reference = try XCTUnwrap(Self.unflippedReference(pageRect, first: first, last: last))
+
+        let cropRows = Self.inkRows(of: rendered)
+        let referenceRows = Self.inkRows(of: reference)
+        let cropPeak = Self.peakFraction(cropRows)
+        let referencePeak = Self.peakFraction(referenceRows)
+
+        XCTAssertLessThan(cropPeak, 0.4, "first line is at row fraction \(cropPeak)")
+        XCTAssertLessThan(referencePeak, 0.4, "unflipped reference peaks at \(referencePeak)")
+        XCTAssertLessThan(
+            abs(cropPeak - referencePeak),
+            abs(cropPeak - (1 - referencePeak)),
+            "crop peak \(cropPeak) matches the flipped reference, not the upright one at \(referencePeak)"
+        )
+    }
+
+    private static func page(_ pageRect: CGRect, first: String, last: String) throws -> PDFPage {
+        let data = NSMutableData()
+        var media = pageRect
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &media, nil) else {
+            throw XCTSkip("could not open a PDF context")
+        }
+        context.beginPDFPage(nil)
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(pageRect)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let font = NSFont.systemFont(ofSize: 18)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ]
+        // PDF y grows up, so the first line is near the top of the page.
+        NSString(string: first).draw(at: NSPoint(x: 24, y: pageRect.height - 48), withAttributes: attributes)
+        NSString(string: last).draw(at: NSPoint(x: 24, y: 28), withAttributes: attributes)
+        NSGraphicsContext.restoreGraphicsState()
+        context.endPDFPage()
+        context.closePDF()
+        return try XCTUnwrap(PDFDocument(data: data as Data)?.page(at: 0))
+    }
+
+    /// The same two lines, drawn with the first line at the top of the bitmap.
+    private static func unflippedReference(_ pageRect: CGRect, first: String, last: String) -> CGImage? {
+        let image = NSImage(size: pageRect.size)
+        image.lockFocusFlipped(true)
+        NSColor.white.setFill()
+        NSRect(origin: .zero, size: pageRect.size).fill()
+        let font = NSFont.systemFont(ofSize: 18)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ]
+        NSString(string: first).draw(at: NSPoint(x: 24, y: 28), withAttributes: attributes)
+        NSString(string: last).draw(
+            at: NSPoint(x: 24, y: pageRect.height - 48),
+            withAttributes: attributes
+        )
+        image.unlockFocus()
+        var proposed = NSRect(origin: .zero, size: pageRect.size)
+        return image.cgImage(forProposedRect: &proposed, context: nil, hints: nil)
+    }
+
+    /// Ink per row, top of the displayed image first. `colorAt` is top-down.
+    private static func inkRows(of image: CGImage) -> [Int] {
+        let rep = NSBitmapImageRep(cgImage: image)
+        var rows = Array(repeating: 0, count: rep.pixelsHigh)
+        let step = 2
+        for y in 0..<rep.pixelsHigh {
+            var x = 0
+            while x < rep.pixelsWide {
+                if let color = rep.colorAt(x: x, y: y) {
+                    let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
+                    if color.alphaComponent > 0.3 && brightness < 0.45 {
+                        rows[y] += 1
+                    }
+                }
+                x += step
+            }
+        }
+        return rows
+    }
+
+    /// Fraction down the image of the row with the most ink. The long first
+    /// line is that row when the crop is upright.
+    private static func peakFraction(_ rows: [Int]) -> Double {
+        guard let peak = rows.enumerated().max(by: { $0.element < $1.element }),
+              rows.count > 1 else { return 1 }
+        return Double(peak.offset) / Double(rows.count - 1)
+    }
+}
+
 private struct AnchoredPassageIndexStub: DocumentIndexProtocol {
     let record: DocumentPassage
 

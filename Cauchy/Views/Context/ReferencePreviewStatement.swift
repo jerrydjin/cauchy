@@ -107,7 +107,6 @@ struct ReferencePreviewFallbackColumn: View {
                 }
             }
         )
-        .frame(maxWidth: ReferencePreviewMetrics.cardWidth, alignment: .leading)
     }
 }
 

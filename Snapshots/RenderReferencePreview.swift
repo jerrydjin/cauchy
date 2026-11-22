@@ -448,23 +448,27 @@ enum RenderReferencePreview {
         context.beginPDFPage(nil)
         context.setFillColor(gray: 1, alpha: 1)
         context.fill(pageRect)
-        // Core Text draws with y growing downward. Flip so the theorem sits
-        // upright in the upper part of the page.
-        context.saveGState()
-        context.translateBy(x: 0, y: pageRect.height)
-        context.scaleBy(x: 1, y: -1)
-        let printed = "Theorem 3.5.21 (Riemann's removable singularity theorem)\nSuppose that U is an open subset of ℂ and z₀ ∉ U, and suppose that f : U \\ {z₀} → ℂ is holomorphic. Then z₀ is a removable singularity of f."
-        let font = CTFontCreateWithName("Times-Roman" as CFString, 16, nil)
-        let attributed = NSAttributedString(string: printed, attributes: [
+        // Same orientation the app's pages use: PDF y grows up, and the first
+        // line sits near the top. A flipped text matrix stores the theorem
+        // upside down, which the crop then shows last-line-first.
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let font = NSFont(name: "Times-Roman", size: 16) ?? NSFont.systemFont(ofSize: 16)
+        let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor.black,
-        ])
-        let framesetter = CTFramesetterCreateWithAttributedString(attributed)
-        let textRect = CGRect(x: 72, y: 80, width: 468, height: 180)
-        let path = CGPath(rect: textRect, transform: nil)
-        let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
-        CTFrameDraw(frame, context)
-        context.restoreGState()
+        ]
+        let lines = [
+            "Theorem 3.5.21 (Riemann's removable singularity theorem)",
+            "Suppose that U is an open subset of ℂ and z₀ ∉ U, and suppose that",
+            "f : U \\ {z₀} → ℂ is holomorphic. Then z₀ is a removable singularity of f.",
+        ]
+        var baseline = pageRect.height - 96
+        for line in lines {
+            NSString(string: line).draw(at: NSPoint(x: 72, y: baseline), withAttributes: attributes)
+            baseline -= 22
+        }
+        NSGraphicsContext.restoreGraphicsState()
         context.endPDFPage()
         context.closePDF()
 

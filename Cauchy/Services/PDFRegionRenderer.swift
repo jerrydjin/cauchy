@@ -29,8 +29,12 @@ enum PDFRegionRenderer {
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
         context.saveGState()
+        // The bitmap's origin is the bottom left, and `PDFPage.draw` paints
+        // PDF space the same way: y grows up. Map the crop's bottom-left onto
+        // that origin. A y-flip here turns the page over, so the last line
+        // lands on top.
         context.scaleBy(x: scale, y: scale)
-        context.translateBy(x: -cropRect.origin.x, y: -cropRect.origin.y)
+        context.translateBy(x: -cropRect.minX, y: -cropRect.minY)
         page.draw(with: .mediaBox, to: context)
         if let highlight {
             context.setStrokeColor(NSColor.systemOrange.cgColor)

@@ -59,54 +59,16 @@ struct MathSegmentView: View {
     }
 
     var body: some View {
+        let snapshot = snapshotRendering()
         Group {
-            if rendersForSnapshot, let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
-                if let image = MathMetrics.snapshotImage(
-                    latex: rendered,
-                    mode: mode,
-                    fontSize: fontSize,
-                    textColor: glyphColor,
-                    scale: displayScale
-                ) {
-                    if fitsMathToContainer {
-                        // A short formula keeps the intrinsic image, which the
-                        // card centres. A formula wider than the card is given
-                        // an explicit smaller frame so it scales down instead
-                        // of being clipped.
-                        let cardTextWidth = ReferencePreviewMetrics.cardWidth
-                            - ConversationChrome.answerPaddingH * 2
-                        if image.size.width > cardTextWidth, image.size.width > 0 {
-                            let scale = cardTextWidth / image.size.width
-                            Image(nsImage: image)
-                                .resizable()
-                                .interpolation(.high)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: cardTextWidth, height: image.size.height * scale)
-                                .alignmentGuide(.firstTextBaseline) { dimensions in
-                                    (MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
-                                        ?? image.size.height) * scale
-                                }
-                        } else {
-                            Image(nsImage: image)
-                                .alignmentGuide(.firstTextBaseline) { dimensions in
-                                    MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
-                                        ?? dimensions[.bottom]
-                                }
-                        }
-                    } else {
-                        Image(nsImage: image)
-                            .alignmentGuide(.firstTextBaseline) { dimensions in
-                                MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
-                                    ?? dimensions[.bottom]
-                            }
-                    }
-                } else {
-                    Text(visibleFallback)
-                        .font(fallbackFont)
-                        .foregroundStyle(textColor.opacity(0.85))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            if let snapshot {
+                snapshotImage(snapshot)
+            } else if rendersForSnapshot {
+                Text(visibleFallback)
+                    .font(fallbackFont)
+                    .foregroundStyle(textColor.opacity(0.85))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
             } else if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
                 if mode == .display, !fitsMathToContainer {
                     // Long equations scroll sideways inside the bubble rather
@@ -138,7 +100,14 @@ struct MathSegmentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .fixedSize(horizontal: mode == .inline && !fitsMathToContainer, vertical: true)
+        // A short formula on the card has to report its own width. Otherwise
+        // the line layout measures it as the whole column, the centring shift
+        // is zero, and the glyphs sit on the left edge. A formula wider than
+        // the card already has an explicit narrower frame.
+        .fixedSize(
+            horizontal: mode == .inline && (!fitsMathToContainer || snapshot?.fitsCard == true),
+            vertical: true
+        )
         .frame(maxWidth: mode == .display ? .infinity : nil, alignment: mode == .display ? .center : .leading)
         // SwiftMath draws the formula without exposing its text to assistive
         // technology. Preserve the original expression, including commands
@@ -146,6 +115,71 @@ struct MathSegmentView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Math expression: \(sourceText)")
         .accessibilityAddTraits(.isStaticText)
+    }
+
+    /// The bitmap the designer snapshot draws. `fitsCard` is true when that
+    /// bitmap is no wider than the card's text, so the line layout can centre
+    /// it. A wider one is scaled into an explicit frame instead.
+    private struct SnapshotRendering {
+        var image: NSImage
+        var latex: String
+        var fitsCard: Bool
+    }
+
+    private func snapshotRendering() -> SnapshotRendering? {
+        guard rendersForSnapshot,
+              let rendered = LaTeXValidator.cachedRenderableLatex(from: latex),
+              let image = MathMetrics.snapshotImage(
+                latex: rendered,
+                mode: mode,
+                fontSize: fontSize,
+                textColor: glyphColor,
+                scale: displayScale
+              ) else { return nil }
+        let cardTextWidth = ReferencePreviewMetrics.cardWidth
+            - ConversationChrome.answerPaddingH * 2
+        return SnapshotRendering(
+            image: image,
+            latex: rendered,
+            fitsCard: image.size.width > 0 && image.size.width <= cardTextWidth
+        )
+    }
+
+    @ViewBuilder
+    private func snapshotImage(_ snapshot: SnapshotRendering) -> some View {
+        if fitsMathToContainer {
+            let cardTextWidth = ReferencePreviewMetrics.cardWidth
+                - ConversationChrome.answerPaddingH * 2
+            if snapshot.image.size.width > cardTextWidth, snapshot.image.size.width > 0 {
+                let scale = cardTextWidth / snapshot.image.size.width
+                Image(nsImage: snapshot.image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: cardTextWidth, height: snapshot.image.size.height * scale)
+                    .alignmentGuide(.firstTextBaseline) { _ in
+                        (MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
+                            ?? snapshot.image.size.height) * scale
+                    }
+            } else {
+                // An explicit frame, not a flexible image. The line layout
+                // measures this view against the whole column; without a rigid
+                // width it reports that column, and a short equation stays on
+                // the left edge instead of being centred.
+                Image(nsImage: snapshot.image)
+                    .frame(width: snapshot.image.size.width, height: snapshot.image.size.height)
+                    .alignmentGuide(.firstTextBaseline) { dimensions in
+                        MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
+                            ?? dimensions[.bottom]
+                    }
+            }
+        } else {
+            Image(nsImage: snapshot.image)
+                .alignmentGuide(.firstTextBaseline) { dimensions in
+                    MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
+                        ?? dimensions[.bottom]
+                }
+        }
     }
 
     /// Spoken form. VoiceOver gets the formula even when the glyphs are a bitmap.

@@ -2110,7 +2110,10 @@ final class ReferencePreviewPresentationTests: XCTestCase {
         XCTAssertTrue(corollary.contains("\\oint"))
         XCTAssertTrue(corollary.contains("^{(n)}"))
         XCTAssertFalse(corollary.contains("\u{c}"))
-        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(corollary))
+        XCTAssertFalse(
+            ReferencePreviewPresentation.prefersPageCrop(corollary),
+            "clean corollary should stay text"
+        )
         XCTAssertTrue(MessageContentParser.parse(corollary).contains { segment in
             if case .text(let value) = segment { return value.contains("for any") }
             return false
@@ -2153,13 +2156,15 @@ final class ReferencePreviewPresentationTests: XCTestCase {
     func testMangledStatementPrefersThePageCrop() {
         let mangled = "Suppose that $z_0 " + "\u{8}" + "otin Uandsupposethatf:Uackslashz0ightarrowCisholomorphic.Thenz0isaremovablesingularity$"
         let text = ReferencePreviewPresentation.statementText(from: mangled)
-        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(text))
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(text), "mangled run should crop")
 
-        let unknown = ReferencePreviewPresentation.statementText(from: "Let $f$ satisfy $\\notarealcommand{x}=1$.")
-        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unknown))
+        // `\n` that does not continue a known command is a paragraph break, so the
+        // unknown name cannot start with n or t. `\fakecommand` is still a command.
+        let unknown = ReferencePreviewPresentation.statementText(from: "Let $f$ satisfy $\\fakecommand{x}=1$.")
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unknown), "unknown command should crop")
 
         let unbalanced = ReferencePreviewPresentation.statementText(from: "Let $f(z) = z^2 + 1 be entire.")
-        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unbalanced))
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unbalanced), "unclosed delimiter should crop")
 
         XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop("A continuous function on a compact set is bounded."))
     }

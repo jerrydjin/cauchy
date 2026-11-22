@@ -257,8 +257,9 @@ enum ReferencePreviewPresentation {
     /// A statement is not trustworthy, and the card crops the PDF region,
     /// when the text that remains after restoration still has any of:
     /// a control character other than a newline or a tab, an unclosed `$`,
-    /// a math span of 24 or more characters with neither a space nor a
-    /// command, a letter-command the renderer does not know, or unbalanced
+    /// a run of 24 or more characters in a math span with neither a space
+    /// nor a command (the command name itself does not count), a
+    /// letter-command the renderer does not know, or unbalanced
     /// braces inside a math span.
     ///
     /// A restored Riemann statement (`$z_0 \notin U$`) fails none of these
@@ -521,7 +522,11 @@ enum ReferencePreviewPresentation {
         }
 
         if mode != .none {
-            closeMath()
+            // The span never closed. Writing the missing `$` here used to make
+            // the rest of the sentence look like balanced math, so the crop
+            // rule could not see the unclosed delimiter. Leave it open.
+            result.append(mode == .display ? "$$" : "$")
+            result.append(interior)
         }
         return result
     }
@@ -615,16 +620,33 @@ enum ReferencePreviewPresentation {
     }
 
     /// Prose that fell into a math span has no spaces and no commands.
-    /// `Uandsupposethatf` is that run. A real formula breaks it with `\` or a space.
+    /// `Uandsupposethatf` is that run. A command name is the command, so it
+    /// does not count, and the next run starts at the argument. A real
+    /// formula such as `\frac{f(z)}{(z-z_0)^{n+1}}` stays under the limit.
     private static func hasLongSpaceFreeRun(_ latex: String) -> Bool {
         var run = 0
-        for character in latex {
+        var index = latex.startIndex
+        while index < latex.endIndex {
+            let character = latex[index]
             if character.isWhitespace || character == "\\" {
                 run = 0
-            } else {
-                run += 1
-                if run >= 24 { return true }
+                if character == "\\" {
+                    let next = latex.index(after: index)
+                    if next < latex.endIndex, latex[next].isLetter {
+                        var end = next
+                        while end < latex.endIndex, latex[end].isLetter {
+                            end = latex.index(after: end)
+                        }
+                        index = end
+                        continue
+                    }
+                }
+                index = latex.index(after: index)
+                continue
             }
+            run += 1
+            if run >= 24 { return true }
+            index = latex.index(after: index)
         }
         return false
     }

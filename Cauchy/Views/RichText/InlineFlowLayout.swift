@@ -27,11 +27,17 @@ struct CentersWhenAloneKey: LayoutValueKey {
     static let defaultValue = false
 }
 
-/// The formula's own width on the reference card. The snapshot image can
-/// report the whole text column when it is measured, which makes the centring
-/// shift zero. This is the width the line layout centres and wraps with.
-struct ReportedMathWidthKey: LayoutValueKey {
-    static let defaultValue: CGFloat? = nil
+/// Widths `InlineFlowLayout` actually measured for equation tokens. The
+/// designer snapshot prints this so a failing render shows the number the
+/// line layout used, not the width a modifier hoped to report.
+enum InlineFlowMeasurementLog {
+    struct Sample {
+        var width: CGFloat
+        var maxWidth: CGFloat
+        var centersWhenAlone: Bool
+    }
+
+    static var samples: [Sample] = []
 }
 
 extension View {
@@ -177,14 +183,24 @@ struct InlineFlowLayout: Layout {
         // remaining width made wrapped text re-flow at two different widths.
         let tokens = subviews.map { subview -> InlineFlowToken in
             let dimensions = subview.dimensions(in: ProposedViewSize(width: maxWidth, height: nil))
-            let reported = subview[ReportedMathWidthKey.self]
-            let width = reported.flatMap { value -> CGFloat? in
-                value > 1 && value < dimensions.width - 0.5 ? value : nil
-            } ?? dimensions.width
+            let centersWhenAlone = subview[CentersWhenAloneKey.self]
+            if centersWhenAlone {
+                InlineFlowMeasurementLog.samples.append(
+                    InlineFlowMeasurementLog.Sample(
+                        width: dimensions.width,
+                        maxWidth: maxWidth,
+                        centersWhenAlone: true
+                    )
+                )
+                fputs(
+                    String(format: "inline-flow received math width %.1f in column %.1f\n", dimensions.width, maxWidth),
+                    stderr
+                )
+            }
             return InlineFlowToken(
-                size: CGSize(width: width, height: dimensions.height),
+                size: CGSize(width: dimensions.width, height: dimensions.height),
                 baseline: dimensions[.firstTextBaseline],
-                centersWhenAlone: subview[CentersWhenAloneKey.self]
+                centersWhenAlone: centersWhenAlone
             )
         }
 

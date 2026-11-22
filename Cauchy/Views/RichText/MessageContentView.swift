@@ -18,8 +18,6 @@ struct MessageContentView: View {
     var sourceAnchors: [AnswerSourceAnchor] = []
     var onOpenSource: (AnswerSourceAnchor) -> Void = { _ in }
 
-    @Environment(\.fitsMathToContainer) private var fitsMathToContainer
-
     private var usesCitationLayout: Bool {
         let hasLink = !AssistantResponseValidator.presentedReferences(
             in: content,
@@ -62,7 +60,6 @@ struct MessageContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .displayMath(let latex):
             mathView(latex: latex, mode: .display, fontSize: 17)
-                .frame(width: cardMathWidth(latex: latex, mode: .display, fontSize: 17))
                 .frame(maxWidth: .infinity, alignment: .center)
         case .inlineLine(let segments):
             inlineLineView(segments)
@@ -89,11 +86,9 @@ struct MessageContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .inlineMath(let latex):
                 mathView(latex: latex, mode: .inline, fontSize: 15)
-                    .frame(width: cardMathWidth(latex: latex, mode: .inline, fontSize: 15))
                     .frame(maxWidth: .infinity, alignment: equationOnItsOwnLine(latex) ? .center : .leading)
             case .displayMath(let latex):
                 mathView(latex: latex, mode: .display, fontSize: 17)
-                    .frame(width: cardMathWidth(latex: latex, mode: .display, fontSize: 17))
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         } else if let mergedText = mergedText(from: merged) {
@@ -145,25 +140,11 @@ struct MessageContentView: View {
             codeLabel(value, fixedWidth: true)
         case .inlineMath(let latex):
             mathView(latex: latex, mode: .inline, fontSize: 15)
-                .frame(width: cardMathWidth(latex: latex, mode: .inline, fontSize: 15))
                 .centersWhenAloneOnALine(equationOnItsOwnLine(latex))
-                .layoutValue(key: ReportedMathWidthKey.self, value: cardMathWidth(latex: latex, mode: .inline, fontSize: 15))
         case .displayMath(let latex):
             mathView(latex: latex, mode: .display, fontSize: 17)
-                .frame(width: cardMathWidth(latex: latex, mode: .display, fontSize: 17))
                 .centersWhenAloneOnALine(true)
-                .layoutValue(key: ReportedMathWidthKey.self, value: cardMathWidth(latex: latex, mode: .display, fontSize: 17))
         }
-    }
-
-    /// The formula's own width on the card. Nil in chat. A wider formula
-    /// reports the text column, which is the frame it is scaled into.
-    private func cardMathWidth(latex: String, mode: MathSegmentView.Mode, fontSize: CGFloat) -> CGFloat? {
-        guard fitsMathToContainer,
-              let rendered = LaTeXValidator.cachedRenderableLatex(from: latex),
-              let natural = MathMetrics.measure(latex: rendered, mode: mode, fontSize: fontSize)?.size.width,
-              natural > 1 else { return nil }
-        return CardMathLayout.reportedWidth(naturalWidth: natural)
     }
 
     /// An equation (`γ(t) = …`) that wraps onto a line by itself is centred.
@@ -274,7 +255,6 @@ struct MessageContentView: View {
             )
         case .displayMath(let latex):
             mathView(latex: latex, mode: .display, fontSize: 17)
-                .frame(width: cardMathWidth(latex: latex, mode: .display, fontSize: 17))
                 .frame(maxWidth: .infinity, alignment: .center)
         case .inlineLine(let segments):
             citedInlineLine(segments, chips: chips)
@@ -352,14 +332,10 @@ struct MessageContentView: View {
                 codeLabel(value, fixedWidth: true)
             case .inlineMath(let latex):
                 mathView(latex: latex, mode: .inline, fontSize: 15)
-                    .frame(width: cardMathWidth(latex: latex, mode: .inline, fontSize: 15))
                     .centersWhenAloneOnALine(equationOnItsOwnLine(latex))
-                    .layoutValue(key: ReportedMathWidthKey.self, value: cardMathWidth(latex: latex, mode: .inline, fontSize: 15))
             case .displayMath(let latex):
                 mathView(latex: latex, mode: .display, fontSize: 17)
-                    .frame(width: cardMathWidth(latex: latex, mode: .display, fontSize: 17))
                     .centersWhenAloneOnALine(true)
-                    .layoutValue(key: ReportedMathWidthKey.self, value: cardMathWidth(latex: latex, mode: .display, fontSize: 17))
             case .text:
                 EmptyView()
             }

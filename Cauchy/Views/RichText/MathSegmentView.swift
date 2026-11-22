@@ -59,53 +59,58 @@ struct MathSegmentView: View {
     }
 
     var body: some View {
-        let rendered = LaTeXValidator.cachedRenderableLatex(from: latex)
-        let snapshot = rendered.flatMap { latex in
-            rendersForSnapshot
-                ? MathMetrics.snapshotImage(
-                    latex: latex,
+        Group {
+            if rendersForSnapshot, let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
+                if let image = MathMetrics.snapshotImage(
+                    latex: rendered,
                     mode: mode,
                     fontSize: fontSize,
                     textColor: glyphColor,
                     scale: displayScale
-                )
-                : nil
-        }
-        // Only a formula wider than the card's text is given a frame. One that
-        // fits is the image itself, with the same fixed size main uses, so the
-        // line layout measures the formula and centres an equation on its own line.
-        let scalesToCard = snapshot.map {
-            fitsMathToContainer && CardMathLayout.scalesToColumn(naturalWidth: $0.size.width)
-        } ?? false
-        Group {
-            if let rendered, let snapshot {
-                if scalesToCard {
-                    let fitted = CardMathLayout.reportedWidth(naturalWidth: snapshot.size.width)
-                    let factor = fitted / snapshot.size.width
-                    Image(nsImage: snapshot)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: fitted, height: snapshot.size.height * factor)
-                        .alignmentGuide(.firstTextBaseline) { _ in
-                            (MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
-                                ?? snapshot.size.height) * factor
-                        }
+                ) {
+                    // Wider than the card's text column. Everything that fits
+                    // is the image below, the same view main lays out.
+                    if fitsMathToContainer, image.size.width > CardMathLayout.textWidth {
+                        let fitted = CardMathLayout.textWidth
+                        let factor = fitted / image.size.width
+                        Image(nsImage: image)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: fitted, height: image.size.height * factor)
+                            .alignmentGuide(.firstTextBaseline) { _ in
+                                (MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                    ?? image.size.height) * factor
+                            }
+                    } else {
+                        Image(nsImage: image)
+                            .alignmentGuide(.firstTextBaseline) { dimensions in
+                                MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                    ?? dimensions[.bottom]
+                            }
+                    }
                 } else {
-                    Image(nsImage: snapshot)
-                        .alignmentGuide(.firstTextBaseline) { dimensions in
-                            MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
-                                ?? dimensions[.bottom]
-                        }
+                    Text(visibleFallback)
+                        .font(fallbackFont)
+                        .foregroundStyle(textColor.opacity(0.85))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            } else if rendersForSnapshot {
-                Text(visibleFallback)
-                    .font(fallbackFont)
-                    .foregroundStyle(textColor.opacity(0.85))
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if let rendered {
-                if mode == .display, !fitsMathToContainer {
+            } else if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
+                if mode == .display, fitsMathToContainer,
+                   let natural = MathMetrics.measure(latex: rendered, mode: mode, fontSize: fontSize)?.size.width,
+                   natural > CardMathLayout.textWidth {
+                    MathLabelRepresentable(
+                        latex: rendered,
+                        mode: mode,
+                        fontSize: fontSize,
+                        textColor: glyphColor
+                    )
+                    .alignmentGuide(.firstTextBaseline) { dimensions in
+                        MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                            ?? dimensions[.bottom]
+                    }
+                } else if mode == .display {
                     // Long equations scroll sideways inside the bubble rather
                     // than drawing past its edge.
                     ScrollingMathLabel(latex: rendered, fontSize: fontSize, textColor: glyphColor)
@@ -135,11 +140,8 @@ struct MathSegmentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .fixedSize(horizontal: !scalesToCard && (mode == .inline || fitsMathToContainer), vertical: true)
-        .frame(
-            maxWidth: mode == .display && !fitsMathToContainer ? .infinity : nil,
-            alignment: mode == .display ? .center : .leading
-        )
+        .fixedSize(horizontal: mode == .inline, vertical: true)
+        .frame(maxWidth: mode == .display ? .infinity : nil, alignment: mode == .display ? .center : .leading)
         // SwiftMath draws the formula without exposing its text to assistive
         // technology. Preserve the original expression, including commands
         // approximated for rendering, instead of leaving a silent gap.

@@ -171,10 +171,8 @@ struct MathSegmentView: View {
 /// equation that sits on its own line the same way chat does. One that is
 /// wider is scaled to the text column and is not drawn past it.
 enum CardMathLayout {
-    /// The citation hover is 320pt. The chat snapshot package compiles this
-    /// file without the reference-column file that owns that constant.
     static var textWidth: CGFloat {
-        320 - ConversationChrome.answerPaddingH * 2
+        ConversationChrome.citationHoverWidth - ConversationChrome.answerPaddingH * 2
     }
 
     static func scalesToColumn(naturalWidth: CGFloat, columnWidth: CGFloat = textWidth) -> Bool {

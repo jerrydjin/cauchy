@@ -128,18 +128,7 @@ enum RenderReferencePreview {
         try writePNG(card, to: url, minimumBytes: 12_000)
         try writePNG(card, to: output.appendingPathComponent("jerry-149-reference-card.png"), minimumBytes: 12_000)
         let maths = output.appendingPathComponent("jerry-151-reference-math-after.png")
-        InlineFlowMeasurementLog.samples.removeAll()
         try writePNG(card, to: maths, minimumBytes: 12_000)
-        let measured = InlineFlowMeasurementLog.samples.filter(\.centersWhenAlone)
-        if measured.isEmpty {
-            fputs("layout received no equation token for Proposition 2.5.1\n", stdout)
-        }
-        for sample in measured {
-            fputs(
-                String(format: "layout received math width %.1f in column %.1f\n", sample.width, sample.maxWidth),
-                stdout
-            )
-        }
         try assertCentredCrispEquation(in: maths)
         fputs("heading: \(model.heading)\n", stdout)
         fputs("statement:\n\(text)\n", stdout)

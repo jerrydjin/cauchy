@@ -27,19 +27,6 @@ struct CentersWhenAloneKey: LayoutValueKey {
     static let defaultValue = false
 }
 
-/// Widths `InlineFlowLayout` actually measured for equation tokens. The
-/// designer snapshot prints this so a failing render shows the number the
-/// line layout used, not the width a modifier hoped to report.
-enum InlineFlowMeasurementLog {
-    struct Sample {
-        var width: CGFloat
-        var maxWidth: CGFloat
-        var centersWhenAlone: Bool
-    }
-
-    nonisolated(unsafe) static var samples: [Sample] = []
-}
-
 extension View {
     func centersWhenAloneOnALine(_ enabled: Bool = true) -> some View {
         layoutValue(key: CentersWhenAloneKey.self, value: enabled)
@@ -184,19 +171,6 @@ struct InlineFlowLayout: Layout {
         let tokens = subviews.map { subview -> InlineFlowToken in
             let dimensions = subview.dimensions(in: ProposedViewSize(width: maxWidth, height: nil))
             let centersWhenAlone = subview[CentersWhenAloneKey.self]
-            if centersWhenAlone {
-                InlineFlowMeasurementLog.samples.append(
-                    InlineFlowMeasurementLog.Sample(
-                        width: dimensions.width,
-                        maxWidth: maxWidth,
-                        centersWhenAlone: true
-                    )
-                )
-                fputs(
-                    String(format: "inline-flow received math width %.1f in column %.1f\n", dimensions.width, maxWidth),
-                    stderr
-                )
-            }
             return InlineFlowToken(
                 size: CGSize(width: dimensions.width, height: dimensions.height),
                 baseline: dimensions[.firstTextBaseline],

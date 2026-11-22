@@ -6,7 +6,7 @@ import SwiftUI
 /// equation's column to the left of the prose the snapshot measures.
 /// The statement grows until it reaches 60% of the window, then it scrolls.
 enum ReferencePreviewMetrics {
-    static let cardWidth: CGFloat = 320
+    static let cardWidth = ConversationChrome.citationHoverWidth
     static let maxHeightFraction: CGFloat = 0.60
 
     static func cappedHeight(windowHeight: CGFloat, contentHeight: CGFloat) -> CGFloat {

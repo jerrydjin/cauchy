@@ -128,9 +128,17 @@ struct HighlightThreadRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Button("Retry", action: onRetry)
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
+                Button(action: onRetry) {
+                    Text("Retry")
+                        .font(.caption)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 1)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .strokeBorder(Color.secondary.opacity(0.55), lineWidth: 1)
+                        }
+                }
+                .buttonStyle(.plain)
             }
         } else if let preview = highlight.answerPreview {
             Text(preview)

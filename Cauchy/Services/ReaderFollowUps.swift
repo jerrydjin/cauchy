@@ -300,7 +300,7 @@ enum ReaderFollowUps {
     }
 
     private static let chipLabelPattern = try! NSRegularExpression(
-        pattern: #"(?i)\b(theorems?|thm|propositions?|prop|lemmas?|lem|sections?|sec|equations?|eq)\.?\s+\(?([0-9]+(?:\.[0-9]+)*|[A-Z](?:\.[0-9]+)+)(?![0-9.])"#
+        pattern: #"(?i)\b(theorems?|thm|propositions?|prop|lemmas?|lem|sections?|sec|equations?|eq)\.?\s+\(?([0-9]+(?:\.[0-9]+)*|[A-Z](?:\.[0-9]+)+)(?!\.[0-9]|[0-9])"#
     )
 
     private static let chipLabelAliases: [String: [String]] = [
@@ -339,7 +339,7 @@ enum ReaderFollowUps {
         let aliases = chipLabelAliases[label.kind] ?? [label.kind]
         let number = NSRegularExpression.escapedPattern(for: label.number)
         for alias in aliases {
-            let pattern = "(?i)\\b\(alias)\\.?\\s+\\(?\(number)(?![0-9.])"
+            let pattern = "(?i)\\b\(alias)\\.?\\s+\\(?\(number)(?!\\.[0-9]|[0-9])"
             if text.range(of: pattern, options: .regularExpression) != nil { return true }
         }
         return false

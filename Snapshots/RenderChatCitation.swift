@@ -2528,12 +2528,18 @@ private func renderJerry155(to output: URL) throws {
         ChatSnapshotChrome(
             caption: "A chip only when the answer names the proposition",
             width: 420,
-            content: MessageBubble(
-                message: ThreadMessage(role: .assistant, content: groundedAnswer),
-                maxBubbleWidth: 340,
-                followUps: grounded,
-                followUpsStartVisible: true
-            )
+            content: VStack(alignment: .leading, spacing: 16) {
+                MessageBubble(
+                    message: ThreadMessage(role: .user, content: "Why is the image connected?"),
+                    maxBubbleWidth: 340
+                )
+                MessageBubble(
+                    message: ThreadMessage(role: .assistant, content: groundedAnswer),
+                    maxBubbleWidth: 340,
+                    followUps: grounded,
+                    followUpsStartVisible: true
+                )
+            }
         ),
         to: output.appendingPathComponent("jerry-155-follow-ups-after.png"),
         minimumBytes: 2_000
@@ -2542,12 +2548,18 @@ private func renderJerry155(to output: URL) throws {
         ChatSnapshotChrome(
             caption: "Taylor coefficients · the answer names no statement, so no chip",
             width: 420,
-            content: MessageBubble(
-                message: taylor,
-                maxBubbleWidth: 340,
-                followUps: taylorChips,
-                followUpsStartVisible: true
-            )
+            content: VStack(alignment: .leading, spacing: 16) {
+                MessageBubble(
+                    message: ThreadMessage(role: .user, content: "slightly lost how we concluded this"),
+                    maxBubbleWidth: 340
+                )
+                MessageBubble(
+                    message: taylor,
+                    maxBubbleWidth: 340,
+                    followUps: taylorChips,
+                    followUpsStartVisible: true
+                )
+            }
         ),
         to: output.appendingPathComponent("jerry-155-follow-ups-taylor.png"),
         minimumBytes: 2_000

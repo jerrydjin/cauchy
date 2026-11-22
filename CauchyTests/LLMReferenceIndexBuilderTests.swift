@@ -2230,6 +2230,128 @@ final class PDFRegionRendererTests: XCTestCase {
         )
     }
 
+    /// The card already shows the title. The crop starts under that line, and
+    /// neither edge may cut a line box in half.
+    func testStatementCropDoesNotCutATextLine() throws {
+        let heading = CGRect(x: 72, y: 700, width: 400, height: 18)
+        let body1 = CGRect(x: 72, y: 678, width: 420, height: 18)
+        let body2 = CGRect(x: 72, y: 656, width: 380, height: 18)
+        let below = CGRect(x: 72, y: 620, width: 200, height: 18)
+        let lines = [heading, body1, body2, below]
+        let page = CGRect(x: 0, y: 0, width: 612, height: 792)
+        // The old pad reached up through the heading and down through body2.
+        let proposed = CGRect(x: 60, y: 660, width: 450, height: 55)
+
+        let underHeading = ReferenceEvidenceRegionResolver.statementCrop(
+            proposed: proposed,
+            lines: lines,
+            headingLine: heading,
+            pageBounds: page
+        )
+        assertWholeLines(underHeading, lines)
+        XCTAssertFalse(underHeading.intersects(heading), "heading line is still in the crop \(underHeading)")
+        XCTAssertTrue(underHeading.contains(body1))
+        XCTAssertTrue(underHeading.contains(body2))
+        XCTAssertFalse(underHeading.intersects(below))
+        XCTAssertLessThan(underHeading.maxY, heading.minY)
+
+        let snapped = ReferenceEvidenceRegionResolver.statementCrop(
+            proposed: proposed,
+            lines: lines,
+            headingLine: nil,
+            pageBounds: page
+        )
+        assertWholeLines(snapped, lines)
+        XCTAssertTrue(snapped.contains(heading))
+        XCTAssertTrue(snapped.contains(body2))
+        XCTAssertFalse(snapped.intersects(below))
+    }
+
+    func testRenderedStatementCropStartsBelowTheHeading() throws {
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let page = try Self.theoremPage(pageRect)
+        let text = try XCTUnwrap(page.string) as NSString
+        let headingRange = text.range(of: "Theorem 3.5.21")
+        let bodyRange = text.range(of: "Suppose")
+        XCTAssertNotEqual(headingRange.location, NSNotFound)
+        XCTAssertNotEqual(bodyRange.location, NSNotFound)
+        let evidence = ReferenceEvidence(
+            status: .supported,
+            sourceExcerpt: text.substring(from: bodyRange.location),
+            matchedText: text.substring(with: headingRange),
+            occurrenceCount: 1,
+            startOffset: bodyRange.location,
+            endOffset: text.length,
+            matchStartOffset: headingRange.location,
+            matchEndOffset: NSMaxRange(headingRange)
+        )
+        let band = try XCTUnwrap(ReferenceEvidenceRegionResolver.statementBand(for: evidence, on: page))
+        let crop = band.cgRect(in: pageRect)
+        let lines = ReferenceEvidenceRegionResolver.textLineBoxes(on: page)
+        XCTAssertGreaterThan(lines.count, 1, "the text layer should expose more than one line")
+        assertWholeLines(crop, lines)
+
+        guard let headingBox = lines.max(by: { $0.maxY < $1.maxY }),
+              let bodyBox = lines.filter({ $0.maxY < headingBox.minY }).max(by: { $0.maxY < $1.maxY }) else {
+            return XCTFail("missing heading or body line")
+        }
+        XCTAssertFalse(
+            crop.intersection(headingBox).height > 0.5,
+            "crop \(crop) still meets the heading line \(headingBox)"
+        )
+        XCTAssertTrue(
+            crop.insetBy(dx: -0.4, dy: -0.4).contains(bodyBox),
+            "body line \(bodyBox) is not inside \(crop)"
+        )
+    }
+
+    private func assertWholeLines(_ crop: CGRect, _ lines: [CGRect], file: StaticString = #filePath, line: UInt = #line) {
+        for box in lines {
+            let hit = crop.intersection(box)
+            let misses = hit.isNull || hit.isEmpty || hit.width < 0.4 || hit.height < 0.4
+            if misses { continue }
+            XCTAssertTrue(
+                crop.insetBy(dx: -0.4, dy: -0.4).contains(box),
+                "crop \(crop) cuts line \(box)",
+                file: file,
+                line: line
+            )
+        }
+    }
+
+    private static func theoremPage(_ pageRect: CGRect) throws -> PDFPage {
+        let data = NSMutableData()
+        var media = pageRect
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &media, nil) else {
+            throw XCTSkip("could not open a PDF context")
+        }
+        context.beginPDFPage(nil)
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(pageRect)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let font = NSFont(name: "Times-Roman", size: 16) ?? NSFont.systemFont(ofSize: 16)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ]
+        let drawn = [
+            "Theorem 3.5.21 (Riemann's removable singularity theorem)",
+            "Suppose that U is an open subset of C and z0 is outside U,",
+            "and f is holomorphic. Then z0 is a removable singularity of f.",
+        ]
+        var baseline = pageRect.height - 96
+        for line in drawn {
+            NSString(string: line).draw(at: NSPoint(x: 72, y: baseline), withAttributes: attributes)
+            baseline -= 22
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        context.endPDFPage()
+        context.closePDF()
+        return try XCTUnwrap(PDFDocument(data: data as Data)?.page(at: 0))
+    }
+
     private static func page(_ pageRect: CGRect, first: String, last: String) throws -> PDFPage {
         let data = NSMutableData()
         var media = pageRect

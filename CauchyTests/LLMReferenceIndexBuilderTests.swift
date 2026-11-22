@@ -65,6 +65,30 @@ final class LLMReferenceIndexResponseParserTests: XCTestCase {
         XCTAssertEqual(parsed.references[0].number, "4.2")
         XCTAssertEqual(parsed.references[0].formattedBody, "A result with {braces}.")
     }
+
+    /// The model writes one backslash. The parser doubles a known command
+    /// before `JSONDecoder`, and leaves a paragraph `\n` as a newline.
+    func testModelJSONKeepsLaTeXCommandsAndParagraphBreaks() throws {
+        let raw = #"{"references":[{"kind":"theorem","number":"3.5.21","formatted_body":"$z_0 \notin U$, $f : U \backslash \{z_0\} \rightarrow \mathbb{C}$, $\neq$, $\to$, $\frac{1}{2}$\nMoreover, $z_0$ is removable."}]}"#
+        let parsed = try LLMReferenceIndexResponseParser.parse(raw)
+        let body = parsed.references[0].formattedBody
+        XCTAssertTrue(body.contains("\\notin"), body)
+        XCTAssertTrue(body.contains("\\backslash"), body)
+        XCTAssertTrue(body.contains("\\{"), body)
+        XCTAssertTrue(body.contains("\\rightarrow"), body)
+        XCTAssertTrue(body.contains("\\mathbb"), body)
+        XCTAssertTrue(body.contains("\\neq"), body)
+        XCTAssertTrue(body.contains("\\to"), body)
+        XCTAssertTrue(body.contains("\\frac"), body)
+        XCTAssertTrue(body.contains("\nMoreover"), body)
+        XCTAssertFalse(body.contains("\u{8}"), body)
+        XCTAssertFalse(body.contains("\u{c}"), body)
+        XCTAssertFalse(body.contains("\t"), body)
+
+        let alreadyEscaped = #"{"references":[{"kind":"lemma","number":"1","formatted_body":"$\\gamma$ and $\\to$"}]}"#
+        let kept = try LLMReferenceIndexResponseParser.parse(alreadyEscaped)
+        XCTAssertEqual(kept.references[0].formattedBody, "$\\gamma$ and $\\to$")
+    }
 }
 
 final class ReferenceIndexCacheStoreTests: XCTestCase {
@@ -2054,9 +2078,12 @@ final class ReferencePreviewPresentationTests: XCTestCase {
         assertCommandsIntact(literal)
 
         let eaten = ReferencePreviewPresentation.riemannEatenBody
-            + " Take $a " + "\n" + "eq 0$ and $t" + "\t" + "o 1$."
+            + " Take $a " + "\n" + "eq 0$."
         let restored = ReferencePreviewPresentation.statementText(from: eaten)
-        assertCommandsIntact(restored)
+        XCTAssertTrue(restored.contains("\\notin"), restored)
+        XCTAssertTrue(restored.contains("\\backslash"), restored)
+        XCTAssertTrue(restored.contains("\\rightarrow"), restored)
+        XCTAssertTrue(restored.contains("\\neq"), restored)
         XCTAssertFalse(restored.contains("\u{8}"))
         XCTAssertFalse(restored.contains("\u{c}"))
         XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(restored))
@@ -2088,6 +2115,39 @@ final class ReferencePreviewPresentationTests: XCTestCase {
             if case .text(let value) = segment { return value.contains("for any") }
             return false
         })
+    }
+
+    /// A newline before prose, and a tab before a word, stay whitespace.
+    /// A one-letter remainder such as a tab before "o" is not rewritten as `\to`.
+    func testRealNewlineAndTabAreNotTurnedIntoCommands() {
+        let paragraph = "Let $a$ hold.\nMoreover, the path is closed.\tThen $b$ holds."
+        let text = ReferencePreviewPresentation.statementText(from: paragraph)
+        XCTAssertTrue(text.contains("\nMoreover"), text)
+        XCTAssertTrue(text.contains("\tThen"), text)
+        XCTAssertFalse(text.contains("\\Moreover"), text)
+        XCTAssertFalse(text.contains("\\Then"), text)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(text), text)
+
+        let tabBeforeO = ReferencePreviewPresentation.statementText(from: "Take $t" + "\t" + "o 1$.")
+        XCTAssertTrue(tabBeforeO.contains("\t"), tabBeforeO)
+        XCTAssertFalse(tabBeforeO.contains("\\to"), tabBeforeO)
+    }
+
+    /// Not trustworthy: a control other than newline or tab, an unclosed `$`,
+    /// a space-free math run of 24 or more characters, an unknown letter
+    /// command, or unbalanced braces in a math span. The restored theorem
+    /// fails none of these and stays text. The mangled run still has a
+    /// backspace, so the card crops the page.
+    func testNotTrustworthyRuleKeepsCleanTextAndCropsTheBrokenStatement() {
+        let clean = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.riemannEatenBody)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(clean), clean)
+        XCTAssertTrue(clean.contains("\\notin"), clean)
+        XCTAssertTrue(clean.contains("suppose"), clean)
+
+        let broken = ReferencePreviewPresentation.statementText(
+            from: "Suppose that $z_0 " + "\u{8}" + "otin Uandsupposethatf:Uackslashz0ightarrowCisholomorphic.$"
+        )
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(broken), broken)
     }
 
     func testMangledStatementPrefersThePageCrop() {

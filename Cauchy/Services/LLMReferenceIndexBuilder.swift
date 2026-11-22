@@ -51,7 +51,12 @@ enum LLMReferenceIndexResponseParser {
 
         var lastError: Error?
         for candidate in candidates {
-            guard let data = candidate.data(using: .utf8) else { continue }
+            // Models write `\notin` with one backslash. JSONDecoder would
+            // treat that `\n` as a newline and store the damage. Double the
+            // backslash of a known command first, so the decoded body contains
+            // the command. A `\n` that is not a command stays a newline.
+            let protected = escapingLaTeXCommands(in: candidate)
+            guard let data = protected.data(using: .utf8) else { continue }
             do {
                 return try JSONDecoder().decode(LLMPageReferenceResponse.self, from: data)
             } catch {
@@ -114,6 +119,87 @@ enum LLMReferenceIndexResponseParser {
 
         var seen = Set<String>()
         return candidates.filter { seen.insert($0).inserted }
+    }
+
+    /// Inside JSON strings, a backslash that begins a known LaTeX command is
+    /// written as `\\command` so `JSONDecoder` keeps the command. `\\` that
+    /// is already escaped is left alone. `\nMoreover` is not a command, so
+    /// that `\n` stays the newline escape.
+    static func escapingLaTeXCommands(in json: String) -> String {
+        var output = ""
+        output.reserveCapacity(json.count + 16)
+        var index = json.startIndex
+        var inString = false
+        while index < json.endIndex {
+            let character = json[index]
+            if !inString {
+                output.append(character)
+                if character == "\"" { inString = true }
+                index = json.index(after: index)
+                continue
+            }
+            if character == "\"" {
+                output.append(character)
+                inString = false
+                index = json.index(after: index)
+                continue
+            }
+            if character != "\\" {
+                output.append(character)
+                index = json.index(after: index)
+                continue
+            }
+            let next = json.index(after: index)
+            guard next < json.endIndex else {
+                output.append(character)
+                break
+            }
+            let escaped = json[next]
+            if escaped == "\\" || escaped == "\"" || escaped == "/" {
+                output.append("\\")
+                output.append(escaped)
+                index = json.index(after: next)
+                continue
+            }
+            if escaped == "u", let unicodeEnd = unicodeEscapeEnd(in: json, from: next) {
+                output.append(contentsOf: json[index..<unicodeEnd])
+                index = unicodeEnd
+                continue
+            }
+            if escaped.isLetter {
+                var end = next
+                while end < json.endIndex, json[end].isLetter {
+                    end = json.index(after: end)
+                }
+                let name = String(json[next..<end])
+                if ReferencePreviewPresentation.knownMathCommands.contains(name) {
+                    output.append("\\\\")
+                    output.append(name)
+                    index = end
+                    continue
+                }
+                if "bfnrt".contains(escaped) {
+                    output.append("\\")
+                    output.append(escaped)
+                    index = json.index(after: next)
+                    continue
+                }
+            }
+            // `\{` and the other LaTeX characters JSON does not recognise.
+            output.append("\\\\")
+            output.append(escaped)
+            index = json.index(after: next)
+        }
+        return output
+    }
+
+    private static func unicodeEscapeEnd(in text: String, from u: String.Index) -> String.Index? {
+        var index = text.index(after: u)
+        for _ in 0..<4 {
+            guard index < text.endIndex, text[index].isHexDigit else { return nil }
+            index = text.index(after: index)
+        }
+        return index
     }
 }
 

@@ -254,10 +254,16 @@ enum ReferencePreviewPresentation {
         )
     }
 
-    /// The card shows a PDF crop when the reconstructed statement is not
-    /// something the reader can trust: a leftover control character, an
-    /// unclosed `$`, a math run with no spaces long enough to be prose, or a
-    /// command the renderer does not know.
+    /// A statement is not trustworthy, and the card crops the PDF region,
+    /// when the text that remains after restoration still has any of:
+    /// a control character other than a newline or a tab, an unclosed `$`,
+    /// a math span of 24 or more characters with neither a space nor a
+    /// command, a letter-command the renderer does not know, or unbalanced
+    /// braces inside a math span.
+    ///
+    /// A restored Riemann statement (`$z_0 \notin U$`) fails none of these
+    /// and stays text. A run such as `Uandsupposethatf` with a leftover
+    /// backspace fails and the card shows the page.
     static func prefersPageCrop(_ statement: String) -> Bool {
         if containsForbiddenControl(statement) { return true }
         if !mathDelimitersBalanced(statement) { return true }
@@ -321,25 +327,12 @@ enum ReferencePreviewPresentation {
         "herefore", "woheadleftarrow", "woheadrightarrow", "hicksim", "hickapprox",
     ]
 
-    /// What follows the JSON escape, not the backslash. `\backslash` → "ackslash".
-    private static let commandSuffixesAfterB: Set<String> = [
-        "ackslash", "ar", "eta", "f", "inom", "mod", "oldsymbol", "egin", "m",
-        "matrix", "ot", "reve", "ullet", "ig", "igg", "igl", "igr", "iggl", "iggr",
-        "igcap", "igcup", "igodot", "igoplus", "igotimes", "igsqcup", "iguplus",
-        "igvee", "igwedge",
-    ]
-
-    private static let commandSuffixesAfterR: Set<String> = [
-        "ho", "ightarrow", "ight", "angle", "floor", "ceil", "m", "group",
-        "brace", "vert", "Vert",
-    ]
-
-    private static let commandSuffixesAfterF: Set<String> = [
-        "rac", "orall", "rak", "lat",
-    ]
-
-    /// JSON controls that ate a LaTeX command, mapped back to the letter they
-    /// were. A newline followed by "Moreover" is not in the suffix set.
+    /// Controls `JSONDecoder` leaves when an old cache stored an eaten
+    /// command. A newline or a tab is included only so `\notin` and `\frac`
+    /// from that cache can come back. The letter run has to be at least two
+    /// characters and the whole name has to be a known command, so a real
+    /// newline before "Moreover" and a real tab before a short word stay
+    /// a newline and a tab.
     private static let eatenEscapeLetters: [Character: Character] = [
         "\n": "n",
         "\t": "t",
@@ -356,7 +349,9 @@ enum ReferencePreviewPresentation {
             let character = raw[index]
             if let letter = eatenEscapeLetters[character] {
                 let rest = raw.index(after: index)
-                if let name = letterRun(in: raw, from: rest), suffixes(after: letter).contains(name) {
+                if let name = letterRun(in: raw, from: rest),
+                   name.count >= 2,
+                   knownMathCommands.contains(String(letter) + name) {
                     output.append("\\")
                     output.append(letter)
                     output.append(name)
@@ -368,17 +363,6 @@ enum ReferencePreviewPresentation {
             index = raw.index(after: index)
         }
         return output
-    }
-
-    private static func suffixes(after letter: Character) -> Set<String> {
-        switch letter {
-        case "n": commandSuffixesAfterN
-        case "t": commandSuffixesAfterT
-        case "b": commandSuffixesAfterB
-        case "r": commandSuffixesAfterR
-        case "f": commandSuffixesAfterF
-        default: []
-        }
     }
 
     private static func letterRun(in text: String, from index: String.Index) -> String? {
@@ -670,7 +654,8 @@ enum ReferencePreviewPresentation {
     /// Commands SwiftMath typesets, plus the aliases and structural commands
     /// the card rewrites (`\label`, `\operatorname`, `\dfrac`, sizing).
     /// A name outside this set is not shown as source; the card crops the page.
-    private static let knownMathCommands: Set<String> = {
+    /// The JSON parser uses the same set to double a backslash before decode.
+    static let knownMathCommands: Set<String> = {
         let names = """
         AA AE Bmatrix CC Delta Downarrow Gamma Im Lambda Leftarrow Leftrightarrow
         Longleftarrow Longleftrightarrow Longrightarrow O OE Omega Phi Pi Pr Psi Re

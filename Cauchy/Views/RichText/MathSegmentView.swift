@@ -843,16 +843,38 @@ private struct MathLabelRepresentable: NSViewRepresentable {
 }
 
 /// A formula bitmap that stays at its natural size until the card is narrower,
-/// then scales down. It does not grow a short symbol to the card width.
+/// then scales down. Reporting the natural width (not the proposed line width)
+/// is what lets a short display stay centred in the card.
 private struct FittedMathImage: View {
     let image: NSImage
 
     var body: some View {
-        Image(nsImage: image)
-            .resizable()
-            .interpolation(.high)
-            .aspectRatio(contentMode: .fit)
-            .frame(maxWidth: max(image.size.width, 1))
+        FittedMathLayout(natural: image.size) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+        }
+    }
+}
+
+private struct FittedMathLayout: Layout {
+    let natural: CGSize
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let proposed = proposal.width ?? natural.width
+        let width = min(max(natural.width, 1), max(proposed, 1))
+        let scale = natural.width > 0 ? width / natural.width : 1
+        return CGSize(width: width, height: max(natural.height, 1) * scale)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let subview = subviews.first else { return }
+        subview.place(
+            at: CGPoint(x: bounds.midX, y: bounds.midY),
+            anchor: .center,
+            proposal: ProposedViewSize(width: bounds.width, height: bounds.height)
+        )
     }
 }
 

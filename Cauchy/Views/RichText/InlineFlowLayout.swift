@@ -169,11 +169,22 @@ struct InlineFlowLayout: Layout {
         // wrap is laid out at the left margin anyway, and measuring against the
         // remaining width made wrapped text re-flow at two different widths.
         let tokens = subviews.map { subview -> InlineFlowToken in
-            let dimensions = subview.dimensions(in: ProposedViewSize(width: maxWidth, height: nil))
+            let centersWhenAlone = subview[CentersWhenAloneKey.self]
+            let proposed = subview.dimensions(in: ProposedViewSize(width: maxWidth, height: nil))
+            // An equation proposed the whole line reports that width, so the
+            // centring shift is zero and the glyphs stay on the left. Its
+            // ideal width is the formula. Use that when it is narrower.
+            let dimensions: ViewDimensions
+            if centersWhenAlone {
+                let ideal = subview.dimensions(in: ProposedViewSize(width: nil, height: nil))
+                dimensions = ideal.width > 1 && ideal.width < proposed.width - 0.5 ? ideal : proposed
+            } else {
+                dimensions = proposed
+            }
             return InlineFlowToken(
                 size: CGSize(width: dimensions.width, height: dimensions.height),
                 baseline: dimensions[.firstTextBaseline],
-                centersWhenAlone: subview[CentersWhenAloneKey.self]
+                centersWhenAlone: centersWhenAlone
             )
         }
 

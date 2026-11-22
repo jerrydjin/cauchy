@@ -605,21 +605,28 @@ enum RenderReferencePreview {
         if let box = try paperBox(in: light), box.width > 80, box.height > 16 {
             throw SnapshotError("light crop still has a white rectangle \(box)")
         }
-        let lightDarkFill = try sampleCount(in: light, brightness: 0.15...0.35)
-        let lightCard = try sampleCount(in: light, brightness: 0.88...0.93)
-        guard lightDarkFill < 40 else {
-            throw SnapshotError("light card still uses the dark bubble (\(lightDarkFill) samples)")
+        let lightOnDarkBubble = try sampleCount(in: light, matching: darkBubble)
+        let lightOnLightBubble = try sampleCount(in: light, matching: lightBubble)
+        guard lightOnDarkBubble < 40 else {
+            throw SnapshotError("light card still uses the dark bubble (\(lightOnDarkBubble) samples)")
         }
-        guard lightCard > 80 else {
-            throw SnapshotError("light card fill did not follow the light appearance (\(lightCard) samples)")
+        guard lightOnLightBubble > 80 else {
+            throw SnapshotError("light card fill did not follow the light appearance (\(lightOnLightBubble) samples)")
         }
-        let darkCard = try sampleCount(in: dark, brightness: 0.18...0.32)
-        guard darkCard > 80 else {
-            throw SnapshotError("dark card fill is not the dark bubble (\(darkCard) samples)")
+        let darkOnDarkBubble = try sampleCount(in: dark, matching: darkBubble)
+        guard darkOnDarkBubble > 80 else {
+            throw SnapshotError("dark card fill is not the dark bubble (\(darkOnDarkBubble) samples)")
         }
     }
 
-    private static func sampleCount(in url: URL, brightness range: ClosedRange<Double>) throws -> Int {
+    /// `ContentSurface.bubble` and `bubbleLight`, as drawn.
+    private static let darkBubble = (red: 0.227, green: 0.227, blue: 0.235)
+    private static let lightBubble = (red: 233.0 / 255, green: 233.0 / 255, blue: 235.0 / 255)
+
+    private static func sampleCount(
+        in url: URL,
+        matching target: (red: Double, green: Double, blue: Double)
+    ) throws -> Int {
         guard let data = try? Data(contentsOf: url),
               let rep = NSBitmapImageRep(data: data) else {
             throw SnapshotError("could not read \(url.lastPathComponent)")
@@ -629,9 +636,11 @@ enum RenderReferencePreview {
         while y < rep.pixelsHigh {
             var x = 0
             while x < rep.pixelsWide {
-                if let color = rep.colorAt(x: x, y: y), color.alphaComponent > 0.9 {
-                    let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
-                    if range.contains(brightness) { count += 1 }
+                if let color = rep.colorAt(x: x, y: y), color.alphaComponent > 0.9,
+                   abs(Double(color.redComponent) - target.red) < 0.02,
+                   abs(Double(color.greenComponent) - target.green) < 0.02,
+                   abs(Double(color.blueComponent) - target.blue) < 0.02 {
+                    count += 1
                 }
                 x += 6
             }

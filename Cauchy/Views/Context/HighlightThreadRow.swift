@@ -1,6 +1,36 @@
 import AppKit
 import SwiftUI
 
+/// An open arc that turns. `ProgressView` is an AppKit control, and
+/// `ImageRenderer` paints a prohibited sign where it cannot draw one, so the
+/// thread list and the designer panels share this shape. At the default size
+/// it matches the caption preview beside it, in that line's secondary colour.
+struct ArcSpinner: View {
+    var diameter: CGFloat?
+
+    @ScaledMetric(relativeTo: .caption) private var captionDiameter: CGFloat = 10
+
+    private var side: CGFloat { diameter ?? captionDiameter }
+    private var lineWidth: CGFloat { max(1.25, side * 0.12) }
+
+    var body: some View {
+        TimelineView(TimelineSchedule.animation(minimumInterval: 1.0 / 30.0)) { context in
+            let period = 0.8
+            let turn = context.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: period) / period
+            Circle()
+                .trim(from: 0.12, to: 0.72)
+                .stroke(
+                    .secondary,
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .frame(width: side, height: side)
+                .rotationEffect(.degrees(turn * 360))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 /// One thread per row: its name, the latest answer (or a spinner while that
 /// answer is still arriving), and the page it lives on. Plain rows rather
 /// than cards — a list of twenty glass panes is both noisy and against Apple's
@@ -85,8 +115,7 @@ struct HighlightThreadRow: View {
     private var statusLine: some View {
         if isAnswering {
             HStack(spacing: 6) {
-                ProgressView()
-                    .controlSize(.small)
+                ArcSpinner()
                 Text("Answering…")
                     .font(.caption)
                     .foregroundStyle(.secondary)

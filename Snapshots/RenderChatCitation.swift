@@ -2638,7 +2638,7 @@ private struct Jerry155ManageCard: View {
 
             VStack(spacing: 10) {
                 if showsCheckingSheet {
-                    ProgressView()
+                    ArcSpinner(diameter: 32)
                     Text("Checking \(connector.name)…").font(.headline)
                     Text("Sending a tiny request with the model you picked. No document is shared.")
                         .font(.caption)

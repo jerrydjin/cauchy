@@ -1,5 +1,7 @@
 import AppKit
+import CoreText
 import Foundation
+import PDFKit
 import SwiftMath
 import SwiftUI
 
@@ -131,6 +133,7 @@ enum RenderReferencePreview {
         fputs("heading: \(model.heading)\n", stdout)
         fputs("statement:\n\(text)\n", stdout)
         try renderMathStatement(output: output)
+        try renderJerry156(output: output)
     }
 
     /// Inline `\gamma`, a `\frac` beside an existing `$…$`, bold-wrapped
@@ -254,6 +257,289 @@ enum RenderReferencePreview {
             minimumBytes: 4_000,
             minimumHeight: 280
         )
+    }
+
+    /// Theorem 3.5.21 and Corollary 3.3.2, before the statement pipeline
+    /// restores eaten commands, and after. The before cards are the broken
+    /// reading, clipped the way the panel was. The after cards go through
+    /// `statementText` and the real column.
+    @MainActor
+    private static func renderJerry156(output: URL) throws {
+        let theoremHeading = "Theorem 3.5.21 (Riemann's removable singularity theorem)"
+        let corollaryHeading = "Corollary 3.3.2"
+
+        let theorem = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.riemannEatenBody)
+        guard theorem.contains("\\notin"),
+              theorem.contains("\\backslash"),
+              theorem.contains("\\rightarrow"),
+              theorem.contains("suppose"),
+              !ReferencePreviewPresentation.prefersPageCrop(theorem) else {
+            throw SnapshotError("Riemann statement did not round-trip: \(theorem)")
+        }
+        try assertTypeset(theorem, label: "Theorem 3.5.21")
+
+        let corollary = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.corollaryEatenBody)
+        guard corollary.contains("\\frac"),
+              corollary.contains("\\oint"),
+              corollary.contains("^{(n)}"),
+              !corollary.contains("\u{c}"),
+              !ReferencePreviewPresentation.prefersPageCrop(corollary) else {
+            throw SnapshotError("Corollary statement did not round-trip: \(corollary)")
+        }
+        try assertTypeset(corollary, label: "Corollary 3.3.2")
+
+        var brokenTheorem = AttributedString("Suppose that U is an open subset of C and z0 ")
+        brokenTheorem.foregroundColor = .white
+        var eatenTail = AttributedString("otin Uandsupposethatf : Uackslashz0ightarrow Cisholomorphic.Thenz0isaremovablesingu…")
+        eatenTail.font = .body.italic()
+        eatenTail.foregroundColor = .white
+        var broken = brokenTheorem
+        broken.append(eatenTail)
+
+        try writeCard(
+            Jerry156BrokenCard(
+                heading: theoremHeading,
+                pageIndex: 86,
+                content: Text(broken).font(.body)
+            ),
+            caption: "Reference panel · Theorem 3.5.21 · before",
+            to: output.appendingPathComponent("jerry-156-before.png")
+        )
+        try writeCard(
+            ReferencePreviewStatementColumn(
+                heading: theoremHeading,
+                statement: theorem,
+                pageIndexes: [86],
+                onOpenPage: { _ in }
+            ),
+            caption: "Reference panel · Theorem 3.5.21",
+            to: output.appendingPathComponent("jerry-156-after.png")
+        )
+
+        try writeCard(
+            Jerry156BrokenCard(
+                heading: corollaryHeading,
+                pageIndex: 41,
+                content: Text("f(n)(z0) = n! 2πγ(z0, r) / … for any r < R, where the contour is the circle about z0")
+                    .font(.body)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .frame(width: 248, alignment: .leading)
+                    .clipped()
+            ),
+            caption: "Reference panel · Corollary 3.3.2 · before",
+            to: output.appendingPathComponent("jerry-156-corollary-before.png"),
+            minimumHeight: 240
+        )
+        try writeCard(
+            ReferencePreviewStatementColumn(
+                heading: corollaryHeading,
+                statement: corollary,
+                pageIndexes: [41],
+                onOpenPage: { _ in }
+            ),
+            caption: "Reference panel · Corollary 3.3.2",
+            to: output.appendingPathComponent("jerry-156-corollary-after.png")
+        )
+
+        let liouville = "A bounded entire function $f : \\mathbb{C} \\rightarrow \\mathbb{C}$ is constant."
+        let openMapping = "If $f$ is holomorphic and non-constant on an open set $U$, then $f(U)$ is open."
+        try assertTypeset(liouville, label: "Liouville")
+        try assertTypeset(openMapping, label: "open mapping")
+        try writeCard(
+            VStack(alignment: .leading, spacing: 16) {
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.1",
+                    statement: liouville,
+                    pageIndexes: [70],
+                    onOpenPage: { _ in }
+                )
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.2",
+                    statement: openMapping,
+                    pageIndexes: [72],
+                    onOpenPage: { _ in }
+                )
+            },
+            caption: "Reference panel · inline maths",
+            to: output.appendingPathComponent("jerry-156-inline-statements.png")
+        )
+
+        let tall = tallStatement()
+        guard ReferencePreviewMetrics.overflows(windowHeight: 700, contentHeight: 900) else {
+            throw SnapshotError("60% cap did not overflow a long statement")
+        }
+        try writeCard(
+            ReferencePreviewViewport(heightCap: 380, showsFade: true) {
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 6.2.4",
+                    statement: tall,
+                    pageIndexes: [110],
+                    onOpenPage: { _ in }
+                )
+            },
+            caption: "Reference panel · statement taller than 60%",
+            to: output.appendingPathComponent("jerry-156-tall-scroll.png"),
+            minimumHeight: 500
+        )
+
+        let wide = "$$\\sum_{n=1}^{\\infty}\\frac{(-1)^{n+1}}{n}\\int_{0}^{1}\\frac{x^{n}(1-x)^{n}}{1+x^{2}}\\,dx=\\frac{\\pi}{4}\\log 2-G$$"
+        guard let natural = MathMetrics.snapshotImage(latex: String(wide.dropFirst(2).dropLast(2)), mode: .display, fontSize: 17, textColor: .white),
+              natural.size.width > 280 else {
+            throw SnapshotError("wide equation is not wider than the card")
+        }
+        try assertTypeset(wide, label: "wide equation")
+        let wideURL = output.appendingPathComponent("jerry-156-wide-equation.png")
+        try writeCard(
+            ReferencePreviewStatementColumn(
+                heading: "Proposition 7.4",
+                statement: wide,
+                pageIndexes: [128],
+                onOpenPage: { _ in }
+            ),
+            caption: "Reference panel · display scaled to the card",
+            to: wideURL
+        )
+        try assertEquationStaysInsideCard(at: wideURL)
+
+        let crop = try statementCrop()
+        try writeCard(
+            ReferencePreviewFallbackColumn(
+                heading: theoremHeading,
+                image: crop,
+                pageIndexes: [86],
+                onOpenPage: { _ in }
+            ),
+            caption: "Reference panel · page crop",
+            to: output.appendingPathComponent("jerry-156-fallback-crop.png")
+        )
+    }
+
+    @MainActor
+    private static func writeCard<V: View>(
+        _ content: V,
+        caption: String,
+        to url: URL,
+        minimumHeight: Int = 280
+    ) throws {
+        let card = SnapshotChrome(caption: caption, dark: true, content: content)
+            .environment(\.rendersForSnapshot, true)
+        try writePNG(card, to: url, minimumBytes: 4_000, minimumHeight: minimumHeight)
+    }
+
+    private static func tallStatement() -> String {
+        let paragraph = "Suppose that $f$ is holomorphic on a domain $U$ and that $z_0 \\in U$. "
+            + "The value of $f$ on any small circle about $z_0$ determines $f(z_0)$, and the same circle determines every derivative. "
+            + "A zero of finite order is isolated, and a sequence of zeros accumulating in $U$ forces $f$ to vanish identically. "
+        return String(repeating: paragraph, count: 8)
+    }
+
+    /// The printed theorem, cropped by the same renderer the card uses when
+    /// the reconstructed text fails the sanity check.
+    @MainActor
+    private static func statementCrop() throws -> NSImage {
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let data = NSMutableData()
+        var media = pageRect
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &media, nil) else {
+            throw SnapshotError("could not open a PDF context")
+        }
+        context.beginPDFPage(nil)
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(pageRect)
+        // Core Text draws with y growing downward. Flip so the theorem sits
+        // upright in the upper part of the page.
+        context.saveGState()
+        context.translateBy(x: 0, y: pageRect.height)
+        context.scaleBy(x: 1, y: -1)
+        let printed = "Theorem 3.5.21 (Riemann's removable singularity theorem)\nSuppose that U is an open subset of ℂ and z₀ ∉ U, and suppose that f : U \\ {z₀} → ℂ is holomorphic. Then z₀ is a removable singularity of f."
+        let font = CTFontCreateWithName("Times-Roman" as CFString, 16, nil)
+        let attributed = NSAttributedString(string: printed, attributes: [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ])
+        let framesetter = CTFramesetterCreateWithAttributedString(attributed)
+        let textRect = CGRect(x: 72, y: 80, width: 468, height: 180)
+        let path = CGPath(rect: textRect, transform: nil)
+        let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
+        CTFrameDraw(frame, context)
+        context.restoreGState()
+        context.endPDFPage()
+        context.closePDF()
+
+        guard let page = PDFDocument(data: data as Data)?.page(at: 0) else {
+            throw SnapshotError("synthetic theorem page did not open")
+        }
+        let fallbackBand = NormalizedRect(x: 0.08, y: 0.62, width: 0.84, height: 0.28)
+        let band: NormalizedRect
+        let pageText = page.string ?? ""
+        let ns = pageText as NSString
+        let suppose = ns.range(of: "Suppose")
+        if suppose.location != NSNotFound {
+            let excerpt = ns.substring(with: NSRange(location: suppose.location, length: ns.length - suppose.location))
+            let label = ns.range(of: "Theorem 3.5.21")
+            let evidence = ReferenceEvidence(
+                status: .supported,
+                sourceExcerpt: excerpt,
+                matchedText: label.location == NSNotFound ? excerpt : ns.substring(with: label),
+                occurrenceCount: 1,
+                startOffset: suppose.location,
+                endOffset: ns.length,
+                matchStartOffset: label.location == NSNotFound ? nil : label.location,
+                matchEndOffset: label.location == NSNotFound ? nil : NSMaxRange(label)
+            )
+            band = ReferenceEvidenceRegionResolver.statementBand(for: evidence, on: page) ?? fallbackBand
+        } else {
+            band = fallbackBand
+        }
+        guard let rendered = PDFRegionRenderer.render(page: page, bounds: band, scale: 3) else {
+            throw SnapshotError("statement crop rendered nothing")
+        }
+        let image = NSImage(
+            cgImage: rendered,
+            size: NSSize(width: CGFloat(rendered.width) / 3, height: CGFloat(rendered.height) / 3)
+        )
+        let ink = try inkCount(in: image)
+        guard ink > 10 else {
+            throw SnapshotError("statement crop is blank (\(ink) ink)")
+        }
+        return image
+    }
+
+    /// A display that is wider than the card must shrink. Ink past the card's
+    /// right edge means it was clipped instead.
+    @MainActor
+    private static func assertEquationStaysInsideCard(at url: URL) throws {
+        guard let data = try? Data(contentsOf: url),
+              let rep = NSBitmapImageRep(data: data),
+              let pixels = rep.bitmapData else {
+            throw SnapshotError("wide equation PNG did not open")
+        }
+        let bytesPerPixel = max(rep.bitsPerPixel / 8, 1)
+        guard bytesPerPixel >= 3 else { return }
+        // Chrome is 436pt with 28pt padding. The card is 320pt, so its right
+        // edge is at 348pt. Scale 2 puts that edge at pixel 696.
+        let edge = 710
+        guard rep.pixelsWide > edge + 40 else { return }
+        var ink = 0
+        var y = rep.pixelsHigh / 3
+        while y < rep.pixelsHigh * 2 / 3 {
+            var x = edge
+            while x < rep.pixelsWide - 8 {
+                let offset = y * rep.bytesPerRow + x * bytesPerPixel
+                let r = Int(pixels[offset])
+                let g = Int(pixels[offset + 1])
+                let b = Int(pixels[offset + 2])
+                // Light glyphs on the dark chrome. The chrome itself is near black.
+                if (r + g + b) / 3 > 140 { ink += 1 }
+                x += 4
+            }
+            y += 4
+        }
+        guard ink < 8 else {
+            throw SnapshotError("wide equation draws past the card (\(ink) samples)")
+        }
     }
 
     /// Visible `Text` runs must not contain raw TeX, and every math run must
@@ -518,6 +804,23 @@ enum RenderReferencePreview {
             y += step
         }
         return ink
+    }
+}
+
+private struct Jerry156BrokenCard<Content: View>: View {
+    let heading: String
+    let pageIndex: Int
+    var content: Content
+
+    var body: some View {
+        ReferencePreviewBlockChrome.padded(
+            VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
+                ReferencePreviewHeading(text: heading)
+                content
+                ReferenceSourcePills(pageIndexes: [pageIndex], onOpen: { _ in })
+            }
+        )
+        .frame(maxWidth: ReferencePreviewMetrics.cardWidth, alignment: .leading)
     }
 }
 

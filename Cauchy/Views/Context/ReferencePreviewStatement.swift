@@ -1,4 +1,22 @@
+import AppKit
 import SwiftUI
+
+/// The statement card. 320pt wide. It grows with the statement until it
+/// reaches 60% of the window, then the statement scrolls inside the card.
+enum ReferencePreviewMetrics {
+    static let cardWidth: CGFloat = 320
+    static let maxHeightFraction: CGFloat = 0.60
+
+    static func cappedHeight(windowHeight: CGFloat, contentHeight: CGFloat) -> CGFloat {
+        guard windowHeight > 0, contentHeight > 0 else { return max(contentHeight, 0) }
+        return min(contentHeight, windowHeight * maxHeightFraction)
+    }
+
+    static func overflows(windowHeight: CGFloat, contentHeight: CGFloat) -> Bool {
+        guard windowHeight > 0 else { return false }
+        return contentHeight > windowHeight * maxHeightFraction + 0.5
+    }
+}
 
 /// The reference card uses the answer bubble's fill, corner radius, and
 /// padding. The statement column and a figure block both go through this,
@@ -48,6 +66,110 @@ struct ReferencePreviewStatementColumn: View {
                 }
             }
         )
+        .frame(maxWidth: ReferencePreviewMetrics.cardWidth, alignment: .leading)
+        .environment(\.fitsMathToContainer, true)
+    }
+}
+
+/// The same heading and page pill as the statement, with the PDF region in
+/// place of text that did not survive reconstruction.
+struct ReferencePreviewFallbackColumn: View {
+    let heading: String
+    var image: NSImage?
+    var isLoading = false
+    var pageIndexes: [Int] = []
+    var onOpenPage: (Int) -> Void = { _ in }
+
+    var body: some View {
+        ReferencePreviewBlockChrome.padded(
+            VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
+                ReferencePreviewHeading(text: heading)
+                if let image {
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityLabel("Statement region from the PDF page")
+                } else if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 140)
+                        .accessibilityLabel("Loading statement from the page")
+                } else {
+                    Text("This statement could not be typeset. Open the page to read it.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if !pageIndexes.isEmpty {
+                    ReferenceSourcePills(pageIndexes: pageIndexes, onOpen: onOpenPage)
+                }
+            }
+        )
+        .frame(maxWidth: ReferencePreviewMetrics.cardWidth, alignment: .leading)
+    }
+}
+
+/// Grows with the statement up to 60% of the window, then scrolls. The
+/// snapshot path cannot use a ScrollView (ImageRenderer skips it), so it
+/// clips to `heightCap` and draws the same bottom fade.
+struct ReferencePreviewViewport<Content: View>: View {
+    var heightCap: CGFloat? = nil
+    var showsFade = false
+    @ViewBuilder var content: () -> Content
+
+    @State private var contentHeight: CGFloat = 0
+    @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+
+    var body: some View {
+        if rendersForSnapshot, let heightCap {
+            content()
+                .frame(maxWidth: .infinity, maxHeight: heightCap, alignment: .top)
+                .clipped()
+                .overlay(alignment: .bottom) {
+                    if showsFade { fade }
+                }
+        } else {
+            GeometryReader { proxy in
+                let cap = max(1, proxy.size.height * ReferencePreviewMetrics.maxHeightFraction)
+                let height = contentHeight > 0 ? min(contentHeight, cap) : nil
+                ScrollView {
+                    content()
+                        .background {
+                            GeometryReader { inner in
+                                Color.clear.preference(
+                                    key: ReferencePreviewHeightKey.self,
+                                    value: inner.size.height
+                                )
+                            }
+                        }
+                }
+                .scrollIndicators(.hidden)
+                .frame(height: height, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .overlay(alignment: .bottom) {
+                    if contentHeight > cap + 1 { fade.frame(width: ReferencePreviewMetrics.cardWidth) }
+                }
+            }
+            .onPreferenceChange(ReferencePreviewHeightKey.self) { contentHeight = $0 }
+        }
+    }
+
+    private var fade: some View {
+        LinearGradient(
+            colors: [ContentSurface.bubble.opacity(0), ContentSurface.bubble],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 40)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct ReferencePreviewHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
@@ -510,6 +632,7 @@ struct ReferenceHoverLabel: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .frame(width: width, alignment: .leading)
+            .environment(\.fitsMathToContainer, true)
     }
 }
 

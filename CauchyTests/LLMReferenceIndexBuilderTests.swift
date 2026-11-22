@@ -2043,6 +2043,95 @@ final class ReferencePreviewPresentationTests: XCTestCase {
         XCTAssertEqual(ReferenceCardMath.typeset(raw), raw)
         XCTAssertEqual(ReferenceCardMath.typeset(ReferenceCardMath.typeset(raw)), raw)
     }
+
+    /// `\notin`, `\backslash`, `\rightarrow`, `\neq` and `\to` survive both a
+    /// correct JSON string and the controls `JSONDecoder` leaves behind.
+    func testLaTeXCommandsRoundTripThroughTheStatementPipeline() throws {
+        let encoded = #"{"body":"$z_0 \\notin U$, $f : U \\backslash \\{z_0\\} \\rightarrow \\mathbb{C}$, $\\neq$, $\\to$"}"#
+        struct Box: Decodable { let body: String }
+        let decoded = try JSONDecoder().decode(Box.self, from: Data(encoded.utf8))
+        let literal = ReferencePreviewPresentation.statementText(from: decoded.body)
+        assertCommandsIntact(literal)
+
+        let eaten = ReferencePreviewPresentation.riemannEatenBody
+            + " Take $a " + "\n" + "eq 0$ and $t" + "\t" + "o 1$."
+        let restored = ReferencePreviewPresentation.statementText(from: eaten)
+        assertCommandsIntact(restored)
+        XCTAssertFalse(restored.contains("\u{8}"))
+        XCTAssertFalse(restored.contains("\u{c}"))
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(restored))
+
+        let segments = MessageContentParser.parse(restored)
+        let prose = segments.compactMap { segment -> String? in
+            if case .text(let value) = segment { return value }
+            return nil
+        }.joined(separator: " ")
+        XCTAssertTrue(prose.contains("suppose"), prose)
+        XCTAssertTrue(prose.contains("holomorphic"), prose)
+        let math = segments.compactMap { segment -> String? in
+            switch segment {
+            case .inlineMath(let latex), .displayMath(let latex): return latex
+            default: return nil
+            }
+        }
+        XCTAssertTrue(math.contains { $0.contains("\\notin") })
+        XCTAssertTrue(math.contains { $0.contains("\\backslash") && $0.contains("\\rightarrow") })
+        XCTAssertFalse(math.contains { $0.contains("suppose") || $0.contains("holomorphic") })
+
+        let corollary = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.corollaryEatenBody)
+        XCTAssertTrue(corollary.contains("\\frac"))
+        XCTAssertTrue(corollary.contains("\\oint"))
+        XCTAssertTrue(corollary.contains("^{(n)}"))
+        XCTAssertFalse(corollary.contains("\u{c}"))
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(corollary))
+        XCTAssertTrue(MessageContentParser.parse(corollary).contains { segment in
+            if case .text(let value) = segment { return value.contains("for any") }
+            return false
+        })
+    }
+
+    func testMangledStatementPrefersThePageCrop() {
+        let mangled = "Suppose that $z_0 " + "\u{8}" + "otin Uandsupposethatf:Uackslashz0ightarrowCisholomorphic.Thenz0isaremovablesingularity$"
+        let text = ReferencePreviewPresentation.statementText(from: mangled)
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(text))
+
+        let unknown = ReferencePreviewPresentation.statementText(from: "Let $f$ satisfy $\\notarealcommand{x}=1$.")
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unknown))
+
+        let unbalanced = ReferencePreviewPresentation.statementText(from: "Let $f(z) = z^2 + 1 be entire.")
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unbalanced))
+
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop("A continuous function on a compact set is bounded."))
+    }
+
+    func testExistingStatementFixturesStayText() {
+        let proposition = "Let $\\gamma\\colon [0,1] \\to \\mathbb{C}\\setminus\\{0\\}$ be a path. Then there is a continuous function $a\\colon [0,1] \\to \\mathbb{R}$ such that $\\gamma(t) = |\\gamma(t)|e^{2\\pi i a(t)}\\nMoreover, if $a$ and $b$ are two such functions, then there exists $n \\in \\mathbb{Z}$ such that $a(t) = b(t) + n$."
+        let propositionText = ReferencePreviewPresentation.statementText(from: proposition)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(propositionText), propositionText)
+
+        let lemma = "Let \\gamma be a closed curve where $n$ satisfies \\frac{1}{2\\pi i}.\\n\\begin{align}\\n\\label{eq:sample}\\n\\int_{\\gamma} \\frac{dz}{z} &= 2\\pi i\\n\\end{align}\\nMoreover **$\\frac{1}{2}$** is the residue."
+        let lemmaText = ReferencePreviewPresentation.statementText(from: lemma)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(lemmaText), lemmaText)
+        XCTAssertTrue(lemmaText.contains("\\begin{align}"))
+        XCTAssertTrue(lemmaText.contains("Moreover"))
+    }
+
+    func testCardGrowsUntilSixtyPercentOfTheWindow() {
+        XCTAssertEqual(ReferencePreviewMetrics.cardWidth, 320)
+        XCTAssertEqual(ReferencePreviewMetrics.cappedHeight(windowHeight: 800, contentHeight: 200), 200)
+        XCTAssertEqual(ReferencePreviewMetrics.cappedHeight(windowHeight: 800, contentHeight: 900), 480)
+        XCTAssertFalse(ReferencePreviewMetrics.overflows(windowHeight: 800, contentHeight: 200))
+        XCTAssertTrue(ReferencePreviewMetrics.overflows(windowHeight: 800, contentHeight: 900))
+    }
+
+    private func assertCommandsIntact(_ text: String) {
+        XCTAssertTrue(text.contains("\\notin"), text)
+        XCTAssertTrue(text.contains("\\backslash"), text)
+        XCTAssertTrue(text.contains("\\rightarrow"), text)
+        XCTAssertTrue(text.contains("\\neq"), text)
+        XCTAssertTrue(text.contains("\\to"), text)
+        XCTAssertFalse(text.contains("\u{8}"), text)
+    }
 }
 
 private struct AnchoredPassageIndexStub: DocumentIndexProtocol {

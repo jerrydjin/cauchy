@@ -166,6 +166,34 @@ enum ReferenceEvidenceRegionResolver {
         return NormalizedRect.from(cgRect: rect, pageBounds: pageBounds)
     }
 
+    /// The statement body, not just the heading. The excerpt range is the
+    /// printed statement; the label region is the fallback when the excerpt
+    /// cannot be resolved. A little padding keeps the crop off the glyphs.
+    static func statementBand(for evidence: ReferenceEvidence, on page: PDFPage) -> NormalizedRect? {
+        if evidence.startOffset >= 0,
+           evidence.endOffset > evidence.startOffset,
+           let excerpt = exactRegion(
+               matchedText: evidence.sourceExcerpt,
+               startOffset: evidence.startOffset,
+               endOffset: evidence.endOffset,
+               on: page
+           ) {
+            return paddedBand(excerpt)
+        }
+        guard let label = exactRegion(for: evidence, on: page) else { return nil }
+        return contextRegion(for: label)
+    }
+
+    private static func paddedBand(_ rect: NormalizedRect) -> NormalizedRect {
+        let padX: CGFloat = 0.03
+        let padY: CGFloat = 0.015
+        let x = max(0, rect.x - padX)
+        let y = max(0, rect.y - padY)
+        let width = min(1 - x, rect.width + padX * 2)
+        let height = min(1 - y, max(rect.height + padY * 2, 0.08))
+        return NormalizedRect(x: x, y: y, width: width, height: height)
+    }
+
     /// Give the exact label enough surrounding page to inspect the statement
     /// and printed notation without losing the visual anchor.
     static func contextRegion(for exact: NormalizedRect) -> NormalizedRect {

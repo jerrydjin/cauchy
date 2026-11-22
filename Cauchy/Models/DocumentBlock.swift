@@ -231,18 +231,67 @@ enum ReferencePreviewPresentation {
     ///
     /// On-device extraction writes JSON escapes into the string field itself:
     /// the two characters `\` and `n` where a paragraph break belongs, and
-    /// sometimes `\"` or a backtick. `MessageContentView` then treats `$…$`
-    /// as math across that break, SwiftMath rejects the prose, and the
-    /// fallback draws the rest of the sentence in monospace — which is how
-    /// `\pi` shows up as source. LaTeX commands that share the first letter
-    /// (`\nu`, `\to`, `\tau`) stay commands.
+    /// sometimes `\"` or a backtick. `JSONDecoder` goes further: `\n`, `\b`,
+    /// `\r`, `\t` and `\f` are real controls, so `\notin` arrives as a newline
+    /// plus `otin`, `\backslash` as a backspace plus `ackslash`, and
+    /// `\rightarrow` as a carriage return plus `ightarrow`. A newline inside
+    /// `$…$` also closes the span early, and the leftover `$` swallows the
+    /// following prose into one math run (italic, spaces dropped).
+    ///
+    /// Commands are put back before any newline is treated as a paragraph
+    /// break. A paragraph `\nMoreover` is still a break: "Moreover" is not a
+    /// command suffix.
     static func statementText(from raw: String) -> String {
-        collapseExtraBreaks(
+        var text = raw.replacingOccurrences(of: "\r\n", with: "\n")
+        text = restoreEatenJSONCommands(text)
+        // A carriage return that was not `\r` of a LaTeX command is a line
+        // ending. One that was `\rightarrow` is already a command again.
+        text = text.replacingOccurrences(of: "\r", with: "\n")
+        return collapseExtraBreaks(
             terminatingMathBeforeProse(
-                stripBackticks(unescapeJSONEscapes(raw))
+                stripBackticks(unescapeJSONEscapes(text))
             )
         )
     }
+
+    /// The card shows a PDF crop when the reconstructed statement is not
+    /// something the reader can trust: a leftover control character, an
+    /// unclosed `$`, a math run with no spaces long enough to be prose, or a
+    /// command the renderer does not know.
+    static func prefersPageCrop(_ statement: String) -> Bool {
+        if containsForbiddenControl(statement) { return true }
+        if !mathDelimitersBalanced(statement) { return true }
+        let segments = MessageContentParser.parse(statement)
+        for segment in segments {
+            let latex: String
+            switch segment {
+            case .inlineMath(let value), .displayMath(let value):
+                latex = value
+            case .text, .bold, .italic, .code:
+                continue
+            }
+            if hasLongSpaceFreeRun(latex) || hasUnknownCommand(latex) || !bracesBalanced(latex) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Theorem 3.5.21 after `JSONDecoder` has eaten `\n`, `\b` and `\r`.
+    /// The printed statement is Riemann's removable singularity theorem.
+    static let riemannEatenBody: String =
+        "Suppose that $U$ is an open subset of $\\mathbb{C}$ and $z_0 "
+        + "\n" + "otin U$, and suppose that $f : U "
+        + "\u{8}" + "ackslash \\{z_0\\} "
+        + "\r" + "ightarrow \\mathbb{C}$ is holomorphic. Then $z_0$ is a removable singularity of $f$."
+
+    /// Corollary 3.3.2 after `JSONDecoder` has eaten `\f` in `\frac`.
+    /// The contour integral is the other fraction, which has to stay in the formula.
+    static let corollaryEatenBody: String =
+        "If $f$ is holomorphic in $|z-z_0|<R$, then "
+        + "$$f^{(n)}(z_0)="
+        + "\u{c}" + "rac{n!}{2\\pi i}\\oint_{\\gamma(z_0,r)}\\frac{f(z)}{(z-z_0)^{n+1}}\\,dz$$ "
+        + "for any $r<R$, where $\\gamma(z_0,r)$ is the circle of radius $r$ about $z_0$."
 
     private static func cleaned(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -271,6 +320,76 @@ enum ReferencePreviewPresentation {
         "extnormal", "extstyle", "extmd", "extsc", "frac", "ilde", "an", "anh",
         "herefore", "woheadleftarrow", "woheadrightarrow", "hicksim", "hickapprox",
     ]
+
+    /// What follows the JSON escape, not the backslash. `\backslash` → "ackslash".
+    private static let commandSuffixesAfterB: Set<String> = [
+        "ackslash", "ar", "eta", "f", "inom", "mod", "oldsymbol", "egin", "m",
+        "matrix", "ot", "reve", "ullet", "ig", "igg", "igl", "igr", "iggl", "iggr",
+        "igcap", "igcup", "igodot", "igoplus", "igotimes", "igsqcup", "iguplus",
+        "igvee", "igwedge",
+    ]
+
+    private static let commandSuffixesAfterR: Set<String> = [
+        "ho", "ightarrow", "ight", "angle", "floor", "ceil", "m", "group",
+        "brace", "vert", "Vert",
+    ]
+
+    private static let commandSuffixesAfterF: Set<String> = [
+        "rac", "orall", "rak", "lat",
+    ]
+
+    /// JSON controls that ate a LaTeX command, mapped back to the letter they
+    /// were. A newline followed by "Moreover" is not in the suffix set.
+    private static let eatenEscapeLetters: [Character: Character] = [
+        "\n": "n",
+        "\t": "t",
+        "\u{8}": "b",
+        "\r": "r",
+        "\u{c}": "f",
+    ]
+
+    private static func restoreEatenJSONCommands(_ raw: String) -> String {
+        var output = ""
+        output.reserveCapacity(raw.count)
+        var index = raw.startIndex
+        while index < raw.endIndex {
+            let character = raw[index]
+            if let letter = eatenEscapeLetters[character] {
+                let rest = raw.index(after: index)
+                if let name = letterRun(in: raw, from: rest), suffixes(after: letter).contains(name) {
+                    output.append("\\")
+                    output.append(letter)
+                    output.append(name)
+                    index = raw.index(rest, offsetBy: name.count)
+                    continue
+                }
+            }
+            output.append(character)
+            index = raw.index(after: index)
+        }
+        return output
+    }
+
+    private static func suffixes(after letter: Character) -> Set<String> {
+        switch letter {
+        case "n": commandSuffixesAfterN
+        case "t": commandSuffixesAfterT
+        case "b": commandSuffixesAfterB
+        case "r": commandSuffixesAfterR
+        case "f": commandSuffixesAfterF
+        default: []
+        }
+    }
+
+    private static func letterRun(in text: String, from index: String.Index) -> String? {
+        guard index < text.endIndex, text[index].isLetter else { return nil }
+        var end = index
+        while end < text.endIndex, text[end].isLetter {
+            end = text.index(after: end)
+        }
+        let name = String(text[index..<end])
+        return name.isEmpty ? nil : name
+    }
 
     private static func unescapeJSONEscapes(_ raw: String) -> String {
         var output = ""
@@ -449,4 +568,145 @@ enum ReferencePreviewPresentation {
         }
         return collapsed
     }
+
+    /// Newlines and tabs are paragraph structure. A backspace or form feed
+    /// that did not rebuild a command is still the eaten escape.
+    private static func containsForbiddenControl(_ text: String) -> Bool {
+        text.unicodeScalars.contains { scalar in
+            scalar.value < 32 && scalar.value != 9 && scalar.value != 10
+        }
+    }
+
+    private static func mathDelimitersBalanced(_ text: String) -> Bool {
+        var index = text.startIndex
+        var inline = false
+        var display = false
+        while index < text.endIndex {
+            if text[index] == "\\" {
+                let next = text.index(after: index)
+                if next < text.endIndex {
+                    index = text.index(after: next)
+                    continue
+                }
+            }
+            if text[index] == "$" {
+                let next = text.index(after: index)
+                if next < text.endIndex, text[next] == "$" {
+                    if inline { return false }
+                    display.toggle()
+                    index = text.index(after: next)
+                    continue
+                }
+                if !display {
+                    inline.toggle()
+                }
+                index = next
+                continue
+            }
+            index = text.index(after: index)
+        }
+        return !inline && !display
+    }
+
+    private static func bracesBalanced(_ latex: String) -> Bool {
+        var depth = 0
+        var index = latex.startIndex
+        while index < latex.endIndex {
+            if latex[index] == "\\" {
+                let next = latex.index(after: index)
+                if next < latex.endIndex {
+                    index = latex.index(after: next)
+                    continue
+                }
+            }
+            if latex[index] == "{" {
+                depth += 1
+            } else if latex[index] == "}" {
+                depth -= 1
+                if depth < 0 { return false }
+            }
+            index = latex.index(after: index)
+        }
+        return depth == 0
+    }
+
+    /// Prose that fell into a math span has no spaces and no commands.
+    /// `Uandsupposethatf` is that run. A real formula breaks it with `\` or a space.
+    private static func hasLongSpaceFreeRun(_ latex: String) -> Bool {
+        var run = 0
+        for character in latex {
+            if character.isWhitespace || character == "\\" {
+                run = 0
+            } else {
+                run += 1
+                if run >= 24 { return true }
+            }
+        }
+        return false
+    }
+
+    private static func hasUnknownCommand(_ latex: String) -> Bool {
+        var index = latex.startIndex
+        while index < latex.endIndex {
+            if latex[index] == "\\" {
+                let next = latex.index(after: index)
+                guard next < latex.endIndex else { return false }
+                if latex[next].isLetter {
+                    var end = next
+                    while end < latex.endIndex, latex[end].isLetter {
+                        end = latex.index(after: end)
+                    }
+                    let name = String(latex[next..<end])
+                    if !knownMathCommands.contains(name) { return true }
+                    index = end
+                    continue
+                }
+            }
+            index = latex.index(after: index)
+        }
+        return false
+    }
+
+    /// Commands SwiftMath typesets, plus the aliases and structural commands
+    /// the card rewrites (`\label`, `\operatorname`, `\dfrac`, sizing).
+    /// A name outside this set is not shown as source; the card crops the page.
+    private static let knownMathCommands: Set<String> = {
+        let names = """
+        AA AE Bmatrix CC Delta Downarrow Gamma Im Lambda Leftarrow Leftrightarrow
+        Longleftarrow Longleftrightarrow Longrightarrow O OE Omega Phi Pi Pr Psi Re
+        Rightarrow Sigma Theta Uparrow Updownarrow Upsilon Vert Vmatrix Xi Z aa acute
+        ae aleph alpha amalg angle angstrom approx arccos arcsin arctan arg ast asymp
+        backslash bar beta bf bigcap bigcup bigodot bigoplus bigotimes bigsqcup
+        biguplus bigvee bigwedge bm bmatrix bot breve bullet cal cap cc cdot cdotp
+        cdots check chi circ colon cong coprod cos cosh cot coth csc cup dagger
+        ddagger ddot ddots deg degree delta det dim displaystyle div dot doteq
+        downarrow ell emptyset epsilon equiv eta exists exp forall frak gamma gcd ge
+        geq gets gg grave hat hbar hom iff imath in inf infty int iota jmath kappa
+        ker lambda land langle lbar lbrace lceil ldots le leftarrow leftrightarrow
+        leq lfloor lg lgroup lim liminf limsup ll ln lnot log longleftarrow
+        longleftrightarrow longrightarrow lor mapsto mathbb mathbf mathbfit mathcal
+        mathfrak mathit mathnormal mathrm mathsf mathtt matrix max mho mid min mit
+        models mp mu nabla ne nearrow neg neq ni notin nu nwarrow o odot oe oint
+        omega omicron ominus oplus oslash otimes parallel partial perp phi pi pm
+        pmatrix prec prime prod propto psi qquad quad rangle rbrace rceil rfloor
+        rgroup rho rightarrow rm scriptscriptstyle scriptstyle searrow sec setminus
+        sigma sim simeq sin sinh sqcap sqcup sqsubset sqsubseteq sqsupset sqsupseteq
+        square ss star subset subseteq succ sum sup supset supseteq swarrow tan tanh
+        tau text textbf textit textrm textsf textstyle texttt theta tilde times to
+        top triangle uparrow updownarrow uplus upquote upsilon varepsilon varphi
+        varpi varrho varsigma vartheta vdots vec vee vert vmatrix wedge widehat
+        widetilde wp wr xi zeta
+        align alignat aligned allowdisplaybreaks array begin big Big bigg Bigg bigl
+        bigr biggl biggr Bigl Bigr Biggl Biggr binom bmod boldsymbol boxed cases
+        cdots choose cr dfrac dots emph end eqref equation flalign frac gather
+        gathered hline hphantom iint iiint implies impliedby label left limits
+        mathbb mathbf mathcal mathfrak mathrm mathsf mathtt middle mod multline
+        newline noindent nolimits nonumber not notag oiint operatorname overleftarrow
+        overline overrightarrow overset phantom pmb pmod qedhere ref right rvert
+        lvert rVert lVert smallmatrix smash split sqrt stackrel substack tag tfrac
+        textnormal textup underbrace overbrace underset varnothing vphantom vspace
+        hspace xleftarrow xrightarrow
+        """
+        return Set(names.split(whereSeparator: \.isWhitespace).map(String.init))
+    }()
 }

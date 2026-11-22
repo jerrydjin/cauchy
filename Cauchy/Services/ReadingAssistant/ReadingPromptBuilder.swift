@@ -43,13 +43,8 @@ enum ReadingPromptBuilder {
         prompt += """
 
         Content rules:
-        - The first sentence is the mathematical reason for the step this question asks about, as you would say it at the board. No preamble, no "the text says", no closing summary of how you answered.
-        - Decide from the lines between the first pair of --- markers, and from nowhere else. Do not quote those lines back as the whole reply.
-        - Do not mention an integral unless the question asks about an integral.
-        - A derivative that vanishes at one point does not make the function constant. Do not cite a statement about a derivative that vanishes everywhere unless the lines they asked about say that.
-        - If those lines are a statement that a continuous image is connected, explain that and stop. The reason is the one in the proof beside them: the interval is compact, and a continuous image of a connected set is connected. Do not mention Taylor coefficients or a disc.
-        - If those lines conclude that a sum starts at a later index because a function and its first derivative both vanish, the reply is that reason and then it stops. Say that the constant coefficient equals the value and the linear coefficient equals the derivative, so both are zero. Say that this is a zero of order at least 2, which is why the expansion starts at the first index that remains.
-        - Otherwise name which hypothesis produces which coefficient or property, then the conclusion, and stop. Do not add a later sentence from the lines about a different object.
+        - Answer the question they asked, about the lines they asked about. The first sentence is that point, as you would say it at the board. No preamble, no "the text says", no closing summary of how you answered.
+        - Explain the step they are stuck on. Name the definition or result the step uses, then why the conclusion follows. Do not merely repeat the sentence, and do not answer a different line.
         - Short paragraphs.
         - Ground the reasoning in the lines above. A CITABLE PDF LOCATIONS block accompanies each question when Cauchy has resolved exact page regions. S1 is the lines they asked about, R1/R2/... are numbered statements in order, and P1/P2/... are other lines in order. A source without an ID is context only.
         - Put a source ID such as [S1] or [R1] immediately after each material claim taken from a listed location. Keep separate claims in separate sentences, and cite each substantive paragraph. Keep IDs outside math delimiters. Use only listed IDs; do not invent one or substitute a page number.

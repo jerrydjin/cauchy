@@ -60,12 +60,39 @@ final class AnswerVoiceTests: XCTestCase {
         XCTAssertTrue(prompt.contains("extracted text"))
         XCTAssertTrue(prompt.contains("check the original page"))
         XCTAssertTrue(prompt.contains("since h(z0) = h'(z0) = 0 we see a0 = a1 = 0"))
-        XCTAssertTrue(prompt.contains("order at least 2"))
-        XCTAssertTrue(prompt.contains("and stop"))
+        XCTAssertTrue(prompt.contains("definition or result"))
         XCTAssertFalse(prompt.contains("Because $h(z_0)"))
         XCTAssertFalse(prompt.contains("first two Taylor coefficients vanish"))
         XCTAssertFalse(prompt.contains("Say when a precise formula needs checking"))
         XCTAssertFalse(prompt.contains("PDF SOURCE EXCERPTS"))
+    }
+
+    /// The instruction text is general. Topic words from one paper, or from
+    /// the three questions used to check this prompt, must not be written
+    /// into the rules. The lines the reader selected are a different matter:
+    /// this fixture contains none of them, so a hit is the template itself.
+    func testInstructionsDoNotNameTopicsFromOnePaper() {
+        let prompt = ReadingPromptBuilder.instructions(
+            for: ReadingContext(
+                documentTitle: "Notes",
+                selectedText: "The lemma applies.",
+                surroundingText: "A nearby remark.",
+                retrievedPassages: []
+            ),
+            provider: .claudeCode
+        )
+        let lowered = prompt.lowercased()
+        let topicWords = [
+            "taylor",
+            "connected",
+            "integral",
+            "h(z",
+            "compact",
+            "order at least 2",
+        ]
+        for word in topicWords {
+            XCTAssertFalse(lowered.contains(word), "instructions name \(word)")
+        }
     }
 
     /// The worked example used to be the Taylor sentence. A later question
@@ -91,7 +118,6 @@ final class AnswerVoiceTests: XCTestCase {
         XCTAssertFalse(asked.contains("h(z0)"))
         XCTAssertFalse(prompt.contains("Because $h(z_0)"))
         XCTAssertFalse(prompt.contains("first two Taylor coefficients vanish"))
-        XCTAssertTrue(prompt.contains("from nowhere else"))
-        XCTAssertTrue(prompt.contains("Do not mention Taylor coefficients"))
+        XCTAssertTrue(prompt.contains("the lines they asked about"))
     }
 }

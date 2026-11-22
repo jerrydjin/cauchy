@@ -595,56 +595,54 @@ enum RenderReferencePreview {
         return image
     }
 
-    /// Neither appearance keeps a white page. The light card is the light
-    /// bubble; the dark card stays the dark bubble.
+    /// Neither appearance keeps a white page. Paper is brighter than the
+    /// light window (0.94), so the search ignores that window. The light
+    /// card uses the light bubble; the dark card stays the dark bubble.
     private static func assertCropBackground(dark: URL, light: URL) throws {
-        if let box = try whiteBox(in: dark), box.width > 200, box.height > 16 {
+        if let box = try paperBox(in: dark), box.width > 80, box.height > 16 {
             throw SnapshotError("dark crop still has a white rectangle \(box)")
         }
-        if let box = try whiteBox(in: light), box.width > 200, box.height > 16 {
+        if let box = try paperBox(in: light), box.width > 80, box.height > 16 {
             throw SnapshotError("light crop still has a white rectangle \(box)")
         }
-        let darkFill = try interiorBrightness(of: dark)
-        let lightFill = try interiorBrightness(of: light)
-        guard darkFill < 0.40 else {
-            throw SnapshotError("dark card fill is not the dark bubble (\(darkFill))")
+        let lightDarkFill = try sampleCount(in: light, brightness: 0.15...0.35)
+        let lightCard = try sampleCount(in: light, brightness: 0.88...0.93)
+        guard lightDarkFill < 40 else {
+            throw SnapshotError("light card still uses the dark bubble (\(lightDarkFill) samples)")
         }
-        guard lightFill > 0.80 else {
-            throw SnapshotError("light card fill did not follow the light appearance (\(lightFill))")
+        guard lightCard > 80 else {
+            throw SnapshotError("light card fill did not follow the light appearance (\(lightCard) samples)")
+        }
+        let darkCard = try sampleCount(in: dark, brightness: 0.18...0.32)
+        guard darkCard > 80 else {
+            throw SnapshotError("dark card fill is not the dark bubble (\(darkCard) samples)")
         }
     }
 
-    /// Median brightness of the middle of the panel, which is card fill
-    /// rather than the window or the glyphs.
-    private static func interiorBrightness(of url: URL) throws -> Double {
+    private static func sampleCount(in url: URL, brightness range: ClosedRange<Double>) throws -> Int {
         guard let data = try? Data(contentsOf: url),
               let rep = NSBitmapImageRep(data: data) else {
             throw SnapshotError("could not read \(url.lastPathComponent)")
         }
-        var samples: [Double] = []
-        let y0 = rep.pixelsHigh / 3
-        let y1 = rep.pixelsHigh * 2 / 3
-        let x0 = rep.pixelsWide / 3
-        let x1 = rep.pixelsWide * 2 / 3
-        var y = y0
-        while y < y1 {
-            var x = x0
-            while x < x1 {
+        var count = 0
+        var y = 0
+        while y < rep.pixelsHigh {
+            var x = 0
+            while x < rep.pixelsWide {
                 if let color = rep.colorAt(x: x, y: y), color.alphaComponent > 0.9 {
-                    samples.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
+                    let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
+                    if range.contains(brightness) { count += 1 }
                 }
-                x += 4
+                x += 6
             }
-            y += 4
+            y += 6
         }
-        guard !samples.isEmpty else {
-            throw SnapshotError("\(url.lastPathComponent) has no interior")
-        }
-        samples.sort()
-        return samples[samples.count / 2]
+        return count
     }
 
-    private static func whiteBox(in url: URL) throws -> CGRect? {
+    /// Near-white paper. The light window is 0.94 and the light bubble is
+    /// about 0.91, so neither counts as a page rectangle.
+    private static func paperBox(in url: URL) throws -> CGRect? {
         guard let data = try? Data(contentsOf: url),
               let rep = NSBitmapImageRep(data: data) else {
             throw SnapshotError("could not read \(url.lastPathComponent)")
@@ -658,7 +656,7 @@ enum RenderReferencePreview {
             for x in stride(from: 0, to: rep.pixelsWide, by: 2) {
                 guard let color = rep.colorAt(x: x, y: y) else { continue }
                 let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
-                if color.alphaComponent > 0.9 && brightness > 0.94 {
+                if color.alphaComponent > 0.9 && brightness > 0.97 {
                     minX = min(minX, x)
                     maxX = max(maxX, x)
                     minY = min(minY, y)

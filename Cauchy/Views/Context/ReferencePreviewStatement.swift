@@ -24,6 +24,7 @@ enum ReferencePreviewMetrics {
 /// padding. The statement column and a figure block both go through this,
 /// and the designer snapshot renders the column.
 enum ReferencePreviewBlockChrome {
+    @MainActor
     static func padded<Content: View>(_ content: Content) -> some View {
         ReferencePreviewBubble(content: content)
     }

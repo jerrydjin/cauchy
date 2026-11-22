@@ -12,8 +12,9 @@ enum MessageSegment: Equatable {
 enum MessageBlock: Equatable {
     case text(String)
     case inlineLine([MessageSegment])
-    /// `trailing` is the punctuation written immediately after the equation
-    /// (", then"). It stays on the equation's line. Empty when nothing followed.
+    /// `trailing` is the sentence punctuation written immediately after the
+    /// equation (`,`, `.`, `;`, `:`). The following word stays on the next
+    /// line. Empty when nothing followed.
     case displayMath(String, trailing: String)
 }
 
@@ -292,8 +293,7 @@ enum MessageContentParser {
     }
 
     /// Punctuation written right after a display equation belongs on that
-    /// equation, with the word that follows it. Left on the next block,
-    /// ", then" starts a line of its own.
+    /// equation. The word after it stays on the next line.
     static func attachingDisplayPunctuation(_ blocks: [MessageBlock]) -> [MessageBlock] {
         var result: [MessageBlock] = []
         var index = 0
@@ -315,25 +315,13 @@ enum MessageContentParser {
         return result
     }
 
-    /// ", then the rest" → (", then", " the rest"). Nil when the block does
-    /// not open with sentence punctuation.
+    /// ", then the rest" → (",", " then the rest"). Nil when the block does
+    /// not open with sentence punctuation. Only that mark joins the display
+    /// line; the following word stays with the prose.
     static func splitDisplayTrailing(_ text: String) -> (attached: String, rest: String)? {
         let trimmedStart = text.drop { $0 == " " || $0 == "\t" }
         guard let first = trimmedStart.first, isSentencePunctuation(first) else { return nil }
-        var attached = String(first)
-        var rest = trimmedStart.dropFirst()
-        if rest.first == " " {
-            let after = rest.dropFirst()
-            var end = after.startIndex
-            while end < after.endIndex, after[end].isLetter {
-                end = after.index(after: end)
-            }
-            if end > after.startIndex {
-                attached += " " + String(after[..<end])
-                rest = after[end...]
-            }
-        }
-        return (attached, String(rest))
+        return (String(first), String(trimmedStart.dropFirst()))
     }
 
     /// The comma after inline math, and the word after that comma, stay with

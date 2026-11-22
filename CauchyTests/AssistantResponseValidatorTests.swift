@@ -504,25 +504,64 @@ final class AssistantResponseValidatorTests: XCTestCase {
         }
     }
 
-    func testPunctuationAfterADisplayEquationStaysOnThatEquation() {
-        let raw = "The first two coefficients vanish.\n$$a_0 = a_1 = 0$$\n, then the constant term is zero."
-        let blocks = MessageContentParser.blocks(
-            from: MessageContentParser.parseNormalized(LaTeXNormalizer.normalizeForDisplay(raw))
-        )
-        let display = blocks.compactMap { block -> (String, String)? in
-            if case .displayMath(let latex, let trailing) = block { return (latex, trailing) }
-            return nil
-        }
-        XCTAssertEqual(display.count, 1)
-        XCTAssertTrue(display[0].0.contains("a_0"))
-        XCTAssertEqual(display[0].1, ", then")
-        XCTAssertFalse(blocks.contains { block in
-            if case .text(let value) = block { return value.hasPrefix(",") || value.hasPrefix("then") }
-            if case .inlineLine(let segments) = block, case .text(let value) = segments.first {
-                return value.trimmingCharacters(in: .whitespaces).hasPrefix(",")
+    func testDisplayLineTakesPunctuationOnly() {
+        let cases: [(raw: String, mark: String, following: String)] = [
+            (
+                "The first two coefficients vanish.\n$$a_0 = a_1 = 0$$\n, then the constant term is zero.",
+                ",",
+                "then the constant term is zero."
+            ),
+            (
+                "Hence \\[a_0 = 0\\], so the rest follows.",
+                ",",
+                "so the rest follows."
+            ),
+            (
+                "We have \\begin{equation}a_0 = 0\\end{equation}. The series stops.",
+                ".",
+                "The series stops."
+            ),
+            (
+                "Compare $$x = 1$$: the two sides agree.",
+                ":",
+                "the two sides agree."
+            ),
+            (
+                "Stop.\n$$a_0 = 0$$\n;",
+                ";",
+                ""
+            ),
+        ]
+        for (raw, mark, following) in cases {
+            let blocks = MessageContentParser.blocks(
+                from: MessageContentParser.parseNormalized(LaTeXNormalizer.normalizeForDisplay(raw))
+            )
+            guard let displayIndex = blocks.firstIndex(where: { block in
+                if case .displayMath = block { return true }
+                return false
+            }), case .displayMath(let latex, let trailing) = blocks[displayIndex] else {
+                XCTFail("no display equation in \(raw)")
+                continue
             }
-            return false
-        })
+            XCTAssertTrue(latex.contains("a_0") || latex.contains("x = 1"), raw)
+            XCTAssertEqual(trailing, mark, raw)
+            XCTAssertFalse(trailing.contains { $0.isLetter }, "the next word joined the display line: \(raw)")
+            let prose = displayIndex + 1 < blocks.count ? proseOpening(blocks[displayIndex + 1]) : ""
+            XCTAssertEqual(prose, following, raw)
+            XCTAssertFalse(prose.hasPrefix(mark), raw)
+        }
+    }
+
+    private func proseOpening(_ block: MessageBlock) -> String {
+        switch block {
+        case .text(let value):
+            return value
+        case .inlineLine(let segments):
+            guard case .text(let value) = segments.first else { return "" }
+            return value.trimmingCharacters(in: .whitespaces)
+        case .displayMath:
+            return ""
+        }
     }
 }
 

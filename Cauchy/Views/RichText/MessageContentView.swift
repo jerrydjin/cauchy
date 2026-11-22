@@ -169,8 +169,8 @@ struct MessageContentView: View {
         )
     }
 
-    /// A display equation, with the punctuation that followed it kept on the
-    /// same line instead of wrapping underneath.
+    /// A display equation, with only the punctuation that followed it kept on
+    /// the same line. The next word stays in the text underneath.
     @ViewBuilder
     private func displayEquation(_ latex: String, trailing: String) -> some View {
         if trailing.isEmpty {

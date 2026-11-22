@@ -71,7 +71,7 @@ final class HighlightAskPersistenceTests: XCTestCase {
             let saved = model.workspace.highlightStore.highlights
             XCTAssertEqual(saved.first?.messages.map(\.content), [question])
             partial("Because a0 vanishes")
-            await gate.markStarted()
+            gate.markStarted()
             try await gate.waitToFinish()
             try Task.checkCancellation()
             return "Because a0 vanishes, the constant term is zero. [[CAUCHY_BASIS: PDF]]"
@@ -93,7 +93,7 @@ final class HighlightAskPersistenceTests: XCTestCase {
         XCTAssertEqual(model.workspace.selectionThread.activeThread?.anchorID, id)
         XCTAssertEqual(model.workspace.selectionThread.activeThread?.streamingAssistantText, "Because a0 vanishes")
 
-        await gate.finish()
+        gate.finish()
         let answered = try await waitHighlight(model.workspace) { $0.messages.contains { $0.role == .assistant } }
         XCTAssertNil(answered.askFailure)
         XCTAssertFalse(model.workspace.selectionThread.isResponding)
@@ -169,7 +169,7 @@ private final class AskGate: @unchecked Sendable {
     private var didStart = false
     private var finish: CheckedContinuation<Void, Error>?
 
-    func markStarted() async {
+    func markStarted() {
         lock.lock()
         didStart = true
         let waiting = started
@@ -199,7 +199,7 @@ private final class AskGate: @unchecked Sendable {
         }
     }
 
-    func finish() async {
+    func finish() {
         lock.lock()
         let waiting = finish
         finish = nil

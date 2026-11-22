@@ -1772,10 +1772,15 @@ class SectionListMentionTests(unittest.TestCase):
             "Section 4 and the proof stay separate.",
             "Subsections 4.3 and 4.4.1 are different units.",
             "Theorem 6 and 7 are not sections.",
-            "See Sect. 4 and 6 in the other note.",
-            "See Sec-",
-            "tion 4 and 6 after the break.",
             "see 2.1.1 without a section word.",
+            "The intersec-",
+            "tion 4 of the two curves is a point.",
+            "A dissec-",
+            "tion 4 of the interval is not a section.",
+            "See Sec-tion 4 on one line.",
+            "Read the Sect. carefully.",
+            "In this sub-",
+            "section, the argument continues without a number.",
         ])
         self.assertEqual(self.surfaces(text, "5"), [])
         self.assertEqual(self.surfaces(text, "7"), [])
@@ -1785,6 +1790,35 @@ class SectionListMentionTests(unittest.TestCase):
         self.assertEqual(self.surfaces(text, "4"), ["Section 4"])
         self.assertEqual(self.surfaces(text, "4.3"), ["Subsections 4.3"])
         self.assertEqual(self.surfaces(text, "4.4.1"), ["4.4.1"])
+
+    def test_sect_and_a_line_break_name_the_printed_section(self) -> None:
+        abbreviated = "\n".join([
+            "See Sect. 4 and 6 in the other note.",
+            "See sects. 2.1 and 2.2 as well.",
+        ])
+        self.assertEqual(self.surfaces(abbreviated, "4"), ["Sect. 4"])
+        self.assertEqual(self.surfaces(abbreviated, "6"), ["6"])
+        self.assertEqual(self.surfaces(abbreviated, "2.1"), ["sects. 2.1"])
+        self.assertEqual(self.surfaces(abbreviated, "2.2"), ["2.2"])
+        self.assertEqual(self.surfaces("Sect 4 has no period.", "4"), [])
+
+        broken = "\n".join([
+            "For the proof, see Sec-",
+            "tion 6.",
+            "The proofs of both statements move to Sec-",
+            "tions 4.4 and 8.2.",
+            "They are defined in subsec-",
+            "tion 8.1.",
+            "The same claim is in Sub-",
+            "section 2.3.",
+        ])
+        self.assertEqual(self.surfaces(broken, "6"), ["Sec-\ntion 6"])
+        self.assertIn("Sec-\ntions 4.4", self.surfaces(broken, "4.4")[0])
+        self.assertEqual(self.surfaces(broken, "8.2"), ["8.2"])
+        self.assertEqual(self.surfaces(broken, "8.1"), ["subsec-\ntion 8.1"])
+        self.assertEqual(self.surfaces(broken, "2.3"), ["Sub-\nsection 2.3"])
+        # The dash still names the endpoints only.
+        self.assertEqual(self.surfaces(broken, "5"), [])
 
 
 if __name__ == "__main__":

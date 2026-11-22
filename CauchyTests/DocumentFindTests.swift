@@ -112,10 +112,30 @@ final class DocumentFindTests: XCTestCase {
         XCTAssertTrue(theorem.hits.isEmpty)
 
         let abbreviated = DocumentFind.search(query: "Sect. 4 and 6", entries: [], sections: sections)
-        XCTAssertFalse(abbreviated.suppressesTextSearch)
+        XCTAssertEqual(abbreviated.hits.map(\.number), ["4", "4.1", "6"])
+        XCTAssertTrue(abbreviated.suppressesTextSearch)
+
+        let pluralAbbreviation = DocumentFind.search(query: "Sects. 4 and 6", entries: [], sections: sections)
+        XCTAssertEqual(pluralAbbreviation.hits.map(\.number), ["4", "4.1", "6"])
+        XCTAssertTrue(pluralAbbreviation.suppressesTextSearch)
+
+        let split = DocumentFind.search(query: "Sec-\ntion 4 and 6", entries: [], sections: sections)
+        XCTAssertEqual(split.hits.map(\.number), ["4", "4.1", "6"])
+        XCTAssertTrue(split.suppressesTextSearch)
+
+        let subsectionSplit = DocumentFind.search(query: "Subsec-\ntion 2.1 and 2.2", entries: [], sections: sections)
+        XCTAssertEqual(subsectionSplit.hits.map(\.number), ["2.1", "2.2"])
 
         let broken = DocumentFind.search(query: "Sec-tion 4 and 6", entries: [], sections: sections)
         XCTAssertFalse(broken.suppressesTextSearch)
+
+        let insideAnotherWord = DocumentFind.search(query: "intersec-\ntion 4 and 6", entries: [], sections: sections)
+        XCTAssertFalse(insideAnotherWord.suppressesTextSearch)
+        XCTAssertTrue(insideAnotherWord.hits.isEmpty)
+
+        let bareAbbreviation = DocumentFind.search(query: "Sect", entries: [], sections: sections)
+        XCTAssertFalse(bareAbbreviation.suppressesTextSearch)
+        XCTAssertTrue(bareAbbreviation.hits.isEmpty)
 
         let jumps = DocumentFind.jumpHits(query: "Sections 4 and 6", entries: [], sections: sections)
         XCTAssertEqual(jumps.map(\.number), joined.hits.map(\.number))

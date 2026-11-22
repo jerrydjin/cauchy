@@ -303,13 +303,36 @@ enum DocumentFind {
     private static let headingRegex = try! NSRegularExpression(
         pattern: #"(?m)^[ \t]*(\d+(?:\.\d+)*)\.\s+(\S[^\n]*)$"#
     )
+    /// Printed section words. The same list as cauchy_logic.section_word_pattern.
+    /// "Sect." and "Sects." count. A hyphen counts only when it ends the line
+    /// and the next line finishes the word, as in "Sec-\ntion". "Sec-tion" on
+    /// one line does not, and neither does "intersec-tion".
+    private static func sectionWordPattern() -> String {
+        let words = [
+            "subsubsections", "subsubsection",
+            "subsections", "subsection",
+            "sections", "section",
+        ]
+        var parts: [String] = []
+        for word in words {
+            parts.append(word)
+            for cut in 1..<word.count {
+                let index = word.index(word.startIndex, offsetBy: cut)
+                parts.append("\(word[..<index])-\\n\(word[index...])")
+            }
+        }
+        parts.append(#"sects?\."#)
+        parts.append(#"sec\.?"#)
+        return "(?:" + parts.joined(separator: "|") + ")"
+    }
+
     /// A whole query that names every section in a list or range.
     /// "Sections 4 and 6", "Subsections 2.1–2.2", "Section 5, 5.2, and 8".
     /// The separators match a statement list and cauchy_logic.section_mention_patterns.
     /// "Section 4 and the proof" does not match. "Sections 4–6" is 4 and 6, not 5.
-    /// "Sect." and a hyphenated "Sec-tion" are not this word.
+    /// "Sect. 4 and 6" does. "Sec-tion 4 and 6" on one line does not.
     private static let sectionListRegex = try! NSRegularExpression(
-        pattern: #"(?i)^\s*(?:sub(?:sub)?sections?|sections?|sec\.?)\s+((?:\d+(?:\.\d+)*)(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\d+(?:\.\d+)*))+)\s*$"#
+        pattern: #"(?i)^\s*"# + sectionWordPattern() + #"\s+((?:\d+(?:\.\d+)*)(?:\s*(?:,|and|&|–|—|-)\s*(?:and\s+)?(?:\d+(?:\.\d+)*))+)\s*$"#
     )
     private static let sectionListNumberRegex = try! NSRegularExpression(
         pattern: #"\d+(?:\.\d+)*"#

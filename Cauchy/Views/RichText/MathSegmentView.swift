@@ -69,16 +69,30 @@ struct MathSegmentView: View {
                     scale: displayScale
                 ) {
                     if fitsMathToContainer {
-                        // Shrink only when the formula is wider than the card.
-                        // A short inline symbol stays at its own size.
-                        FittedMathImage(image: image)
-                            .alignmentGuide(.firstTextBaseline) { dimensions in
-                                let scale = image.size.width > 0
-                                    ? dimensions.width / image.size.width
-                                    : 1
-                                return (MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
-                                    ?? image.size.height) * scale
-                            }
+                        // A short formula keeps the intrinsic image, which the
+                        // card centres. A formula wider than the card is given
+                        // an explicit smaller frame so it scales down instead
+                        // of being clipped.
+                        let cardTextWidth = ReferencePreviewMetrics.cardWidth
+                            - ConversationChrome.answerPaddingH * 2
+                        if image.size.width > cardTextWidth, image.size.width > 0 {
+                            let scale = cardTextWidth / image.size.width
+                            Image(nsImage: image)
+                                .resizable()
+                                .interpolation(.high)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: cardTextWidth, height: image.size.height * scale)
+                                .alignmentGuide(.firstTextBaseline) { dimensions in
+                                    (MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                        ?? image.size.height) * scale
+                                }
+                        } else {
+                            Image(nsImage: image)
+                                .alignmentGuide(.firstTextBaseline) { dimensions in
+                                    MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                        ?? dimensions[.bottom]
+                                }
+                        }
                     } else {
                         Image(nsImage: image)
                             .alignmentGuide(.firstTextBaseline) { dimensions in
@@ -838,42 +852,6 @@ private struct MathLabelRepresentable: NSViewRepresentable {
             fontSize: fontSize,
             maxWidth: width,
             minimumScale: fitsMathToContainer ? 0.08 : MathMetrics.minimumScale
-        )
-    }
-}
-
-/// A formula bitmap that stays at its natural size until the card is narrower,
-/// then scales down. Reporting the natural width (not the proposed line width)
-/// is what lets a short display stay centred in the card.
-private struct FittedMathImage: View {
-    let image: NSImage
-
-    var body: some View {
-        FittedMathLayout(natural: image.size) {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-        }
-    }
-}
-
-private struct FittedMathLayout: Layout {
-    let natural: CGSize
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let proposed = proposal.width ?? natural.width
-        let width = min(max(natural.width, 1), max(proposed, 1))
-        let scale = natural.width > 0 ? width / natural.width : 1
-        return CGSize(width: width, height: max(natural.height, 1) * scale)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard let subview = subviews.first else { return }
-        subview.place(
-            at: CGPoint(x: bounds.midX, y: bounds.midY),
-            anchor: .center,
-            proposal: ProposedViewSize(width: bounds.width, height: bounds.height)
         )
     }
 }

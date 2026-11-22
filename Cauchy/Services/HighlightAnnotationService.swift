@@ -28,7 +28,7 @@ enum HighlightAnnotationService {
         let painted = color.withAlphaComponent(opacity)
         for index in 0..<document.pageCount {
             guard let page = document.page(at: index) else { continue }
-            for annotation in page.annotations where highlightID(from: annotation) == highlightID {
+            for annotation in page.annotations where Self.highlightID(from: annotation) == highlightID {
                 annotation.color = painted
             }
         }

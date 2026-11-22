@@ -86,8 +86,8 @@ struct MessageContentView: View {
             case .inlineMath(let latex):
                 mathView(latex: latex, mode: .inline, fontSize: 15)
                     .frame(maxWidth: .infinity, alignment: equationOnItsOwnLine(latex) ? .center : .leading)
-            case .displayMath(let latex, let trailing):
-                displayEquation(latex, trailing: trailing)
+            case .displayMath(let latex):
+                displayEquation(latex, trailing: "")
             }
         } else if let mergedText = mergedText(from: merged) {
             plainText(mergedText)

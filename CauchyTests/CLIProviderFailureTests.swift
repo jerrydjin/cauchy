@@ -295,7 +295,7 @@ final class ProviderReadinessStoreTests: XCTestCase {
         let recheck = Task { await live.probe(connectorID: .codex, modelID: model, force: true) }
         await holding.waitUntilStarted()
         XCTAssertEqual(live.state(for: .codex, modelID: model), .ready)
-        await holding.release()
+        holding.release()
         let cancelled = await recheck.value
         XCTAssertEqual(cancelled, .cancelled)
         XCTAssertEqual(live.state(for: .codex, modelID: model), .ready)
@@ -605,7 +605,7 @@ private final class HoldingProbe: ProviderProbing, @unchecked Sendable {
         }
     }
 
-    func release() async {
+    func release() {
         lock.lock()
         let waiting = hold
         hold = nil
@@ -614,23 +614,32 @@ private final class HoldingProbe: ProviderProbing, @unchecked Sendable {
     }
 
     func probe(connectorID: AssistantConnectorID, modelID: String?) async -> AssistantFailure? {
-        lock.lock()
-        let shouldHold = armed
-        armed = false
-        lock.unlock()
+        let shouldHold = takeArm()
         guard shouldHold else { return result }
-        lock.lock()
-        started = true
-        let notify = entered
-        entered = nil
-        lock.unlock()
-        notify?.resume()
+        markStarted()?.resume()
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             lock.lock()
             hold = cont
             lock.unlock()
         }
         return result
+    }
+
+    private func takeArm() -> Bool {
+        lock.lock()
+        let shouldHold = armed
+        armed = false
+        lock.unlock()
+        return shouldHold
+    }
+
+    private func markStarted() -> CheckedContinuation<Void, Never>? {
+        lock.lock()
+        started = true
+        let notify = entered
+        entered = nil
+        lock.unlock()
+        return notify
     }
 }
 

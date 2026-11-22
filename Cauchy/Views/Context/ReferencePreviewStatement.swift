@@ -116,9 +116,9 @@ struct StatementCropImage: View {
         let shown = colorScheme == .dark ? StatementCropInk.dark(image) : image
         Image(nsImage: shown)
             .resizable()
+            .interpolation(.high)
             .renderingMode(colorScheme == .dark ? .template : .original)
             .foregroundStyle(.primary)
-            .interpolation(.high)
             .scaledToFit()
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel("Statement region from the PDF page")
@@ -126,24 +126,19 @@ struct StatementCropImage: View {
 }
 
 enum StatementCropInk {
-    private static let cache = NSCache<NSImage, NSImage>()
-
     /// White paper becomes clear. Dark glyphs become opaque black with an
     /// alpha that follows how dark they were, so a template tint can paint
     /// them in the primary colour.
     static func dark(_ image: NSImage) -> NSImage {
-        if let cached = cache.object(forKey: image) { return cached }
-        let lifted = lift(image)
-        cache.setObject(lifted, forKey: image)
-        return lifted
-    }
-
-    private static func lift(_ image: NSImage) -> NSImage {
         guard let tiff = image.tiffRepresentation,
               let source = NSBitmapImageRep(data: tiff),
-              source.pixelsWide > 0, source.pixelsHigh > 0 else { return image }
+              source.pixelsWide > 0, source.pixelsHigh > 0,
+              let bytes = source.bitmapData else { return image }
         let width = source.pixelsWide
         let height = source.pixelsHigh
+        let sourceBytes = max(source.bitsPerPixel / 8, 1)
+        guard sourceBytes >= 3 else { return image }
+        let sourceRow = source.bytesPerRow
         guard let dest = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: width,
@@ -159,10 +154,11 @@ enum StatementCropInk {
 
         for y in 0..<height {
             for x in 0..<width {
-                let color = source.colorAt(x: x, y: y) ?? .white
-                let luminance = 0.2126 * color.redComponent
-                    + 0.7152 * color.greenComponent
-                    + 0.0722 * color.blueComponent
+                let sample = y * sourceRow + x * sourceBytes
+                let red = CGFloat(bytes[sample]) / 255
+                let green = CGFloat(bytes[sample + 1]) / 255
+                let blue = CGFloat(bytes[sample + 2]) / 255
+                let luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
                 let ink: CGFloat
                 if luminance >= 0.96 {
                     ink = 0

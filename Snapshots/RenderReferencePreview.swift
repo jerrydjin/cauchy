@@ -265,6 +265,7 @@ enum RenderReferencePreview {
     /// `statementText` and the real column.
     @MainActor
     private static func renderJerry156(output: URL) throws {
+        let book = try syntheticBook()
         let theoremHeading = "Theorem 3.5.21 (Riemann's removable singularity theorem)"
         let corollaryHeading = "Corollary 3.3.2"
 
@@ -299,7 +300,7 @@ enum RenderReferencePreview {
         try writeCard(
             Jerry156BrokenCard(
                 heading: theoremHeading,
-                pageIndex: 86,
+                pageIndex: book.riemann,
                 content: Text(broken).font(.body)
             ),
             caption: "Reference panel · Theorem 3.5.21 · before",
@@ -309,17 +310,22 @@ enum RenderReferencePreview {
             ReferencePreviewStatementColumn(
                 heading: theoremHeading,
                 statement: theorem,
-                pageIndexes: [86],
+                pageIndexes: [book.riemann],
                 onOpenPage: { _ in }
             ),
             caption: "Reference panel · Theorem 3.5.21",
             to: output.appendingPathComponent("jerry-156-after.png")
         )
+        // The statement column takes a 0-based page index. The pill prints
+        // that index plus one, which is this page's place in the synthetic book.
+        guard book.riemann + 1 == 87, book.corollary + 1 == 42 else {
+            throw SnapshotError("synthetic page numbers drifted")
+        }
 
         try writeCard(
             Jerry156BrokenCard(
                 heading: corollaryHeading,
-                pageIndex: 41,
+                pageIndex: book.corollary,
                 content: Text("f(n)(z0) = n! 2πγ(z0, r) / … for any r < R, where the contour is the circle about z0")
                     .font(.body)
                     .foregroundStyle(.white)
@@ -335,7 +341,7 @@ enum RenderReferencePreview {
             ReferencePreviewStatementColumn(
                 heading: corollaryHeading,
                 statement: corollary,
-                pageIndexes: [41],
+                pageIndexes: [book.corollary],
                 onOpenPage: { _ in }
             ),
             caption: "Reference panel · Corollary 3.3.2",
@@ -351,18 +357,36 @@ enum RenderReferencePreview {
                 ReferencePreviewStatementColumn(
                     heading: "Theorem 4.1",
                     statement: liouville,
-                    pageIndexes: [70],
+                    pageIndexes: [book.theorem41],
                     onOpenPage: { _ in }
                 )
                 ReferencePreviewStatementColumn(
                     heading: "Theorem 4.2",
                     statement: openMapping,
-                    pageIndexes: [72],
+                    pageIndexes: [book.theorem42],
                     onOpenPage: { _ in }
                 )
             },
             caption: "Reference panel · inline maths",
             to: output.appendingPathComponent("jerry-156-inline-statements.png")
+        )
+        try writeCard(
+            VStack(alignment: .leading, spacing: 16) {
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.1",
+                    statement: liouville,
+                    pageIndexes: [book.theorem41],
+                    onOpenPage: { _ in }
+                )
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.2",
+                    statement: openMapping,
+                    pageIndexes: [book.theorem42],
+                    onOpenPage: { _ in }
+                )
+            },
+            caption: "Reference panel · inline maths",
+            to: output.appendingPathComponent("jerry-156-inline-after.png")
         )
 
         let tall = tallStatement()
@@ -374,7 +398,7 @@ enum RenderReferencePreview {
                 ReferencePreviewStatementColumn(
                     heading: "Theorem 6.2.4",
                     statement: tall,
-                    pageIndexes: [110],
+                    pageIndexes: [book.tall],
                     onOpenPage: { _ in }
                 )
             },
@@ -394,7 +418,7 @@ enum RenderReferencePreview {
             ReferencePreviewStatementColumn(
                 heading: "Proposition 7.4",
                 statement: wide,
-                pageIndexes: [128],
+                pageIndexes: [book.wide],
                 onOpenPage: { _ in }
             ),
             caption: "Reference panel · display scaled to the card",
@@ -402,17 +426,29 @@ enum RenderReferencePreview {
         )
         try assertEquationStaysInsideCard(at: wideURL)
 
-        let crop = try statementCrop()
-        try writeCard(
-            ReferencePreviewFallbackColumn(
-                heading: theoremHeading,
-                image: crop,
-                pageIndexes: [86],
-                onOpenPage: { _ in }
-            ),
-            caption: "Reference panel · page crop",
-            to: output.appendingPathComponent("jerry-156-fallback-crop.png")
+        let crop = try statementCrop(on: book.page(book.riemann))
+        let cropColumn = ReferencePreviewFallbackColumn(
+            heading: theoremHeading,
+            image: crop,
+            pageIndexes: [book.riemann],
+            onOpenPage: { _ in }
         )
+        let darkCrop = output.appendingPathComponent("jerry-156-fallback-crop.png")
+        let lightCrop = output.appendingPathComponent("jerry-156-fallback-crop-light.png")
+        try writeCard(
+            cropColumn,
+            caption: "Reference panel · page crop",
+            to: darkCrop
+        )
+        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        try writeCard(
+            cropColumn,
+            caption: "Reference panel · page crop",
+            to: lightCrop,
+            dark: false
+        )
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+        try assertCropBackground(dark: darkCrop, light: lightCrop)
     }
 
     @MainActor
@@ -420,9 +456,10 @@ enum RenderReferencePreview {
         _ content: V,
         caption: String,
         to url: URL,
-        minimumHeight: Int = 280
+        minimumHeight: Int = 280,
+        dark: Bool = true
     ) throws {
-        let card = SnapshotChrome(caption: caption, dark: true, content: content)
+        let card = SnapshotChrome(caption: caption, dark: dark, content: content)
             .environment(\.rendersForSnapshot, true)
         try writePNG(card, to: url, minimumBytes: 4_000, minimumHeight: minimumHeight)
     }
@@ -437,7 +474,28 @@ enum RenderReferencePreview {
     /// The printed theorem, cropped by the same renderer the card uses when
     /// the reconstructed text fails the sanity check.
     @MainActor
-    private static func statementCrop() throws -> NSImage {
+    /// One synthetic book. Each panel's pill is `index + 1` for the page that
+    /// actually holds that statement. Page 87 is Riemann's theorem; page 42
+    /// is the corollary.
+    private struct SyntheticBook {
+        let document: PDFDocument
+        let riemann = 86
+        let corollary = 41
+        let theorem41 = 70
+        let theorem42 = 72
+        let tall = 110
+        let wide = 128
+
+        func page(_ index: Int) throws -> PDFPage {
+            guard let page = document.page(at: index) else {
+                throw SnapshotError("synthetic book has no page \(index + 1)")
+            }
+            return page
+        }
+    }
+
+    private static func syntheticBook() throws -> SyntheticBook {
+        let pageCount = 129
         let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
         let data = NSMutableData()
         var media = pageRect
@@ -445,36 +503,62 @@ enum RenderReferencePreview {
               let context = CGContext(consumer: consumer, mediaBox: &media, nil) else {
             throw SnapshotError("could not open a PDF context")
         }
-        context.beginPDFPage(nil)
-        context.setFillColor(gray: 1, alpha: 1)
-        context.fill(pageRect)
-        // Same orientation the app's pages use: PDF y grows up, and the first
-        // line sits near the top. A flipped text matrix stores the theorem
-        // upside down, which the crop then shows last-line-first.
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let lines: [Int: [String]] = [
+            41: ["Corollary 3.3.2", "If f is holomorphic in the disk, then the derivatives are given by the integral."],
+            70: ["Theorem 4.1", "A bounded entire function f from C to C is constant."],
+            72: ["Theorem 4.2", "If f is holomorphic and non-constant on an open set U, then f(U) is open."],
+            86: [
+                "Theorem 3.5.21 (Riemann's removable singularity theorem)",
+                "Suppose that U is an open subset of ℂ and z₀ ∉ U, and suppose that",
+                "f : U \\ {z₀} → ℂ is holomorphic. Then z₀ is a removable singularity of f.",
+            ],
+            110: ["Theorem 6.2.4", "Suppose that f is holomorphic on a domain U."],
+            128: ["Proposition 7.4", "A wide display equation sits on this page."],
+        ]
         let font = NSFont(name: "Times-Roman", size: 16) ?? NSFont.systemFont(ofSize: 16)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor.black,
         ]
-        let lines = [
-            "Theorem 3.5.21 (Riemann's removable singularity theorem)",
-            "Suppose that U is an open subset of ℂ and z₀ ∉ U, and suppose that",
-            "f : U \\ {z₀} → ℂ is holomorphic. Then z₀ is a removable singularity of f.",
-        ]
-        var baseline = pageRect.height - 96
-        for line in lines {
-            NSString(string: line).draw(at: NSPoint(x: 72, y: baseline), withAttributes: attributes)
-            baseline -= 22
+        for index in 0..<pageCount {
+            context.beginPDFPage(nil)
+            context.setFillColor(gray: 1, alpha: 1)
+            context.fill(pageRect)
+            if let drawn = lines[index] {
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+                var baseline = pageRect.height - 96
+                for line in drawn {
+                    NSString(string: line).draw(at: NSPoint(x: 72, y: baseline), withAttributes: attributes)
+                    baseline -= 22
+                }
+                NSGraphicsContext.restoreGraphicsState()
+            }
+            context.endPDFPage()
         }
-        NSGraphicsContext.restoreGraphicsState()
-        context.endPDFPage()
         context.closePDF()
-
-        guard let page = PDFDocument(data: data as Data)?.page(at: 0) else {
-            throw SnapshotError("synthetic theorem page did not open")
+        guard let document = PDFDocument(data: data as Data), document.pageCount == pageCount else {
+            throw SnapshotError("synthetic book did not open")
         }
+        let book = SyntheticBook(document: document)
+        let checks: [(Int, String)] = [
+            (book.riemann, "Theorem 3.5.21"),
+            (book.corollary, "Corollary 3.3.2"),
+            (book.theorem41, "Theorem 4.1"),
+            (book.theorem42, "Theorem 4.2"),
+            (book.tall, "Theorem 6.2.4"),
+            (book.wide, "Proposition 7.4"),
+        ]
+        for (index, needle) in checks {
+            let text = document.page(at: index)?.string ?? ""
+            guard text.contains(needle) else {
+                throw SnapshotError("page \(index + 1) does not contain \(needle)")
+            }
+        }
+        return book
+    }
+
+    private static func statementCrop(on page: PDFPage) throws -> NSImage {
         let fallbackBand = NormalizedRect(x: 0.08, y: 0.62, width: 0.84, height: 0.28)
         let band: NormalizedRect
         let pageText = page.string ?? ""
@@ -509,6 +593,45 @@ enum RenderReferencePreview {
             throw SnapshotError("statement crop is blank (\(ink) ink)")
         }
         return image
+    }
+
+    /// Dark mode drops the white page. Light mode keeps it.
+    private static func assertCropBackground(dark: URL, light: URL) throws {
+        let darkBox = try whiteBox(in: dark)
+        let lightBox = try whiteBox(in: light)
+        if let box = darkBox, box.width > 200, box.height > 16 {
+            throw SnapshotError("dark crop still has a white rectangle \(box)")
+        }
+        guard let box = lightBox, box.width > 200, box.height > 16 else {
+            throw SnapshotError("light crop lost its page rectangle")
+        }
+    }
+
+    private static func whiteBox(in url: URL) throws -> CGRect? {
+        guard let data = try? Data(contentsOf: url),
+              let rep = NSBitmapImageRep(data: data) else {
+            throw SnapshotError("could not read \(url.lastPathComponent)")
+        }
+        var minX = rep.pixelsWide
+        var maxX = -1
+        var minY = rep.pixelsHigh
+        var maxY = -1
+        var count = 0
+        for y in 0..<rep.pixelsHigh {
+            for x in stride(from: 0, to: rep.pixelsWide, by: 2) {
+                guard let color = rep.colorAt(x: x, y: y) else { continue }
+                let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
+                if color.alphaComponent > 0.9 && brightness > 0.94 {
+                    minX = min(minX, x)
+                    maxX = max(maxX, x)
+                    minY = min(minY, y)
+                    maxY = max(maxY, y)
+                    count += 1
+                }
+            }
+        }
+        guard count > 40, maxX > minX, maxY > minY else { return nil }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
     /// A display that is wider than the card must shrink. Ink past the card's
@@ -599,8 +722,8 @@ enum RenderReferencePreview {
         switch block {
         case .text(let value):
             return value
-        case .displayMath(let latex):
-            return latex
+        case .displayMath(let latex, let trailing):
+            return latex + trailing
         case .inlineLine(let segments):
             return segments.map(describeSegment).joined()
         }
@@ -625,7 +748,7 @@ enum RenderReferencePreview {
 
     private static func mathLatex(_ block: MessageBlock) -> [String] {
         switch block {
-        case .displayMath(let latex):
+        case .displayMath(let latex, _):
             return [latex]
         case .inlineLine(let segments):
             return segments.compactMap { segment in

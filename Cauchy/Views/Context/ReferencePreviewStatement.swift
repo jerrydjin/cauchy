@@ -86,12 +86,7 @@ struct ReferencePreviewFallbackColumn: View {
             VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
                 ReferencePreviewHeading(text: heading)
                 if let image {
-                    Image(nsImage: image)
-                        .resizable()
-                        .interpolation(.high)
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityLabel("Statement region from the PDF page")
+                    StatementCropImage(image: image)
                 } else if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, minHeight: 140)
@@ -107,6 +102,83 @@ struct ReferencePreviewFallbackColumn: View {
                 }
             }
         )
+    }
+}
+
+/// The page crop. Light mode keeps the paper. Dark mode drops the white
+/// page and draws the glyphs in the primary colour, so the card fill shows
+/// through and the rectangle edge is gone.
+struct StatementCropImage: View {
+    let image: NSImage
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let shown = colorScheme == .dark ? StatementCropInk.dark(image) : image
+        Image(nsImage: shown)
+            .resizable()
+            .renderingMode(colorScheme == .dark ? .template : .original)
+            .foregroundStyle(.primary)
+            .interpolation(.high)
+            .scaledToFit()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Statement region from the PDF page")
+    }
+}
+
+enum StatementCropInk {
+    private static let cache = NSCache<NSImage, NSImage>()
+
+    /// White paper becomes clear. Dark glyphs become opaque black with an
+    /// alpha that follows how dark they were, so a template tint can paint
+    /// them in the primary colour.
+    static func dark(_ image: NSImage) -> NSImage {
+        if let cached = cache.object(forKey: image) { return cached }
+        let lifted = lift(image)
+        cache.setObject(lifted, forKey: image)
+        return lifted
+    }
+
+    private static func lift(_ image: NSImage) -> NSImage {
+        guard let tiff = image.tiffRepresentation,
+              let source = NSBitmapImageRep(data: tiff),
+              source.pixelsWide > 0, source.pixelsHigh > 0 else { return image }
+        let width = source.pixelsWide
+        let height = source.pixelsHigh
+        guard let dest = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: width * 4,
+            bitsPerPixel: 32
+        ), let pixels = dest.bitmapData else { return image }
+
+        for y in 0..<height {
+            for x in 0..<width {
+                let color = source.colorAt(x: x, y: y) ?? .white
+                let luminance = 0.2126 * color.redComponent
+                    + 0.7152 * color.greenComponent
+                    + 0.0722 * color.blueComponent
+                let ink: CGFloat
+                if luminance >= 0.96 {
+                    ink = 0
+                } else {
+                    ink = min(1, (0.96 - luminance) / 0.55)
+                }
+                let offset = (y * width + x) * 4
+                pixels[offset] = 0
+                pixels[offset + 1] = 0
+                pixels[offset + 2] = 0
+                pixels[offset + 3] = UInt8(max(0, min(255, ink * 255)))
+            }
+        }
+        let result = NSImage(size: image.size)
+        result.addRepresentation(dest)
+        return result
     }
 }
 

@@ -145,4 +145,28 @@ final class InlineFlowLayoutTests: XCTestCase {
         XCTAssertEqual(result.placements[1].x, 43)
         XCTAssertEqual(result.placements[1].y, 0)
     }
+
+    func testPunctuationDoesNotStartTheNextLine() {
+        let result = InlineFlowLayoutEngine.layout(
+            tokens: [
+                InlineFlowToken(size: CGSize(width: 150, height: 20)),
+                InlineFlowToken(size: CGSize(width: 30, height: 20)),
+                InlineFlowToken(size: CGSize(width: 16, height: 20), keepsWithPrevious: true),
+                InlineFlowToken(size: CGSize(width: 36, height: 20), keepsWithPrevious: true),
+            ],
+            maxWidth: 180,
+            horizontalSpacing: 0,
+            verticalSpacing: 4
+        )
+
+        XCTAssertEqual(result.placements[0].x, 0)
+        XCTAssertEqual(result.placements[0].y, 0)
+        XCTAssertEqual(result.placements[1].x, 0)
+        XCTAssertEqual(result.placements[1].y, 24)
+        XCTAssertEqual(result.placements[2].x, 30)
+        XCTAssertEqual(result.placements[2].y, 24)
+        XCTAssertEqual(result.placements[3].x, 46)
+        XCTAssertEqual(result.placements[3].y, 24)
+        XCTAssertNotEqual(result.placements[2].x, 0)
+    }
 }

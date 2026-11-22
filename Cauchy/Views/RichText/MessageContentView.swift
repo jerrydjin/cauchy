@@ -58,9 +58,8 @@ struct MessageContentView: View {
         case .text(let value):
             plainText(value)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .displayMath(let latex):
-            mathView(latex: latex, mode: .display, fontSize: 17)
-                .frame(maxWidth: .infinity, alignment: .center)
+        case .displayMath(let latex, let trailing):
+            displayEquation(latex, trailing: trailing)
         case .inlineLine(let segments):
             inlineLineView(segments)
         }
@@ -88,19 +87,20 @@ struct MessageContentView: View {
                 mathView(latex: latex, mode: .inline, fontSize: 15)
                     .frame(maxWidth: .infinity, alignment: equationOnItsOwnLine(latex) ? .center : .leading)
             case .displayMath(let latex):
-                mathView(latex: latex, mode: .display, fontSize: 17)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                displayEquation(latex, trailing: "")
             }
         } else if let mergedText = mergedText(from: merged) {
             plainText(mergedText)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             let flowTokens = MessageContentParser.flowTokens(from: merged)
+            let glued = MessageContentParser.keepsWithPreviousMath(flowTokens)
             // Word tokens carry their own trailing space, so extra spacing
             // between them would render as a double space.
             InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
-                ForEach(Array(flowTokens.enumerated()), id: \.offset) { _, segment in
+                ForEach(Array(flowTokens.enumerated()), id: \.offset) { index, segment in
                     flowSegmentView(segment)
+                        .keepsWithPrevious(index < glued.count && glued[index])
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -153,14 +153,40 @@ struct MessageContentView: View {
         latex.contains("=")
     }
 
-    private func mathView(latex: String, mode: MathSegmentView.Mode, fontSize: CGFloat) -> MathSegmentView {
+    private func mathView(
+        latex: String,
+        mode: MathSegmentView.Mode,
+        fontSize: CGFloat,
+        hugsContent: Bool = false
+    ) -> MathSegmentView {
         MathSegmentView(
             latex: latex,
             mode: mode,
             fontSize: fontSize,
             textColor: textColor,
-            fallbackFont: allowsMonospace ? .system(.callout, design: .monospaced) : font
+            fallbackFont: allowsMonospace ? .system(.callout, design: .monospaced) : font,
+            hugsContent: hugsContent
         )
+    }
+
+    /// A display equation, with the punctuation that followed it kept on the
+    /// same line instead of wrapping underneath.
+    @ViewBuilder
+    private func displayEquation(_ latex: String, trailing: String) -> some View {
+        if trailing.isEmpty {
+            mathView(latex: latex, mode: .display, fontSize: 17)
+                .frame(maxWidth: .infinity, alignment: .center)
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                mathView(latex: latex, mode: .display, fontSize: 17, hugsContent: true)
+                Text(trailing)
+                    .font(font)
+                    .foregroundStyle(textColor)
+                    .fixedSize(horizontal: true, vertical: true)
+                    .layoutPriority(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
     }
 
     private func plainText(_ value: String) -> some View {
@@ -253,9 +279,8 @@ struct MessageContentView: View {
                 onOpenReference: onOpenReference,
                 onOpenSource: onOpenSource
             )
-        case .displayMath(let latex):
-            mathView(latex: latex, mode: .display, fontSize: 17)
-                .frame(maxWidth: .infinity, alignment: .center)
+        case .displayMath(let latex, let trailing):
+            displayEquation(latex, trailing: trailing)
         case .inlineLine(let segments):
             citedInlineLine(segments, chips: chips)
         }
@@ -264,9 +289,11 @@ struct MessageContentView: View {
     private func citedInlineLine(_ segments: [MessageSegment], chips: [AnswerSourceMarkers.Chip]) -> some View {
         let merged = MessageContentParser.mergeAdjacentText(segments)
         let tokens = citedTokens(from: merged)
+        let glued = citedGlue(tokens)
         return InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
-            ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
+            ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
                 citedTokenView(token)
+                    .keepsWithPrevious(index < glued.count && glued[index])
             }
             ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
                 PageTagButton(
@@ -283,6 +310,20 @@ struct MessageContentView: View {
         case text(String)
         case link(String, String, DetectedReference)
         case segment(MessageSegment)
+    }
+
+    private func citedGlue(_ tokens: [CitedToken]) -> [Bool] {
+        let segments = tokens.map { token -> MessageSegment in
+            switch token {
+            case .text(let value):
+                return .text(value)
+            case .link(let label, let suffix, _):
+                return .text(label + suffix)
+            case .segment(let segment):
+                return segment
+            }
+        }
+        return MessageContentParser.keepsWithPreviousMath(segments)
     }
 
     private func citedTokens(from segments: [MessageSegment]) -> [CitedToken] {

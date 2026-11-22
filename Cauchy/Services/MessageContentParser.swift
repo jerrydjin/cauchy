@@ -12,7 +12,9 @@ enum MessageSegment: Equatable {
 enum MessageBlock: Equatable {
     case text(String)
     case inlineLine([MessageSegment])
-    case displayMath(String)
+    /// `trailing` is the punctuation written immediately after the equation
+    /// (", then"). It stays on the equation's line. Empty when nothing followed.
+    case displayMath(String, trailing: String)
 }
 
 enum MessageContentParser {
@@ -84,13 +86,13 @@ enum MessageContentParser {
                         segments.append(.displayMath(innerText.trimmingCharacters(in: .whitespacesAndNewlines)))
                     }
                 case "$":
+                    // Single dollars are inline, however long the formula is
+                    // and whichever commands it uses. A formula is display
+                    // only when the source wrote `$$`, `\[…\]`, or an
+                    // equation environment. Those arrive here already as `$$`.
                     if !innerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         let latex = innerText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if LaTeXNormalizer.shouldRenderAsDisplayMath(latex) {
-                            segments.append(.displayMath(latex))
-                        } else {
-                            segments.append(.inlineMath(latex))
-                        }
+                        segments.append(.inlineMath(latex))
                     }
                 case "**":
                     segments.append(contentsOf: emphasizing(innerText, as: { .bold($0) }))
@@ -255,7 +257,7 @@ enum MessageContentParser {
             switch segment {
             case .displayMath(let latex):
                 flushLine()
-                blocks.append(.displayMath(latex))
+                blocks.append(.displayMath(latex, trailing: ""))
             case .text(let value):
                 let paragraphs = splitParagraphs(value)
                 for (paragraphIndex, paragraph) in paragraphs.enumerated() {
@@ -270,12 +272,7 @@ enum MessageContentParser {
                     }
                 }
             case .inlineMath(let latex):
-                if LaTeXNormalizer.shouldRenderAsDisplayMath(latex) {
-                    flushLine()
-                    blocks.append(.displayMath(latex))
-                } else {
-                    currentLine.append(.inlineMath(latex))
-                }
+                currentLine.append(.inlineMath(latex))
             case .bold(let value), .italic(let value), .code(let value):
                 let normalized = normalizeSoftLineBreaks(value)
                 let trimmed = normalized.trimmingCharacters(in: .whitespaces)
@@ -291,7 +288,119 @@ enum MessageContentParser {
         }
 
         flushLine()
-        return blocks
+        return attachingDisplayPunctuation(blocks)
+    }
+
+    /// Punctuation written right after a display equation belongs on that
+    /// equation, with the word that follows it. Left on the next block,
+    /// ", then" starts a line of its own.
+    static func attachingDisplayPunctuation(_ blocks: [MessageBlock]) -> [MessageBlock] {
+        var result: [MessageBlock] = []
+        var index = 0
+        while index < blocks.count {
+            guard case .displayMath(let latex, let existing) = blocks[index],
+                  existing.isEmpty,
+                  index + 1 < blocks.count,
+                  let peeled = peelDisplayTrailing(from: blocks[index + 1]) else {
+                result.append(blocks[index])
+                index += 1
+                continue
+            }
+            result.append(.displayMath(latex, trailing: peeled.attached))
+            if let remainder = peeled.remainder {
+                result.append(remainder)
+            }
+            index += 2
+        }
+        return result
+    }
+
+    /// ", then the rest" → (", then", " the rest"). Nil when the block does
+    /// not open with sentence punctuation.
+    static func splitDisplayTrailing(_ text: String) -> (attached: String, rest: String)? {
+        let trimmedStart = text.drop { $0 == " " || $0 == "\t" }
+        guard let first = trimmedStart.first, isSentencePunctuation(first) else { return nil }
+        var attached = String(first)
+        var rest = trimmedStart.dropFirst()
+        if rest.first == " " {
+            let after = rest.dropFirst()
+            var end = after.startIndex
+            while end < after.endIndex, after[end].isLetter {
+                end = after.index(after: end)
+            }
+            if end > after.startIndex {
+                attached += " " + String(after[..<end])
+                rest = after[end...]
+            }
+        }
+        return (attached, String(rest))
+    }
+
+    /// The comma after inline math, and the word after that comma, stay with
+    /// the math. A later line break happens before the group, not between
+    /// the math and the comma.
+    static func keepsWithPreviousMath(_ tokens: [MessageSegment]) -> [Bool] {
+        var flags = Array(repeating: false, count: tokens.count)
+        var glueFollowingWord = false
+        for index in tokens.indices {
+            if glueFollowingWord {
+                glueFollowingWord = false
+                if tokenText(tokens[index]) != nil {
+                    flags[index] = true
+                    continue
+                }
+            }
+            guard index > 0, isMathToken(tokens[index - 1]),
+                  let text = tokenText(tokens[index]) else { continue }
+            let trimmed = text.drop { $0 == " " || $0 == "\t" }
+            guard let first = trimmed.first, isSentencePunctuation(first) else { continue }
+            flags[index] = true
+            let rest = trimmed.dropFirst().drop { $0 == " " || $0 == "\t" }
+            if rest.isEmpty { glueFollowingWord = true }
+        }
+        return flags
+    }
+
+    private static func isSentencePunctuation(_ character: Character) -> Bool {
+        character == "," || character == "." || character == ";" || character == ":"
+    }
+
+    private static func isMathToken(_ segment: MessageSegment) -> Bool {
+        switch segment {
+        case .inlineMath, .displayMath: return true
+        case .text, .bold, .italic, .code: return false
+        }
+    }
+
+    private static func tokenText(_ segment: MessageSegment) -> String? {
+        switch segment {
+        case .text(let value), .bold(let value), .italic(let value), .code(let value):
+            return value
+        case .inlineMath, .displayMath:
+            return nil
+        }
+    }
+
+    private static func peelDisplayTrailing(
+        from block: MessageBlock
+    ) -> (attached: String, remainder: MessageBlock?)? {
+        switch block {
+        case .text(let value):
+            guard let split = splitDisplayTrailing(value) else { return nil }
+            let rest = split.rest.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (split.attached, rest.isEmpty ? nil : .text(rest))
+        case .inlineLine(var segments):
+            guard let first = segments.first, case .text(let value) = first,
+                  let split = splitDisplayTrailing(value) else { return nil }
+            segments.removeFirst()
+            if !split.rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                segments.insert(.text(split.rest), at: 0)
+            }
+            let trimmed = trimmingLineEdges(segments)
+            return (split.attached, trimmed.isEmpty ? nil : .inlineLine(trimmed))
+        case .displayMath:
+            return nil
+        }
     }
 
     private static func splitParagraphs(_ text: String) -> [String] {
@@ -406,8 +515,8 @@ enum ReferenceMathRendering {
         switch block {
         case .text(let value):
             return value
-        case .displayMath:
-            return ""
+        case .displayMath(_, let trailing):
+            return trailing
         case .inlineLine(let segments):
             return segments.map { segment in
                 switch segment {
@@ -422,7 +531,7 @@ enum ReferenceMathRendering {
 
     private static func mathLatex(_ block: MessageBlock) -> [String] {
         switch block {
-        case .displayMath(let latex):
+        case .displayMath(let latex, _):
             return [latex]
         case .inlineLine(let segments):
             return segments.compactMap { segment in

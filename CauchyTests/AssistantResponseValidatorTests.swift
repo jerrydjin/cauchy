@@ -444,6 +444,86 @@ final class AssistantResponseValidatorTests: XCTestCase {
         }
         return false
     }
+
+    /// `\rightarrow` contains the letters of `\right`. That substring used to
+    /// promote a short `$…$` formula onto its own centred line.
+    func testInlineArrowStaysInline() {
+        let samples = [
+            "A bounded entire function $f : \\mathbb{C} \\rightarrow \\mathbb{C}$ is constant.",
+            "and suppose that $f : U \\setminus \\{z_0\\} \\rightarrow \\mathbb{C}$ is holomorphic.",
+        ]
+        for sample in samples {
+            let blocks = MessageContentParser.blocks(from: MessageContentParser.parse(sample))
+            XCTAssertFalse(blocks.contains { block in
+                if case .displayMath = block { return true }
+                return false
+            }, sample)
+            guard case .inlineLine(let line) = blocks.first else {
+                return XCTFail("expected one inline line for \(sample)")
+            }
+            XCTAssertTrue(line.contains { segment in
+                if case .inlineMath(let latex) = segment { return latex.contains("\\rightarrow") }
+                return false
+            }, sample)
+            let prose = line.compactMap { segment -> String? in
+                if case .text(let value) = segment { return value }
+                return nil
+            }.joined()
+            XCTAssertFalse(prose.trimmingCharacters(in: .whitespaces).isEmpty, sample)
+        }
+        XCTAssertFalse(LaTeXNormalizer.shouldRenderAsDisplayMath("f : \\mathbb{C} \\rightarrow \\mathbb{C}"))
+        XCTAssertTrue(LaTeXNormalizer.shouldRenderAsDisplayMath("\\left| x \\right|"))
+        XCTAssertTrue(LaTeXNormalizer.containsCommand("\\left| x \\right|", "\\right"))
+        XCTAssertFalse(LaTeXNormalizer.containsCommand("\\rightarrow", "\\right"))
+    }
+
+    func testInlinePunctuationStaysWithTheMathBeforeIt() {
+        let content = "on an open set $U$, then $f(U)$ is open."
+        let blocks = MessageContentParser.blocks(from: MessageContentParser.parse(content))
+        guard case .inlineLine(let line) = blocks.first else {
+            return XCTFail("expected an inline line, got \(blocks)")
+        }
+        let tokens = MessageContentParser.flowTokens(from: line)
+        let glued = MessageContentParser.keepsWithPreviousMath(tokens)
+        let comma = tokens.firstIndex { segment in
+            if case .text(let value) = segment { return value.hasPrefix(",") }
+            return false
+        }
+        let word = tokens.firstIndex { segment in
+            if case .text(let value) = segment { return value.hasPrefix("then") }
+            return false
+        }
+        let commaIndex = try XCTUnwrap(comma)
+        let wordIndex = try XCTUnwrap(word)
+        XCTAssertTrue(glued[commaIndex], "the comma can start the next line")
+        XCTAssertTrue(glued[wordIndex], "the word after the comma can split from the math")
+        XCTAssertGreaterThan(commaIndex, 0)
+        if case .inlineMath = tokens[commaIndex - 1] {
+        } else {
+            XCTFail("comma is not attached to the math before it")
+        }
+    }
+
+    func testPunctuationAfterADisplayEquationStaysOnThatEquation() {
+        let raw = "The first two coefficients vanish.\n$$a_0 = a_1 = 0$$\n, then the constant term is zero."
+        let blocks = MessageContentParser.blocks(
+            from: MessageContentParser.parseNormalized(LaTeXNormalizer.normalizeForDisplay(raw))
+        )
+        let display = blocks.compactMap { block -> (String, String)? in
+            if case .displayMath(let latex, let trailing) = block { return (latex, trailing) }
+            return nil
+        }
+        XCTAssertEqual(display.count, 1)
+        XCTAssertTrue(display[0].0.contains("a_0"))
+        XCTAssertEqual(display[0].1, ", then")
+        XCTAssertFalse(blocks.contains { block in
+            if case .text(let value) = block { return value.hasPrefix(",") || value.hasPrefix("then") }
+            if case .inlineLine(let segments) = block, case .text(let value) = segments.first {
+                return value.trimmingCharacters(in: .whitespaces).hasPrefix(",")
+            }
+            return false
+        })
+    }
 }
 
 @MainActor

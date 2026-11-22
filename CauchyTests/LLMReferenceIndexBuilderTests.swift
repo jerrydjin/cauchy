@@ -2426,6 +2426,29 @@ final class PDFRegionRendererTests: XCTestCase {
               rows.count > 1 else { return 1 }
         return Double(peak.offset) / Double(rows.count - 1)
     }
+
+    func testDarkCropDropsTheWhitePage() {
+        let image = NSImage(size: NSSize(width: 8, height: 4))
+        image.lockFocus()
+        NSColor.white.setFill()
+        NSRect(x: 0, y: 0, width: 8, height: 4).fill()
+        NSColor.black.setFill()
+        NSRect(x: 3, y: 0, width: 2, height: 4).fill()
+        image.unlockFocus()
+
+        let lifted = StatementCropInk.dark(image)
+        guard let tiff = lifted.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else {
+            return XCTFail("dark crop has no bitmap")
+        }
+        let paper = rep.colorAt(x: 0, y: 0)
+        var inkAlpha: CGFloat = 0
+        for x in 0..<rep.pixelsWide {
+            inkAlpha = max(inkAlpha, rep.colorAt(x: x, y: 0)?.alphaComponent ?? 0)
+        }
+        XCTAssertLessThan(paper?.alphaComponent ?? 1, 0.05)
+        XCTAssertGreaterThan(inkAlpha, 0.8)
+    }
 }
 
 private struct AnchoredPassageIndexStub: DocumentIndexProtocol {

@@ -15,6 +15,9 @@ struct MathSegmentView: View {
     /// Failed math in chat stays a monospace chip. The reference card passes
     /// the body font so a broken span cannot change typeface mid-sentence.
     var fallbackFont: Font = .system(.callout, design: .monospaced)
+    /// Size to the formula instead of the whole line, so punctuation can sit
+    /// on the same row as a display equation.
+    var hugsContent = false
 
     /// ImageRenderer does not paint `NSViewRepresentable`. The designer
     /// snapshot sets this and we draw the same SwiftMath display list into
@@ -78,7 +81,7 @@ struct MathSegmentView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             } else if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
-                if mode == .display {
+                if mode == .display && !hugsContent {
                     // Long equations scroll sideways inside the bubble rather
                     // than drawing past its edge.
                     ScrollingMathLabel(latex: rendered, fontSize: fontSize, textColor: glyphColor)
@@ -108,8 +111,8 @@ struct MathSegmentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .fixedSize(horizontal: mode == .inline, vertical: true)
-        .frame(maxWidth: mode == .display ? .infinity : nil, alignment: mode == .display ? .center : .leading)
+        .fixedSize(horizontal: mode == .inline || hugsContent, vertical: true)
+        .frame(maxWidth: mode == .display && !hugsContent ? .infinity : nil, alignment: mode == .display ? .center : .leading)
         // SwiftMath draws the formula without exposing its text to assistive
         // technology. Preserve the original expression, including commands
         // approximated for rendering, instead of leaving a silent gap.

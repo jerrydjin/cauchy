@@ -264,6 +264,7 @@ enum RenderChatCitation {
         try renderHeaderScrolledUnder(to: output.appendingPathComponent("jerry-151-header-scrolled-under.png"))
 
         try renderJerry152(to: output)
+        try renderJerry155(to: output)
     }
 }
 
@@ -1696,8 +1697,8 @@ private struct FollowUpFixture {
         suggest(alreadyAsked: [])
     }
 
-    /// The answer to "What does Theorem 5.4 build on?" does not offer that
-    /// question again. The proof question is a different ask and stays.
+    /// Asking about an unrelated theorem does not change the chip, and asking
+    /// the chip's own question removes it.
     var withoutTheQuestionJustAsked: [SuggestedFollowUp] {
         suggest(alreadyAsked: ["What does Theorem 5.4 build on?"])
     }
@@ -1774,11 +1775,13 @@ private struct FollowUpFixture {
 
     func validate() throws {
         let followUps = two
-        guard followUps.count == 2,
-              followUps[0].question == "Why does the proof of Proposition 5.3 need compactness?",
-              followUps[0].pageLabel == "41",
-              followUps[1].question == "What does Theorem 5.4 build on?",
-              followUps[1].pageLabel == "47" else {
+        guard followUps.count == 1,
+              let chip = followUps.first,
+              chip.question.localizedCaseInsensitiveContains("Proposition 5.3"),
+              chip.question.localizedCaseInsensitiveContains("compactness"),
+              !chip.question.localizedCaseInsensitiveContains("5.4"),
+              !ReaderFollowUps.isFiller(chip.question),
+              chip.pageLabel == "41" else {
             throw SnapshotError("follow-ups drifted: \(followUps.map { "\($0.question) \($0.pageLabel ?? "-")" })")
         }
         guard none.isEmpty else {
@@ -1788,12 +1791,12 @@ private struct FollowUpFixture {
             throw SnapshotError("a follow-up is generic")
         }
         let filtered = withoutTheQuestionJustAsked
-        guard filtered.map(\.question) == ["Why does the proof of Proposition 5.3 need compactness?"] else {
-            throw SnapshotError("the question just asked was offered again: \(filtered.map(\.question))")
+        guard filtered.map(\.question) == followUps.map(\.question) else {
+            throw SnapshotError("an unrelated theorem replaced the chip: \(filtered.map(\.question))")
         }
-        let paraphrased = suggest(alreadyAsked: ["What is Theorem 5.4 built on?"])
-        guard paraphrased.map(\.question) == filtered.map(\.question) else {
-            throw SnapshotError("a paraphrase of the question just asked was offered: \(paraphrased.map(\.question))")
+        let dropped = suggest(alreadyAsked: followUps.map(\.question))
+        guard dropped.isEmpty else {
+            throw SnapshotError("the question just asked was offered again: \(dropped.map(\.question))")
         }
     }
 }
@@ -2377,6 +2380,295 @@ private func scaleBitmapPixels(_ source: NSBitmapImageRep, by factor: Int) throw
         }
     }
     return dest
+}
+
+/// JERRY-155. Dark panels of the in-flight highlight, the thread list, Manage's
+/// last-known status, follow-ups taken from the question and answer, and the
+/// punctuation that stays on a display equation.
+@MainActor
+private func renderJerry155(to output: URL) throws {
+    let beforePage = ChatSnapshotChrome(
+        caption: "Before · no highlight until the answer finishes",
+        width: 540,
+        content: Image(nsImage: jerry155Page(annotated: false))
+    )
+    try writePNG(beforePage, to: output.appendingPathComponent("jerry-155-highlight-before.png"), minimumBytes: 4_000)
+
+    let midPage = ChatSnapshotChrome(
+        caption: "Mid-answer · the highlight is already on the page",
+        width: 540,
+        content: Image(nsImage: jerry155Page(annotated: true))
+    )
+    try writePNG(midPage, to: output.appendingPathComponent("jerry-155-highlight-mid-answer.png"), minimumBytes: 4_000)
+
+    let asking = Highlight(
+        pageIndex: 81,
+        selectedText: "Suppose h(z₀) = h′(z₀) = 0. Then a₀ = a₁ = 0.",
+        title: "Why a₀ and a₁ vanish",
+        messages: [ThreadMessage(role: .user, content: "slightly lost how we concluded this")],
+        updatedAt: Date(timeIntervalSince1970: 2_000)
+    )
+    let earlier = Highlight(
+        pageIndex: 89,
+        selectedText: "The zeros of a non-zero holomorphic function are isolated.",
+        title: "Isolated zeros",
+        messages: [
+            ThreadMessage(role: .user, content: "Why are the zeros isolated?"),
+            ThreadMessage(role: .assistant, content: "A non-zero holomorphic function has isolated zeros."),
+        ],
+        updatedAt: Date(timeIntervalSince1970: 1_000)
+    )
+    let list = ChatSnapshotChrome(
+        caption: "Mid-answer · spinner where the preview goes",
+        width: 380,
+        content: VStack(spacing: 1) {
+            jerry155Row(asking, answering: true)
+            jerry155Row(earlier, answering: false)
+        }
+    )
+    try writePNG(list, to: output.appendingPathComponent("jerry-155-highlights-list-mid-answer.png"), minimumBytes: 2_000)
+
+    let connector = AssistantConnectorID.claudeCode.connector
+    let pending = ConnectorStatus.resolved(access: connector.access, name: connector.name, readiness: .checking)
+    let ready = ConnectorStatus.resolved(access: connector.access, name: connector.name, readiness: .ready)
+    try writePNG(
+        jerry155Manage(connector: connector, status: pending, showsCheckingSheet: true),
+        to: output.appendingPathComponent("jerry-155-manage-before.png"),
+        minimumBytes: 2_000
+    )
+    try writePNG(
+        jerry155Manage(connector: connector, status: ready, showsCheckingSheet: false),
+        to: output.appendingPathComponent("jerry-155-manage-after.png"),
+        minimumBytes: 2_000
+    )
+
+    let taylor = ThreadMessage(
+        role: .assistant,
+        content: "Because h(z₀) = h′(z₀) = 0, the first two Taylor coefficients vanish, so a₀ = a₁ = 0."
+    )
+    let oldChips = [
+        SuggestedFollowUp(
+            question: "What does the proof of Proposition 1.4.14 rely on?",
+            pageIndex: 81,
+            region: NormalizedRect(x: 0, y: 0, width: 0, height: 0)
+        ),
+        SuggestedFollowUp(
+            question: "What does Proposition 1.5.8 build on?",
+            pageIndex: 89,
+            region: NormalizedRect(x: 0, y: 0, width: 0, height: 0)
+        ),
+    ]
+    try writePNG(
+        ChatSnapshotChrome(
+            caption: "Before · chips point at propositions the answer never used",
+            width: 420,
+            content: MessageBubble(
+                message: taylor,
+                maxBubbleWidth: 340,
+                followUps: oldChips,
+                followUpsStartVisible: true
+            )
+        ),
+        to: output.appendingPathComponent("jerry-155-follow-ups-before.png"),
+        minimumBytes: 2_000
+    )
+    let grounded = ReaderFollowUps.suggest(
+        answer: "A continuous image of a closed interval is connected. [R1]",
+        question: "Why is the image connected?",
+        anchors: [
+            AnswerSourceAnchor(
+                label: "Proposition 5.3",
+                pageIndex: 40,
+                region: NormalizedRect(x: 0.08, y: 0.42, width: 0.84, height: 0.08),
+                sourceID: "R1"
+            ),
+        ],
+        statements: FollowUpFixture().statements
+    )
+    let taylorChips = ReaderFollowUps.suggest(
+        answer: taylor.content,
+        question: "slightly lost how we concluded this",
+        selection: "Suppose h(z₀) = h′(z₀) = 0. Then a₀ = a₁ = 0.",
+        statements: [
+            ReaderFollowUpStatement(
+                reference: DetectedReference(kind: .proposition, number: "1.4.14"),
+                pageIndex: 81,
+                statementText: "A holomorphic function with a zero derivative is constant."
+            ),
+            ReaderFollowUpStatement(
+                reference: DetectedReference(kind: .proposition, number: "1.5.8"),
+                pageIndex: 89,
+                statementText: "The zeros of a non-zero holomorphic function are isolated."
+            ),
+        ]
+    )
+    guard taylorChips.isEmpty, grounded.count == 1, !ReaderFollowUps.isFiller(grounded[0].question) else {
+        throw SnapshotError("follow-up panel is not grounded: \(taylorChips.map(\.question)) / \(grounded.map(\.question))")
+    }
+    try writePNG(
+        ChatSnapshotChrome(
+            caption: "After · only a chip the answer actually supports",
+            width: 420,
+            content: VStack(alignment: .leading, spacing: 16) {
+                MessageBubble(
+                    message: taylor,
+                    maxBubbleWidth: 340,
+                    followUps: taylorChips,
+                    followUpsStartVisible: true
+                )
+                MessageBubble(
+                    message: ThreadMessage(role: .assistant, content: "A continuous image of a closed interval is connected."),
+                    maxBubbleWidth: 340,
+                    followUps: grounded,
+                    followUpsStartVisible: true
+                )
+            }
+        ),
+        to: output.appendingPathComponent("jerry-155-follow-ups-after.png"),
+        minimumBytes: 2_000
+    )
+
+    let equation = "The first two coefficients vanish.\n$$a_0 = a_1 = 0$$\n, so the constant term is zero."
+    try writePNG(
+        ChatSnapshotChrome(
+            caption: "Display equation · punctuation stays on its line",
+            width: 460,
+            content: HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Before").font(.caption).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("The first two coefficients vanish.")
+                        MathSegmentView(latex: "a_0 = a_1 = 0", mode: .display, fontSize: 17)
+                        Text(", so the constant term is zero.")
+                    }
+                    .font(.body)
+                    .frame(width: 200, alignment: .leading)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("After").font(.caption).foregroundStyle(.secondary)
+                    MessageContentView(content: equation)
+                        .frame(width: 200, alignment: .leading)
+                }
+            }
+            .environment(\.rendersForSnapshot, true)
+        ),
+        to: output.appendingPathComponent("jerry-155-display-punctuation.png"),
+        minimumBytes: 2_000
+    )
+}
+
+private func jerry155Row(_ highlight: Highlight, answering: Bool) -> HighlightThreadRow {
+    HighlightThreadRow(
+        highlight: highlight,
+        isAnswering: answering,
+        onOpen: {},
+        onRetry: {},
+        onRename: {},
+        onRecolour: { _ in },
+        onCopyMarkdown: {},
+        onDelete: {}
+    )
+}
+
+private func jerry155Page(annotated: Bool) -> NSImage {
+    let size = NSSize(width: 520, height: 200)
+    let paper = NSImage(size: size)
+    paper.lockFocus()
+    NSColor(calibratedWhite: 0.16, alpha: 1).setFill()
+    NSRect(origin: .zero, size: size).fill()
+    let sentence = "Suppose h(z₀) = h′(z₀) = 0. Then a₀ = a₁ = 0." as NSString
+    sentence.draw(
+        at: NSPoint(x: 28, y: 96),
+        withAttributes: [
+            .font: NSFont.systemFont(ofSize: 15),
+            .foregroundColor: NSColor.white,
+        ]
+    )
+    paper.unlockFocus()
+    guard let page = PDFPage(image: paper) else { return paper }
+    let document = PDFDocument()
+    document.insert(page, at: 0)
+    if annotated {
+        let highlight = Highlight(
+            pageIndex: 0,
+            bounds: NormalizedRect(x: 0.04, y: 0.38, width: 0.92, height: 0.22),
+            selectedText: "Suppose h(z₀) = h′(z₀) = 0. Then a₀ = a₁ = 0.",
+            color: .yellow
+        )
+        HighlightAnnotationService.sync(document: document, highlights: [highlight], activeID: highlight.id)
+        HighlightAnnotationService.applyPulse(
+            document: document,
+            highlightID: highlight.id,
+            color: highlight.color.pageColor,
+            opacity: HighlightAnnotationService.pulseOpacity(at: 1.3)
+        )
+    }
+    let bounds = page.bounds(for: .mediaBox)
+    let rendered = NSImage(size: bounds.size)
+    rendered.lockFocus()
+    if let context = NSGraphicsContext.current?.cgContext {
+        page.draw(with: .mediaBox, to: context)
+    }
+    rendered.unlockFocus()
+    return rendered
+}
+
+private struct Jerry155ManageCard: View {
+    let connector: AssistantConnector
+    let status: ConnectorStatus
+    let showsCheckingSheet: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(connector.name).font(.headline)
+                    Text(status.isReady ? "Ready to answer your questions" : (status.hint ?? connector.tagline))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Text(status.badge.isEmpty ? " " : status.badge)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(status.isReady ? Color.green : Color.secondary)
+            }
+            .padding(12)
+            .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+
+            VStack(spacing: 10) {
+                if showsCheckingSheet {
+                    ProgressView()
+                    Text("Checking \(connector.name)…").font(.headline)
+                    Text("Sending a tiny request with the model you picked. No document is shared.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                } else if status.isReady {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.green)
+                    Text("\(connector.name) is connected").font(.title3.weight(.semibold))
+                    Text("You can now use it to ask about your reading.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 140)
+        }
+        .padding(16)
+        .frame(width: 420)
+    }
+}
+
+private func jerry155Manage(connector: AssistantConnector, status: ConnectorStatus, showsCheckingSheet: Bool) -> some View {
+    let caption = showsCheckingSheet
+        ? "Before · Manage starts over, and leaving it looks disconnected"
+        : "After · Manage opens on the last known status"
+    return ChatSnapshotChrome(
+        caption: caption,
+        width: 460,
+        content: Jerry155ManageCard(connector: connector, status: status, showsCheckingSheet: showsCheckingSheet)
+    )
 }
 
 private struct SnapshotError: Error, CustomStringConvertible {

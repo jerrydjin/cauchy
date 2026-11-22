@@ -12,7 +12,9 @@ enum MessageSegment: Equatable {
 enum MessageBlock: Equatable {
     case text(String)
     case inlineLine([MessageSegment])
-    case displayMath(String)
+    /// `trailing` is the punctuation that was written immediately after the
+    /// display equation (", so"). It stays on the equation's line.
+    case displayMath(String, trailing: String)
 }
 
 enum MessageContentParser {
@@ -255,7 +257,7 @@ enum MessageContentParser {
             switch segment {
             case .displayMath(let latex):
                 flushLine()
-                blocks.append(.displayMath(latex))
+                blocks.append(.displayMath(latex, trailing: ""))
             case .text(let value):
                 let paragraphs = splitParagraphs(value)
                 for (paragraphIndex, paragraph) in paragraphs.enumerated() {
@@ -272,7 +274,7 @@ enum MessageContentParser {
             case .inlineMath(let latex):
                 if LaTeXNormalizer.shouldRenderAsDisplayMath(latex) {
                     flushLine()
-                    blocks.append(.displayMath(latex))
+                    blocks.append(.displayMath(latex, trailing: ""))
                 } else {
                     currentLine.append(.inlineMath(latex))
                 }
@@ -291,7 +293,76 @@ enum MessageContentParser {
         }
 
         flushLine()
-        return blocks
+        return attachingDisplayPunctuation(blocks)
+    }
+
+    /// Punctuation written right after a display equation belongs to that
+    /// equation. Left on the following block, ", so" starts a line of its own.
+    static func attachingDisplayPunctuation(_ blocks: [MessageBlock]) -> [MessageBlock] {
+        var result: [MessageBlock] = []
+        var index = 0
+        while index < blocks.count {
+            guard case .displayMath(let latex, let existing) = blocks[index],
+                  existing.isEmpty,
+                  index + 1 < blocks.count,
+                  let peeled = peelDisplayTrailing(from: blocks[index + 1]) else {
+                result.append(blocks[index])
+                index += 1
+                continue
+            }
+            result.append(.displayMath(latex, trailing: peeled.attached))
+            if let remainder = peeled.remainder {
+                result.append(remainder)
+            }
+            index += 2
+        }
+        return result
+    }
+
+    /// ", so the rest" -> (", so", "the rest"). Nil when the block does not
+    /// open with sentence punctuation.
+    static func splitDisplayTrailing(_ text: String) -> (attached: String, rest: String)? {
+        let trimmedStart = text.drop { $0 == " " || $0 == "\t" }
+        guard let first = trimmedStart.first, ",.;:".contains(first) else { return nil }
+        var attached = String(first)
+        var rest = trimmedStart.dropFirst()
+        let glue = ["so", "and", "or", "then", "thus", "hence"]
+        if rest.first == " " {
+            let after = rest.dropFirst()
+            let lower = after.lowercased()
+            for word in glue.sorted(by: { $0.count > $1.count }) {
+                guard lower.hasPrefix(word) else { continue }
+                let end = after.index(after.startIndex, offsetBy: word.count)
+                if end == after.endIndex || !after[end].isLetter {
+                    attached += " " + String(after[..<end])
+                    rest = after[end...]
+                    break
+                }
+            }
+        }
+        return (attached, String(rest))
+    }
+
+    private static func peelDisplayTrailing(
+        from block: MessageBlock
+    ) -> (attached: String, remainder: MessageBlock?)? {
+        switch block {
+        case .text(let value):
+            guard let split = splitDisplayTrailing(value) else { return nil }
+            let rest = split.rest.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (split.attached, rest.isEmpty ? nil : .text(rest))
+        case .inlineLine(var segments):
+            guard let first = segments.first, case .text(let value) = first,
+                  let split = splitDisplayTrailing(value) else { return nil }
+            segments.removeFirst()
+            if !split.rest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                segments.insert(.text(split.rest), at: 0)
+            }
+            let trimmed = trimmingLineEdges(segments)
+            return (split.attached, trimmed.isEmpty ? nil : .inlineLine(trimmed))
+        case .displayMath:
+            return nil
+        }
     }
 
     private static func splitParagraphs(_ text: String) -> [String] {
@@ -406,8 +477,8 @@ enum ReferenceMathRendering {
         switch block {
         case .text(let value):
             return value
-        case .displayMath:
-            return ""
+        case .displayMath(_, let trailing):
+            return trailing
         case .inlineLine(let segments):
             return segments.map { segment in
                 switch segment {
@@ -422,7 +493,7 @@ enum ReferenceMathRendering {
 
     private static func mathLatex(_ block: MessageBlock) -> [String] {
         switch block {
-        case .displayMath(let latex):
+        case .displayMath(let latex, _):
             return [latex]
         case .inlineLine(let segments):
             return segments.compactMap { segment in

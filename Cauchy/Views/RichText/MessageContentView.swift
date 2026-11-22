@@ -58,9 +58,8 @@ struct MessageContentView: View {
         case .text(let value):
             plainText(value)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .displayMath(let latex):
-            mathView(latex: latex, mode: .display, fontSize: 17)
-                .frame(maxWidth: .infinity, alignment: .center)
+        case .displayMath(let latex, let trailing):
+            displayEquation(latex, trailing: trailing)
         case .inlineLine(let segments):
             inlineLineView(segments)
         }
@@ -87,9 +86,8 @@ struct MessageContentView: View {
             case .inlineMath(let latex):
                 mathView(latex: latex, mode: .inline, fontSize: 15)
                     .frame(maxWidth: .infinity, alignment: equationOnItsOwnLine(latex) ? .center : .leading)
-            case .displayMath(let latex):
-                mathView(latex: latex, mode: .display, fontSize: 17)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            case .displayMath(let latex, let trailing):
+                displayEquation(latex, trailing: trailing)
             }
         } else if let mergedText = mergedText(from: merged) {
             plainText(mergedText)
@@ -153,14 +151,40 @@ struct MessageContentView: View {
         latex.contains("=")
     }
 
-    private func mathView(latex: String, mode: MathSegmentView.Mode, fontSize: CGFloat) -> MathSegmentView {
+    private func mathView(
+        latex: String,
+        mode: MathSegmentView.Mode,
+        fontSize: CGFloat,
+        hugsContent: Bool = false
+    ) -> MathSegmentView {
         MathSegmentView(
             latex: latex,
             mode: mode,
             fontSize: fontSize,
             textColor: textColor,
-            fallbackFont: allowsMonospace ? .system(.callout, design: .monospaced) : font
+            fallbackFont: allowsMonospace ? .system(.callout, design: .monospaced) : font,
+            hugsContent: hugsContent
         )
+    }
+
+    /// A display equation, with the punctuation that followed it kept on the
+    /// same line instead of wrapping underneath.
+    @ViewBuilder
+    private func displayEquation(_ latex: String, trailing: String) -> some View {
+        if trailing.isEmpty {
+            mathView(latex: latex, mode: .display, fontSize: 17)
+                .frame(maxWidth: .infinity, alignment: .center)
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                mathView(latex: latex, mode: .display, fontSize: 17, hugsContent: true)
+                Text(trailing)
+                    .font(font)
+                    .foregroundStyle(textColor)
+                    .fixedSize(horizontal: true, vertical: true)
+                    .layoutPriority(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
     }
 
     private func plainText(_ value: String) -> some View {
@@ -253,9 +277,8 @@ struct MessageContentView: View {
                 onOpenReference: onOpenReference,
                 onOpenSource: onOpenSource
             )
-        case .displayMath(let latex):
-            mathView(latex: latex, mode: .display, fontSize: 17)
-                .frame(maxWidth: .infinity, alignment: .center)
+        case .displayMath(let latex, let trailing):
+            displayEquation(latex, trailing: trailing)
         case .inlineLine(let segments):
             citedInlineLine(segments, chips: chips)
         }

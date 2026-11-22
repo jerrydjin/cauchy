@@ -2,6 +2,13 @@ import Foundation
 import Observation
 import PDFKit
 
+/// When a thread is written to the highlight store. The question is saved
+/// before the model is asked, so a failure still has a highlight to retry.
+enum ThreadPersistMoment: Sendable {
+    case questionSent(SelectionThread)
+    case answerFinished(SelectionThread)
+}
+
 @MainActor
 @Observable
 final class SelectionThreadViewModel {
@@ -132,6 +139,7 @@ final class SelectionThreadViewModel {
             index: documentIndex
         )
         assistant.restoreSession(context: readingContext, messages: highlight.messages)
+        activeThread?.failureNotice = highlight.askFailure
         promptIncludesSelectedPassage = true
     }
 
@@ -153,7 +161,7 @@ final class SelectionThreadViewModel {
         _ question: String,
         documentTitle: String,
         passage: MessagePassage? = nil,
-        onPersist: (SelectionThread) -> Void
+        onPersist: (ThreadPersistMoment) -> Void
     ) async throws {
         guard var thread = activeThread else { return }
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -181,7 +189,12 @@ final class SelectionThreadViewModel {
         thread.messages.append(ThreadMessage(role: .user, content: trimmed, passage: passage))
         thread.streamingAssistantText = ""
         thread.failureNotice = nil
+        thread.isPersisted = true
         activeThread = thread
+        isResponding = true
+        // The highlight has to exist before the model speaks. Waiting for the
+        // answer left the page and the thread list empty for the whole request.
+        onPersist(.questionSent(thread))
 
         // Freeze answer provenance before the async call. A model-picker
         // change while tokens are streaming must not relabel this reply as if
@@ -195,10 +208,10 @@ final class SelectionThreadViewModel {
 
         let coalescer = StreamingTextCoalescer()
         coalescer.onFlush = { [weak self] partial in
-            self?.activeThread?.streamingAssistantText = AssistantAnswerBoundary.displayContent(partial)
+            let visible = AnswerVoice.shape(AssistantAnswerBoundary.displayContent(partial))
+            self?.activeThread?.streamingAssistantText = visible
         }
 
-        isResponding = true
         defer {
             coalescer.cancel()
             isResponding = false
@@ -221,7 +234,8 @@ final class SelectionThreadViewModel {
             coalescer.submit(partial)
         }
         let parsed = AssistantAnswerBoundary.parse(assistantText)
-        let citationAudit = AnswerCitationAudit.evaluate(parsed.content, sources: sourceAnchors)
+        let spoken = AnswerVoice.shape(parsed.content)
+        let citationAudit = AnswerCitationAudit.evaluate(spoken, sources: sourceAnchors)
         let acceptedBasis: AnswerBasis = parsed.basis == .pdf && citationAudit.status != .idsResolve
             ? .unverified : parsed.basis
         let pages = Array(Set([thread.pageIndex + 1] + retrieval.sourcePageNumbers)).sorted()
@@ -239,14 +253,15 @@ final class SelectionThreadViewModel {
         )
         thread.messages.append(ThreadMessage(
             role: .assistant,
-            content: parsed.content,
+            content: spoken,
             answerEvidence: evidence
         ))
         thread.isPersisted = true
         thread.failureNotice = nil
         activeThread = thread
+        isResponding = false
         ProviderReadinessStore.shared.markReady(connectorID: answerProvider, modelID: answerModelID)
-        onPersist(thread)
+        onPersist(.answerFinished(thread))
     }
 
     func noteFailure(_ message: String) {

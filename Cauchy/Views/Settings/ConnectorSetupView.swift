@@ -104,7 +104,11 @@ struct ConnectorSetupView: View {
                     }.buttonStyle(.borderedProminent)
                 } else if setup.phase != .installing && setup.phase != .idle {
                     Button(connector.resolvedBinaryURL == nil ? "Retry installation" : "Restart sign-in") {
-                        setup.begin(connector.id)
+                        if connector.resolvedBinaryURL == nil {
+                            setup.begin(connector.id)
+                        } else {
+                            setup.present(connector.id)
+                        }
                         terminalID = UUID()
                     }.disabled(setup.busy)
                     Button {
@@ -121,7 +125,7 @@ struct ConnectorSetupView: View {
         .padding(28)
         .frame(width: 680, height: 590)
         .interactiveDismissDisabled(setup.busy)
-        .onAppear { setup.begin(connector.id) }
+        .onAppear { setup.present(connector.id) }
         .onDisappear { setup.cancel(); onConnected() }
     }
 }

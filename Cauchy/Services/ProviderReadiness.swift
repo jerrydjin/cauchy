@@ -34,6 +34,9 @@ final class ProviderReadinessStore {
     @ObservationIgnored private var suppressedReady: Set<ProbeKey> = []
 
     private(set) var states: [ProbeKey: ReadinessState] = [:]
+    /// The last result that was not a cancelled check. A recheck must not
+    /// replace this with `.checking` or `.unknown` when the reader dismisses it.
+    private var settled: [ProbeKey: ReadinessState] = [:]
 
     init(
         defaults: UserDefaults = .standard,
@@ -49,6 +52,7 @@ final class ProviderReadinessStore {
            let keys = try? JSONDecoder().decode([ProbeKey].self, from: data) {
             for key in keys {
                 states[key] = .ready
+                settled[key] = .ready
             }
         }
     }
@@ -92,6 +96,7 @@ final class ProviderReadinessStore {
             guard self.suppressedReady.contains(key) else { return }
             if case .ready = self.states[key] {
                 self.states[key] = nil
+                self.settled[key] = nil
                 self.save()
             }
         }
@@ -140,14 +145,29 @@ final class ProviderReadinessStore {
         let key = ProbeKey(connectorID: connectorID, modelID: modelID)
         generation[key, default: 0] += 1
         let token = generation[key]
-        states[key] = .checking
+        let prior = settled[key]
+        // A known result stays on screen while a recheck runs. Only a connector
+        // we have never resolved shows an unfinished check.
+        if prior == nil {
+            states[key] = .checking
+        }
         let failure = await prober.probe(connectorID: connectorID, modelID: modelID)
         guard generation[key] == token else { return failure }
+        if failure == .cancelled || Task.isCancelled {
+            if let prior {
+                states[key] = prior
+            } else {
+                states[key] = nil
+            }
+            return .cancelled
+        }
         suppressedReady.remove(key)
         if let failure {
             states[key] = .blocked(failure)
+            settled[key] = .blocked(failure)
         } else {
             states[key] = .ready
+            settled[key] = .ready
         }
         save()
         return failure
@@ -157,6 +177,7 @@ final class ProviderReadinessStore {
         let key = ProbeKey(connectorID: connectorID, modelID: modelID)
         suppressedReady.remove(key)
         states[key] = .ready
+        settled[key] = .ready
         save()
     }
 
@@ -166,6 +187,7 @@ final class ProviderReadinessStore {
         let key = ProbeKey(connectorID: connectorID, modelID: modelID)
         suppressedReady.remove(key)
         states[key] = .blocked(failure)
+        settled[key] = .blocked(failure)
         save()
     }
 
@@ -173,6 +195,7 @@ final class ProviderReadinessStore {
         let key = ProbeKey(connectorID: connectorID, modelID: modelID)
         suppressedReady.remove(key)
         states[key] = nil
+        settled[key] = nil
         generation[key, default: 0] += 1
         save()
     }

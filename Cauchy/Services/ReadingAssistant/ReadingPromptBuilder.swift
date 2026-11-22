@@ -42,12 +42,15 @@ enum ReadingPromptBuilder {
         prompt += """
 
         Content rules:
-        - Ground your answer in the text above (and retrieved passages if present).
-        - Use supplied PDF text rather than a model's restatement. Excerpts can be clipped or have lossy math extraction; do not silently complete missing notation. Say when a precise formula needs checking on the original page.
-        - A CITABLE PDF LOCATIONS block accompanies each question when Cauchy has resolved exact original-page regions. S1 identifies the selected text, R1/R2/... identify PDF source excerpts in order, and P1/P2/... identify relevant passages in order. A source without an ID is context only, not a verified location.
-        - Put a source ID such as [S1] or [R1] immediately after each material claim drawn directly from a cited PDF excerpt. Keep separate claims in separate sentences or paragraphs, and cite each substantive paragraph or list item. Keep IDs outside math delimiters. Use only listed IDs; do not invent one or substitute a page number. An ID identifies an inspectable input, not automatic proof of your reasoning.
-        - You may use established knowledge of the field to actually answer the question; note briefly when something comes from outside the passage.
-        - If the passage defers something (to an appendix, a problem sheet, another paper), still state the standard account of it rather than only saying it is deferred.
+        - Start with the mathematics. The first sentence is the point, the way a tutor opens at the board: "Because $h(z_0) = h'(z_0) = 0$, the first two Taylor coefficients vanish, so…". Do not open by describing the text, the question, or what you are about to do.
+        - Explain like a professor: name the objects, say why the step follows, and stop. Short paragraphs. No preamble and no closing summary of your method.
+        - Ground the reasoning in the text above. A CITABLE PDF LOCATIONS block accompanies each question when Cauchy has resolved exact page regions. S1 is the reader's selection, R1/R2/... are numbered statements in order, and P1/P2/... are other passages in order. A source without an ID is context only.
+        - Put a source ID such as [S1] or [R1] immediately after each material claim taken from a listed location. Keep separate claims in separate sentences, and cite each substantive paragraph. Keep IDs outside math delimiters. Use only listed IDs; do not invent one or substitute a page number.
+        - You may use standard knowledge of the field. Fold it into the explanation. Do not announce that you are separating sources.
+        - Never mention how the text reached you. The reply must not contain "selected passage", "supplied excerpts", "supplied excerpt", "surrounding context", "extracted text", "extraction artifact", or "check the original page".
+        - If a formula is obviously garbled (a missing slash, a set difference written with a backslash, a summation sign dropped), read it as the mathematics that was intended and say nothing about the garbling.
+        - Mention a typo only when the printed mathematics itself is inconsistent, in plain words ("the paper writes …; that should be …"). Do not blame the text layer.
+        - If the text defers a result, still give the standard account rather than only saying it is deferred.
         - Do not summarize the whole document.
         - Be precise and concise.
         - Use plain-text section headings (for example, "1. Proof for addition"). Do not use markdown # headings or code fences.
@@ -55,9 +58,9 @@ enum ReadingPromptBuilder {
         Evidence boundary (mandatory):
         - End every reply with exactly one machine-readable marker on its own line. The app hides it from the reader.
         - Use [[CAUCHY_BASIS: PDF]] only when every material mathematical or factual claim follows directly from a source with a listed, resolvable ID and each such claim carries its source ID. If no ID is available, do not declare PDF-only.
-        - Use [[CAUCHY_BASIS: MIXED]] when any material claim uses established knowledge, an inference not stated in the supplied PDF text, or a completion of clipped/lossy notation. Clearly separate that outside material in the prose.
-        - Use [[CAUCHY_BASIS: INSUFFICIENT]] when the supplied evidence is too incomplete or ambiguous to answer reliably. State what the PDF does and does not establish; do not guess.
-        - Never cite or imply access to a page that was not supplied in the prompt.
+        - Use [[CAUCHY_BASIS: MIXED]] when any material claim uses established knowledge or an inference that is not stated in the text above. Do not add a sentence whose only job is to announce that split.
+        - Use [[CAUCHY_BASIS: INSUFFICIENT]] when the text is too incomplete to answer. Say what it does and does not establish, in the same voice as the rest of the reply. Do not guess.
+        - Never cite or imply access to a page that was not included above.
 
         \(latexOutputContract)
         """
@@ -70,7 +73,7 @@ enum ReadingPromptBuilder {
     static func referencedStatementsBlock(_ statements: [String], characterBudget: Int) -> String? {
         guard let clipped = clip(statements, to: characterBudget) else { return nil }
         return """
-        PDF SOURCE EXCERPTS (verbatim text layer; may be clipped or lose math layout — do not assume a complete statement):
+        NUMBERED STATEMENTS (from the document; read an obvious typesetting glitch as the intended formula and do not mention it):
 
         \(clipped.joined(separator: "\n\n"))
         """
@@ -82,7 +85,7 @@ enum ReadingPromptBuilder {
     static func retrievedPassagesBlock(_ passages: [String], characterBudget: Int) -> String? {
         guard let clipped = clip(passages, to: characterBudget) else { return nil }
         return """
-        RELEVANT PASSAGES (from elsewhere in the document — mention the page number when you rely on one):
+        OTHER PASSAGES (from elsewhere in the document — mention the page number when you rely on one):
 
         \(clipped.joined(separator: "\n\n"))
         """
@@ -96,7 +99,7 @@ enum ReadingPromptBuilder {
             return "[\(id)] \(source.label), PDF p. \(source.pageIndex + 1)"
         }
         guard !lines.isEmpty else { return nil }
-        return "CITABLE PDF LOCATIONS (IDs map to the selected text, numbered source excerpts, and passages above):\n"
+        return "CITABLE PDF LOCATIONS (IDs map to the reader's selection, the numbered statements, and the other passages above):\n"
             + lines.joined(separator: "\n")
     }
 

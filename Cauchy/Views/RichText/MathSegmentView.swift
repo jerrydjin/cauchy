@@ -162,12 +162,16 @@ struct MathSegmentView: View {
                             ?? snapshot.image.size.height) * scale
                     }
             } else {
-                // An explicit frame, not a flexible image. The line layout
-                // measures this view against the whole column; without a rigid
-                // width it reports that column, and a short equation stays on
-                // the left edge instead of being centred.
-                Image(nsImage: snapshot.image)
-                    .frame(width: snapshot.image.size.width, height: snapshot.image.size.height)
+                // ImageRenderer pins this bitmap to the leading edge of the
+                // column and ignores a centring alignment. An equation is
+                // drawn into a column-width image with the glyphs already in
+                // the middle. A symbol with no equals sign stays at its own
+                // width so it can sit beside the words.
+                let image = centersInCard(snapshot.latex)
+                    ? centeredCardImage(snapshot.image, column: cardTextWidth)
+                    : snapshot.image
+                Image(nsImage: image)
+                    .frame(width: image.size.width, height: image.size.height)
                     .alignmentGuide(.firstTextBaseline) { dimensions in
                         MathMetrics.baseline(latex: snapshot.latex, mode: mode, fontSize: fontSize)
                             ?? dimensions[.bottom]
@@ -180,6 +184,56 @@ struct MathSegmentView: View {
                         ?? dimensions[.bottom]
                 }
         }
+    }
+
+    /// A display formula, or an inline formula with an equals sign, is the
+    /// equation the card centres. Other symbols stay inline.
+    private func centersInCard(_ latex: String) -> Bool {
+        mode == .display || latex.contains("=")
+    }
+
+    /// The formula bitmap, centred in a column-width image at the same pixel
+    /// scale. The card draws that image from the left edge.
+    private func centeredCardImage(_ image: NSImage, column: CGFloat) -> NSImage {
+        guard column > image.size.width + 0.5,
+              image.size.width > 0,
+              image.size.height > 0,
+              let tiff = image.tiffRepresentation,
+              let source = NSBitmapImageRep(data: tiff),
+              source.pixelsWide > 0,
+              let cgImage = source.cgImage else { return image }
+        let scale = CGFloat(source.pixelsWide) / image.size.width
+        let pixelsWide = Int((column * scale).rounded(.up))
+        let pixelsHigh = source.pixelsHigh
+        guard pixelsWide > source.pixelsWide,
+              let canvas = NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: pixelsWide,
+                pixelsHigh: pixelsHigh,
+                bitsPerSample: 8,
+                samplesPerPixel: 4,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: .deviceRGB,
+                bytesPerRow: 0,
+                bitsPerPixel: 0
+              ) else { return image }
+        NSGraphicsContext.saveGraphicsState()
+        let graphics = NSGraphicsContext(bitmapImageRep: canvas)
+        NSGraphicsContext.current = graphics
+        graphics?.cgContext.clear(CGRect(x: 0, y: 0, width: pixelsWide, height: pixelsHigh))
+        graphics?.cgContext.interpolationQuality = .none
+        let originX = CGFloat(pixelsWide - source.pixelsWide) / 2
+        graphics?.cgContext.draw(
+            cgImage,
+            in: CGRect(x: originX, y: 0, width: CGFloat(source.pixelsWide), height: CGFloat(pixelsHigh))
+        )
+        NSGraphicsContext.restoreGraphicsState()
+        let pointSize = NSSize(width: column, height: image.size.height)
+        canvas.size = pointSize
+        let centered = NSImage(size: pointSize)
+        centered.addRepresentation(canvas)
+        return centered
     }
 
     /// Spoken form. VoiceOver gets the formula even when the glyphs are a bitmap.

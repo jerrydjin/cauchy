@@ -60,7 +60,38 @@ final class AnswerVoiceTests: XCTestCase {
         XCTAssertTrue(prompt.contains("extracted text"))
         XCTAssertTrue(prompt.contains("check the original page"))
         XCTAssertTrue(prompt.contains("since h(z0) = h'(z0) = 0 we see a0 = a1 = 0"))
+        XCTAssertTrue(prompt.contains("order at least 2"))
+        XCTAssertTrue(prompt.contains("and stop"))
+        XCTAssertFalse(prompt.contains("Because $h(z_0)"))
+        XCTAssertFalse(prompt.contains("first two Taylor coefficients vanish"))
         XCTAssertFalse(prompt.contains("Say when a precise formula needs checking"))
         XCTAssertFalse(prompt.contains("PDF SOURCE EXCERPTS"))
+    }
+
+    /// The worked example used to be the Taylor sentence. A later question
+    /// about a different highlight then opened with that sentence. The
+    /// selected lines stay in the prompt; the instructions do not supply an
+    /// answer from some other selection.
+    func testInstructionsDoNotPlantAnAnswerFromAnotherSelection() {
+        let selected = "Proposition 5.3. A continuous image of a closed interval is connected."
+        let prompt = ReadingPromptBuilder.instructions(
+            for: ReadingContext(
+                documentTitle: "Synthetic notes on a holomorphic function",
+                selectedText: selected,
+                surroundingText: "Since h(z0)=h'(z0)=0 we see a0=a1=0, hence the sum starts at k>=2.",
+                retrievedPassages: []
+            ),
+            provider: .claudeCode
+        )
+
+        let sections = prompt.components(separatedBy: "---")
+        XCTAssertGreaterThanOrEqual(sections.count, 2)
+        let asked = sections[1]
+        XCTAssertTrue(asked.contains(selected))
+        XCTAssertFalse(asked.contains("h(z0)"))
+        XCTAssertFalse(prompt.contains("Because $h(z_0)"))
+        XCTAssertFalse(prompt.contains("first two Taylor coefficients vanish"))
+        XCTAssertTrue(prompt.contains("from nowhere else"))
+        XCTAssertTrue(prompt.contains("Do not mention Taylor coefficients"))
     }
 }

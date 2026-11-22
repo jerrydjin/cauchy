@@ -25,12 +25,23 @@ enum ReferencePreviewMetrics {
 /// and the designer snapshot renders the column.
 enum ReferencePreviewBlockChrome {
     static func padded<Content: View>(_ content: Content) -> some View {
+        ReferencePreviewBubble(content: content)
+    }
+}
+
+/// The card fill is the shared bubble colour for the current appearance.
+/// A fixed dark grey left the title dark-on-dark whenever the window was light.
+private struct ReferencePreviewBubble<Content: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var content: Content
+
+    var body: some View {
         content
             .padding(.horizontal, ConversationChrome.answerPaddingH)
             .padding(.vertical, ConversationChrome.answerPaddingV)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                ContentSurface.bubble,
+                ContentSurface.bubble(for: colorScheme),
                 in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
             )
     }
@@ -105,19 +116,17 @@ struct ReferencePreviewFallbackColumn: View {
     }
 }
 
-/// The page crop. Light mode keeps the paper. Dark mode drops the white
-/// page and draws the glyphs in the primary colour, so the card fill shows
-/// through and the rectangle edge is gone.
+/// The page crop. Both appearances drop the white paper and draw the
+/// glyphs in the primary colour, so the card fill shows through and the
+/// rectangle edge is gone.
 struct StatementCropImage: View {
     let image: NSImage
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let shown = colorScheme == .dark ? StatementCropInk.dark(image) : image
-        Image(nsImage: shown)
+        Image(nsImage: StatementCropInk.dark(image))
             .resizable()
             .interpolation(.high)
-            .renderingMode(colorScheme == .dark ? .template : .original)
+            .renderingMode(.template)
             .foregroundStyle(.primary)
             .scaledToFit()
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,7 +137,8 @@ struct StatementCropImage: View {
 enum StatementCropInk {
     /// White paper becomes clear. Dark glyphs become opaque black with an
     /// alpha that follows how dark they were, so a template tint can paint
-    /// them in the primary colour.
+    /// them in the primary colour. The same mask is used in light and dark;
+    /// `.primary` supplies the ink.
     static func dark(_ image: NSImage) -> NSImage {
         guard let tiff = image.tiffRepresentation,
               let source = NSBitmapImageRep(data: tiff),
@@ -188,6 +198,7 @@ struct ReferencePreviewViewport<Content: View>: View {
 
     @State private var contentHeight: CGFloat = 0
     @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         if rendersForSnapshot, let heightCap {
@@ -224,8 +235,9 @@ struct ReferencePreviewViewport<Content: View>: View {
     }
 
     private var fade: some View {
-        LinearGradient(
-            colors: [ContentSurface.bubble.opacity(0), ContentSurface.bubble],
+        let fill = ContentSurface.bubble(for: colorScheme)
+        return LinearGradient(
+            colors: [fill.opacity(0), fill],
             startPoint: .top,
             endPoint: .bottom
         )

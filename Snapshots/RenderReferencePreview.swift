@@ -595,16 +595,53 @@ enum RenderReferencePreview {
         return image
     }
 
-    /// Dark mode drops the white page. Light mode keeps it.
+    /// Neither appearance keeps a white page. The light card is the light
+    /// bubble; the dark card stays the dark bubble.
     private static func assertCropBackground(dark: URL, light: URL) throws {
-        let darkBox = try whiteBox(in: dark)
-        let lightBox = try whiteBox(in: light)
-        if let box = darkBox, box.width > 200, box.height > 16 {
+        if let box = try whiteBox(in: dark), box.width > 200, box.height > 16 {
             throw SnapshotError("dark crop still has a white rectangle \(box)")
         }
-        guard let box = lightBox, box.width > 200, box.height > 16 else {
-            throw SnapshotError("light crop lost its page rectangle")
+        if let box = try whiteBox(in: light), box.width > 200, box.height > 16 {
+            throw SnapshotError("light crop still has a white rectangle \(box)")
         }
+        let darkFill = try interiorBrightness(of: dark)
+        let lightFill = try interiorBrightness(of: light)
+        guard darkFill < 0.40 else {
+            throw SnapshotError("dark card fill is not the dark bubble (\(darkFill))")
+        }
+        guard lightFill > 0.80 else {
+            throw SnapshotError("light card fill did not follow the light appearance (\(lightFill))")
+        }
+    }
+
+    /// Median brightness of the middle of the panel, which is card fill
+    /// rather than the window or the glyphs.
+    private static func interiorBrightness(of url: URL) throws -> Double {
+        guard let data = try? Data(contentsOf: url),
+              let rep = NSBitmapImageRep(data: data) else {
+            throw SnapshotError("could not read \(url.lastPathComponent)")
+        }
+        var samples: [Double] = []
+        let y0 = rep.pixelsHigh / 3
+        let y1 = rep.pixelsHigh * 2 / 3
+        let x0 = rep.pixelsWide / 3
+        let x1 = rep.pixelsWide * 2 / 3
+        var y = y0
+        while y < y1 {
+            var x = x0
+            while x < x1 {
+                if let color = rep.colorAt(x: x, y: y), color.alphaComponent > 0.9 {
+                    samples.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
+                }
+                x += 4
+            }
+            y += 4
+        }
+        guard !samples.isEmpty else {
+            throw SnapshotError("\(url.lastPathComponent) has no interior")
+        }
+        samples.sort()
+        return samples[samples.count / 2]
     }
 
     private static func whiteBox(in url: URL) throws -> CGRect? {

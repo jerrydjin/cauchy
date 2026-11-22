@@ -1,8 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// The statement card. 320pt wide. It grows with the statement until it
-/// reaches 60% of the window, then the statement scrolls inside the card.
+/// The citation hover is 320pt wide. The reference column takes the width
+/// it is given: the panel snapshot is 380pt, and a 320pt cap there pins the
+/// equation's column to the left of the prose the snapshot measures.
+/// The statement grows until it reaches 60% of the window, then it scrolls.
 enum ReferencePreviewMetrics {
     static let cardWidth: CGFloat = 320
     static let maxHeightFraction: CGFloat = 0.60
@@ -66,7 +68,6 @@ struct ReferencePreviewStatementColumn: View {
                 }
             }
         )
-        .frame(maxWidth: ReferencePreviewMetrics.cardWidth, alignment: .leading)
         .environment(\.fitsMathToContainer, true)
     }
 }
@@ -622,16 +623,17 @@ enum ReferenceCardMath {
 
 /// Citation hover for a string that contains math. Plain bibliography stays
 /// on the system tooltip; this is the same statement renderer as the card,
-/// so inline and display math are not drawn as source text.
+/// so inline and display math are not drawn as source text. The hover is the
+/// 320pt card. The reference column is not.
 struct ReferenceHoverLabel: View {
     var text: String
-    var width: CGFloat = 420
+    var width: CGFloat = ReferencePreviewMetrics.cardWidth
 
     var body: some View {
         MessageContentView(content: text, font: .callout, allowsMonospace: false)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .frame(width: width, alignment: .leading)
+            .frame(width: min(width, ReferencePreviewMetrics.cardWidth), alignment: .leading)
             .environment(\.fitsMathToContainer, true)
     }
 }

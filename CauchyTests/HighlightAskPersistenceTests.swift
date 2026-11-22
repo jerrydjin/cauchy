@@ -167,7 +167,7 @@ private final class AskGate: @unchecked Sendable {
     private let lock = NSLock()
     private var started: CheckedContinuation<Void, Never>?
     private var didStart = false
-    private var finish: CheckedContinuation<Void, Error>?
+    private var pendingFinish: CheckedContinuation<Void, Error>?
 
     func markStarted() {
         lock.lock()
@@ -194,15 +194,15 @@ private final class AskGate: @unchecked Sendable {
     func waitToFinish() async throws {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             lock.lock()
-            finish = cont
+            pendingFinish = cont
             lock.unlock()
         }
     }
 
     func finish() {
         lock.lock()
-        let waiting = finish
-        finish = nil
+        let waiting = pendingFinish
+        pendingFinish = nil
         lock.unlock()
         waiting?.resume()
     }

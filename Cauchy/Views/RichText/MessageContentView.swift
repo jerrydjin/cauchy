@@ -94,11 +94,13 @@ struct MessageContentView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             let flowTokens = MessageContentParser.flowTokens(from: merged)
+            let glued = MessageContentParser.keepsWithPreviousMath(flowTokens)
             // Word tokens carry their own trailing space, so extra spacing
             // between them would render as a double space.
             InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
-                ForEach(Array(flowTokens.enumerated()), id: \.offset) { _, segment in
+                ForEach(Array(flowTokens.enumerated()), id: \.offset) { index, segment in
                     flowSegmentView(segment)
+                        .keepsWithPrevious(index < glued.count && glued[index])
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,8 +169,8 @@ struct MessageContentView: View {
         )
     }
 
-    /// A display equation, with the punctuation that followed it kept on the
-    /// same line instead of wrapping underneath.
+    /// A display equation, with only the punctuation that followed it kept on
+    /// the same line. The next word stays in the text underneath.
     @ViewBuilder
     private func displayEquation(_ latex: String, trailing: String) -> some View {
         if trailing.isEmpty {
@@ -287,9 +289,11 @@ struct MessageContentView: View {
     private func citedInlineLine(_ segments: [MessageSegment], chips: [AnswerSourceMarkers.Chip]) -> some View {
         let merged = MessageContentParser.mergeAdjacentText(segments)
         let tokens = citedTokens(from: merged)
+        let glued = citedGlue(tokens)
         return InlineFlowLayout(horizontalSpacing: 0, verticalSpacing: 2) {
-            ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
+            ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
                 citedTokenView(token)
+                    .keepsWithPrevious(index < glued.count && glued[index])
             }
             ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
                 PageTagButton(
@@ -306,6 +310,20 @@ struct MessageContentView: View {
         case text(String)
         case link(String, String, DetectedReference)
         case segment(MessageSegment)
+    }
+
+    private func citedGlue(_ tokens: [CitedToken]) -> [Bool] {
+        let segments = tokens.map { token -> MessageSegment in
+            switch token {
+            case .text(let value):
+                return .text(value)
+            case .link(let label, let suffix, _):
+                return .text(label + suffix)
+            case .segment(let segment):
+                return segment
+            }
+        }
+        return MessageContentParser.keepsWithPreviousMath(segments)
     }
 
     private func citedTokens(from segments: [MessageSegment]) -> [CitedToken] {

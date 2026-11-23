@@ -203,6 +203,7 @@ private struct ReferencePreviewCard: View {
     @State private var sourceImage: NSImage?
     @State private var sourceRegionImage: NSImage?
     @State private var figureImage: NSImage?
+    @State private var statementCropImage: NSImage?
     @State private var isLoadingSource = false
     @State private var laterMentions: ReferenceMentionSearchResult?
     @State private var isSearchingLaterMentions = false
@@ -212,16 +213,26 @@ private struct ReferencePreviewCard: View {
     var body: some View {
         let model = ReferencePreviewPresentation.model(for: block)
         VStack(spacing: 0) {
-            ScrollView {
+            ReferencePreviewViewport {
                 Group {
                     switch model.body {
                     case .statement(let text):
-                        ReferencePreviewStatementColumn(
-                            heading: model.heading,
-                            statement: text,
-                            pageIndexes: block.pageIndex >= 0 ? [block.pageIndex] : [],
-                            onOpenPage: { workspace.goToPage($0 + 1) }
-                        )
+                        if ReferencePreviewPresentation.prefersPageCrop(text) {
+                            ReferencePreviewFallbackColumn(
+                                heading: model.heading,
+                                image: statementCropImage,
+                                isLoading: isLoadingSource,
+                                pageIndexes: block.pageIndex >= 0 ? [block.pageIndex] : [],
+                                onOpenPage: { workspace.goToPage($0 + 1) }
+                            )
+                        } else {
+                            ReferencePreviewStatementColumn(
+                                heading: model.heading,
+                                statement: text,
+                                pageIndexes: block.pageIndex >= 0 ? [block.pageIndex] : [],
+                                onOpenPage: { workspace.goToPage($0 + 1) }
+                            )
+                        }
                     case .figure(let caption):
                         ReferencePreviewBlockChrome.padded(
                             VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
@@ -234,12 +245,12 @@ private struct ReferencePreviewCard: View {
                                 }
                             }
                         )
+                        .frame(maxWidth: ReferencePreviewMetrics.cardWidth, alignment: .leading)
                     }
                 }
                 .padding(.horizontal, ConversationChrome.bubbleHorizontalInset)
                 .padding(.vertical, ConversationChrome.bubbleHorizontalInset)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             ReferencePreviewSourceDisclosure(isExpanded: $showsSource) {
                 ScrollView {
@@ -256,6 +267,7 @@ private struct ReferencePreviewCard: View {
             sourceImage = nil
             sourceRegionImage = nil
             figureImage = nil
+            statementCropImage = nil
             isLoadingSource = true
             defer {
                 if !Task.isCancelled {
@@ -273,8 +285,11 @@ private struct ReferencePreviewCard: View {
             let figureCrop = block.reference.kind == .figure
                 ? exact.map(ReferenceEvidenceRegionResolver.figureRegion(forCaption:))
                 : nil
-            let images = await Task.detached(priority: .userInitiated) { () -> (NSImage?, NSImage?, NSImage?) in
-                guard let sourcePage = PDFDocument(data: data)?.page(at: 0) else { return (nil, nil, nil) }
+            let statementBand = block.evidence.flatMap {
+                ReferenceEvidenceRegionResolver.statementBand(for: $0, on: page)
+            }
+            let images = await Task.detached(priority: .userInitiated) { () -> (NSImage?, NSImage?, NSImage?, NSImage?) in
+                guard let sourcePage = PDFDocument(data: data)?.page(at: 0) else { return (nil, nil, nil, nil) }
                 let full = sourcePage.thumbnail(of: NSSize(width: 1200, height: 1600), for: .mediaBox)
                 let figure: NSImage?
                 if let figureCrop,
@@ -300,12 +315,27 @@ private struct ReferencePreviewCard: View {
                 } else {
                     region = nil
                 }
-                return (full, region, figure)
+                let crop: NSImage?
+                if let statementBand,
+                   let rendered = PDFRegionRenderer.render(
+                       page: sourcePage,
+                       bounds: statementBand,
+                       scale: 3
+                   ) {
+                    crop = NSImage(
+                        cgImage: rendered,
+                        size: NSSize(width: CGFloat(rendered.width) / 3, height: CGFloat(rendered.height) / 3)
+                    )
+                } else {
+                    crop = nil
+                }
+                return (full, region, figure, crop)
             }.value
             guard !Task.isCancelled else { return }
             sourceImage = images.0
             sourceRegionImage = images.1
             figureImage = images.2
+            statementCropImage = images.3
         }
         .onChange(of: block) {
             showsSource = false

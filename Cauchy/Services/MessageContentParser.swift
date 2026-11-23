@@ -13,7 +13,8 @@ enum MessageBlock: Equatable {
     case text(String)
     case inlineLine([MessageSegment])
     /// `trailing` is only the punctuation written immediately after the
-    /// display equation. The following word stays on the next line.
+    /// equation (`,`, `.`, `;`, `:`). The following word stays on the next
+    /// line. Empty when nothing followed.
     case displayMath(String, trailing: String)
 }
 
@@ -86,13 +87,13 @@ enum MessageContentParser {
                         segments.append(.displayMath(innerText.trimmingCharacters(in: .whitespacesAndNewlines)))
                     }
                 case "$":
+                    // Single dollars are inline, however long the formula is
+                    // and whichever commands it uses. A formula is display
+                    // only when the source wrote `$$`, `\[…\]`, or an
+                    // equation environment. Those arrive here already as `$$`.
                     if !innerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         let latex = innerText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if LaTeXNormalizer.shouldRenderAsDisplayMath(latex) {
-                            segments.append(.displayMath(latex))
-                        } else {
-                            segments.append(.inlineMath(latex))
-                        }
+                        segments.append(.inlineMath(latex))
                     }
                 case "**":
                     segments.append(contentsOf: emphasizing(innerText, as: { .bold($0) }))
@@ -272,12 +273,9 @@ enum MessageContentParser {
                     }
                 }
             case .inlineMath(let latex):
-                if LaTeXNormalizer.shouldRenderAsDisplayMath(latex) {
-                    flushLine()
-                    blocks.append(.displayMath(latex, trailing: ""))
-                } else {
-                    currentLine.append(.inlineMath(latex))
-                }
+                // Single dollars stay inline. Display is `$$`, `\[…\]`, or an
+                // equation environment, which arrive here already as `$$`.
+                currentLine.append(.inlineMath(latex))
             case .bold(let value), .italic(let value), .code(let value):
                 let normalized = normalizeSoftLineBreaks(value)
                 let trimmed = normalized.trimmingCharacters(in: .whitespaces)
@@ -319,16 +317,62 @@ enum MessageContentParser {
         return result
     }
 
-    /// ", so the rest" -> (",", " so the rest"). Only the punctuation moves
-    /// onto the equation. Nil when the block does not open with it.
+    /// ", so the rest" -> (",", " so the rest"). A run of `, . ; :` stays on
+    /// the equation. The following word stays with the prose. Nil when the
+    /// block does not open with punctuation.
     static func splitDisplayTrailing(_ text: String) -> (attached: String, rest: String)? {
         let trimmedStart = text.drop { $0 == " " || $0 == "\t" }
-        guard let first = trimmedStart.first, ",.;:".contains(first) else { return nil }
+        guard let first = trimmedStart.first, isSentencePunctuation(first) else { return nil }
         var end = trimmedStart.startIndex
-        while end < trimmedStart.endIndex, ",.;:".contains(trimmedStart[end]) {
+        while end < trimmedStart.endIndex, isSentencePunctuation(trimmedStart[end]) {
             end = trimmedStart.index(after: end)
         }
         return (String(trimmedStart[..<end]), String(trimmedStart[end...]))
+    }
+
+    /// The comma after inline math, and the word after that comma, stay with
+    /// the math. A later line break happens before the group, not between
+    /// the math and the comma.
+    static func keepsWithPreviousMath(_ tokens: [MessageSegment]) -> [Bool] {
+        var flags = Array(repeating: false, count: tokens.count)
+        var glueFollowingWord = false
+        for index in tokens.indices {
+            if glueFollowingWord {
+                glueFollowingWord = false
+                if tokenText(tokens[index]) != nil {
+                    flags[index] = true
+                    continue
+                }
+            }
+            guard index > 0, isMathToken(tokens[index - 1]),
+                  let text = tokenText(tokens[index]) else { continue }
+            let trimmed = text.drop { $0 == " " || $0 == "\t" }
+            guard let first = trimmed.first, isSentencePunctuation(first) else { continue }
+            flags[index] = true
+            let rest = trimmed.dropFirst().drop { $0 == " " || $0 == "\t" }
+            if rest.isEmpty { glueFollowingWord = true }
+        }
+        return flags
+    }
+
+    private static func isSentencePunctuation(_ character: Character) -> Bool {
+        character == "," || character == "." || character == ";" || character == ":"
+    }
+
+    private static func isMathToken(_ segment: MessageSegment) -> Bool {
+        switch segment {
+        case .inlineMath, .displayMath: return true
+        case .text, .bold, .italic, .code: return false
+        }
+    }
+
+    private static func tokenText(_ segment: MessageSegment) -> String? {
+        switch segment {
+        case .text(let value), .bold(let value), .italic(let value), .code(let value):
+            return value
+        case .inlineMath, .displayMath:
+            return nil
+        }
     }
 
     private static func peelDisplayTrailing(

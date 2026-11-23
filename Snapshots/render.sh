@@ -76,6 +76,8 @@ ref_sources=(
   Snapshots/LinkStubs.swift
   Cauchy/Models/ReferenceKind.swift
   Cauchy/Utilities/NormalizedRect.swift
+  Cauchy/Utilities/CoordinateMapper.swift
+  Cauchy/Services/PDFRegionRenderer.swift
   Cauchy/Models/ViewportState.swift
   Cauchy/Services/ReferenceParsing.swift
   Cauchy/Services/BibliographyIndex.swift
@@ -126,6 +128,9 @@ let package = Package(
             path: "Sources/RenderReferencePreview",
             swiftSettings: [
                 .swiftLanguageMode(.v5)
+            ],
+            linkerSettings: [
+                .linkedFramework("PDFKit")
             ]
         )
     ]

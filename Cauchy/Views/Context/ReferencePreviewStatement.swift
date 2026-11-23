@@ -1,16 +1,48 @@
+import AppKit
 import SwiftUI
+
+/// The citation hover is 320pt wide. The reference column takes the width
+/// it is given: the panel snapshot is 380pt, and a 320pt cap there pins the
+/// equation's column to the left of the prose the snapshot measures.
+/// The statement grows until it reaches 60% of the window, then it scrolls.
+enum ReferencePreviewMetrics {
+    static let cardWidth = ConversationChrome.citationHoverWidth
+    static let maxHeightFraction: CGFloat = 0.60
+
+    static func cappedHeight(windowHeight: CGFloat, contentHeight: CGFloat) -> CGFloat {
+        guard windowHeight > 0, contentHeight > 0 else { return max(contentHeight, 0) }
+        return min(contentHeight, windowHeight * maxHeightFraction)
+    }
+
+    static func overflows(windowHeight: CGFloat, contentHeight: CGFloat) -> Bool {
+        guard windowHeight > 0 else { return false }
+        return contentHeight > windowHeight * maxHeightFraction + 0.5
+    }
+}
 
 /// The reference card uses the answer bubble's fill, corner radius, and
 /// padding. The statement column and a figure block both go through this,
 /// and the designer snapshot renders the column.
 enum ReferencePreviewBlockChrome {
+    @MainActor
     static func padded<Content: View>(_ content: Content) -> some View {
+        ReferencePreviewBubble(content: content)
+    }
+}
+
+/// The card fill is the shared bubble colour for the current appearance.
+/// A fixed dark grey left the title dark-on-dark whenever the window was light.
+private struct ReferencePreviewBubble<Content: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var content: Content
+
+    var body: some View {
         content
             .padding(.horizontal, ConversationChrome.answerPaddingH)
             .padding(.vertical, ConversationChrome.answerPaddingV)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                ContentSurface.bubble,
+                ContentSurface.bubble(for: colorScheme),
                 in: RoundedRectangle(cornerRadius: ConversationChrome.bubbleCornerRadius)
             )
     }
@@ -48,6 +80,177 @@ struct ReferencePreviewStatementColumn: View {
                 }
             }
         )
+        .environment(\.fitsMathToContainer, true)
+    }
+}
+
+/// The same heading and page pill as the statement, with the PDF region in
+/// place of text that did not survive reconstruction.
+struct ReferencePreviewFallbackColumn: View {
+    let heading: String
+    var image: NSImage?
+    var isLoading = false
+    var pageIndexes: [Int] = []
+    var onOpenPage: (Int) -> Void = { _ in }
+
+    var body: some View {
+        ReferencePreviewBlockChrome.padded(
+            VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
+                ReferencePreviewHeading(text: heading)
+                if let image {
+                    StatementCropImage(image: image)
+                } else if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 140)
+                        .accessibilityLabel("Loading statement from the page")
+                } else {
+                    Text("This statement could not be typeset. Open the page to read it.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if !pageIndexes.isEmpty {
+                    ReferenceSourcePills(pageIndexes: pageIndexes, onOpen: onOpenPage)
+                }
+            }
+        )
+    }
+}
+
+/// The page crop. Both appearances drop the white paper and draw the
+/// glyphs in the primary colour, so the card fill shows through and the
+/// rectangle edge is gone.
+struct StatementCropImage: View {
+    let image: NSImage
+
+    var body: some View {
+        Image(nsImage: StatementCropInk.dark(image))
+            .resizable()
+            .interpolation(.high)
+            .renderingMode(.template)
+            .foregroundStyle(.primary)
+            .scaledToFit()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Statement region from the PDF page")
+    }
+}
+
+enum StatementCropInk {
+    /// White paper becomes clear. Dark glyphs become opaque black with an
+    /// alpha that follows how dark they were, so a template tint can paint
+    /// them in the primary colour. The same mask is used in light and dark;
+    /// `.primary` supplies the ink.
+    static func dark(_ image: NSImage) -> NSImage {
+        guard let tiff = image.tiffRepresentation,
+              let source = NSBitmapImageRep(data: tiff),
+              source.pixelsWide > 0, source.pixelsHigh > 0,
+              let bytes = source.bitmapData else { return image }
+        let width = source.pixelsWide
+        let height = source.pixelsHigh
+        let sourceBytes = max(source.bitsPerPixel / 8, 1)
+        guard sourceBytes >= 3 else { return image }
+        let sourceRow = source.bytesPerRow
+        guard let dest = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: width * 4,
+            bitsPerPixel: 32
+        ), let pixels = dest.bitmapData else { return image }
+
+        for y in 0..<height {
+            for x in 0..<width {
+                let sample = y * sourceRow + x * sourceBytes
+                let red = CGFloat(bytes[sample]) / 255
+                let green = CGFloat(bytes[sample + 1]) / 255
+                let blue = CGFloat(bytes[sample + 2]) / 255
+                let luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+                let ink: CGFloat
+                if luminance >= 0.96 {
+                    ink = 0
+                } else {
+                    ink = min(1, (0.96 - luminance) / 0.55)
+                }
+                let offset = (y * width + x) * 4
+                pixels[offset] = 0
+                pixels[offset + 1] = 0
+                pixels[offset + 2] = 0
+                pixels[offset + 3] = UInt8(max(0, min(255, ink * 255)))
+            }
+        }
+        let result = NSImage(size: image.size)
+        result.addRepresentation(dest)
+        return result
+    }
+}
+
+/// Grows with the statement up to 60% of the window, then scrolls. The
+/// snapshot path cannot use a ScrollView (ImageRenderer skips it), so it
+/// clips to `heightCap` and draws the same bottom fade.
+struct ReferencePreviewViewport<Content: View>: View {
+    var heightCap: CGFloat? = nil
+    var showsFade = false
+    @ViewBuilder var content: () -> Content
+
+    @State private var contentHeight: CGFloat = 0
+    @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        if rendersForSnapshot, let heightCap {
+            content()
+                .frame(maxWidth: .infinity, maxHeight: heightCap, alignment: .top)
+                .clipped()
+                .overlay(alignment: .bottom) {
+                    if showsFade { fade }
+                }
+        } else {
+            GeometryReader { proxy in
+                let cap = max(1, proxy.size.height * ReferencePreviewMetrics.maxHeightFraction)
+                let height = contentHeight > 0 ? min(contentHeight, cap) : nil
+                ScrollView {
+                    content()
+                        .background {
+                            GeometryReader { inner in
+                                Color.clear.preference(
+                                    key: ReferencePreviewHeightKey.self,
+                                    value: inner.size.height
+                                )
+                            }
+                        }
+                }
+                .scrollIndicators(.hidden)
+                .frame(height: height, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .overlay(alignment: .bottom) {
+                    if contentHeight > cap + 1 { fade.frame(width: ReferencePreviewMetrics.cardWidth) }
+                }
+            }
+            .onPreferenceChange(ReferencePreviewHeightKey.self) { contentHeight = $0 }
+        }
+    }
+
+    private var fade: some View {
+        let fill = ContentSurface.bubble(for: colorScheme)
+        return LinearGradient(
+            colors: [fill.opacity(0), fill],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 40)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct ReferencePreviewHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
@@ -500,16 +703,18 @@ enum ReferenceCardMath {
 
 /// Citation hover for a string that contains math. Plain bibliography stays
 /// on the system tooltip; this is the same statement renderer as the card,
-/// so inline and display math are not drawn as source text.
+/// so inline and display math are not drawn as source text. The hover is the
+/// 320pt card. The reference column is not.
 struct ReferenceHoverLabel: View {
     var text: String
-    var width: CGFloat = 420
+    var width: CGFloat = ReferencePreviewMetrics.cardWidth
 
     var body: some View {
         MessageContentView(content: text, font: .callout, allowsMonospace: false)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .frame(width: width, alignment: .leading)
+            .frame(width: min(width, ReferencePreviewMetrics.cardWidth), alignment: .leading)
+            .environment(\.fitsMathToContainer, true)
     }
 }
 

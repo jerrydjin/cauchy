@@ -131,6 +131,21 @@ enum LaTeXNormalizer {
         return count
     }
 
+    /// `command` matches only as a whole control word. The character after it
+    /// must not be a letter, so `\right` does not match inside `\rightarrow`
+    /// and `\left` does not match inside `\leftarrow`.
+    static func containsCommand(_ latex: String, _ command: String) -> Bool {
+        var search = latex.startIndex
+        while let range = latex.range(of: command, range: search..<latex.endIndex) {
+            let after = range.upperBound
+            if after == latex.endIndex || !latex[after].isLetter {
+                return true
+            }
+            search = latex.index(after: range.lowerBound)
+        }
+        return false
+    }
+
     private static func hasLaTeXCommand(at index: String.Index, in text: String) -> Bool {
         guard index < text.endIndex, text[index] == "\\" else { return false }
         let after = text.index(after: index)
@@ -146,7 +161,9 @@ enum LaTeXNormalizer {
             "\\frac", "\\dfrac", "\\tfrac", "\\sum", "\\int", "\\prod", "\\lim",
             "\\left", "\\right", "\\begin", "\\end", "\\matrix", "\\cases", "\\aligned",
         ]
-        if displayCommands.contains(where: { trimmed.contains($0) }) {
+        // `\rightarrow` contains the letters of `\right`. A substring check
+        // promoted that inline arrow to a display equation.
+        if displayCommands.contains(where: { containsCommand(trimmed, $0) }) {
             return true
         }
         if trimmed.count > 56 { return true }

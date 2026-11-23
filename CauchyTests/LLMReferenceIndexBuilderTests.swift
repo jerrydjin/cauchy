@@ -65,6 +65,30 @@ final class LLMReferenceIndexResponseParserTests: XCTestCase {
         XCTAssertEqual(parsed.references[0].number, "4.2")
         XCTAssertEqual(parsed.references[0].formattedBody, "A result with {braces}.")
     }
+
+    /// The model writes one backslash. The parser doubles a known command
+    /// before `JSONDecoder`, and leaves a paragraph `\n` as a newline.
+    func testModelJSONKeepsLaTeXCommandsAndParagraphBreaks() throws {
+        let raw = #"{"references":[{"kind":"theorem","number":"3.5.21","formatted_body":"$z_0 \notin U$, $f : U \backslash \{z_0\} \rightarrow \mathbb{C}$, $\neq$, $\to$, $\frac{1}{2}$\nMoreover, $z_0$ is removable."}]}"#
+        let parsed = try LLMReferenceIndexResponseParser.parse(raw)
+        let body = parsed.references[0].formattedBody
+        XCTAssertTrue(body.contains("\\notin"), body)
+        XCTAssertTrue(body.contains("\\backslash"), body)
+        XCTAssertTrue(body.contains("\\{"), body)
+        XCTAssertTrue(body.contains("\\rightarrow"), body)
+        XCTAssertTrue(body.contains("\\mathbb"), body)
+        XCTAssertTrue(body.contains("\\neq"), body)
+        XCTAssertTrue(body.contains("\\to"), body)
+        XCTAssertTrue(body.contains("\\frac"), body)
+        XCTAssertTrue(body.contains("\nMoreover"), body)
+        XCTAssertFalse(body.contains("\u{8}"), body)
+        XCTAssertFalse(body.contains("\u{c}"), body)
+        XCTAssertFalse(body.contains("\t"), body)
+
+        let alreadyEscaped = #"{"references":[{"kind":"lemma","number":"1","formatted_body":"$\\gamma$ and $\\to$"}]}"#
+        let kept = try LLMReferenceIndexResponseParser.parse(alreadyEscaped)
+        XCTAssertEqual(kept.references[0].formattedBody, "$\\gamma$ and $\\to$")
+    }
 }
 
 final class ReferenceIndexCacheStoreTests: XCTestCase {
@@ -2042,6 +2066,388 @@ final class ReferencePreviewPresentationTests: XCTestCase {
         let raw = "Let $\\gamma\\colon [0,1] \\to \\mathbb{C}$ be a path."
         XCTAssertEqual(ReferenceCardMath.typeset(raw), raw)
         XCTAssertEqual(ReferenceCardMath.typeset(ReferenceCardMath.typeset(raw)), raw)
+    }
+
+    /// `\notin`, `\backslash`, `\rightarrow`, `\neq` and `\to` survive both a
+    /// correct JSON string and the controls `JSONDecoder` leaves behind.
+    func testLaTeXCommandsRoundTripThroughTheStatementPipeline() throws {
+        let encoded = #"{"body":"$z_0 \\notin U$, $f : U \\backslash \\{z_0\\} \\rightarrow \\mathbb{C}$, $\\neq$, $\\to$"}"#
+        struct Box: Decodable { let body: String }
+        let decoded = try JSONDecoder().decode(Box.self, from: Data(encoded.utf8))
+        let literal = ReferencePreviewPresentation.statementText(from: decoded.body)
+        assertCommandsIntact(literal)
+
+        let eaten = ReferencePreviewPresentation.riemannEatenBody
+            + " Take $a " + "\n" + "eq 0$."
+        let restored = ReferencePreviewPresentation.statementText(from: eaten)
+        XCTAssertTrue(restored.contains("\\notin"), restored)
+        XCTAssertTrue(restored.contains("\\backslash"), restored)
+        XCTAssertTrue(restored.contains("\\rightarrow"), restored)
+        XCTAssertTrue(restored.contains("\\neq"), restored)
+        XCTAssertFalse(restored.contains("\u{8}"))
+        XCTAssertFalse(restored.contains("\u{c}"))
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(restored))
+
+        let segments = MessageContentParser.parse(restored)
+        let prose = segments.compactMap { segment -> String? in
+            if case .text(let value) = segment { return value }
+            return nil
+        }.joined(separator: " ")
+        XCTAssertTrue(prose.contains("suppose"), prose)
+        XCTAssertTrue(prose.contains("holomorphic"), prose)
+        let math = segments.compactMap { segment -> String? in
+            switch segment {
+            case .inlineMath(let latex), .displayMath(let latex): return latex
+            default: return nil
+            }
+        }
+        XCTAssertTrue(math.contains { $0.contains("\\notin") })
+        XCTAssertTrue(math.contains { $0.contains("\\backslash") && $0.contains("\\rightarrow") })
+        XCTAssertFalse(math.contains { $0.contains("suppose") || $0.contains("holomorphic") })
+
+        let corollary = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.corollaryEatenBody)
+        XCTAssertTrue(corollary.contains("\\frac"))
+        XCTAssertTrue(corollary.contains("\\oint"))
+        XCTAssertTrue(corollary.contains("^{(n)}"))
+        XCTAssertFalse(corollary.contains("\u{c}"))
+        XCTAssertFalse(
+            ReferencePreviewPresentation.prefersPageCrop(corollary),
+            "clean corollary should stay text"
+        )
+        XCTAssertTrue(MessageContentParser.parse(corollary).contains { segment in
+            if case .text(let value) = segment { return value.contains("for any") }
+            return false
+        })
+    }
+
+    /// A newline before prose, and a tab before a word, stay whitespace.
+    /// A one-letter remainder such as a tab before "o" is not rewritten as `\to`.
+    func testRealNewlineAndTabAreNotTurnedIntoCommands() {
+        let paragraph = "Let $a$ hold.\nMoreover, the path is closed.\tThen $b$ holds."
+        let text = ReferencePreviewPresentation.statementText(from: paragraph)
+        XCTAssertTrue(text.contains("\nMoreover"), text)
+        XCTAssertTrue(text.contains("\tThen"), text)
+        XCTAssertFalse(text.contains("\\Moreover"), text)
+        XCTAssertFalse(text.contains("\\Then"), text)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(text), text)
+
+        let tabBeforeO = ReferencePreviewPresentation.statementText(from: "Take $t" + "\t" + "o 1$.")
+        XCTAssertTrue(tabBeforeO.contains("\t"), tabBeforeO)
+        XCTAssertFalse(tabBeforeO.contains("\\to"), tabBeforeO)
+    }
+
+    /// Not trustworthy: a control other than newline or tab, an unclosed `$`,
+    /// a space-free math run of 24 or more characters, an unknown letter
+    /// command, or unbalanced braces in a math span. The restored theorem
+    /// fails none of these and stays text. The mangled run still has a
+    /// backspace, so the card crops the page.
+    func testNotTrustworthyRuleKeepsCleanTextAndCropsTheBrokenStatement() {
+        let clean = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.riemannEatenBody)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(clean), clean)
+        XCTAssertTrue(clean.contains("\\notin"), clean)
+        XCTAssertTrue(clean.contains("suppose"), clean)
+
+        let broken = ReferencePreviewPresentation.statementText(
+            from: "Suppose that $z_0 " + "\u{8}" + "otin Uandsupposethatf:Uackslashz0ightarrowCisholomorphic.$"
+        )
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(broken), broken)
+    }
+
+    func testMangledStatementPrefersThePageCrop() {
+        let mangled = "Suppose that $z_0 " + "\u{8}" + "otin Uandsupposethatf:Uackslashz0ightarrowCisholomorphic.Thenz0isaremovablesingularity$"
+        let text = ReferencePreviewPresentation.statementText(from: mangled)
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(text), "mangled run should crop")
+
+        // `\n` that does not continue a known command is a paragraph break, so the
+        // unknown name cannot start with n or t. `\fakecommand` is still a command.
+        let unknown = ReferencePreviewPresentation.statementText(from: "Let $f$ satisfy $\\fakecommand{x}=1$.")
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unknown), "unknown command should crop")
+
+        let unbalanced = ReferencePreviewPresentation.statementText(from: "Let $f(z) = z^2 + 1 be entire.")
+        XCTAssertTrue(ReferencePreviewPresentation.prefersPageCrop(unbalanced), "unclosed delimiter should crop")
+
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop("A continuous function on a compact set is bounded."))
+    }
+
+    func testExistingStatementFixturesStayText() {
+        let proposition = "Let $\\gamma\\colon [0,1] \\to \\mathbb{C}\\setminus\\{0\\}$ be a path. Then there is a continuous function $a\\colon [0,1] \\to \\mathbb{R}$ such that $\\gamma(t) = |\\gamma(t)|e^{2\\pi i a(t)}\\nMoreover, if $a$ and $b$ are two such functions, then there exists $n \\in \\mathbb{Z}$ such that $a(t) = b(t) + n$."
+        let propositionText = ReferencePreviewPresentation.statementText(from: proposition)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(propositionText), propositionText)
+
+        let lemma = "Let \\gamma be a closed curve where $n$ satisfies \\frac{1}{2\\pi i}.\\n\\begin{align}\\n\\label{eq:sample}\\n\\int_{\\gamma} \\frac{dz}{z} &= 2\\pi i\\n\\end{align}\\nMoreover **$\\frac{1}{2}$** is the residue."
+        let lemmaText = ReferencePreviewPresentation.statementText(from: lemma)
+        XCTAssertFalse(ReferencePreviewPresentation.prefersPageCrop(lemmaText), lemmaText)
+        XCTAssertTrue(lemmaText.contains("\\begin{align}"))
+        XCTAssertTrue(lemmaText.contains("Moreover"))
+    }
+
+    func testCardGrowsUntilSixtyPercentOfTheWindow() {
+        XCTAssertEqual(ReferencePreviewMetrics.cardWidth, 320)
+        XCTAssertEqual(ReferencePreviewMetrics.cappedHeight(windowHeight: 800, contentHeight: 200), 200)
+        XCTAssertEqual(ReferencePreviewMetrics.cappedHeight(windowHeight: 800, contentHeight: 900), 480)
+        XCTAssertFalse(ReferencePreviewMetrics.overflows(windowHeight: 800, contentHeight: 200))
+        XCTAssertTrue(ReferencePreviewMetrics.overflows(windowHeight: 800, contentHeight: 900))
+    }
+
+    private func assertCommandsIntact(_ text: String) {
+        XCTAssertTrue(text.contains("\\notin"), text)
+        XCTAssertTrue(text.contains("\\backslash"), text)
+        XCTAssertTrue(text.contains("\\rightarrow"), text)
+        XCTAssertTrue(text.contains("\\neq"), text)
+        XCTAssertTrue(text.contains("\\to"), text)
+        XCTAssertFalse(text.contains("\u{8}"), text)
+    }
+}
+
+/// The page crop the card shows. A bottom-left PDF crop drawn into a
+/// top-left bitmap puts the last line on top; this locks the other way.
+final class PDFRegionRendererTests: XCTestCase {
+    func testCropKeepsTheFirstLineAtTheTop() throws {
+        let pageRect = CGRect(x: 0, y: 0, width: 420, height: 560)
+        let first = "FIRST LINE AT THE TOP OF THE PAGE"
+        let last = "last"
+        let page = try Self.page(pageRect, first: first, last: last)
+        let rendered = try XCTUnwrap(
+            PDFRegionRenderer.render(
+                page: page,
+                bounds: NormalizedRect(x: 0, y: 0, width: 1, height: 1),
+                scale: 2
+            )
+        )
+        let reference = try XCTUnwrap(Self.unflippedReference(pageRect, first: first, last: last))
+
+        let cropRows = Self.inkRows(of: rendered)
+        let referenceRows = Self.inkRows(of: reference)
+        let cropPeak = Self.peakFraction(cropRows)
+        let referencePeak = Self.peakFraction(referenceRows)
+
+        XCTAssertLessThan(cropPeak, 0.4, "first line is at row fraction \(cropPeak)")
+        XCTAssertLessThan(referencePeak, 0.4, "unflipped reference peaks at \(referencePeak)")
+        XCTAssertLessThan(
+            abs(cropPeak - referencePeak),
+            abs(cropPeak - (1 - referencePeak)),
+            "crop peak \(cropPeak) matches the flipped reference, not the upright one at \(referencePeak)"
+        )
+    }
+
+    /// The card already shows the title. The crop starts under that line, and
+    /// neither edge may cut a line box in half.
+    func testStatementCropDoesNotCutATextLine() throws {
+        let heading = CGRect(x: 72, y: 700, width: 400, height: 18)
+        let body1 = CGRect(x: 72, y: 678, width: 420, height: 18)
+        let body2 = CGRect(x: 72, y: 656, width: 380, height: 18)
+        let below = CGRect(x: 72, y: 620, width: 200, height: 18)
+        let lines = [heading, body1, body2, below]
+        let page = CGRect(x: 0, y: 0, width: 612, height: 792)
+        // The old pad reached up through the heading and down through body2.
+        let proposed = CGRect(x: 60, y: 660, width: 450, height: 55)
+
+        let underHeading = ReferenceEvidenceRegionResolver.statementCrop(
+            proposed: proposed,
+            lines: lines,
+            headingLine: heading,
+            pageBounds: page
+        )
+        assertWholeLines(underHeading, lines)
+        XCTAssertFalse(underHeading.intersects(heading), "heading line is still in the crop \(underHeading)")
+        XCTAssertTrue(underHeading.contains(body1))
+        XCTAssertTrue(underHeading.contains(body2))
+        XCTAssertFalse(underHeading.intersects(below))
+        XCTAssertLessThan(underHeading.maxY, heading.minY)
+
+        let snapped = ReferenceEvidenceRegionResolver.statementCrop(
+            proposed: proposed,
+            lines: lines,
+            headingLine: nil,
+            pageBounds: page
+        )
+        assertWholeLines(snapped, lines)
+        XCTAssertTrue(snapped.contains(heading))
+        XCTAssertTrue(snapped.contains(body2))
+        XCTAssertFalse(snapped.intersects(below))
+    }
+
+    func testRenderedStatementCropStartsBelowTheHeading() throws {
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let page = try Self.theoremPage(pageRect)
+        let text = try XCTUnwrap(page.string) as NSString
+        let headingRange = text.range(of: "Theorem 3.5.21")
+        let bodyRange = text.range(of: "Suppose")
+        XCTAssertNotEqual(headingRange.location, NSNotFound)
+        XCTAssertNotEqual(bodyRange.location, NSNotFound)
+        let evidence = ReferenceEvidence(
+            status: .supported,
+            sourceExcerpt: text.substring(from: bodyRange.location),
+            matchedText: text.substring(with: headingRange),
+            occurrenceCount: 1,
+            startOffset: bodyRange.location,
+            endOffset: text.length,
+            matchStartOffset: headingRange.location,
+            matchEndOffset: NSMaxRange(headingRange)
+        )
+        let band = try XCTUnwrap(ReferenceEvidenceRegionResolver.statementBand(for: evidence, on: page))
+        let crop = band.cgRect(in: pageRect)
+        let lines = ReferenceEvidenceRegionResolver.textLineBoxes(on: page)
+        XCTAssertGreaterThan(lines.count, 1, "the text layer should expose more than one line")
+        assertWholeLines(crop, lines)
+
+        guard let headingBox = lines.max(by: { $0.maxY < $1.maxY }),
+              let bodyBox = lines.filter({ $0.maxY < headingBox.minY }).max(by: { $0.maxY < $1.maxY }) else {
+            return XCTFail("missing heading or body line")
+        }
+        XCTAssertFalse(
+            crop.intersection(headingBox).height > 0.5,
+            "crop \(crop) still meets the heading line \(headingBox)"
+        )
+        XCTAssertTrue(
+            crop.insetBy(dx: -0.4, dy: -0.4).contains(bodyBox),
+            "body line \(bodyBox) is not inside \(crop)"
+        )
+    }
+
+    private func assertWholeLines(_ crop: CGRect, _ lines: [CGRect], file: StaticString = #filePath, line: UInt = #line) {
+        for box in lines {
+            let hit = crop.intersection(box)
+            let misses = hit.isNull || hit.isEmpty || hit.width < 0.4 || hit.height < 0.4
+            if misses { continue }
+            XCTAssertTrue(
+                crop.insetBy(dx: -0.4, dy: -0.4).contains(box),
+                "crop \(crop) cuts line \(box)",
+                file: file,
+                line: line
+            )
+        }
+    }
+
+    private static func theoremPage(_ pageRect: CGRect) throws -> PDFPage {
+        let data = NSMutableData()
+        var media = pageRect
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &media, nil) else {
+            throw XCTSkip("could not open a PDF context")
+        }
+        context.beginPDFPage(nil)
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(pageRect)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let font = NSFont(name: "Times-Roman", size: 16) ?? NSFont.systemFont(ofSize: 16)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ]
+        let drawn = [
+            "Theorem 3.5.21 (Riemann's removable singularity theorem)",
+            "Suppose that U is an open subset of C and z0 is outside U,",
+            "and f is holomorphic. Then z0 is a removable singularity of f.",
+        ]
+        var baseline = pageRect.height - 96
+        for line in drawn {
+            NSString(string: line).draw(at: NSPoint(x: 72, y: baseline), withAttributes: attributes)
+            baseline -= 22
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        context.endPDFPage()
+        context.closePDF()
+        return try XCTUnwrap(PDFDocument(data: data as Data)?.page(at: 0))
+    }
+
+    private static func page(_ pageRect: CGRect, first: String, last: String) throws -> PDFPage {
+        let data = NSMutableData()
+        var media = pageRect
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &media, nil) else {
+            throw XCTSkip("could not open a PDF context")
+        }
+        context.beginPDFPage(nil)
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(pageRect)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let font = NSFont.systemFont(ofSize: 18)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ]
+        // PDF y grows up, so the first line is near the top of the page.
+        NSString(string: first).draw(at: NSPoint(x: 24, y: pageRect.height - 48), withAttributes: attributes)
+        NSString(string: last).draw(at: NSPoint(x: 24, y: 28), withAttributes: attributes)
+        NSGraphicsContext.restoreGraphicsState()
+        context.endPDFPage()
+        context.closePDF()
+        return try XCTUnwrap(PDFDocument(data: data as Data)?.page(at: 0))
+    }
+
+    /// The same two lines, drawn with the first line at the top of the bitmap.
+    private static func unflippedReference(_ pageRect: CGRect, first: String, last: String) -> CGImage? {
+        let image = NSImage(size: pageRect.size)
+        image.lockFocusFlipped(true)
+        NSColor.white.setFill()
+        NSRect(origin: .zero, size: pageRect.size).fill()
+        let font = NSFont.systemFont(ofSize: 18)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ]
+        NSString(string: first).draw(at: NSPoint(x: 24, y: 28), withAttributes: attributes)
+        NSString(string: last).draw(
+            at: NSPoint(x: 24, y: pageRect.height - 48),
+            withAttributes: attributes
+        )
+        image.unlockFocus()
+        var proposed = NSRect(origin: .zero, size: pageRect.size)
+        return image.cgImage(forProposedRect: &proposed, context: nil, hints: nil)
+    }
+
+    /// Ink per row, top of the displayed image first. `colorAt` is top-down.
+    private static func inkRows(of image: CGImage) -> [Int] {
+        let rep = NSBitmapImageRep(cgImage: image)
+        var rows = Array(repeating: 0, count: rep.pixelsHigh)
+        let step = 2
+        for y in 0..<rep.pixelsHigh {
+            var x = 0
+            while x < rep.pixelsWide {
+                if let color = rep.colorAt(x: x, y: y) {
+                    let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
+                    if color.alphaComponent > 0.3 && brightness < 0.45 {
+                        rows[y] += 1
+                    }
+                }
+                x += step
+            }
+        }
+        return rows
+    }
+
+    /// Fraction down the image of the row with the most ink. The long first
+    /// line is that row when the crop is upright.
+    private static func peakFraction(_ rows: [Int]) -> Double {
+        guard let peak = rows.enumerated().max(by: { $0.element < $1.element }),
+              rows.count > 1 else { return 1 }
+        return Double(peak.offset) / Double(rows.count - 1)
+    }
+
+    func testDarkCropDropsTheWhitePage() {
+        let image = NSImage(size: NSSize(width: 8, height: 4))
+        image.lockFocus()
+        NSColor.white.setFill()
+        NSRect(x: 0, y: 0, width: 8, height: 4).fill()
+        NSColor.black.setFill()
+        NSRect(x: 3, y: 0, width: 2, height: 4).fill()
+        image.unlockFocus()
+
+        let lifted = StatementCropInk.dark(image)
+        guard let tiff = lifted.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else {
+            return XCTFail("dark crop has no bitmap")
+        }
+        let paper = rep.colorAt(x: 0, y: 0)
+        var inkAlpha: CGFloat = 0
+        for x in 0..<rep.pixelsWide {
+            inkAlpha = max(inkAlpha, rep.colorAt(x: x, y: 0)?.alphaComponent ?? 0)
+        }
+        XCTAssertLessThan(paper?.alphaComponent ?? 1, 0.05)
+        XCTAssertGreaterThan(inkAlpha, 0.8)
     }
 }
 

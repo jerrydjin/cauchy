@@ -23,6 +23,9 @@ enum ConversationChrome {
     /// secondary, and a clear bar leaves the line scrolling underneath readable.
     static let headerBackdrop = Color(nsColor: .windowBackgroundColor)
 
+    /// Citation hover. The reference column is wider and does not use this.
+    /// Both snapshot packages compile this file, so the math view can share it.
+    static let citationHoverWidth: CGFloat = 320
     /// Answer-area spacing. Every value is on a 4-point scale.
     static let answerPaddingH: CGFloat = 20
     static let answerPaddingV: CGFloat = 16

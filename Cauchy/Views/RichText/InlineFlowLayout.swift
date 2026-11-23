@@ -9,16 +9,20 @@ struct InlineFlowToken: Equatable {
     /// An equation. A row made only of these is centred, because it is a
     /// display equation that landed on its own line. Words stay at the margin.
     var centersWhenAlone: Bool
+    /// Punctuation and the word after it. They travel with the token before
+    /// them, so a comma cannot land at the start of the next line.
+    var keepsWithPrevious: Bool
 
-    init(size: CGSize, baseline: CGFloat, centersWhenAlone: Bool = false) {
+    init(size: CGSize, baseline: CGFloat, centersWhenAlone: Bool = false, keepsWithPrevious: Bool = false) {
         self.size = size
         self.baseline = baseline
         self.centersWhenAlone = centersWhenAlone
+        self.keepsWithPrevious = keepsWithPrevious
     }
 
     /// Tokens with no baseline of their own sit on their bottom edge.
-    init(size: CGSize, centersWhenAlone: Bool = false) {
-        self.init(size: size, baseline: size.height, centersWhenAlone: centersWhenAlone)
+    init(size: CGSize, centersWhenAlone: Bool = false, keepsWithPrevious: Bool = false) {
+        self.init(size: size, baseline: size.height, centersWhenAlone: centersWhenAlone, keepsWithPrevious: keepsWithPrevious)
     }
 }
 
@@ -27,9 +31,19 @@ struct CentersWhenAloneKey: LayoutValueKey {
     static let defaultValue = false
 }
 
+/// Set on punctuation (and the word after it) so the line break stays in
+/// front of the math those words belong to.
+struct KeepsWithPreviousKey: LayoutValueKey {
+    static let defaultValue = false
+}
+
 extension View {
     func centersWhenAloneOnALine(_ enabled: Bool = true) -> some View {
         layoutValue(key: CentersWhenAloneKey.self, value: enabled)
+    }
+
+    func keepsWithPrevious(_ enabled: Bool = true) -> some View {
+        layoutValue(key: KeepsWithPreviousKey.self, value: enabled)
     }
 }
 
@@ -56,19 +70,43 @@ enum InlineFlowLayoutEngine {
     ) -> InlineFlowLayoutResult {
         let maxWidth = max(maxWidth, 1)
 
+        // A token that keeps with the previous one is punctuation, or the
+        // word after that punctuation. The whole run wraps together.
+        var runs: [[(index: Int, token: InlineFlowToken)]] = []
+        var run: [(index: Int, token: InlineFlowToken)] = []
+        for (index, token) in tokens.enumerated() {
+            if token.keepsWithPrevious, !run.isEmpty {
+                run.append((index, token))
+            } else {
+                if !run.isEmpty { runs.append(run) }
+                run = [(index, token)]
+            }
+        }
+        if !run.isEmpty { runs.append(run) }
+
+        func runWidth(_ run: [(index: Int, token: InlineFlowToken)]) -> CGFloat {
+            let content = run.reduce(CGFloat(0)) { $0 + $1.token.size.width }
+            return content + horizontalSpacing * CGFloat(max(0, run.count - 1))
+        }
+
         // Pass 1: break into rows.
         var rows: [[(index: Int, x: CGFloat, token: InlineFlowToken)]] = []
         var row: [(index: Int, x: CGFloat, token: InlineFlowToken)] = []
         var x: CGFloat = 0
 
-        for (index, token) in tokens.enumerated() {
-            if x > 0, token.size.width > max(0, maxWidth - x) {
+        for run in runs {
+            let width = runWidth(run)
+            if x > 0, width > max(0, maxWidth - x) {
                 rows.append(row)
                 row = []
                 x = 0
             }
-            row.append((index, x, token))
-            x += token.size.width + horizontalSpacing
+            var local = x
+            for item in run {
+                row.append((item.index, local, item.token))
+                local += item.token.size.width + horizontalSpacing
+            }
+            x = local
         }
         if !row.isEmpty { rows.append(row) }
 
@@ -170,10 +208,13 @@ struct InlineFlowLayout: Layout {
         // remaining width made wrapped text re-flow at two different widths.
         let tokens = subviews.map { subview -> InlineFlowToken in
             let dimensions = subview.dimensions(in: ProposedViewSize(width: maxWidth, height: nil))
+            let centersWhenAlone = subview[CentersWhenAloneKey.self]
+            let keepsWithPrevious = subview[KeepsWithPreviousKey.self]
             return InlineFlowToken(
                 size: CGSize(width: dimensions.width, height: dimensions.height),
                 baseline: dimensions[.firstTextBaseline],
-                centersWhenAlone: subview[CentersWhenAloneKey.self]
+                centersWhenAlone: centersWhenAlone,
+                keepsWithPrevious: keepsWithPrevious
             )
         }
 

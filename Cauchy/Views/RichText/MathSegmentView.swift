@@ -23,6 +23,9 @@ struct MathSegmentView: View {
     /// snapshot sets this and we draw the same SwiftMath display list into
     /// an image instead. The reader still uses the live label.
     @Environment(\.rendersForSnapshot) private var rendersForSnapshot
+    /// The reference card scales a formula down until it fits the card.
+    /// Chat keeps the sideways scroll for a display equation.
+    @Environment(\.fitsMathToContainer) private var fitsMathToContainer
     @Environment(\.displayScale) private var displayScale
     @Environment(\.self) private var environment
 
@@ -68,11 +71,27 @@ struct MathSegmentView: View {
                     textColor: glyphColor,
                     scale: displayScale
                 ) {
-                    Image(nsImage: image)
-                        .alignmentGuide(.firstTextBaseline) { dimensions in
-                            MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
-                                ?? dimensions[.bottom]
-                        }
+                    // Wider than the card's text column. Everything that fits
+                    // is the image below, the same view main lays out.
+                    if fitsMathToContainer, image.size.width > CardMathLayout.textWidth {
+                        let fitted = CardMathLayout.textWidth
+                        let factor = fitted / image.size.width
+                        Image(nsImage: image)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: fitted, height: image.size.height * factor)
+                            .alignmentGuide(.firstTextBaseline) { _ in
+                                (MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                    ?? image.size.height) * factor
+                            }
+                    } else {
+                        Image(nsImage: image)
+                            .alignmentGuide(.firstTextBaseline) { dimensions in
+                                MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                                    ?? dimensions[.bottom]
+                            }
+                    }
                 } else {
                     Text(visibleFallback)
                         .font(fallbackFont)
@@ -81,7 +100,20 @@ struct MathSegmentView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             } else if let rendered = LaTeXValidator.cachedRenderableLatex(from: latex) {
-                if mode == .display && !hugsContent {
+                if mode == .display, !hugsContent, fitsMathToContainer,
+                   let natural = MathMetrics.measure(latex: rendered, mode: mode, fontSize: fontSize)?.size.width,
+                   natural > CardMathLayout.textWidth {
+                    MathLabelRepresentable(
+                        latex: rendered,
+                        mode: mode,
+                        fontSize: fontSize,
+                        textColor: glyphColor
+                    )
+                    .alignmentGuide(.firstTextBaseline) { dimensions in
+                        MathMetrics.baseline(latex: rendered, mode: mode, fontSize: fontSize)
+                            ?? dimensions[.bottom]
+                    }
+                } else if mode == .display, !hugsContent {
                     // Long equations scroll sideways inside the bubble rather
                     // than drawing past its edge.
                     ScrollingMathLabel(latex: rendered, fontSize: fontSize, textColor: glyphColor)
@@ -133,6 +165,26 @@ struct MathSegmentView: View {
     private var visibleFallback: String {
         if sourceText.contains("\\") || sourceText.contains("$") { return "…" }
         return sourceText
+    }
+}
+
+/// How wide a formula is on the reference card.
+///
+/// One that fits keeps its own width, so `InlineFlowLayout` can centre an
+/// equation that sits on its own line the same way chat does. One that is
+/// wider is scaled to the text column and is not drawn past it.
+enum CardMathLayout {
+    static var textWidth: CGFloat {
+        ConversationChrome.citationHoverWidth - ConversationChrome.answerPaddingH * 2
+    }
+
+    static func scalesToColumn(naturalWidth: CGFloat, columnWidth: CGFloat = textWidth) -> Bool {
+        naturalWidth > columnWidth && columnWidth > 0
+    }
+
+    static func reportedWidth(naturalWidth: CGFloat, columnWidth: CGFloat = textWidth) -> CGFloat {
+        guard naturalWidth > 0, columnWidth > 0 else { return naturalWidth }
+        return min(naturalWidth, columnWidth)
     }
 }
 
@@ -683,13 +735,19 @@ enum MathMetrics {
         latex: String,
         mode: MathSegmentView.Mode,
         fontSize: CGFloat,
-        maxWidth: CGFloat?
+        maxWidth: CGFloat?,
+        minimumScale: CGFloat = MathMetrics.minimumScale
     ) -> CGFloat {
         guard let maxWidth, maxWidth.isFinite, maxWidth > 0 else { return fontSize }
-        let floorSize = max(minimumFontSize, fontSize * minimumScale)
+        // The card passes a low scale so a wide display shrinks until it fits.
+        // Chat stops at `minimumFontSize` and scrolls the rest.
+        let floorSize = minimumScale < MathMetrics.minimumScale
+            ? max(1, fontSize * minimumScale)
+            : max(minimumFontSize, fontSize * minimumScale)
         var candidate = fontSize
+        let passes = minimumScale < MathMetrics.minimumScale ? 8 : 4
 
-        for _ in 0..<4 {
+        for _ in 0..<passes {
             guard let width = measure(latex: latex, mode: mode, fontSize: candidate)?.size.width,
                   width > maxWidth else {
                 return candidate
@@ -786,6 +844,7 @@ private struct MathLabelRepresentable: NSViewRepresentable {
     let mode: MathSegmentView.Mode
     let fontSize: CGFloat
     let textColor: NSColor
+    @Environment(\.fitsMathToContainer) private var fitsMathToContainer
 
     func makeNSView(context: Context) -> MTMathUILabel {
         let label = MTMathUILabel()
@@ -812,7 +871,24 @@ private struct MathLabelRepresentable: NSViewRepresentable {
     }
 
     private func fittedFontSize(for width: CGFloat?) -> CGFloat {
-        MathMetrics.fittedFontSize(latex: latex, mode: mode, fontSize: fontSize, maxWidth: width)
+        MathMetrics.fittedFontSize(
+            latex: latex,
+            mode: mode,
+            fontSize: fontSize,
+            maxWidth: width,
+            minimumScale: fitsMathToContainer ? 0.08 : MathMetrics.minimumScale
+        )
+    }
+}
+
+private struct FitsMathToContainerKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var fitsMathToContainer: Bool {
+        get { self[FitsMathToContainerKey.self] }
+        set { self[FitsMathToContainerKey.self] = newValue }
     }
 }
 

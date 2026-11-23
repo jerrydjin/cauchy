@@ -1,5 +1,7 @@
 import AppKit
+import CoreText
 import Foundation
+import PDFKit
 import SwiftMath
 import SwiftUI
 
@@ -131,6 +133,7 @@ enum RenderReferencePreview {
         fputs("heading: \(model.heading)\n", stdout)
         fputs("statement:\n\(text)\n", stdout)
         try renderMathStatement(output: output)
+        try renderJerry156(output: output)
     }
 
     /// Inline `\gamma`, a `\frac` beside an existing `$…$`, bold-wrapped
@@ -256,6 +259,460 @@ enum RenderReferencePreview {
         )
     }
 
+    /// Theorem 3.5.21 and Corollary 3.3.2, before the statement pipeline
+    /// restores eaten commands, and after. The before cards are the broken
+    /// reading, clipped the way the panel was. The after cards go through
+    /// `statementText` and the real column.
+    @MainActor
+    private static func renderJerry156(output: URL) throws {
+        let book = try syntheticBook()
+        let theoremHeading = "Theorem 3.5.21 (Riemann's removable singularity theorem)"
+        let corollaryHeading = "Corollary 3.3.2"
+
+        let theorem = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.riemannEatenBody)
+        guard theorem.contains("\\notin"),
+              theorem.contains("\\backslash"),
+              theorem.contains("\\rightarrow"),
+              theorem.contains("suppose"),
+              !ReferencePreviewPresentation.prefersPageCrop(theorem) else {
+            throw SnapshotError("Riemann statement did not round-trip: \(theorem)")
+        }
+        try assertTypeset(theorem, label: "Theorem 3.5.21")
+
+        let corollary = ReferencePreviewPresentation.statementText(from: ReferencePreviewPresentation.corollaryEatenBody)
+        guard corollary.contains("\\frac"),
+              corollary.contains("\\oint"),
+              corollary.contains("^{(n)}"),
+              !corollary.contains("\u{c}"),
+              !ReferencePreviewPresentation.prefersPageCrop(corollary) else {
+            throw SnapshotError("Corollary statement did not round-trip: \(corollary)")
+        }
+        try assertTypeset(corollary, label: "Corollary 3.3.2")
+
+        var brokenTheorem = AttributedString("Suppose that U is an open subset of C and z0 ")
+        brokenTheorem.foregroundColor = .white
+        var eatenTail = AttributedString("otin Uandsupposethatf : Uackslashz0ightarrow Cisholomorphic.Thenz0isaremovablesingu…")
+        eatenTail.font = .body.italic()
+        eatenTail.foregroundColor = .white
+        var broken = brokenTheorem
+        broken.append(eatenTail)
+
+        try writeCard(
+            Jerry156BrokenCard(
+                heading: theoremHeading,
+                pageIndex: book.riemann,
+                content: Text(broken).font(.body)
+            ),
+            caption: "Reference panel · Theorem 3.5.21 · before",
+            to: output.appendingPathComponent("jerry-156-before.png")
+        )
+        try writeCard(
+            ReferencePreviewStatementColumn(
+                heading: theoremHeading,
+                statement: theorem,
+                pageIndexes: [book.riemann],
+                onOpenPage: { _ in }
+            ),
+            caption: "Reference panel · Theorem 3.5.21",
+            to: output.appendingPathComponent("jerry-156-after.png")
+        )
+        // The statement column takes a 0-based page index. The pill prints
+        // that index plus one, which is this page's place in the synthetic book.
+        guard book.riemann + 1 == 87, book.corollary + 1 == 42 else {
+            throw SnapshotError("synthetic page numbers drifted")
+        }
+
+        try writeCard(
+            Jerry156BrokenCard(
+                heading: corollaryHeading,
+                pageIndex: book.corollary,
+                content: Text("f(n)(z0) = n! 2πγ(z0, r) / … for any r < R, where the contour is the circle about z0")
+                    .font(.body)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .frame(width: 248, alignment: .leading)
+                    .clipped()
+            ),
+            caption: "Reference panel · Corollary 3.3.2 · before",
+            to: output.appendingPathComponent("jerry-156-corollary-before.png"),
+            minimumHeight: 240
+        )
+        try writeCard(
+            ReferencePreviewStatementColumn(
+                heading: corollaryHeading,
+                statement: corollary,
+                pageIndexes: [book.corollary],
+                onOpenPage: { _ in }
+            ),
+            caption: "Reference panel · Corollary 3.3.2",
+            to: output.appendingPathComponent("jerry-156-corollary-after.png")
+        )
+
+        let liouville = "A bounded entire function $f : \\mathbb{C} \\rightarrow \\mathbb{C}$ is constant."
+        let openMapping = "If $f$ is holomorphic and non-constant on an open set $U$, then $f(U)$ is open."
+        try assertTypeset(liouville, label: "Liouville")
+        try assertTypeset(openMapping, label: "open mapping")
+        try writeCard(
+            VStack(alignment: .leading, spacing: 16) {
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.1",
+                    statement: liouville,
+                    pageIndexes: [book.theorem41],
+                    onOpenPage: { _ in }
+                )
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.2",
+                    statement: openMapping,
+                    pageIndexes: [book.theorem42],
+                    onOpenPage: { _ in }
+                )
+            },
+            caption: "Reference panel · inline maths",
+            to: output.appendingPathComponent("jerry-156-inline-statements.png")
+        )
+        try writeCard(
+            VStack(alignment: .leading, spacing: 16) {
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.1",
+                    statement: liouville,
+                    pageIndexes: [book.theorem41],
+                    onOpenPage: { _ in }
+                )
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 4.2",
+                    statement: openMapping,
+                    pageIndexes: [book.theorem42],
+                    onOpenPage: { _ in }
+                )
+            },
+            caption: "Reference panel · inline maths",
+            to: output.appendingPathComponent("jerry-156-inline-after.png")
+        )
+
+        let tall = tallStatement()
+        guard ReferencePreviewMetrics.overflows(windowHeight: 700, contentHeight: 900) else {
+            throw SnapshotError("60% cap did not overflow a long statement")
+        }
+        try writeCard(
+            ReferencePreviewViewport(heightCap: 380, showsFade: true) {
+                ReferencePreviewStatementColumn(
+                    heading: "Theorem 6.2.4",
+                    statement: tall,
+                    pageIndexes: [book.tall],
+                    onOpenPage: { _ in }
+                )
+            },
+            caption: "Reference panel · statement taller than 60%",
+            to: output.appendingPathComponent("jerry-156-tall-scroll.png"),
+            minimumHeight: 500
+        )
+
+        let wide = "$$\\sum_{n=1}^{\\infty}\\frac{(-1)^{n+1}}{n}\\int_{0}^{1}\\frac{x^{n}(1-x)^{n}}{1+x^{2}}\\,dx=\\frac{\\pi}{4}\\log 2-G$$"
+        guard let natural = MathMetrics.snapshotImage(latex: String(wide.dropFirst(2).dropLast(2)), mode: .display, fontSize: 17, textColor: .white),
+              natural.size.width > 280 else {
+            throw SnapshotError("wide equation is not wider than the card")
+        }
+        try assertTypeset(wide, label: "wide equation")
+        let wideURL = output.appendingPathComponent("jerry-156-wide-equation.png")
+        try writeCard(
+            ReferencePreviewStatementColumn(
+                heading: "Proposition 7.4",
+                statement: wide,
+                pageIndexes: [book.wide],
+                onOpenPage: { _ in }
+            ),
+            caption: "Reference panel · display scaled to the card",
+            to: wideURL
+        )
+        try assertEquationStaysInsideCard(at: wideURL)
+
+        let crop = try statementCrop(on: book.page(book.riemann))
+        let cropColumn = ReferencePreviewFallbackColumn(
+            heading: theoremHeading,
+            image: crop,
+            pageIndexes: [book.riemann],
+            onOpenPage: { _ in }
+        )
+        let darkCrop = output.appendingPathComponent("jerry-156-fallback-crop.png")
+        let lightCrop = output.appendingPathComponent("jerry-156-fallback-crop-light.png")
+        try writeCard(
+            cropColumn,
+            caption: "Reference panel · page crop",
+            to: darkCrop
+        )
+        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        try writeCard(
+            cropColumn,
+            caption: "Reference panel · page crop",
+            to: lightCrop,
+            dark: false
+        )
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+        try assertCropBackground(dark: darkCrop, light: lightCrop)
+    }
+
+    @MainActor
+    private static func writeCard<V: View>(
+        _ content: V,
+        caption: String,
+        to url: URL,
+        minimumHeight: Int = 280,
+        dark: Bool = true
+    ) throws {
+        let card = SnapshotChrome(caption: caption, dark: dark, content: content)
+            .environment(\.rendersForSnapshot, true)
+        try writePNG(card, to: url, minimumBytes: 4_000, minimumHeight: minimumHeight)
+    }
+
+    private static func tallStatement() -> String {
+        let paragraph = "Suppose that $f$ is holomorphic on a domain $U$ and that $z_0 \\in U$. "
+            + "The value of $f$ on any small circle about $z_0$ determines $f(z_0)$, and the same circle determines every derivative. "
+            + "A zero of finite order is isolated, and a sequence of zeros accumulating in $U$ forces $f$ to vanish identically. "
+        return String(repeating: paragraph, count: 8)
+    }
+
+    /// The printed theorem, cropped by the same renderer the card uses when
+    /// the reconstructed text fails the sanity check.
+    @MainActor
+    /// One synthetic book. Each panel's pill is `index + 1` for the page that
+    /// actually holds that statement. Page 87 is Riemann's theorem; page 42
+    /// is the corollary.
+    private struct SyntheticBook {
+        let document: PDFDocument
+        let riemann = 86
+        let corollary = 41
+        let theorem41 = 70
+        let theorem42 = 72
+        let tall = 110
+        let wide = 128
+
+        func page(_ index: Int) throws -> PDFPage {
+            guard let page = document.page(at: index) else {
+                throw SnapshotError("synthetic book has no page \(index + 1)")
+            }
+            return page
+        }
+    }
+
+    private static func syntheticBook() throws -> SyntheticBook {
+        let pageCount = 129
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let data = NSMutableData()
+        var media = pageRect
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &media, nil) else {
+            throw SnapshotError("could not open a PDF context")
+        }
+        let lines: [Int: [String]] = [
+            41: ["Corollary 3.3.2", "If f is holomorphic in the disk, then the derivatives are given by the integral."],
+            70: ["Theorem 4.1", "A bounded entire function f from C to C is constant."],
+            72: ["Theorem 4.2", "If f is holomorphic and non-constant on an open set U, then f(U) is open."],
+            86: [
+                "Theorem 3.5.21 (Riemann's removable singularity theorem)",
+                "Suppose that U is an open subset of ℂ and z₀ ∉ U, and suppose that",
+                "f : U \\ {z₀} → ℂ is holomorphic. Then z₀ is a removable singularity of f.",
+            ],
+            110: ["Theorem 6.2.4", "Suppose that f is holomorphic on a domain U."],
+            128: ["Proposition 7.4", "A wide display equation sits on this page."],
+        ]
+        let font = NSFont(name: "Times-Roman", size: 16) ?? NSFont.systemFont(ofSize: 16)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.black,
+        ]
+        for index in 0..<pageCount {
+            context.beginPDFPage(nil)
+            context.setFillColor(gray: 1, alpha: 1)
+            context.fill(pageRect)
+            if let drawn = lines[index] {
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+                var baseline = pageRect.height - 96
+                for line in drawn {
+                    NSString(string: line).draw(at: NSPoint(x: 72, y: baseline), withAttributes: attributes)
+                    baseline -= 22
+                }
+                NSGraphicsContext.restoreGraphicsState()
+            }
+            context.endPDFPage()
+        }
+        context.closePDF()
+        guard let document = PDFDocument(data: data as Data), document.pageCount == pageCount else {
+            throw SnapshotError("synthetic book did not open")
+        }
+        let book = SyntheticBook(document: document)
+        let checks: [(Int, String)] = [
+            (book.riemann, "Theorem 3.5.21"),
+            (book.corollary, "Corollary 3.3.2"),
+            (book.theorem41, "Theorem 4.1"),
+            (book.theorem42, "Theorem 4.2"),
+            (book.tall, "Theorem 6.2.4"),
+            (book.wide, "Proposition 7.4"),
+        ]
+        for (index, needle) in checks {
+            let text = document.page(at: index)?.string ?? ""
+            guard text.contains(needle) else {
+                throw SnapshotError("page \(index + 1) does not contain \(needle)")
+            }
+        }
+        return book
+    }
+
+    private static func statementCrop(on page: PDFPage) throws -> NSImage {
+        let fallbackBand = NormalizedRect(x: 0.08, y: 0.62, width: 0.84, height: 0.28)
+        let band: NormalizedRect
+        let pageText = page.string ?? ""
+        let ns = pageText as NSString
+        let suppose = ns.range(of: "Suppose")
+        if suppose.location != NSNotFound {
+            let excerpt = ns.substring(with: NSRange(location: suppose.location, length: ns.length - suppose.location))
+            let label = ns.range(of: "Theorem 3.5.21")
+            let evidence = ReferenceEvidence(
+                status: .supported,
+                sourceExcerpt: excerpt,
+                matchedText: label.location == NSNotFound ? excerpt : ns.substring(with: label),
+                occurrenceCount: 1,
+                startOffset: suppose.location,
+                endOffset: ns.length,
+                matchStartOffset: label.location == NSNotFound ? nil : label.location,
+                matchEndOffset: label.location == NSNotFound ? nil : NSMaxRange(label)
+            )
+            band = ReferenceEvidenceRegionResolver.statementBand(for: evidence, on: page) ?? fallbackBand
+        } else {
+            band = fallbackBand
+        }
+        guard let rendered = PDFRegionRenderer.render(page: page, bounds: band, scale: 3) else {
+            throw SnapshotError("statement crop rendered nothing")
+        }
+        let image = NSImage(
+            cgImage: rendered,
+            size: NSSize(width: CGFloat(rendered.width) / 3, height: CGFloat(rendered.height) / 3)
+        )
+        let ink = try inkCount(in: image)
+        guard ink > 10 else {
+            throw SnapshotError("statement crop is blank (\(ink) ink)")
+        }
+        return image
+    }
+
+    /// Neither appearance keeps a white page. Paper is brighter than the
+    /// light window (0.94), so the search ignores that window. The light
+    /// card uses the light bubble; the dark card stays the dark bubble.
+    private static func assertCropBackground(dark: URL, light: URL) throws {
+        if let box = try paperBox(in: dark), box.width > 80, box.height > 16 {
+            throw SnapshotError("dark crop still has a white rectangle \(box)")
+        }
+        if let box = try paperBox(in: light), box.width > 80, box.height > 16 {
+            throw SnapshotError("light crop still has a white rectangle \(box)")
+        }
+        let lightOnDarkBubble = try sampleCount(in: light, matching: darkBubble)
+        let lightOnLightBubble = try sampleCount(in: light, matching: lightBubble)
+        guard lightOnDarkBubble < 40 else {
+            throw SnapshotError("light card still uses the dark bubble (\(lightOnDarkBubble) samples)")
+        }
+        guard lightOnLightBubble > 80 else {
+            throw SnapshotError("light card fill did not follow the light appearance (\(lightOnLightBubble) samples)")
+        }
+        let darkOnDarkBubble = try sampleCount(in: dark, matching: darkBubble)
+        guard darkOnDarkBubble > 80 else {
+            throw SnapshotError("dark card fill is not the dark bubble (\(darkOnDarkBubble) samples)")
+        }
+    }
+
+    /// `ContentSurface.bubble` and `bubbleLight`, as drawn.
+    private static let darkBubble = (red: 0.227, green: 0.227, blue: 0.235)
+    private static let lightBubble = (red: 233.0 / 255, green: 233.0 / 255, blue: 235.0 / 255)
+
+    private static func sampleCount(
+        in url: URL,
+        matching target: (red: Double, green: Double, blue: Double)
+    ) throws -> Int {
+        guard let data = try? Data(contentsOf: url),
+              let rep = NSBitmapImageRep(data: data) else {
+            throw SnapshotError("could not read \(url.lastPathComponent)")
+        }
+        var count = 0
+        var y = 0
+        while y < rep.pixelsHigh {
+            var x = 0
+            while x < rep.pixelsWide {
+                if let color = rep.colorAt(x: x, y: y), color.alphaComponent > 0.9,
+                   abs(Double(color.redComponent) - target.red) < 0.02,
+                   abs(Double(color.greenComponent) - target.green) < 0.02,
+                   abs(Double(color.blueComponent) - target.blue) < 0.02 {
+                    count += 1
+                }
+                x += 6
+            }
+            y += 6
+        }
+        return count
+    }
+
+    /// Near-white paper. The light window is 0.94 and the light bubble is
+    /// about 0.91, so neither counts as a page rectangle.
+    private static func paperBox(in url: URL) throws -> CGRect? {
+        guard let data = try? Data(contentsOf: url),
+              let rep = NSBitmapImageRep(data: data) else {
+            throw SnapshotError("could not read \(url.lastPathComponent)")
+        }
+        var minX = rep.pixelsWide
+        var maxX = -1
+        var minY = rep.pixelsHigh
+        var maxY = -1
+        var count = 0
+        for y in 0..<rep.pixelsHigh {
+            for x in stride(from: 0, to: rep.pixelsWide, by: 2) {
+                guard let color = rep.colorAt(x: x, y: y) else { continue }
+                let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
+                if color.alphaComponent > 0.9 && brightness > 0.97 {
+                    minX = min(minX, x)
+                    maxX = max(maxX, x)
+                    minY = min(minY, y)
+                    maxY = max(maxY, y)
+                    count += 1
+                }
+            }
+        }
+        guard count > 40, maxX > minX, maxY > minY else { return nil }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    /// A display that is wider than the card must shrink. Ink past the card's
+    /// right edge means it was clipped instead.
+    @MainActor
+    private static func assertEquationStaysInsideCard(at url: URL) throws {
+        guard let data = try? Data(contentsOf: url),
+              let rep = NSBitmapImageRep(data: data),
+              let pixels = rep.bitmapData else {
+            throw SnapshotError("wide equation PNG did not open")
+        }
+        let bytesPerPixel = max(rep.bitsPerPixel / 8, 1)
+        guard bytesPerPixel >= 3 else { return }
+        // Chrome is 436pt with 28pt padding. The card is 320pt, so its right
+        // edge is at 348pt. Scale 2 puts that edge at pixel 696.
+        let edge = 710
+        guard rep.pixelsWide > edge + 40 else { return }
+        var ink = 0
+        var y = rep.pixelsHigh / 3
+        while y < rep.pixelsHigh * 2 / 3 {
+            var x = edge
+            while x < rep.pixelsWide - 8 {
+                let offset = y * rep.bytesPerRow + x * bytesPerPixel
+                let r = Int(pixels[offset])
+                let g = Int(pixels[offset + 1])
+                let b = Int(pixels[offset + 2])
+                // Light glyphs on the dark chrome. The chrome itself is near black.
+                if (r + g + b) / 3 > 140 { ink += 1 }
+                x += 4
+            }
+            y += 4
+        }
+        guard ink < 8 else {
+            throw SnapshotError("wide equation draws past the card (\(ink) samples)")
+        }
+    }
+
     /// Visible `Text` runs must not contain raw TeX, and every math run must
     /// produce a SwiftMath bitmap. The PNG alone cannot tell a typeset glyph
     /// from the source characters.
@@ -309,8 +766,8 @@ enum RenderReferencePreview {
         switch block {
         case .text(let value):
             return value
-        case .displayMath(let latex, _):
-            return latex
+        case .displayMath(let latex, let trailing):
+            return latex + trailing
         case .inlineLine(let segments):
             return segments.map(describeSegment).joined()
         }
@@ -518,6 +975,23 @@ enum RenderReferencePreview {
             y += step
         }
         return ink
+    }
+}
+
+private struct Jerry156BrokenCard<Content: View>: View {
+    let heading: String
+    let pageIndex: Int
+    var content: Content
+
+    var body: some View {
+        ReferencePreviewBlockChrome.padded(
+            VStack(alignment: .leading, spacing: ConversationChrome.answerSourcesGap) {
+                ReferencePreviewHeading(text: heading)
+                content
+                ReferenceSourcePills(pageIndexes: [pageIndex], onOpen: { _ in })
+            }
+        )
+        .frame(maxWidth: ReferencePreviewMetrics.cardWidth, alignment: .leading)
     }
 }
 

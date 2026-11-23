@@ -12,7 +12,7 @@ enum MessageSegment: Equatable {
 enum MessageBlock: Equatable {
     case text(String)
     case inlineLine([MessageSegment])
-    /// `trailing` is the sentence punctuation written immediately after the
+    /// `trailing` is only the punctuation written immediately after the
     /// equation (`,`, `.`, `;`, `:`). The following word stays on the next
     /// line. Empty when nothing followed.
     case displayMath(String, trailing: String)
@@ -273,6 +273,8 @@ enum MessageContentParser {
                     }
                 }
             case .inlineMath(let latex):
+                // Single dollars stay inline. Display is `$$`, `\[…\]`, or an
+                // equation environment, which arrive here already as `$$`.
                 currentLine.append(.inlineMath(latex))
             case .bold(let value), .italic(let value), .code(let value):
                 let normalized = normalizeSoftLineBreaks(value)
@@ -293,7 +295,7 @@ enum MessageContentParser {
     }
 
     /// Punctuation written right after a display equation belongs on that
-    /// equation. The word after it stays on the next line.
+    /// equation. The word after the punctuation stays on the next line.
     static func attachingDisplayPunctuation(_ blocks: [MessageBlock]) -> [MessageBlock] {
         var result: [MessageBlock] = []
         var index = 0
@@ -315,13 +317,17 @@ enum MessageContentParser {
         return result
     }
 
-    /// ", then the rest" → (",", " then the rest"). Nil when the block does
-    /// not open with sentence punctuation. Only that mark joins the display
-    /// line; the following word stays with the prose.
+    /// ", so the rest" -> (",", " so the rest"). A run of `, . ; :` stays on
+    /// the equation. The following word stays with the prose. Nil when the
+    /// block does not open with punctuation.
     static func splitDisplayTrailing(_ text: String) -> (attached: String, rest: String)? {
         let trimmedStart = text.drop { $0 == " " || $0 == "\t" }
         guard let first = trimmedStart.first, isSentencePunctuation(first) else { return nil }
-        return (String(first), String(trimmedStart.dropFirst()))
+        var end = trimmedStart.startIndex
+        while end < trimmedStart.endIndex, isSentencePunctuation(trimmedStart[end]) {
+            end = trimmedStart.index(after: end)
+        }
+        return (String(trimmedStart[..<end]), String(trimmedStart[end...]))
     }
 
     /// The comma after inline math, and the word after that comma, stay with

@@ -563,9 +563,37 @@ final class AssistantResponseValidatorTests: XCTestCase {
             return ""
         }
     }
+
+    func testPunctuationAfterADisplayEquationStaysOnThatEquation() {
+        let raw = "The first two coefficients vanish.\n$$a_0 = a_1 = 0$$\n, so the constant term is zero."
+        let blocks = MessageContentParser.blocks(
+            from: MessageContentParser.parseNormalized(LaTeXNormalizer.normalizeForDisplay(raw))
+        )
+        let display = blocks.compactMap { block -> (String, String)? in
+            if case .displayMath(let latex, let trailing) = block { return (latex, trailing) }
+            return nil
+        }
+        XCTAssertEqual(display.count, 1)
+        XCTAssertTrue(display[0].0.contains("a_0"))
+        XCTAssertEqual(display[0].1, ",")
+        XCTAssertFalse(display[0].1.contains("so"))
+        let following = blocks.drop { block in
+            if case .displayMath = block { return false }
+            return true
+        }.dropFirst()
+        XCTAssertTrue(following.contains { block in
+            if case .text(let value) = block {
+                return value.hasPrefix("so ") && value.contains("the constant term is zero")
+            }
+            if case .inlineLine(let segments) = block, case .text(let value) = segments.first {
+                let trimmed = value.trimmingCharacters(in: .whitespaces)
+                return trimmed.hasPrefix("so ") && trimmed.contains("the constant term is zero")
+            }
+            return false
+        })
+    }
 }
 
-@MainActor
 private final class EvidenceBoundaryAssistantStub: ReadingAssistantProtocol {
     let provider = AssistantConnectorID.onDevice
     let availability = ReadingAssistantAvailability.available(.onDevice)

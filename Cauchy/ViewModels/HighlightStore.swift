@@ -55,6 +55,7 @@ final class HighlightStore {
             highlight.bounds = thread.bounds ?? highlight.bounds
             highlight.lines = thread.lines ?? highlight.lines
             highlight.messages = thread.messages
+            highlight.askFailure = thread.failureNotice
             highlight.updatedAt = now
             highlights[existingIndex] = highlight
             return highlight
@@ -68,6 +69,7 @@ final class HighlightStore {
             selectedText: thread.selectedText,
             surroundingText: thread.surroundingText,
             messages: thread.messages,
+            askFailure: thread.failureNotice,
             isPinned: false,
             createdAt: now,
             updatedAt: now

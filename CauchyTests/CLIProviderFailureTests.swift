@@ -272,6 +272,46 @@ final class ProviderReadinessStoreTests: XCTestCase {
         XCTAssertEqual(assistant.availability, .apiKeyMissing(.openai))
     }
 
+    func testCancelledRecheckKeepsAKnownReadyStatus() async throws {
+        let probe = ScriptedProbe()
+        let store = try makeStore(probe: probe, installed: Flag(true), hasKey: Flag(true))
+        let model = "gpt-6.1-sol"
+        probe.result = nil
+        let ready = await store.probe(connectorID: .codex, modelID: model, force: true)
+        XCTAssertNil(ready)
+        XCTAssertEqual(store.state(for: .codex, modelID: model), .ready)
+
+        let holding = HoldingProbe()
+        let live = ProviderReadinessStore(
+            defaults: try makeDefaults(),
+            prober: holding,
+            binaryIsInstalled: { @MainActor _ in true },
+            apiKeyIsStored: { @MainActor _ in true }
+        )
+        holding.result = nil
+        _ = await live.probe(connectorID: .codex, modelID: model, force: true)
+        holding.result = .cancelled
+        holding.arm()
+        let recheck = Task { await live.probe(connectorID: .codex, modelID: model, force: true) }
+        await holding.waitUntilStarted()
+        XCTAssertEqual(live.state(for: .codex, modelID: model), .ready)
+        holding.release()
+        let cancelled = await recheck.value
+        XCTAssertEqual(cancelled, .cancelled)
+        XCTAssertEqual(live.state(for: .codex, modelID: model), .ready)
+        XCTAssertNotEqual(live.state(for: .codex, modelID: model), .blocked(.cancelled))
+    }
+
+    func testCancelledProbeOfAnUnknownConnectorStaysUnknown() async throws {
+        let probe = ScriptedProbe()
+        let store = try makeStore(probe: probe, installed: Flag(true), hasKey: Flag(true))
+        probe.result = .cancelled
+        let failure = await store.probe(connectorID: .codex, modelID: "gpt-6.1-sol", force: true)
+        XCTAssertEqual(failure, .cancelled)
+        XCTAssertEqual(store.state(for: .codex, modelID: "gpt-6.1-sol"), .unknown)
+        XCTAssertNotEqual(store.state(for: .codex, modelID: "gpt-6.1-sol"), .blocked(.cancelled))
+    }
+
     private func makeDefaults() throws -> UserDefaults {
         let suite = "cauchy.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -535,6 +575,72 @@ final class CloudProviderFailureTests: XCTestCase {
 private final class Flag: @unchecked Sendable {
     var value: Bool
     init(_ value: Bool) { self.value = value }
+}
+
+private final class HoldingProbe: ProviderProbing, @unchecked Sendable {
+    var result: AssistantFailure?
+    private let lock = NSLock()
+    private var entered: CheckedContinuation<Void, Never>?
+    private var started = false
+    private var hold: CheckedContinuation<Void, Never>?
+    private var armed = false
+
+    func arm() {
+        lock.lock()
+        armed = true
+        started = false
+        lock.unlock()
+    }
+
+    func waitUntilStarted() async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            if started {
+                lock.unlock()
+                cont.resume()
+            } else {
+                entered = cont
+                lock.unlock()
+            }
+        }
+    }
+
+    func release() {
+        lock.lock()
+        let waiting = hold
+        hold = nil
+        lock.unlock()
+        waiting?.resume()
+    }
+
+    func probe(connectorID: AssistantConnectorID, modelID: String?) async -> AssistantFailure? {
+        let shouldHold = takeArm()
+        guard shouldHold else { return result }
+        markStarted()?.resume()
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            hold = cont
+            lock.unlock()
+        }
+        return result
+    }
+
+    private func takeArm() -> Bool {
+        lock.lock()
+        let shouldHold = armed
+        armed = false
+        lock.unlock()
+        return shouldHold
+    }
+
+    private func markStarted() -> CheckedContinuation<Void, Never>? {
+        lock.lock()
+        started = true
+        let notify = entered
+        entered = nil
+        lock.unlock()
+        return notify
+    }
 }
 
 private final class ScriptedProbe: ProviderProbing, @unchecked Sendable {

@@ -13,8 +13,34 @@ final class ConnectorSetupService {
     var authenticated: Set<AssistantConnectorID> = []
     var loginArguments: [String] = []
     private var operation: Task<Void, Never>?
+    /// The status shown before a check started. Closing the sheet restores it.
+    private var stablePhase: Phase = .idle
 
     var busy: Bool { phase == .installing || phase == .checking }
+
+    /// Opens on the last known status. A recheck, if any, runs behind that
+    /// and a cancellation cannot replace a known result with "not sure".
+    func present(_ id: AssistantConnectorID) {
+        connectorID = id
+        if id.connector.resolvedBinaryURL == nil {
+            begin(id)
+            return
+        }
+        let known = Self.immediatePhase(for: id)
+        phase = known
+        stablePhase = known
+        guard operation == nil else { return }
+        operation = Task {
+            await loadLoginArguments(id)
+            guard !Task.isCancelled else {
+                phase = stablePhase
+                operation = nil
+                return
+            }
+            await applyProbe(id, showsProgress: false)
+            operation = nil
+        }
+    }
 
     func begin(_ id: AssistantConnectorID) {
         guard operation == nil else { return }
@@ -70,32 +96,79 @@ final class ConnectorSetupService {
     func cancel() {
         operation?.cancel()
         // Keep the operation owned until cancellation has drained the process.
+        // The probe itself refuses to downgrade a known status.
     }
 
     func check() {
         guard operation == nil, let id = connectorID,
               id.connector.resolvedBinaryURL != nil else { return }
-        phase = .checking
+        if phase != .checking {
+            stablePhase = phase
+        }
         operation = Task {
-            let modelID = AssistantPreferences.modelChoice(for: id).modelID
-            let failure = await ProviderReadinessStore.shared.probe(
-                connectorID: id,
-                modelID: modelID,
-                force: true
-            )
-            if Task.isCancelled {
-                phase = .signIn
-            } else if failure == nil {
-                authenticated.insert(id)
-                phase = .ready
-            } else if case .notSignedIn = failure {
-                authenticated.remove(id)
-                phase = .signIn
-            } else {
-                authenticated.remove(id)
-                phase = .failed(failure?.errorDescription ?? "Could not connect.")
-            }
+            await applyProbe(id, showsProgress: true)
             operation = nil
+        }
+    }
+
+    private func applyProbe(_ id: AssistantConnectorID, showsProgress: Bool) async {
+        if showsProgress { phase = .checking }
+        let modelID = AssistantPreferences.modelChoice(for: id).modelID
+        let failure = await ProviderReadinessStore.shared.probe(
+            connectorID: id,
+            modelID: modelID,
+            force: true
+        )
+        if Task.isCancelled || failure == .cancelled {
+            phase = stablePhase
+            return
+        }
+        switch failure {
+        case nil:
+            authenticated.insert(id)
+            phase = .ready
+            stablePhase = .ready
+        case .notSignedIn, .notInstalled:
+            authenticated.remove(id)
+            phase = .signIn
+            stablePhase = .signIn
+        default:
+            authenticated.remove(id)
+            phase = .failed(failure?.errorDescription ?? "Could not connect.")
+            stablePhase = phase
+        }
+    }
+
+    private func loadLoginArguments(_ id: AssistantConnectorID) async {
+        guard let binary = id.connector.resolvedBinaryURL else {
+            loginArguments = []
+            return
+        }
+        if id == .claudeCode {
+            let help = (try? await run(binary, ["--help"], timeout: 20)) ?? ""
+            guard !Task.isCancelled else { return }
+            loginArguments = help.range(of: #"(?m)^\s+auth\s"#, options: .regularExpression) != nil ? ["auth", "login"] : []
+        } else {
+            loginArguments = id == .codex ? ["login"] : []
+        }
+    }
+
+    /// What Manage can show before any new check has been started.
+    static func immediatePhase(for id: AssistantConnectorID) -> Phase {
+        guard id.connector.resolvedBinaryURL != nil else { return .idle }
+        let modelID = AssistantPreferences.modelChoice(for: id).modelID
+        switch ProviderReadinessStore.shared.state(for: id, modelID: modelID) {
+        case .ready:
+            return .ready
+        case .blocked(let failure):
+            switch failure {
+            case .notSignedIn, .notInstalled, .cancelled:
+                return .signIn
+            default:
+                return .failed(failure.errorDescription ?? "Could not connect.")
+            }
+        case .unknown, .checking:
+            return .signIn
         }
     }
 

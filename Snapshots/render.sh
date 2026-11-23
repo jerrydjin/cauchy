@@ -169,7 +169,12 @@ chat_sources=(
   Cauchy/Services/LaTeXNormalizer.swift
   Cauchy/Services/MessageContentParser.swift
   Cauchy/Services/AnswerCitation.swift
+  Cauchy/Services/AnswerVoice.swift
   Cauchy/Services/ReaderFollowUps.swift
+  Cauchy/Utilities/CoordinateMapper.swift
+  Cauchy/Services/HighlightAnnotationService.swift
+  Cauchy/Views/Context/HighlightColorMenu.swift
+  Cauchy/Views/Context/HighlightThreadRow.swift
   Cauchy/Views/RichText/InlineFlowLayout.swift
   Cauchy/Views/RichText/MathSegmentView.swift
   Cauchy/Views/RichText/ReferenceLinkedText.swift

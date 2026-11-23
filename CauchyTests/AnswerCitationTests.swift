@@ -391,6 +391,87 @@ final class AnswerCitationTests: XCTestCase {
         XCTAssertEqual(chip.messagePassage?.excerpt, passage)
     }
 
+    /// A second highlight is a new ask. Persist-on-ask has already written the
+    /// first thread, and that thread must not ride along: the session selection
+    /// is the new passage, and the transcript is the new question alone.
+    @MainActor
+    func testANewHighlightAskContainsOnlyItsOwnSelectionAndThread() async throws {
+        let title = "Synthetic notes on a holomorphic function"
+        let taylor = "Since h(z0)=h'(z0)=0 we see a0=a1=0, hence the sum starts at k>=2."
+        let connected = "Proposition 5.3. A continuous image of a closed interval is connected."
+        let page = """
+        \(taylor)
+        \(connected)
+        Proof. Compactness of the closed interval yields a finite subcover.
+        """
+        let assistant = PromptCaptureAssistant()
+        let model = SelectionThreadViewModel(assistant: assistant)
+
+        model.updateSelection(
+            TextSelectionContext(
+                pageIndex: 0,
+                selectedText: taylor,
+                surroundingText: page,
+                fingerprint: "taylor",
+                bounds: nil,
+                lines: nil
+            ),
+            documentTitle: title,
+            existingHighlights: []
+        )
+        try await model.sendMessage(
+            "slightly lost how we concluded this",
+            documentTitle: title,
+            passage: MessagePassage(pageIndex: 0, excerpt: taylor)
+        ) { _ in }
+
+        let first = try XCTUnwrap(model.activeThread)
+        let saved = Highlight(
+            id: first.anchorID,
+            pageIndex: first.pageIndex,
+            selectedText: first.selectedText,
+            surroundingText: first.surroundingText,
+            messages: first.messages
+        )
+        XCTAssertEqual(assistant.transcripts, ["slightly lost how we concluded this"])
+        XCTAssertFalse(assistant.transcripts[0].contains("Earlier conversation"))
+
+        model.updateSelection(
+            TextSelectionContext(
+                pageIndex: 0,
+                selectedText: connected,
+                surroundingText: page,
+                fingerprint: "connected",
+                bounds: nil,
+                lines: nil
+            ),
+            documentTitle: title,
+            existingHighlights: [saved]
+        )
+        try await model.sendMessage(
+            "why is the image connected?",
+            documentTitle: title,
+            passage: MessagePassage(pageIndex: 0, excerpt: connected)
+        ) { _ in }
+
+        XCTAssertEqual(assistant.restoredThreads, [])
+        XCTAssertEqual(
+            assistant.transcripts,
+            ["slightly lost how we concluded this", "why is the image connected?"]
+        )
+        XCTAssertFalse(assistant.transcripts[1].contains("slightly lost"))
+        XCTAssertFalse(assistant.transcripts[1].contains("Earlier conversation"))
+        XCTAssertEqual(assistant.selectionsAtAsk, [taylor, connected])
+
+        let asked = ReadingPromptBuilder.instructions(for: try XCTUnwrap(assistant.contexts.last))
+            .components(separatedBy: "---")
+        XCTAssertTrue(asked[1].contains(connected))
+        XCTAssertFalse(asked[1].contains("h(z0)"))
+        let userLines = model.activeThread?.messages.filter { $0.role == .user }.map(\.content)
+        XCTAssertEqual(userLines, ["why is the image connected?"])
+        XCTAssertEqual(model.activeThread?.selectedText, connected)
+    }
+
     /// The same assembly the reading assistants use: session instructions,
     /// then the ask-time blocks, then the question. Retrieval stays empty
     /// for this fixture; the passage is only in the selected-text block.
@@ -515,13 +596,20 @@ private final class PromptCaptureAssistant: ReadingAssistantProtocol {
     var isResponding = false
     private(set) var contexts: [ReadingContext] = []
     private(set) var retrievals: [AskRetrieval] = []
+    private(set) var transcripts: [String] = []
+    private(set) var selectionsAtAsk: [String] = []
+    private(set) var restoredThreads: [[ThreadMessage]] = []
+    private var history: [ThreadMessage] = []
 
     func resetSession(context: ReadingContext) {
         contexts.append(context)
+        history = []
     }
 
     func restoreSession(context: ReadingContext, messages: [ThreadMessage]) {
         contexts.append(context)
+        history = messages
+        restoredThreads.append(messages)
     }
 
     func ask(
@@ -530,6 +618,11 @@ private final class PromptCaptureAssistant: ReadingAssistantProtocol {
         onPartial: ((String) -> Void)?
     ) async throws -> String {
         retrievals.append(retrieval)
-        return "Synthetic reply.\n[[CAUCHY_BASIS: INSUFFICIENT]]"
+        transcripts.append(CLIAgentAssistantService.transcriptPrompt(history: history, question: question))
+        selectionsAtAsk.append(contexts.last?.selectedText ?? "")
+        let reply = "Synthetic reply.\n[[CAUCHY_BASIS: INSUFFICIENT]]"
+        history.append(ThreadMessage(role: .user, content: question))
+        history.append(ThreadMessage(role: .assistant, content: reply))
+        return reply
     }
 }

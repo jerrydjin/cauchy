@@ -27,6 +27,9 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
     var title: String?
     var note: String?
     var messages: [ThreadMessage]
+    /// Set when the latest question failed or was stopped. Cleared when the
+    /// next answer lands. Not shown while that question is still in flight.
+    var askFailure: String?
     var isPinned: Bool
     var createdAt: Date
     var updatedAt: Date
@@ -43,6 +46,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         title: String? = nil,
         note: String? = nil,
         messages: [ThreadMessage] = [],
+        askFailure: String? = nil,
         isPinned: Bool = false,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -58,6 +62,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         self.title = title
         self.note = note
         self.messages = messages
+        self.askFailure = askFailure
         self.isPinned = isPinned
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -91,7 +96,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, pageIndex, bounds, lines, selectedText, surroundingText, label, color, title, note, messages
-        case isPinned, createdAt, updatedAt
+        case askFailure, isPinned, createdAt, updatedAt
         case excerpt
         /// Pre-cross-page line rects, all of them implicitly on `pageIndex`.
         case lineBounds
@@ -115,6 +120,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         title = try container.decodeIfPresent(String.self, forKey: .title)
         note = try container.decodeIfPresent(String.self, forKey: .note)
         messages = try container.decodeIfPresent([ThreadMessage].self, forKey: .messages) ?? []
+        askFailure = try container.decodeIfPresent(String.self, forKey: .askFailure)
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? true
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
@@ -142,6 +148,7 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
         try container.encodeIfPresent(title, forKey: .title)
         try container.encodeIfPresent(note, forKey: .note)
         try container.encode(messages, forKey: .messages)
+        try container.encodeIfPresent(askFailure, forKey: .askFailure)
         try container.encode(isPinned, forKey: .isPinned)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
@@ -170,6 +177,16 @@ struct Highlight: Identifiable, Codable, Equatable, Sendable {
             .first { $0.role == .user && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?
             .content
         return Self.title(from: question ?? label)
+    }
+
+    /// One line of the latest answer, for the thread list. Empty while the
+    /// question is still unanswered.
+    var answerPreview: String? {
+        guard let content = messages.last(where: { $0.role == .assistant })?.content else { return nil }
+        let collapsed = content.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard !collapsed.isEmpty else { return nil }
+        guard collapsed.count > 90 else { return collapsed }
+        return String(collapsed.prefix(88)) + "…"
     }
 
     /// Collapses a passage into a single tidy line: no runs of whitespace, no

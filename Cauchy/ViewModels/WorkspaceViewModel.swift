@@ -97,6 +97,8 @@ final class WorkspaceViewModel: Equatable {
     /// The in-flight Ask, retained so the user can stop it. Cancelling it
     /// terminates the CLI child process / cloud stream.
     private var askTask: Task<Void, Never>?
+    /// Breathes the page highlight while `answeringHighlightID` is set.
+    private var pulseTask: Task<Void, Never>?
     /// Thread-naming jobs in flight, keyed by highlight, so a follow-up
     /// question doesn't start a second one for the same thread and closing the
     /// document cancels them all.
@@ -615,6 +617,14 @@ final class WorkspaceViewModel: Equatable {
             explicit: true
         )
         contextEngine.showDetail(highlight.id)
+        // The live thread already holds the streaming text. Rebuilding it
+        // from the saved highlight would wipe the partial and the session
+        // that is still producing it, so the answer only appeared at the end.
+        if selectionThread.isResponding, selectionThread.activeThread?.anchorID == highlight.id {
+            navigateToHighlight(highlight)
+            syncHighlightAnnotations()
+            return
+        }
         selectionThread.restoreThread(from: highlight, documentTitle: documentTitle)
         navigateToHighlight(highlight)
         syncHighlightAnnotations()
@@ -669,31 +679,34 @@ final class WorkspaceViewModel: Equatable {
             guard let self else { return }
             defer { self.askTask = nil }
             do {
+                let askedIn = self.workspace?.id
                 try await self.selectionThread.sendMessage(
                     question,
                     documentTitle: self.documentTitle,
                     passage: passage
-                ) { [weak self] thread in
-                    guard let self else { return }
-                    let highlight = self.highlightStore.upsertFromThread(thread)
-                    self.highlightStore.selectedHighlightID = highlight.id
-                    self.contextEngine.showDetail(highlight.id)
-                    self.syncHighlightAnnotations()
-                    self.persistWorkspace()
-                    self.nameThreadIfNeeded(highlight)
+                ) { [weak self] moment in
+                    guard let self, self.workspace?.id == askedIn else { return }
+                    switch moment {
+                    case .questionSent(let thread):
+                        self.storeAskedHighlight(thread)
+                    case .answerFinished(let thread):
+                        self.storeFinishedHighlight(thread)
+                    }
                 }
             } catch {
-                // A stopped ask is a deliberate user action. The stop button
-                // already left a note; don't replace it with a signal exit.
+                // A stopped or failed ask keeps the highlight that was saved
+                // when the question was sent. Closing the document drops it
+                // instead of filing the failure on the next PDF.
+                guard self.workspace != nil else { return }
                 let cancelled = Task.isCancelled || error is CancellationError || (error as? AssistantFailure) == .cancelled
-                if cancelled {
-                    if self.selectionThread.activeThread?.failureNotice == nil {
-                        self.selectionThread.noteFailure(AssistantFailure.cancelled.statusLine)
-                    }
-                    return
-                }
-                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                let message = cancelled
+                    ? AssistantFailure.cancelled.statusLine
+                    : ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
                 self.selectionThread.noteFailure(message)
+                if let thread = self.selectionThread.activeThread {
+                    self.storeFailedHighlight(thread)
+                }
+                if cancelled { return }
                 if let failure = error as? AssistantFailure, let provider = failure.connectorID {
                     let modelID = AssistantPreferences.modelChoice(for: provider).modelID
                     ProviderReadinessStore.shared.record(failure, connectorID: provider, modelID: modelID)
@@ -703,15 +716,83 @@ final class WorkspaceViewModel: Equatable {
     }
 
     /// Stops the in-flight Ask (terminating the CLI child process or cloud
-    /// stream) and returns the unanswered question so the composer can restore
-    /// it. Safe to call when nothing is running.
+    /// stream). The question stays in the thread, so the highlight remains
+    /// and Retry can ask it again. Safe to call when nothing is running.
     @discardableResult
     func stopThreadMessage() -> String? {
         guard askTask != nil else { return nil }
         askTask?.cancel()
-        askTask = nil
-        selectionThread.noteFailure(AssistantFailure.cancelled.statusLine)
-        return selectionThread.discardUnansweredQuestion()
+        return nil
+    }
+
+    /// Asks the same question again in the thread that failed or was stopped.
+    func retryHighlight(_ highlight: Highlight) {
+        guard !selectionThread.isResponding else { return }
+        selectHighlight(highlight)
+        guard let question = highlight.messages.last(where: { $0.role == .user })?.content,
+              !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if selectionThread.activeThread?.messages.last?.role == .user {
+            _ = selectionThread.discardUnansweredQuestion()
+        }
+        if var thread = selectionThread.activeThread {
+            thread.failureNotice = nil
+            selectionThread.activeThread = thread
+        }
+        sendThreadMessage(question)
+    }
+
+    /// The highlight whose answer is streaming, if it has already been saved.
+    var answeringHighlightID: UUID? {
+        guard selectionThread.isResponding else { return nil }
+        return selectionThread.activeThread?.anchorID
+    }
+
+    private func storeAskedHighlight(_ thread: SelectionThread) {
+        let highlight = highlightStore.upsertFromThread(thread)
+        highlightStore.selectedHighlightID = highlight.id
+        syncHighlightAnnotations()
+        persistWorkspace()
+        ensureHighlightPulse()
+    }
+
+    private func storeFinishedHighlight(_ thread: SelectionThread) {
+        let highlight = highlightStore.upsertFromThread(thread)
+        highlightStore.selectedHighlightID = highlight.id
+        contextEngine.showDetail(highlight.id)
+        syncHighlightAnnotations()
+        persistWorkspace()
+        nameThreadIfNeeded(highlight)
+    }
+
+    private func storeFailedHighlight(_ thread: SelectionThread) {
+        _ = highlightStore.upsertFromThread(thread)
+        syncHighlightAnnotations()
+        persistWorkspace()
+    }
+
+    private func ensureHighlightPulse() {
+        guard pulseTask == nil else { return }
+        pulseTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, self.answeringHighlightID != nil else { break }
+                self.paintHighlightPulse()
+                try? await Task.sleep(for: .milliseconds(90))
+            }
+            self?.pulseTask = nil
+            self?.syncHighlightAnnotations()
+        }
+    }
+
+    private func paintHighlightPulse() {
+        guard let document = pdfDocument,
+              let id = answeringHighlightID,
+              let highlight = highlightStore.highlights.first(where: { $0.id == id }) else { return }
+        HighlightAnnotationService.applyPulse(
+            document: document,
+            highlightID: id,
+            color: highlight.color.pageColor,
+            opacity: HighlightAnnotationService.pulseOpacity(at: Date().timeIntervalSinceReferenceDate)
+        )
     }
 
     // MARK: - Thread names
@@ -1070,11 +1151,18 @@ final class WorkspaceViewModel: Equatable {
         _ = isIndexingReferences
         _ = referenceIndexProvenance
         guard message.role == .assistant else { return [] }
-        let asked = selectionThread.activeThread?.messages
-            .filter { $0.role == .user }
-            .map(\.content) ?? []
+        let messages = selectionThread.activeThread?.messages ?? []
+        let asked = messages.filter { $0.role == .user }.map(\.content)
+        let question: String
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            question = messages[..<index].last { $0.role == .user }?.content ?? ""
+        } else {
+            question = asked.last ?? ""
+        }
         return ReaderFollowUps.suggest(
             answer: message.content,
+            question: question,
+            selection: selectionThread.activeThread?.selectedText ?? "",
             anchors: message.answerEvidence?.sourceAnchors ?? [],
             statements: followUpStatements(),
             alreadyAsked: asked

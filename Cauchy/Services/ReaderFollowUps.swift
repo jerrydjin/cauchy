@@ -105,50 +105,81 @@ enum ReaderFollowUps {
 
     static func suggest(
         answer: String,
+        question: String = "",
+        selection: String = "",
         anchors: [AnswerSourceAnchor] = [],
         statements: [ReaderFollowUpStatement],
         alreadyAsked: [String] = []
     ) -> [SuggestedFollowUp] {
-        let cited = citedStatements(in: answer, anchors: anchors, statements: statements)
-        guard let primary = primaryStatement(in: cited) else { return [] }
+        // Kept on the signature so callers can still pass the selection and
+        // the citation anchors. Neither one may put a label on a chip.
+        _ = selection
+        _ = anchors
+        // Only statements the question or the answer actually writes down.
+        // An anchor label, and the passage the reader selected, are not a
+        // second source: a chip may not name a result the turn never did.
+        let allowed = allowedStatements(
+            answer: answer,
+            question: question,
+            statements: statements
+        )
+        guard !allowed.isEmpty else { return [] }
 
         var chosen: [SuggestedFollowUp] = []
         var usedTargets = Set<String>()
         let askedKeys = alreadyAsked.map { questionKey($0) }
+        let variedBy = question.isEmpty ? answer : question
 
         func consider(_ followUp: SuggestedFollowUp?, target: String) {
             guard chosen.count < maximumCount, let followUp else { return }
-            let question = followUp.question.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !question.isEmpty, !isGeneric(question) else { return }
-            // The question under this answer was just asked. Offering it
-            // again, or a paraphrase of it, is not a next step. Zero pills
-            // is the right result when nothing else is grounded.
-            guard !repeatsAsked(question, keys: askedKeys) else { return }
+            let text = followUp.question.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty, !isGeneric(text), !isFiller(text) else { return }
+            guard !repeatsAsked(text, keys: askedKeys) else { return }
+            guard namesOnly(text, allowed: allowed, statements: statements) else { return }
+            guard chipReferencesOnlyTheTurn(text, question: question, answer: answer) else { return }
             guard usedTargets.insert(target).inserted else { return }
             var accepted = followUp
-            accepted.question = question
+            accepted.question = text
             chosen.append(accepted)
         }
 
-        let proofTarget = "proof:\(primary.reference.kind.rawValue):\(primary.reference.number)"
-        if let specific = proofConceptFollowUp(primary: primary, answer: answer, statements: statements) {
-            consider(specific, target: proofTarget)
-        } else {
-            consider(proofOverviewFollowUp(primary: primary, answer: answer), target: proofTarget)
-        }
-        if let next = nextResult(after: primary, in: statements, answer: answer) {
+        for statement in allowed where provableKinds.contains(statement.reference.kind) {
+            let proofTarget = "proof:\(statement.reference.kind.rawValue):\(statement.reference.number)"
             consider(
-                placeFollowUp(question: "What does \(next.reference.displayName) build on?", statement: next),
-                target: targetKey(next)
+                proofConceptFollowUp(
+                    primary: statement,
+                    answer: answer,
+                    statements: statements,
+                    variedBy: variedBy
+                ),
+                target: proofTarget
             )
         }
-        if let definition = definitionUsed(by: primary, answer: answer, statements: statements) {
-            consider(definitionFollowUp(definition), target: targetKey(definition))
+        for statement in allowed where statement.reference.kind == .definition {
+            if answerAlreadyStates(statement, in: answer) { continue }
+            consider(
+                definitionFollowUp(statement, variedBy: variedBy),
+                target: targetKey(statement)
+            )
         }
-        if let example = exerciseFollowUp(primary: primary, answer: answer, statements: statements) {
-            consider(example.followUp, target: example.target)
+        for statement in allowed where provableKinds.contains(statement.reference.kind) {
+            if let example = exerciseFollowUp(primary: statement, answer: answer, allowed: allowed) {
+                consider(example.followUp, target: example.target)
+            }
         }
         return chosen
+    }
+
+    /// "What does the proof of X rely on?" and "What does Y build on?" were
+    /// the same two chips on every answer, aimed at whatever came next on the
+    /// page. A chip that isn't about this question is worse than no chip.
+    static func isFiller(_ question: String) -> Bool {
+        let lowered = question.lowercased()
+        if lowered.contains("rely on") || lowered.contains("relies on") { return true }
+        if lowered.contains("build on") || lowered.contains("builds on") || lowered.contains("built on") {
+            return true
+        }
+        return false
     }
 
     static func isGeneric(_ question: String) -> Bool {
@@ -164,7 +195,8 @@ enum ReaderFollowUps {
     private static func proofConceptFollowUp(
         primary: ReaderFollowUpStatement,
         answer: String,
-        statements: [ReaderFollowUpStatement]
+        statements: [ReaderFollowUpStatement],
+        variedBy: String
     ) -> SuggestedFollowUp? {
         guard provableKinds.contains(primary.reference.kind) else { return nil }
         let proof = primary.proofText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -173,38 +205,51 @@ enum ReaderFollowUps {
             return nil
         }
         return SuggestedFollowUp(
-            question: "Why does the proof of \(primary.reference.displayName) need \(concept.questionPhrase)?",
+            question: variedProofQuestion(
+                name: primary.reference.displayName,
+                concept: concept.questionPhrase,
+                seed: variedBy
+            ),
             pageIndex: primary.proofPageIndex ?? primary.pageIndex,
             region: located(primary.proofRegion, fallback: primary.region)
         )
     }
 
-    /// The proof is in the document, but it does not name a definition the
-    /// answer left untouched. Still a real next step: open that proof.
-    private static func proofOverviewFollowUp(
-        primary: ReaderFollowUpStatement,
-        answer: String
-    ) -> SuggestedFollowUp? {
-        guard provableKinds.contains(primary.reference.kind) else { return nil }
-        let proof = primary.proofText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard proof.count >= 20 else { return nil }
-        if answer.range(of: "proof", options: .caseInsensitive) != nil { return nil }
-        guard let page = primary.proofPageIndex ?? Optional(primary.pageIndex), page >= 0 else { return nil }
-        return SuggestedFollowUp(
-            question: "What does the proof of \(primary.reference.displayName) rely on?",
-            pageIndex: page,
-            region: located(primary.proofRegion, fallback: primary.region)
-        )
+    private static func definitionFollowUp(
+        _ definition: ReaderFollowUpStatement,
+        variedBy: String
+    ) -> SuggestedFollowUp {
+        let subject: String
+        if let name = usableName(definition.name) {
+            subject = name.lowercased()
+        } else {
+            subject = definition.reference.displayName
+        }
+        let forms = [
+            "What does the definition of \(subject) require?",
+            "Which condition in the definition of \(subject) is doing the work?",
+            "How is \(subject) being used here?",
+        ]
+        return placeFollowUp(question: forms[stableIndex(variedBy + subject, count: forms.count)], statement: definition)
     }
 
-    private static func definitionFollowUp(_ definition: ReaderFollowUpStatement) -> SuggestedFollowUp {
-        let question: String
-        if let name = usableName(definition.name) {
-            question = "What does the definition of \(name.lowercased()) require?"
-        } else {
-            question = "What does \(definition.reference.displayName) require?"
+    private static func variedProofQuestion(name: String, concept: String, seed: String) -> String {
+        let forms = [
+            "Why does the proof of \(name) use \(concept)?",
+            "Where does \(concept) enter the proof of \(name)?",
+            "How does \(concept) finish the argument for \(name)?",
+            "What fails in the proof of \(name) without \(concept)?",
+        ]
+        return forms[stableIndex(seed + concept, count: forms.count)]
+    }
+
+    private static func stableIndex(_ text: String, count: Int) -> Int {
+        guard count > 0 else { return 0 }
+        var hash = 0
+        for byte in text.utf8 {
+            hash = (hash &* 33 &+ Int(byte)) % 10_007
         }
-        return placeFollowUp(question: question, statement: definition)
+        return hash % count
     }
 
     /// "Try it on f(x) = 1/x." Only when an example or exercise in the
@@ -213,9 +258,9 @@ enum ReaderFollowUps {
     private static func exerciseFollowUp(
         primary: ReaderFollowUpStatement,
         answer: String,
-        statements: [ReaderFollowUpStatement]
+        allowed: [ReaderFollowUpStatement]
     ) -> (followUp: SuggestedFollowUp, target: String)? {
-        let exercises = statements.filter {
+        let exercises = allowed.filter {
             $0.reference.kind == .example || $0.reference.kind == .exercise
         }.sorted(by: readsBefore)
         for exercise in exercises {
@@ -241,15 +286,72 @@ enum ReaderFollowUps {
 
     // MARK: - Grounding
 
-    private static func citedStatements(
-        in answer: String,
-        anchors: [AnswerSourceAnchor],
+    /// True when every theorem, proposition, lemma, section, or equation
+    /// label in `chip` is written in the question or the answer. A chip with
+    /// no such label is left to the other grounding checks.
+    static func chipReferencesOnlyTheTurn(_ chip: String, question: String, answer: String) -> Bool {
+        let corpus = question + "\n" + answer
+        return statementLabels(in: chip).allSatisfy { labelAppears($0, in: corpus) }
+    }
+
+    struct ChipStatementLabel: Equatable {
+        var kind: String
+        var number: String
+    }
+
+    private static let chipLabelPattern = try! NSRegularExpression(
+        pattern: #"(?i)\b(theorems?|thm|propositions?|prop|lemmas?|lem|sections?|sec|equations?|eq)\.?\s+\(?([0-9]+(?:\.[0-9]+)*|[A-Z](?:\.[0-9]+)+)(?!\.[0-9]|[0-9])"#
+    )
+
+    private static let chipLabelAliases: [String: [String]] = [
+        "theorem": ["theorem", "thm"],
+        "proposition": ["proposition", "prop"],
+        "lemma": ["lemma", "lem"],
+        "section": ["section", "sec"],
+        "equation": ["equation", "eq"],
+    ]
+
+    private static let chipLabelAbbreviations = [
+        "thm": "theorem", "prop": "proposition", "lem": "lemma",
+        "sec": "section", "eq": "equation",
+    ]
+
+    static func statementLabels(in text: String) -> [ChipStatementLabel] {
+        let range = NSRange(text.startIndex..., in: text)
+        return chipLabelPattern.matches(in: text, range: range).compactMap { match in
+            guard let kindRange = Range(match.range(at: 1), in: text),
+                  let numberRange = Range(match.range(at: 2), in: text),
+                  let kind = canonicalChipKind(String(text[kindRange])) else { return nil }
+            return ChipStatementLabel(kind: kind, number: String(text[numberRange]))
+        }
+    }
+
+    private static func canonicalChipKind(_ raw: String) -> String? {
+        var word = raw.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        if word.hasSuffix("s"), chipLabelAliases[String(word.dropLast())] != nil {
+            word = String(word.dropLast())
+        }
+        if chipLabelAliases[word] != nil { return word }
+        return chipLabelAbbreviations[word]
+    }
+
+    private static func labelAppears(_ label: ChipStatementLabel, in text: String) -> Bool {
+        let aliases = chipLabelAliases[label.kind] ?? [label.kind]
+        let number = NSRegularExpression.escapedPattern(for: label.number)
+        for alias in aliases {
+            let pattern = "(?i)\\b\(alias)\\.?\\s+\\(?\(number)(?!\\.[0-9]|[0-9])"
+            if text.range(of: pattern, options: .regularExpression) != nil { return true }
+        }
+        return false
+    }
+
+    private static func allowedStatements(
+        answer: String,
+        question: String,
         statements: [ReaderFollowUpStatement]
     ) -> [ReaderFollowUpStatement] {
-        var references: [DetectedReference] = ReferenceDetector.allReferences(in: answer).map(\.reference)
-        for anchor in anchors {
-            references.append(contentsOf: ReferenceDetector.allReferences(in: anchor.label).map(\.reference))
-        }
+        let corpus = [answer, question].joined(separator: "\n")
+        let references = ReferenceDetector.allReferences(in: corpus).map(\.reference)
         var seen = Set<ReferenceKey>()
         var resolved: [ReaderFollowUpStatement] = []
         for reference in references {
@@ -262,55 +364,21 @@ enum ReaderFollowUps {
         return resolved
     }
 
-    /// The result the answer is about. A later provable citation wins over an
-    /// earlier definition, because the next step hangs off that result.
-    private static func primaryStatement(in cited: [ReaderFollowUpStatement]) -> ReaderFollowUpStatement? {
-        if let provable = cited.last(where: { provableKinds.contains($0.reference.kind) }) {
-            return provable
-        }
-        return cited.last {
-            $0.reference.kind != .figure && $0.reference.kind != .equation && $0.reference.kind != .proof
-        }
-    }
-
-    private static func nextResult(
-        after primary: ReaderFollowUpStatement,
-        in statements: [ReaderFollowUpStatement],
-        answer: String
-    ) -> ReaderFollowUpStatement? {
-        let ordered = statements.filter { provableKinds.contains($0.reference.kind) }.sorted(by: readsBefore)
-        let successor: ReaderFollowUpStatement?
-        if provableKinds.contains(primary.reference.kind) {
-            guard let index = ordered.firstIndex(where: { $0.reference.key == primary.reference.key }) else { return nil }
-            successor = ordered.dropFirst(index + 1).first { candidate in
-                !mentions(candidate, in: answer) && hasText(candidate)
-            }
-        } else {
-            successor = ordered.first { candidate in
-                readsBefore(primary, candidate) && !mentions(candidate, in: answer) && hasText(candidate)
-            }
-        }
-        return successor
-    }
-
-    private static func definitionUsed(
-        by primary: ReaderFollowUpStatement,
-        answer: String,
+    /// A chip may name a concept from an allowed proof. It may not name a
+    /// numbered statement that this question and answer never touched.
+    private static func namesOnly(
+        _ question: String,
+        allowed: [ReaderFollowUpStatement],
         statements: [ReaderFollowUpStatement]
-    ) -> ReaderFollowUpStatement? {
-        let source = primary.statementText + "\n" + answer
-        let definitions = statements.filter {
-            $0.reference.kind == .definition && $0.reference.key != primary.reference.key && hasText($0)
-        }
-        var best: (index: Int, statement: ReaderFollowUpStatement)?
-        for definition in definitions {
-            if answerAlreadyStates(definition, in: answer) { continue }
-            guard let index = usageIndex(of: definition, in: source) else { continue }
-            if best == nil || index < best!.index {
-                best = (index, definition)
+    ) -> Bool {
+        let allowedKeys = Set(allowed.map { $0.reference.key })
+        for reference in ReferenceDetector.allReferences(in: question).map(\.reference) {
+            let known = statements.contains {
+                $0.reference.kind == reference.kind && $0.reference.number == reference.number
             }
+            if known, !allowedKeys.contains(reference.key) { return false }
         }
-        return best?.statement
+        return true
     }
 
     private struct NamedConcept {
@@ -367,31 +435,11 @@ enum ReaderFollowUps {
         return trimmed
     }
 
-    private static func usageIndex(of definition: ReaderFollowUpStatement, in source: String) -> Int? {
-        let ns = source as NSString
-        if let name = usableName(definition.name), containsPhrase(name, in: source) {
-            let found = ns.range(of: name, options: .caseInsensitive).location
-            if found != NSNotFound { return found }
-        }
-        let label = definition.reference.displayName
-        let found = ns.range(of: label, options: .caseInsensitive).location
-        if found != NSNotFound { return found }
-        return nil
-    }
-
     private static func answerAlreadyStates(_ definition: ReaderFollowUpStatement, in answer: String) -> Bool {
         let body = definition.statementText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard body.count >= 40 else { return false }
         let probe = String(body.prefix(40))
         return answer.range(of: probe, options: .caseInsensitive) != nil
-    }
-
-    private static func mentions(_ statement: ReaderFollowUpStatement, in answer: String) -> Bool {
-        answer.range(of: statement.reference.displayName, options: .caseInsensitive) != nil
-    }
-
-    private static func hasText(_ statement: ReaderFollowUpStatement) -> Bool {
-        statement.statementText.trimmingCharacters(in: .whitespacesAndNewlines).count >= 12
     }
 
     private static func readsBefore(_ lhs: ReaderFollowUpStatement, _ rhs: ReaderFollowUpStatement) -> Bool {

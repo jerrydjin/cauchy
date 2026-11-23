@@ -7,14 +7,15 @@ enum ReadingPromptBuilder {
 
     static func instructions(for context: ReadingContext, provider: AssistantConnectorID = .onDevice) -> String {
         var prompt = """
-        You are helping someone read "\(context.documentTitle)".
+        You are a professor helping someone read "\(context.documentTitle)".
+        The first sentence of every reply is the mathematical point, as you would say it at the board. Do not describe the page, the question, or your method before that.
 
-        SELECTED TEXT (their exact focus — answer about this first):
+        THE LINES THEY ASKED ABOUT (this question is about these lines and no others):
         ---
         \(context.selectedText)
         ---
 
-        SURROUNDING CONTEXT (nearby paragraphs for reference):
+        NEARBY LINES (use these if they help; do not mention that they were supplied):
         ---
         \(context.surroundingText)
         ---
@@ -23,7 +24,7 @@ enum ReadingPromptBuilder {
         if !context.retrievedPassages.isEmpty {
             prompt += """
 
-            RELEVANT PASSAGES (from elsewhere in the document):
+            OTHER LINES FROM THE DOCUMENT:
             ---
             \(context.retrievedPassages.joined(separator: "\n\n"))
             ---
@@ -42,12 +43,16 @@ enum ReadingPromptBuilder {
         prompt += """
 
         Content rules:
-        - Ground your answer in the text above (and retrieved passages if present).
-        - Use supplied PDF text rather than a model's restatement. Excerpts can be clipped or have lossy math extraction; do not silently complete missing notation. Say when a precise formula needs checking on the original page.
-        - A CITABLE PDF LOCATIONS block accompanies each question when Cauchy has resolved exact original-page regions. S1 identifies the selected text, R1/R2/... identify PDF source excerpts in order, and P1/P2/... identify relevant passages in order. A source without an ID is context only, not a verified location.
-        - Put a source ID such as [S1] or [R1] immediately after each material claim drawn directly from a cited PDF excerpt. Keep separate claims in separate sentences or paragraphs, and cite each substantive paragraph or list item. Keep IDs outside math delimiters. Use only listed IDs; do not invent one or substitute a page number. An ID identifies an inspectable input, not automatic proof of your reasoning.
-        - You may use established knowledge of the field to actually answer the question; note briefly when something comes from outside the passage.
-        - If the passage defers something (to an appendix, a problem sheet, another paper), still state the standard account of it rather than only saying it is deferred.
+        - Answer the question they asked, about the lines they asked about. The first sentence is that point, as you would say it at the board. No preamble, no "the text says", no closing summary of how you answered.
+        - Explain the step they are stuck on. Name the definition or result the step uses, then why the conclusion follows. Do not merely repeat the sentence, and do not answer a different line.
+        - Short paragraphs.
+        - Ground the reasoning in the lines above. A CITABLE PDF LOCATIONS block accompanies each question when Cauchy has resolved exact page regions. S1 is the lines they asked about, R1/R2/... are numbered statements in order, and P1/P2/... are other lines in order. A source without an ID is context only.
+        - Put a source ID such as [S1] or [R1] immediately after each material claim taken from a listed location. Keep separate claims in separate sentences, and cite each substantive paragraph. Keep IDs outside math delimiters. Use only listed IDs; do not invent one or substitute a page number.
+        - You may use standard knowledge of the field. Fold it into the explanation without announcing that you are doing so.
+        - Never mention how the lines reached you. Do not write any of these: "selected passage", "supplied excerpts", "supplied excerpt", "surrounding context", "extracted text", "extraction artifact", "check the original page".
+        - If a formula is obviously garbled (a missing slash, a set difference written with a backslash, a summation sign dropped), read the mathematics that was intended and say nothing about the garbling.
+        - Mention a typo only when the printed mathematics itself is inconsistent, in plain words ("the paper writes …; that should be …").
+        - If the text defers a result, still give the standard account rather than only saying it is deferred.
         - Do not summarize the whole document.
         - Be precise and concise.
         - Use plain-text section headings (for example, "1. Proof for addition"). Do not use markdown # headings or code fences.
@@ -55,9 +60,9 @@ enum ReadingPromptBuilder {
         Evidence boundary (mandatory):
         - End every reply with exactly one machine-readable marker on its own line. The app hides it from the reader.
         - Use [[CAUCHY_BASIS: PDF]] only when every material mathematical or factual claim follows directly from a source with a listed, resolvable ID and each such claim carries its source ID. If no ID is available, do not declare PDF-only.
-        - Use [[CAUCHY_BASIS: MIXED]] when any material claim uses established knowledge, an inference not stated in the supplied PDF text, or a completion of clipped/lossy notation. Clearly separate that outside material in the prose.
-        - Use [[CAUCHY_BASIS: INSUFFICIENT]] when the supplied evidence is too incomplete or ambiguous to answer reliably. State what the PDF does and does not establish; do not guess.
-        - Never cite or imply access to a page that was not supplied in the prompt.
+        - Use [[CAUCHY_BASIS: MIXED]] when any material claim uses established knowledge or an inference that is not stated in the text above. Do not add a sentence whose only job is to announce that split.
+        - Use [[CAUCHY_BASIS: INSUFFICIENT]] when the text is too incomplete to answer. Say what it does and does not establish, in the same voice as the rest of the reply, and do not guess.
+        - Never cite or imply access to a page that was not included above.
 
         \(latexOutputContract)
         """
@@ -70,7 +75,7 @@ enum ReadingPromptBuilder {
     static func referencedStatementsBlock(_ statements: [String], characterBudget: Int) -> String? {
         guard let clipped = clip(statements, to: characterBudget) else { return nil }
         return """
-        PDF SOURCE EXCERPTS (verbatim text layer; may be clipped or lose math layout — do not assume a complete statement):
+        NUMBERED STATEMENTS (background from the document; do not make one of these the answer unless it is the lines they asked about. Read an obvious typesetting glitch as the intended formula and do not mention it):
 
         \(clipped.joined(separator: "\n\n"))
         """
@@ -82,7 +87,7 @@ enum ReadingPromptBuilder {
     static func retrievedPassagesBlock(_ passages: [String], characterBudget: Int) -> String? {
         guard let clipped = clip(passages, to: characterBudget) else { return nil }
         return """
-        RELEVANT PASSAGES (from elsewhere in the document — mention the page number when you rely on one):
+        OTHER PASSAGES (from elsewhere in the document — mention the page number when you rely on one):
 
         \(clipped.joined(separator: "\n\n"))
         """
@@ -96,7 +101,7 @@ enum ReadingPromptBuilder {
             return "[\(id)] \(source.label), PDF p. \(source.pageIndex + 1)"
         }
         guard !lines.isEmpty else { return nil }
-        return "CITABLE PDF LOCATIONS (IDs map to the selected text, numbered source excerpts, and passages above):\n"
+        return "CITABLE PDF LOCATIONS (IDs map to the reader's selection, the numbered statements, and the other passages above):\n"
             + lines.joined(separator: "\n")
     }
 

@@ -309,7 +309,7 @@ enum RenderReferencePreview {
         switch block {
         case .text(let value):
             return value
-        case .displayMath(let latex):
+        case .displayMath(let latex, _):
             return latex
         case .inlineLine(let segments):
             return segments.map(describeSegment).joined()
@@ -335,7 +335,7 @@ enum RenderReferencePreview {
 
     private static func mathLatex(_ block: MessageBlock) -> [String] {
         switch block {
-        case .displayMath(let latex):
+        case .displayMath(let latex, _):
             return [latex]
         case .inlineLine(let segments):
             return segments.compactMap { segment in

@@ -4,26 +4,95 @@ import XCTest
 /// Synthetic statements only. Nothing here is copied from a paper, a holdout,
 /// or the scorecard set.
 final class ReaderFollowUpTests: XCTestCase {
-    func testProofAndNextResultAreTheTwoFollowUps() {
-        let followUps = ReaderFollowUps.suggest(
+    func testFollowUpUsesTheCitedProofAndNotTheNextProposition() {
+        let fromTheAnchor = ReaderFollowUps.suggest(
             answer: "A continuous image of a closed interval is connected. [R1]",
+            question: "Why is the image connected?",
+            anchors: [anchor("R1", label: "Proposition 5.3")],
+            statements: notes
+        )
+        XCTAssertTrue(fromTheAnchor.isEmpty, "an anchor label the turn never wrote is not a chip")
+
+        let followUps = ReaderFollowUps.suggest(
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
+            question: "Why is the image connected?",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes
         )
 
-        XCTAssertEqual(followUps.count, 2)
-        XCTAssertEqual(
-            followUps.map(\.question),
-            [
-                "Why does the proof of Proposition 5.3 need compactness?",
-                "What does Theorem 5.4 build on?",
-            ]
-        )
+        XCTAssertEqual(followUps.count, 1)
+        XCTAssertTrue(followUps[0].question.localizedCaseInsensitiveContains("Proposition 5.3"))
+        XCTAssertTrue(followUps[0].question.localizedCaseInsensitiveContains("compactness"))
+        XCTAssertFalse(followUps[0].question.localizedCaseInsensitiveContains("5.4"))
+        XCTAssertFalse(ReaderFollowUps.isFiller(followUps[0].question))
         XCTAssertEqual(followUps[0].pageLabel, "41")
         XCTAssertEqual(followUps[0].pageIndex, 40)
-        XCTAssertEqual(followUps[1].pageLabel, "47")
-        XCTAssertEqual(followUps[1].pageIndex, 46)
         XCTAssertTrue(followUps.allSatisfy { !ReaderFollowUps.isGeneric($0.question) })
+    }
+
+    func testAChipLabelMustAppearInTheQuestionOrTheAnswer() {
+        let question = "Why is the image connected?"
+        let answer = "A continuous image of a closed interval is connected."
+        let chip = "What fails in the proof of Proposition 5.3 without compactness?"
+        XCTAssertFalse(ReaderFollowUps.chipReferencesOnlyTheTurn(chip, question: question, answer: answer))
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                chip,
+                question: question,
+                answer: "By Proposition 5.3, a continuous image of a closed interval is connected."
+            )
+        )
+        XCTAssertFalse(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "Where does Lemma 2.1 enter?",
+                question: "Why?",
+                answer: "By Proposition 5.3 the image is connected."
+            )
+        )
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "What does Section 3 assume?",
+                question: "Read Section 3.",
+                answer: answer
+            )
+        )
+        XCTAssertFalse(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "Apply Equation (1.2).",
+                question: question,
+                answer: answer
+            )
+        )
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "Apply Equation (1.2).",
+                question: question,
+                answer: "From Equation (1.2) the constant term vanishes."
+            )
+        )
+        XCTAssertTrue(
+            ReaderFollowUps.chipReferencesOnlyTheTurn(
+                "What does compactness require?",
+                question: question,
+                answer: answer
+            )
+        )
+    }
+
+    func testNearbyPropositionsTheAnswerNeverCitedAreNotSuggested() {
+        let nearby = [
+            statement(.proposition, "1.4.14", page: 82, text: "A holomorphic function with a zero derivative is constant."),
+            statement(.proposition, "1.5.8", page: 90, text: "The zeros of a non-zero holomorphic function are isolated."),
+        ]
+        let followUps = ReaderFollowUps.suggest(
+            answer: "Because h(z0) = h'(z0) = 0, the first two Taylor coefficients vanish, so a0 = a1 = 0.",
+            question: "slightly lost how we concluded this",
+            selection: "Suppose h(z0) = h'(z0) = 0. Then a0 = a1 = 0.",
+            statements: notes + nearby
+        )
+
+        XCTAssertTrue(followUps.isEmpty)
+        XCTAssertFalse(followUps.contains { $0.question.contains("1.4.14") || $0.question.contains("1.5.8") })
     }
 
     func testNoFollowUpWhenTheAnswerCitesNothingInTheDocument() {
@@ -63,7 +132,9 @@ final class ReaderFollowUpTests: XCTestCase {
             statements: [proposition, definition]
         )
 
-        XCTAssertEqual(followUps.map(\.question), ["What does the definition of least element require?"])
+        XCTAssertEqual(followUps.count, 1)
+        XCTAssertTrue(followUps[0].question.localizedCaseInsensitiveContains("least element"))
+        XCTAssertFalse(followUps[0].question.localizedCaseInsensitiveContains("1.4"))
         XCTAssertEqual(followUps.first?.pageLabel, "4")
     }
 
@@ -84,18 +155,26 @@ final class ReaderFollowUpTests: XCTestCase {
             statements: [proposition, exercise]
         )
 
-        XCTAssertEqual(followUps.map(\.question), ["Try it on f(x) = 1/x."])
-        XCTAssertEqual(followUps.first?.pageIndex, 9)
+        XCTAssertTrue(followUps.isEmpty, "an exercise the answer never cites is not a chip")
+
+        let cited = ReaderFollowUps.suggest(
+            answer: "Proposition 2.2 says a monotone bounded sequence converges. Exercise 2.4 asks for a check.",
+            statements: [proposition, exercise]
+        )
+        XCTAssertEqual(cited.map(\.question), ["Try it on f(x) = 1/x."])
+        XCTAssertEqual(cited.first?.pageIndex, 9)
     }
 
     func testAlreadyAskedQuestionIsDropped() {
         let followUps = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: [
-                "Why does the proof of Proposition 5.3 need compactness?",
-                "What does Theorem 5.4 build on?",
+                "Why does the proof of Proposition 5.3 use compactness?",
+                "Where does compactness enter the proof of Proposition 5.3?",
+                "How does compactness finish the argument for Proposition 5.3?",
+                "What fails in the proof of Proposition 5.3 without compactness?",
             ]
         )
 
@@ -106,27 +185,27 @@ final class ReaderFollowUpTests: XCTestCase {
     /// including a paraphrase. Synthetic statements only.
     func testFollowUpDoesNotRepeatOrParaphraseTheQuestionJustAsked() {
         let exact = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["What does Theorem 5.4 build on?"]
         )
-        XCTAssertEqual(
-            exact.map(\.question),
-            ["Why does the proof of Proposition 5.3 need compactness?"]
-        )
+        XCTAssertEqual(exact.count, 1)
+        XCTAssertTrue(exact[0].question.localizedCaseInsensitiveContains("compactness"))
+        XCTAssertTrue(exact[0].question.localizedCaseInsensitiveContains("Proposition 5.3"))
         XCTAssertFalse(exact.contains { $0.question.localizedCaseInsensitiveContains("Theorem 5.4") })
 
         let paraphrase = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["What is Theorem 5.4 built on?"]
         )
         XCTAssertEqual(paraphrase.map(\.question), exact.map(\.question))
+        XCTAssertFalse(paraphrase.contains { $0.question.localizedCaseInsensitiveContains("5.4") })
 
         let depends = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["What does Thm. 5.4 depend on?"]
@@ -134,29 +213,21 @@ final class ReaderFollowUpTests: XCTestCase {
         XCTAssertEqual(depends.map(\.question), exact.map(\.question))
 
         let none = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
-            alreadyAsked: [
-                "Why does the proof of Proposition 5.3 need compactness?",
-                "What is Theorem 5.4 built on?",
-            ]
+            alreadyAsked: exact.map(\.question)
         )
         XCTAssertTrue(none.isEmpty)
 
         let differentAsk = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected.",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected.",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes,
             alreadyAsked: ["Why does the proof of Theorem 5.4 need compactness?"]
         )
-        XCTAssertEqual(
-            differentAsk.map(\.question),
-            [
-                "Why does the proof of Proposition 5.3 need compactness?",
-                "What does Theorem 5.4 build on?",
-            ]
-        )
+        XCTAssertEqual(differentAsk.map(\.question), exact.map(\.question))
+        XCTAssertFalse(differentAsk.contains { $0.question.localizedCaseInsensitiveContains("5.4") })
     }
 
     func testAnswerThatAlreadyGivesTheProofDoesNotRepeatIt() {
@@ -166,16 +237,13 @@ final class ReaderFollowUpTests: XCTestCase {
             statements: notes
         )
 
-        XCTAssertEqual(
-            followUps.map(\.question),
-            ["What does the definition of compactness require?"]
-        )
-        XCTAssertEqual(followUps.first?.pageLabel, "13")
+        XCTAssertTrue(followUps.isEmpty)
+        XCTAssertFalse(followUps.contains { $0.question.localizedCaseInsensitiveContains("5.4") })
     }
 
     func testFollowUpVoiceOverIsTheQuestionOnly() {
         let followUps = ReaderFollowUps.suggest(
-            answer: "A continuous image of a closed interval is connected. [R1]",
+            answer: "By Proposition 5.3, a continuous image of a closed interval is connected. [R1]",
             anchors: [anchor("R1", label: "Proposition 5.3")],
             statements: notes
         )
@@ -208,9 +276,9 @@ final class ReaderFollowUpTests: XCTestCase {
             statements: notes + [exercise]
         )
 
-        XCTAssertEqual(followUps.count, 2)
-        XCTAssertEqual(followUps[0].question, "Why does the proof of Proposition 5.3 need compactness?")
-        XCTAssertEqual(followUps[1].question, "What does Theorem 5.4 build on?")
+        XCTAssertLessThanOrEqual(followUps.count, 2)
+        XCTAssertFalse(followUps.contains { $0.question.localizedCaseInsensitiveContains("5.4") })
+        XCTAssertFalse(followUps.contains { ReaderFollowUps.isFiller($0.question) })
     }
 
     func testProofTextStopsBeforeTheNextResult() {

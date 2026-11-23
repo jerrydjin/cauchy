@@ -245,7 +245,8 @@ struct SelectionThread: Equatable, Sendable {
     var messages: [ThreadMessage]
     var isPersisted: Bool
     var streamingAssistantText: String?
-    /// Shown in the transcript when an ask fails. Not saved with the highlight.
+    /// Shown in the transcript when an ask fails. Saved on the highlight as
+    /// `askFailure`, so a stopped question is still a thread the reader can retry.
     var failureNotice: String?
 
     init(

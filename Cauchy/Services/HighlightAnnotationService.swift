@@ -8,6 +8,32 @@ enum HighlightAnnotationService {
     /// Repaints every Cauchy annotation in `document`. Deliberately not
     /// isolated: the export path builds its own `PDFDocument` off the main
     /// actor and paints into that one, and none of this touches shared state.
+    /// Opacity of an in-flight highlight. A slow cosine so the colour stays
+    /// the reader's own and only the strength breathes, about once every 2.6s.
+    nonisolated static func pulseOpacity(at time: TimeInterval) -> CGFloat {
+        let period = 2.6
+        let turns = time.truncatingRemainder(dividingBy: period) / period
+        let wave = 0.5 - 0.5 * cos(turns * 2 * Double.pi)
+        return 0.15 + 0.32 * CGFloat(wave)
+    }
+
+    /// Repaints one highlight's annotations in place. Used while an answer is
+    /// streaming so the page does not rebuild every annotation each frame.
+    nonisolated static func applyPulse(
+        document: PDFDocument,
+        highlightID: UUID,
+        color: NSColor,
+        opacity: CGFloat
+    ) {
+        let painted = color.withAlphaComponent(opacity)
+        for index in 0..<document.pageCount {
+            guard let page = document.page(at: index) else { continue }
+            for annotation in page.annotations where Self.highlightID(from: annotation) == highlightID {
+                annotation.color = painted
+            }
+        }
+    }
+
     nonisolated static func sync(document: PDFDocument, highlights: [Highlight], activeID: UUID?) {
         removeAllCauchyAnnotations(from: document)
         for highlight in highlights {

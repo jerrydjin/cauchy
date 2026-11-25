@@ -71,6 +71,11 @@ enum ReferenceParsing {
     /// uppercase, so "(a.1)" is not one, and a bare "(A)" is not one either.
     static let equationCitePattern = #"(?i:(?:\bby\b|\bsee\b|\bfrom\b|\beq(?:uation)?\.?\s*))?\(\s*([A-Z](?:\.\d+)+|\d+(?:\.\d+)*)(?i:([a-z]))?\s*\)"#
 
+    /// "Equation 3.4" names the tag without parentheses. A lowercase "equation"
+    /// in running prose and "Equations 3" do not match. The declaration filter
+    /// ignores a match with no parenthesis, so this stays a reference.
+    static let equationWordPattern = #"\bEquation\s+([A-Z](?:\.\d+)+|\d+(?:\.\d+)*)\b"#
+
     // The optional panel suffix belongs to the mention, not the figure's
     // identity: "Fig. 3a,b" links to the numbered Figure 3 object.
     static let figurePattern = foldingLigatures(

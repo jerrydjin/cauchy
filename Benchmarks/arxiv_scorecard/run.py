@@ -634,6 +634,23 @@ def _fmt_rate(card: dict) -> str:
     return f"{card['resolution_rate']:.0%} ({card['correct']}/{card['denominator']})"
 
 
+def _printed_tag_line(rows: list[dict]) -> str:
+    """Answer-key totals stay in the columns above. This line is only tags the HTML does not declare."""
+    resolved = missed = wrong = 0
+    for row in rows:
+        tags = row["profiles"]["main"].get("printed_equation_tags") or {}
+        resolved += tags.get("resolved", 0)
+        missed += tags.get("missed", 0)
+        wrong += tags.get("wrong_links", 0)
+    denominator = resolved + missed + wrong
+    return (
+        f"Printed equation tags (PDF-only): {resolved}/{denominator} resolved, "
+        f"{wrong} wrong links. These cites are “(N)”, “eq. (N)”, “equation (N)”, or “Equation N” "
+        "whose number is printed as an equation tag and is not an HTML equation anchor. "
+        "They are not included in the answer-key resolution rate or its wrong-link count."
+    )
+
+
 def _search_blurb(rows: list[dict]) -> str:
     comparable = [row for row in rows if not _low_print_agreement(row)]
     exact = sum(1 for row in comparable if row["profiles"]["main"]["number_search"].get("served"))
@@ -829,7 +846,7 @@ def _write_markdown(payload: dict) -> None:
         "A TeX annotation nested in a heading is not part of the title, and “SL 2” matches a bookmark “SL2”. "
         "Main also drops a local reference inside [12], [IK99, Lemma 1.15], (Smith 2019), or Smith et al. [2019]; "
         "an interval such as [0, 1] is not a citation. "
-        "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. A number alone on its line is an equation when the next line is a formula, as in “(1)” followed by “xn+m xn = P(...)”, or when a formula occurs within the previous 600 characters. It is not an equation when the text layer split a subscript, as in “E[R” then “(1)” then “x”, or “(0)” under a one-digit line, or when a left-margin “(2)” continues a wrapped list item whose next line is not a formula. It is also not an equation when it continues a one-letter symbol as an index, as in “B” then “(2)” then “n+1”, or when it sits under a one-digit row and before a control-character fence. A line-start statement whose previous line ends with a preposition, as in “step 2 of” then “Lemma 7. Since…”, is a wrapped mention. A statement label that is the last line of a page keeps the statement that starts the next page, after a running header and a page number; the next page is not that statement when it opens a new section or statement. A parenthesized number is an equation label when the rest of its line is empty or is a short formula. A sentence that continues past the number, as in “(2.52) respectively …”, is a citation, and a bare integer between two integer lines, as in “1” then “(12)” then “12”, is a table cell. A dotted tag alone on its line, such as “(2.4)”, is an equation even when the math font extracts no equals sign. A dotted tag that ends the line is still that equation when the text before it is a formula fragment, such as a comma, “0.”, or a formula with no equals sign. A sentence, “cf. (1.2)”, and a table cell such as “25 (9.6)” are not. A part letter on that tag, such as “(2.7a)”, is still equation 2.7. An appendix tag such as “(A.1)” or “(B.10)” is that equation. A bare “(A)” is not. A bare integer printed with two or more part letters, such as “(7a)” and “(7b)”, is equation 7; a lone “(1a)” is not an equation. A bare “(1)” at the end of a prose sentence is not an equation, even when the line wraps at the right margin. A section number on its own line joins the next line when both are emphasized: bold for a section, italic for a dotted subsection. "
+        "A bare integer with text to its right, such as “(1) f ∈ W”, is an enumerated item and is not indexed as an equation. A number alone on its line is an equation when the next line is a formula, as in “(1)” followed by “xn+m xn = P(...)”, or when a formula occurs within the previous 600 characters. It is not an equation when the text layer split a subscript, as in “E[R” then “(1)” then “x”, or “(0)” under a one-digit line, or when a left-margin “(2)” continues a wrapped list item whose next line is not a formula. It is also not an equation when it continues a one-letter symbol as an index, as in “B” then “(2)” then “n+1”, or when it sits under a one-digit row and before a control-character fence. A line-start statement whose previous line ends with a preposition, as in “step 2 of” then “Lemma 7. Since…”, is a wrapped mention. A statement label that is the last line of a page keeps the statement that starts the next page, after a running header and a page number; the next page is not that statement when it opens a new section or statement. A parenthesized number is an equation label when the rest of its line is empty or is a short formula. A sentence that continues past the number, as in “(2.52) respectively …”, is a citation, and a bare integer between two integer lines, as in “1” then “(12)” then “12”, is a table cell. A dotted tag alone on its line, such as “(2.4)”, is an equation even when the math font extracts no equals sign. A dotted tag that ends the line is still that equation when the text before it is a formula fragment, such as a comma, “0.”, or a formula with no equals sign. A sentence, “cf. (1.2)”, and a table cell such as “25 (9.6)” are not. A bare tag that ends the line is that equation when the fragment is closed by a period and contains a formula symbol, as in “f(x) + g(x). (4)”. “1. (2)” is a note, and a four-digit year such as “(2025)” is not a tag. A dotted tag at the start of a line is that equation when the rest of the line has no word and a relation follows, as in “(1.2) Φ(1)” and then “a = b”. “(2.52) respectively” and “(H.2) Let f” stay citations. “Equation 3.4” without parentheses is a reference to that tag, not a declaration. A part letter on that tag, such as “(2.7a)”, is still equation 2.7. An appendix tag such as “(A.1)” or “(B.10)” is that equation. A bare “(A)” is not. A bare integer printed with two or more part letters, such as “(7a)” and “(7b)”, is equation 7; a lone “(1a)” is not an equation. A bare “(1)” at the end of a prose sentence is not an equation, even when the line wraps at the right margin. A section number on its own line joins the next line when both are emphasized: bold for a section, italic for a dotted subsection. "
         "“Lemmas 4.6” is lemma 4.6. “Theorem 6 and 7” and “Theorem 3.1, 3.4 and 3.5” name every number; “Theorem 6 and the bound” stays theorem 6. “Lemma 2” retrieves a lemma numbered 2.1. "
         "A parenthetical printed on the declaration, such as “(Zorn)”, is stored as the statement name. "
         "Dropping only the section-question condition, "
@@ -854,6 +871,8 @@ def _write_markdown(payload: dict) -> None:
         ),
         "",
         "Text comes from PyMuPDF’s content stream, the stand-in for `PDFPage.string`. Equation x-positions are glyph-box fractions, the stand-in for PDFKit selection bounds. No model is called; index time is the deterministic source fallback. Token estimates are input size only and were not billed.",
+        "",
+        _printed_tag_line(random_rows),
         "",
         _search_blurb(random_rows),
         "",
@@ -927,6 +946,10 @@ def _write_markdown(payload: dict) -> None:
             f"false declarations {main['false_declaration_count']}"
             f"{_pdf_verified_note(main)}. "
             f"Index built in {main['index_seconds']:.2f}s plus {row['extract_seconds']:.2f}s extraction. "
+            f"Printed equation tags (PDF-only): "
+            f"{main.get('printed_equation_tags', {}).get('resolved', 0)}/"
+            f"{main.get('printed_equation_tags', {}).get('denominator', 0)} resolved, "
+            f"{main.get('printed_equation_tags', {}).get('wrong_links', 0)} wrong links. "
             f"A model pass would send about {row['model_input']['estimated_input_tokens']} input tokens "
             f"across {row['model_input']['pages_that_would_call_the_model']} pages."
         )

@@ -422,6 +422,9 @@ enum LLMReferenceIndexSupport {
                 return isLineStartStatement(after)
             }
 
+            // "Equation 4" is a reference to a tag, not the tag. The parenthesis
+            // is what a reader sees printed at the margin.
+            if !sourceText[match.range].contains("(") { return false }
             let lineEnd = after.firstIndex(of: "\n") ?? after.endIndex
             let suffix = after[..<lineEnd].trimmingCharacters(in: .whitespacesAndNewlines)
             let matchOffset = match.range.lowerBound.utf16Offset(in: sourceText)
@@ -461,6 +464,13 @@ enum LLMReferenceIndexSupport {
                 matchStart: match.range.lowerBound,
                 matchEnd: match.range.upperBound
             ) {
+                // "(5.2) Φ(1)" is the tag; the relation is on the next line.
+                // "(2.52) respectively …" and "(H.2) Let f" are prose.
+                if match.reference.number.contains("."), prefix.isEmpty, !suffix.isEmpty,
+                   suffix.range(of: #"[A-Za-z]{3,}"#, options: .regularExpression) == nil,
+                   followingLineIsDisplay(sourceText, after: match.range.upperBound) {
+                    return true
+                }
                 return false
             }
 
@@ -469,6 +479,17 @@ enum LLMReferenceIndexSupport {
             // port uses the same test.
             if match.reference.number.contains("."), suffix.isEmpty,
                prefixIsFormulaFragment(String(prefix)) {
+                return true
+            }
+
+            // A bare tag uses that fragment test when a period closes the
+            // formula ("f(x) + g(x). (4)"). The period alone is not enough:
+            // "1. (2)" is a note, and "(2025)" after a title is a year.
+            // The scorecard port uses the same test.
+            if Int(match.reference.number) != nil, !isCalendarYear(match.reference.number),
+               suffix.isEmpty, prefix.hasSuffix("."),
+               prefixIsFormulaFragment(String(prefix)),
+               prefix.contains(where: isFormulaSymbol) {
                 return true
             }
 
@@ -662,6 +683,12 @@ enum LLMReferenceIndexSupport {
             return false
         }
         return true
+    }
+
+    /// "(2025)" is a publication year. Equation numbers in this corpus are shorter.
+    private static func isCalendarYear(_ number: String) -> Bool {
+        guard number.count == 4, let year = Int(number) else { return false }
+        return (1900...2099).contains(year)
     }
 
     /// A character other than an ASCII letter, digit, space, or `,.;:`.

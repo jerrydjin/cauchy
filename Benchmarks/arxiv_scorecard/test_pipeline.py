@@ -947,6 +947,44 @@ class DeclarationTests(unittest.TestCase):
         self.assertIsNotNone(index.lookup("equation", "3.8"))
         self.assertIsNone(index.lookup("equation", "9.6"))
 
+    def test_bare_tag_after_a_closed_formula_is_the_equation(self) -> None:
+        # Synthetic. The period closes the formula. A numbered note, a
+        # citation, a year, and a function value are not tags.
+        page = "\n".join([
+            "The display ends with the tag.",
+            "f(x) + g(x). (4)",
+            "See (4) in the next section.",
+            "1. (2)",
+            "cf. (6)",
+            "x + y. (2025)",
+            "Yn+1 (0)",
+            "Equation 4 restates the tag.",
+        ])
+        numbers = [item.number for item in declaration_matches(page) if item.kind == "equation"]
+        self.assertIn("4", numbers)
+        self.assertNotIn("2", numbers)
+        self.assertNotIn("6", numbers)
+        self.assertNotIn("2025", numbers)
+        self.assertNotIn("0", numbers)
+        mentions = [item for item in all_references(page) if item.kind == "equation"]
+        self.assertTrue(any(item.text == "Equation 4" and item.number == "4" for item in mentions))
+
+    def test_dotted_leqno_tag_keeps_the_relation_on_the_next_line(self) -> None:
+        # Synthetic. The tag starts the line and the relation follows.
+        # A word after the tag is a citation, including a hypothesis.
+        page = "\n".join([
+            "(1.2) Q(1)",
+            "a = b + c",
+            "(2.52) respectively the other case",
+            "x = y",
+            "(H.2) Let f be smooth.",
+            "g = h",
+        ])
+        numbers = [item.number for item in declaration_matches(page) if item.kind == "equation"]
+        self.assertIn("1.2", numbers)
+        self.assertNotIn("2.52", numbers)
+        self.assertNotIn("H.2", numbers)
+
     def test_dotted_own_line_tag_does_not_need_a_formula_above_it(self) -> None:
         page = "\n".join([
             "The estimate is recorded below.",
@@ -1735,6 +1773,40 @@ class PdfStatementHeadingTests(unittest.TestCase):
         self.assertEqual(card["false_declaration_count"], 1)
         self.assertEqual(card["false_declarations"], ["p.1 equation 2.4"])
         self.assertTrue(any("not a PDF statement heading" in reason for reason in card["fail_reasons"]))
+
+    def test_printed_equation_tags_stay_out_of_the_answer_key(self) -> None:
+        # Synthetic. Equation 4 is printed and cited. The HTML never declares
+        # it, so the answer key still records a false declaration, and the
+        # PDF-only line credits the cites without changing that count.
+        from ground_truth import Declaration, Mention, PaperTruth, SectionInfo
+        from score import score_profile
+
+        truth = PaperTruth(
+            mentions=[Mention("equation", "1", "equation", "(1)", False, "(1)")],
+            declarations=[Declaration("equation", "1", None, 0)],
+            sections=[SectionInfo("1", "Introduction", 1)],
+        )
+        pages = [{
+            "page_index": 0,
+            "text": "\n".join([
+                "1. Introduction",
+                "(1)",
+                "x = y + z",
+                "see (1) again.",
+                "f(t) + g(t). (4)",
+                "eq. (4) holds.",
+                "Equation 4 is the same display.",
+                "see (9) which is not printed as a tag.",
+            ]),
+        }]
+        card = score_profile(truth, pages, "main", use_structure=False)
+        self.assertEqual(card["wrong_links"], 0)
+        self.assertIn("p.1 equation 4", card["false_declarations"])
+        tags = card["printed_equation_tags"]
+        self.assertEqual(tags["wrong_links"], 0)
+        self.assertEqual(tags["missed"], 0)
+        self.assertEqual(tags["resolved"], 2)
+        self.assertGreater(card["correct"], 0)
 
 
 class SectionListMentionTests(unittest.TestCase):

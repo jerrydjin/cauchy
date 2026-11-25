@@ -39,6 +39,7 @@ from cauchy_logic import (
     _number_sort_key,
     all_references,
     build_statement_index,
+    declaration_matches,
     _explicit_section_number,
     _is_line_start_statement,
     fold_ligatures,
@@ -397,6 +398,69 @@ def _page_maps(pages: list[dict], profile: str) -> tuple[dict[int, list], dict[i
     return matches, cites, prepared
 
 
+def _printed_equation_tags(truth: PaperTruth, pages: list[dict], index: StatementIndex, profile: str) -> dict:
+    """References to equation tags the PDF prints and the HTML does not declare.
+
+    Kept out of the answer-key counts. A reference is "(N)", "eq. (N)",
+    "equation (N)", or "Equation N". It counts when that number is an indexed
+    equation and the index entry is the printed tag. The tag line itself is
+    not a reference. Opening a different indexed statement is a wrong link.
+    """
+    html_numbers = {item.number for item in truth.declarations if item.kind == "equation"}
+    printed = {
+        entry.number: entry.page_index
+        for entry in index.entries.values()
+        if entry.kind == "equation" and entry.number not in html_numbers
+    }
+    resolved = 0
+    missed = 0
+    wrong = 0
+    examples: list[str] = []
+    for page in pages:
+        text = page["text"]
+        positions = page.get("equation_label_x") or {}
+        declarations = {
+            (match.start, match.end)
+            for match in declaration_matches(text, positions, profile)
+            if match.kind == "equation"
+        }
+        cites = _citation_spans(text)
+        references = all_references(text, profile)
+        for match in references:
+            if match.kind != "equation" or match.number not in printed:
+                continue
+            if (match.start, match.end) in declarations:
+                continue
+            if _inside(cites, match.start, match.end):
+                continue
+            covering = [
+                other
+                for other in references
+                if other.start < match.end and other.end > match.start and index.lookup(other.kind, other.number) is not None
+            ]
+            entry = index.lookup("equation", match.number)
+            same = any(other.kind == "equation" and other.number == match.number for other in covering)
+            other = next(
+                (item for item in covering if (item.kind, item.number) != ("equation", match.number)),
+                None,
+            )
+            if same and entry is not None and entry.page_index == printed[match.number]:
+                resolved += 1
+            elif other is not None:
+                wrong += 1
+                _add(examples, f"p.{page['page_index'] + 1} {match.text!r} opened {other.kind} {other.number}")
+            else:
+                missed += 1
+                _add(examples, f"p.{page['page_index'] + 1} {match.text!r} did not open equation {match.number}")
+    return {
+        "resolved": resolved,
+        "missed": missed,
+        "wrong_links": wrong,
+        "denominator": resolved + missed + wrong,
+        "examples": examples,
+    }
+
+
 def score_profile(
     truth: PaperTruth,
     pages: list[dict],
@@ -534,6 +598,7 @@ def score_profile(
     false_keys.sort()
     pdf_verified.sort(key=lambda item: (item["kind"], _number_sort_key(item["number"]), item["page"]))
     rejected_statements.sort(key=lambda item: (item["kind"], _number_sort_key(item["number"]), item["page"]))
+    printed_tags = _printed_equation_tags(truth, prepared, index, profile)
 
     denominator = correct + missed + wrong + extraction_misses
     rate = 1.0 if denominator == 0 else correct / denominator
@@ -560,6 +625,7 @@ def score_profile(
         "citation_links": citation_links,
         "false_declarations": false_keys[:12],
         "false_declaration_count": len(false_keys),
+        "printed_equation_tags": printed_tags,
         "pdf_verified_declarations": pdf_verified,
         "pdf_verified_count": len(pdf_verified),
         "rejected_statement_declarations": rejected_statements,

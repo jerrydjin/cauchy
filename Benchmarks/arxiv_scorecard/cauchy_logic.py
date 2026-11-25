@@ -407,6 +407,12 @@ def detection(text: str, profile: str = "main") -> Detection:
                     continue
         raw.append(Match("equation", number, found.start(), found.end(), found.group(0)))
 
+    # "Equation 3.4" names the tag without parentheses. "equation 3.4" in
+    # running prose and "Equations 3" do not. The declaration filter ignores
+    # a match with no parenthesis, so this stays a reference.
+    for found in re.finditer(r"\bEquation\s+([A-Z](?:\.\d+)+|\d+(?:\.\d+)*)\b", text):
+        raw.append(Match("equation", found.group(1), found.start(), found.end(), found.group(0)))
+
     for found in patterns["figure"].finditer(text):
         raw.append(Match("figure", found.group(1), found.start(), found.end(), found.group(0)))
 
@@ -574,6 +580,10 @@ def declaration_matches(
                 accepted.append(match)
             continue
 
+        # "Equation 4" is a reference to a tag, not the tag. The parenthesis
+        # is what a reader sees printed at the margin.
+        if "(" not in match.text:
+            continue
         line_end = after.find("\n")
         suffix = (after if line_end < 0 else after[:line_end]).strip()
         label_x = positions.get(match.start)
@@ -591,10 +601,35 @@ def declaration_matches(
         # is that formula. A sentence that continues past the number, and a
         # bare integer between two integer lines, is not a label.
         if _equation_number_is_not_a_label(source_text, match, prefix, suffix):
+            # "(5.2) Φ(1)" is the tag; the relation is on the next line.
+            # "(2.52) respectively …" and "(H.2) Let f" are prose.
+            if (
+                "." in match.number
+                and not prefix
+                and suffix
+                and re.search(r"[A-Za-z]{3,}", suffix) is None
+                and _following_line_is_display(source_text[match.end :])
+            ):
+                accepted.append(match)
+                continue
             continue
         # ", (2.18)", "0. (5.9)", and a formula with no "=" still end in the
         # tag. A sentence and a table cell do not.
         if "." in match.number and not suffix and _prefix_is_formula_fragment(prefix):
+            accepted.append(match)
+            continue
+        # A bare tag uses that fragment test when a period closes the formula
+        # ("f(x) + g(x). (4)"). The period alone is not enough: "1. (2)" is a
+        # note, and "(2025)" after a title is a year. The scorecard port uses
+        # the same test.
+        if (
+            match.number.isdigit()
+            and not re.fullmatch(r"(?:19|20)\d{2}", match.number)
+            and not suffix
+            and prefix.endswith(".")
+            and _prefix_is_formula_fragment(prefix)
+            and re.search(r"[^A-Za-z0-9\s.,;:]", prefix)
+        ):
             accepted.append(match)
             continue
 

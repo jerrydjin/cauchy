@@ -811,6 +811,49 @@ final class LLMReferenceIndexSupportTests: XCTestCase {
         XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2.2")))
     }
 
+    func testBareTagAfterAClosedFormulaIsTheEquation() {
+        // Synthetic. The period closes the formula. A numbered note, a
+        // citation, a year, and a function value are not tags.
+        let page = """
+        The display ends with the tag.
+        f(x) + g(x). (4)
+        See (4) in the next section.
+        1. (2)
+        cf. (6)
+        x + y. (2025)
+        Yn+1 (0)
+        Equation 4 restates the tag.
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "4")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "6")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2025")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "0")))
+        let mentions = ReferenceDetector.allReferences(in: page)
+        XCTAssertTrue(mentions.contains {
+            $0.reference == DetectedReference(kind: .equation, number: "4")
+                && page[$0.range] == "Equation 4"
+        })
+    }
+
+    func testDottedLeqnoTagKeepsTheRelationOnTheNextLine() {
+        // Synthetic. The tag starts the line and the relation follows.
+        // A word after the tag is a citation, including a hypothesis.
+        let page = """
+        (1.2) Q(1)
+        a = b + c
+        (2.52) respectively the other case
+        x = y
+        (H.2) Let f be smooth.
+        g = h
+        """
+        let declarations = LLMReferenceIndexSupport.declarationMatches(in: page).map(\.reference)
+        XCTAssertTrue(declarations.contains(DetectedReference(kind: .equation, number: "1.2")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "2.52")))
+        XCTAssertFalse(declarations.contains(DetectedReference(kind: .equation, number: "H.2")))
+    }
+
     func testDottedSubequationPartOnItsOwnLineIsTheBaseEquation() {
         let page = """
         The two parts of the display are tagged separately.

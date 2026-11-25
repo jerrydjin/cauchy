@@ -26,6 +26,7 @@ struct DetectedReferenceMatch: Equatable, Sendable {
 enum ReferenceDetector {
     private static let namedBlockRegex = try! NSRegularExpression(pattern: ReferenceParsing.namedBlockPattern)
     private static let equationCiteRegex = try! NSRegularExpression(pattern: ReferenceParsing.equationCitePattern)
+    private static let equationWordRegex = try! NSRegularExpression(pattern: ReferenceParsing.equationWordPattern)
     private static let figureRegex = try! NSRegularExpression(pattern: ReferenceParsing.figurePattern)
     private static let pairedFiguresRegex = try! NSRegularExpression(pattern: ReferenceParsing.pairedFiguresPattern)
     private static let pluralBlockRegex = try! NSRegularExpression(pattern: ReferenceParsing.pluralBlockPattern)
@@ -97,6 +98,7 @@ enum ReferenceDetector {
             + pluralBlockMatches(in: text)
             + singularListMatches(in: text)
             + equationCiteMatches(in: text, barePartBases: barePartBases(in: text))
+            + equationWordMatches(in: text)
             + figureMatches(in: text)
             + pairedFigureMatches(in: text)
         let citations = externalCitations(in: text)
@@ -296,6 +298,19 @@ enum ReferenceDetector {
             }
             return DetectedReferenceMatch(
                 reference: DetectedReference(kind: .equation, number: number),
+                range: range
+            )
+        }
+    }
+
+    /// "Equation 3.4" without parentheses. The declaration filter does not
+    /// index this match; it is only a reference to a printed tag.
+    private static func equationWordMatches(in text: String) -> [DetectedReferenceMatch] {
+        matches(from: equationWordRegex, in: text) { match, source in
+            guard let numberRange = Range(match.range(at: 1), in: source),
+                  let range = Range(match.range, in: source) else { return nil }
+            return DetectedReferenceMatch(
+                reference: DetectedReference(kind: .equation, number: String(source[numberRange])),
                 range: range
             )
         }
